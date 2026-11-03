@@ -1,0 +1,476 @@
+// generator and datasource
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────
+
+enum SnapshotStatus {
+  DRAFT
+  LOCKED
+}
+
+enum TransactionType {
+  INCOME
+  DEDUCTION
+  CREDIT_BILL
+}
+
+enum TransactionSourceType {
+  MANUAL
+  CONTRACT
+  CC_TRANSACTION
+  BULK_BILL
+  PERSONAL_DEBT
+  OPERATIONAL_REFUND
+}
+
+enum FixedEssentialCategory {
+  TRANSPORT
+  INTERNET
+  VAPE
+  HAIRCUT
+}
+
+enum SavingsInstrumentType {
+  LIQUID_CASH
+  INVESTMENT_RDPU
+}
+
+enum CreditCardChargeType {
+  FULL
+  INSTALLMENT
+  RECURRING
+}
+
+enum CreditCardStatus {
+  ACTIVE
+  SETTLED
+  CANCELLED
+}
+
+enum AuditCategory {
+  TRANSACTIONS
+  LIABILITIES
+  SAVINGS
+  SETTINGS
+  BUDGET
+}
+
+enum AuditSeverity {
+  INFO
+  WARNING
+  DEFICIT
+  ADJUSTMENT
+}
+
+enum WishlistFundingType {
+  CASH
+  INSTALLMENT
+}
+
+enum WishlistStatus {
+  PLANNING
+  READY
+  PURCHASED
+}
+
+enum BudgetRevisionCategory {
+  SAVINGS
+  DAILY_OPERATIONAL
+  SELF_REWARD
+  BUFFER
+  TRANSPORT
+  INTERNET
+  VAPE
+  HAIRCUT
+  CUSTOM_BUCKET
+}
+
+// ─────────────────────────────────────────────
+// 0. User & TrustedIpAddress — Multi-Tenant & Security
+// ─────────────────────────────────────────────
+
+model User {
+  id                  Int      @id @default(autoincrement())
+  accountName         String   @default("cheeseburger")
+  username            String   @default("cheeseburger")
+  email               String   @unique
+  passwordHash        String
+  fullName            String
+  role                String   @default("STANDARD_MEMBER") // "PLATFORM_OWNER" | "BESPOKE_CLIENT" | "STANDARD_MEMBER" | "DEMO_SANDBOX"
+  status              String   @default("ACTIVE") // "ACTIVE" | "SUSPENDED"
+  blueprintType       String   @default("STANDARD_GENERAL") // "SUPERADMIN_BESPOKE" | "BESPOKE_CUSTOM" | "STANDARD_GENERAL"
+  lifeStagePreset     String   @default("CORPORATE_PROFESSIONAL") // "SUPERADMIN_BESPOKE" | "STUDENT_FIRST_JOBBER" | "CORPORATE_PROFESSIONAL" | "FREELANCER_VARIABLE" | "FAMILY_HOUSEHOLD" | "RETIREE_GOLDEN_AGE"
+  uiDensityMode       String   @default("COMMAND_COCKPIT") // "COMMAND_COCKPIT" | "SIMPLE_CLARITY"
+  securityPinHash     String?
+  ipWhitelistEnforced Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@unique([accountName, username])
+}
+
+model TrustedIpAddress {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  ipAddress  String
+  label      String
+  isActive   Boolean  @default(true)
+  lastUsedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────
+// 1. GlobalConfig  — singleton master baseline per user
+// ─────────────────────────────────────────────
+
+model GlobalConfig {
+  id                 Int      @id @default(autoincrement())
+  userId             Int      @unique @default(1)
+  baseSalary         Float
+  dailyAllowance     Float
+  laptopAllowance    Float    @default(250000)
+  dailyOperational   Float    @default(0)
+  transport          Float    @default(0)
+  internet           Float    @default(0)
+  vape               Float    @default(0)
+  haircut            Float    @default(0)
+  baseSavings        Float    @default(0)
+  creditLimit        Float    @default(7000000)
+  creditStatementDay Int      @default(20)
+  creditDueDay       Int      @default(11)
+  payrollPayoutDay   Int      @default(25)
+  ccUsageLimit          Int      @default(0)
+  paylaterUsageLimit    Int      @default(0)
+  payrollRulesJson      Json?
+  allocationBucketsJson Json?
+  surplusSplitRulesJson Json?
+  financialPolicyJson   Json?
+  autoCloseEnabled           Boolean  @default(true)
+  autoCloseAfterDays         Int      @default(14)
+  activeTrackingStartMonth   Int      @default(10)
+  activeTrackingStartYear    Int      @default(2026)
+  targetWealthAmount         Float?
+  targetWealthMonth          Int?
+  targetWealthYear           Int?
+  targetWealthBase           String?  @default("CONFIRMED_VAULT")
+  profileMode                String   @default("SUPERADMIN_BESPOKE")
+  lifeStagePreset            String   @default("SUPERADMIN_BESPOKE")
+  uiDensityMode              String   @default("COMMAND_COCKPIT")
+  onboardingCompleted        Boolean  @default(true)
+  customRoutineLabelsJson    Json?
+  customRoutineCategoriesJson Json?
+  sandboxStateJson           Json?
+  payrollMode                String   @default("BESPOKE_ATTENDANCE")
+  enabledModulesJson         Json?
+  formulaEngineType          String   @default("DEBT_FIRST_WATERFALL")
+  formulaParamsJson          Json?
+  killSwitchLeadDays         Int      @default(14)
+  killSwitchBannerEnabled    Boolean  @default(true)
+  killSwitchNotifyEmail             String?
+  killSwitchSmtpUser                String?
+  killSwitchSmtpAppPassword         String?
+  killSwitchWebhookUrl              String?
+  killSwitchWaPhone                 String?
+  killSwitchWaApiKey                String?
+  killSwitchCustomMessageTemplate   String?
+  createdAt             DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────
+// 2. MonthlySnapshot  — V2: adds status field
+// ─────────────────────────────────────────────
+
+model MonthlySnapshot {
+  id                 Int             @id @default(autoincrement())
+  userId             Int             @default(1)
+  month              Int             // 1–12
+  year               Int
+  status             SnapshotStatus  @default(DRAFT)
+  salaryAdjustment   Float           @default(0)
+  totalWorkingDays   Int             @default(0)
+  cafeteriaDeduction Float           @default(0)
+  thrAmount          Float           @default(0)
+  bonusAmount        Float           @default(0)
+
+  // Baseline targets copied from GlobalConfig at creation
+  dailyOperational   Float           @default(0)
+  transport          Float           @default(0)
+  internet           Float           @default(0)
+  vape               Float           @default(0)
+  haircut            Float           @default(0)
+  savings            Float           @default(0)
+  selfRewardTarget   Float           @default(0)
+  bufferPocket       Float           @default(0)
+  ccUsageLimit       Int             @default(0)
+  paylaterUsageLimit Int             @default(0)
+
+  // Computed and stored fields (written by services via calculator/, not re-derived on reads)
+  netSalaryIncome        Float?
+  extraIncome            Float?
+  finalTotalIncome       Float?
+  totalDeductions        Float?
+  actualDailyOperational Float?
+  actualSavings          Float?
+  selfReward             Float?
+  deficitUncovered       Float?
+  survivalPocket         Float?
+  payrollPayoutDate      DateTime?
+  isPayoutDateConfirmed  Boolean         @default(false)
+  frozenRulesJson        Json?
+  bucketRealizationsJson Json?
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+
+  transactions       Transaction[]
+  budgetRevisions    BudgetRevision[]
+
+  @@unique([userId, month, year])
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────
+// 3. Transaction
+// ─────────────────────────────────────────────
+
+model Transaction {
+  id                     Int                     @id @default(autoincrement())
+  snapshotId             Int
+  type                   TransactionType
+  sourceType             TransactionSourceType   @default(MANUAL)
+  sourceId               Int?
+  fixedEssentialCategory FixedEssentialCategory?
+  bucketKey              String?
+  label                  String
+  amount                 Float
+  date                   DateTime
+  createdAt              DateTime                @default(now())
+
+  snapshot   MonthlySnapshot       @relation(fields: [snapshotId], references: [id])
+}
+
+// ─────────────────────────────────────────────
+// 4. CreditContract  — bookkeeping only, never summed directly in deduction calc
+// ─────────────────────────────────────────────
+
+model CreditContract {
+  id                  Int      @id @default(autoincrement())
+  label               String
+  principalAmount     Float
+  monthlyInstallment  Float
+  totalTenor          Int      // original total months
+  remainingTenor      Int      // decremented only on explicit close-period, never on reads
+  isActive            Boolean  @default(true)
+  startMonth          Int
+  startYear           Int
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────
+// 5. ScheduledBill
+// ─────────────────────────────────────────────
+
+model ScheduledBill {
+  id          Int      @id @default(autoincrement())
+  label       String
+  amount      Float
+  dueDayOfMonth Int
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────
+// 6. CreditCardTransaction
+// ─────────────────────────────────────────────
+
+model CreditCardTransaction {
+  id              Int                  @id @default(autoincrement())
+  userId          Int                  @default(1)
+  label           String
+  amount          Float
+  totalAmount     Float?
+  monthlyAmount   Float?
+  chargeType      CreditCardChargeType @default(FULL)
+  tenor           Int                  @default(1)
+  category        String               @default("Subscription")
+  transactionDate DateTime
+  billingMonth    Int
+  billingYear     Int
+  endedAtMonth    Int?
+  endedAtYear     Int?
+  isRecurring     Boolean              @default(false)
+  isActive        Boolean              @default(true)
+  stoppedAtMonth  Int?
+  stoppedAtYear   Int?
+  status          CreditCardStatus     @default(ACTIVE)
+  notes           String?
+  promoLabel               String?
+  promoEndDate             DateTime?
+  postPromoNormalAmount    Int?
+  killSwitchEnabled        Boolean              @default(false)
+  providerCancelUrl        String?
+  providerCancelConfirmed  Boolean              @default(false)
+  lastKillSwitchNotifiedAt DateTime?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────
+// 7. MonthlyBulkBill
+// ─────────────────────────────────────────────
+
+model MonthlyBulkBill {
+  id                 Int      @id @default(autoincrement())
+  userId             Int      @default(1)
+  label              String   @default("Monthly Bulk Bill")
+  paylaterAmount     Float    @default(0)
+  personalDebtAmount Float    @default(0)
+  creditCardAmount   Float    @default(0)
+  amount             Float    @default(0)
+  month              Int
+  year               Int
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt @default(now())
+
+  @@unique([userId, month, year])
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────
+// 8. SavingsManualTransaction
+// ─────────────────────────────────────────────
+
+model SavingsManualTransaction {
+  id             Int                   @id @default(autoincrement())
+  userId         Int                   @default(1)
+  label          String
+  amount         Float
+  instrumentType SavingsInstrumentType @default(LIQUID_CASH)
+  date           DateTime
+  createdAt      DateTime              @default(now())
+
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────
+// 8b. SavingsGoal  — target dates and goal accumulation tracking
+// ─────────────────────────────────────────────
+
+model SavingsGoal {
+  id                     Int      @id @default(autoincrement())
+  userId                 Int      @default(1)
+  name                   String
+  targetAmount           Float
+  currentAllocatedAmount Float    @default(0)
+  targetMonth            Int
+  targetYear             Int
+  category               String   @default("GENERAL")
+  wishlistItemId         Int?
+  isCompleted            Boolean  @default(false)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────
+// 9. WishlistItem
+// ─────────────────────────────────────────────
+
+model WishlistItem {
+  id              Int                 @id @default(autoincrement())
+  userId          Int                 @default(1)
+  name            String
+  price           Float
+  fundingType     WishlistFundingType @default(CASH)
+  provider        String?
+  tenor           Int?
+  monthlyPayment  Float?
+  interestPercent Float?              @default(0)
+  targetMonth     Int?
+  targetYear      Int?
+  status          WishlistStatus      @default(PLANNING)
+  notes           String?
+  priority        Int                 @default(0)
+  savingsGoalId   Int?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────
+// 10. BudgetRevision  — append-only audit trail of target edits
+// ─────────────────────────────────────────────
+
+model BudgetRevision {
+  id            Int                    @id @default(autoincrement())
+  snapshotId    Int
+  month         Int
+  year          Int
+  category      BudgetRevisionCategory?
+  bucketKey     String?
+  bucketLabel   String?
+  previousValue Float
+  newValue      Float
+  difference    Float
+  reason        String
+  createdAt     DateTime               @default(now())
+
+  snapshot      MonthlySnapshot        @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+}
+
+// ─────────────────────────────────────────────
+// 11. AuditLog
+// ─────────────────────────────────────────────
+
+model AuditLog {
+  id        Int           @id @default(autoincrement())
+  userId    Int           @default(1)
+  action    String
+  category  AuditCategory
+  summary   String
+  details   String?
+  month     Int?
+  year      Int?
+  severity  AuditSeverity @default(INFO)
+  createdAt DateTime      @default(now())
+
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────
+// 12. CustomFeatureRequest — Commercial Feature & Custom Rule Requests
+// ─────────────────────────────────────────────
+
+model CustomFeatureRequest {
+  id                          Int      @id @default(autoincrement())
+  userId                      Int      @default(1)
+  title                       String
+  category                    String   // "CUSTOM_PAYROLL_FORMULA" | "CUSTOM_WATERFALL_RULE" | "BANK_EXPORT_INTEGRATION" | "BESPOKE_MODULE"
+  currentWorkflowDescription  String   @db.Text
+  desiredBehavior             String   @db.Text
+  priority                    String   @default("NORMAL") // "NORMAL" | "HIGH_BUSINESS_CRITICAL"
+  status                      String   @default("SUBMITTED") // "SUBMITTED" | "IN_REVIEW" | "APPROVED_QUOTED" | "IMPLEMENTED"
+  adminNotes                  String?  @db.Text
+  estimatedSetupFee           Int?
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+
+  @@index([userId])
+}

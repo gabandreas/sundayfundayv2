@@ -1,0 +1,154 @@
+@import "tailwindcss";
+@config "../tailwind.config.ts";
+
+@theme {
+  --color-canvas: #0c0e14;
+  --color-surface-subtle: #11141c;
+  --color-surface: #161922;
+  --color-surface-hover: #1d222e;
+  --color-surface-active: #242a38;
+
+  --color-border-subtle: #1f2430;
+  --color-border-default: #282e3d;
+  --color-border-strong: #384054;
+
+  --color-text-primary: #f3f4f6;
+  --color-text-secondary: #9ca3af;
+  --color-text-tertiary: #6b7280;
+  --color-text-disabled: #4b5563;
+
+  --color-delta-positive: #10b78d;
+  --color-delta-negative: #e06c53;
+
+  --color-caution: #e59b2c;
+  --color-urgency: #ff3838;
+
+  --font-sans: var(--font-geist-sans), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), monospace;
+  --font-display: var(--font-newsreader), Georgia, serif;
+}
+
+:root {
+  --background: #0c0e14;
+  --foreground: #f3f4f6;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom Global Dark-Slate Scrollbars (Non-breaking Executive Dark Aesthetics) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #1e293b #090d16;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #090d16;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+
+::-webkit-scrollbar-corner {
+  background: #090d16;
+}
+
+/* Zero-scrollbars utility for tab navigation and horizontal overflow pills */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+
+  :root,
+  html,
+  body {
+    --background: #ffffff !important;
+    --foreground: #111827 !important;
+    --color-canvas: #ffffff !important;
+    --color-surface-subtle: #f9fafb !important;
+    --color-surface: #ffffff !important;
+    --color-surface-hover: #f3f4f6 !important;
+    --color-surface-active: #e5e7eb !important;
+    --color-border-subtle: #d1d5db !important;
+    --color-border-default: #d1d5db !important;
+    --color-border-strong: #9ca3af !important;
+    --color-text-primary: #111827 !important;
+    --color-text-secondary: #374151 !important;
+    --color-text-tertiary: #4b5563 !important;
+    --color-text-disabled: #6b7280 !important;
+    --color-delta-positive: #047857 !important;
+    --color-delta-negative: #b91c1c !important;
+    --color-caution: #b45309 !important;
+    --color-urgency: #dc2626 !important;
+    background: #ffffff !important;
+    color: #111827 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  aside,
+  header,
+  nav,
+  .print-hidden {
+    display: none !important;
+  }
+
+  body > div,
+  body > div > div,
+  main {
+    display: block !important;
+    height: auto !important;
+    width: 100% !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #ffffff !important;
+    color: #111827 !important;
+  }
+
+  table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+  }
+
+  th,
+  td {
+    border-color: #d1d5db !important;
+  }
+
+  .print-avoid-break,
+  section,
+  table,
+  tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}

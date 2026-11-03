@@ -1,0 +1,55 @@
+# Dependencies
+node_modules/
+*/node_modules/
+apps/api/node_modules/
+apps/web/node_modules/
+
+# Environment files — contain secrets, never commit
+.env
+.env.*
+.env*.local
+!.env.example
+apps/api/.env
+apps/api/.env.*
+!apps/api/.env.example
+apps/web/.env
+apps/web/.env.*
+!apps/web/.env.example
+
+# Next.js build output
+.next/
+*/.next/
+apps/web/.next/
+out/
+*/out/
+apps/web/out/
+
+# NestJS build output
+dist/
+*/dist/
+apps/api/dist/
+
+# Logs & Debug
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS / Editor artefacts
+.DS_Store
+Thumbs.db
+.vscode/
+.agents/
+skills-lock.json
+
+# Browser & Puppeteer profiles
+.chrome-*
+*/.chrome-*
+chrome_profile*
+
+# Media & Temporary Verification Screenshots
+*.png
+*.jpg
+*.jpeg
+*.webp
+scratch/
