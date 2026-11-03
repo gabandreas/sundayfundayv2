@@ -29,6 +29,13 @@ dist/
 */dist/
 apps/api/dist/
 
+# Vercel deployment artifacts
+.vercel/
+*/.vercel/
+.vercel
+apps/api/.vercel
+apps/web/.vercel
+
 # Logs & Debug
 *.log
 npm-debug.log*
