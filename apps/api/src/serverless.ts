@@ -41,7 +41,18 @@ export async function bootstrapServerless(): Promise<Express> {
       },
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+      allowedHeaders: [
+        'Content-Type',
+        'Authorization',
+        'X-Requested-With',
+        'Accept',
+        'Origin',
+        'x-user-id',
+        'X-User-Id',
+        'x-snapshot-id',
+        'X-Snapshot-Id',
+      ],
+      exposedHeaders: ['Authorization'],
     });
 
     await app.init();

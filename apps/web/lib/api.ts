@@ -3812,16 +3812,22 @@ export async function registerMember(payload: {
   return data;
 }
 
-export async function fetchMe(): Promise<AuthenticatedUser | null> {
+export async function fetchMe(): Promise<{ user: AuthenticatedUser | null; isUnauthorized?: boolean }> {
   try {
     const res = await fetch(`${API_URL}/api/auth/me`, {
       headers: await getAuthHeaders(),
       cache: "no-store",
     });
-    if (!res.ok) return null;
-    return await res.json();
+    if (res.status === 401 || res.status === 403) {
+      return { user: null, isUnauthorized: true };
+    }
+    if (!res.ok) {
+      return { user: null, isUnauthorized: false };
+    }
+    const user = await res.json();
+    return { user, isUnauthorized: false };
   } catch {
-    return null;
+    return { user: null, isUnauthorized: false };
   }
 }
 

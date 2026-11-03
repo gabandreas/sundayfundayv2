@@ -184,21 +184,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       syncCookies(parsedUser, storedToken);
 
-      // Verify token with backend
+      // Verify token with backend in background
       fetchMe()
-        .then((me) => {
+        .then((result) => {
           if (!isMounted) return;
-          if (me) {
-            setUser(me);
-            syncCookies(me, storedToken);
-          } else {
+          if (result?.user) {
+            setUser(result.user);
+            syncCookies(result.user, storedToken);
+          } else if (result?.isUnauthorized) {
+            // Explicit 401/403: token was revoked/invalid on backend
             logout(false);
           }
+          // Network/CORS blips: preserve existing valid local JWT session
         })
         .catch(() => {
-          if (isMounted) {
-            logout(false);
-          }
+          // Never log out on unexpected network/client exceptions
         })
         .finally(() => {
           if (isMounted) setIsLoading(false);
@@ -269,7 +269,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setRemainingSeconds(Math.max(0, Math.floor((expMs - Date.now()) / 1000)));
         localStorage.removeItem("erp_locked_identity");
         syncCookies(res.user, res.accessToken);
-        window.location.href = "/";
+        window.location.replace("/");
       }
       return res;
     },
@@ -286,7 +286,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setRemainingSeconds(Math.max(0, Math.floor((expMs - Date.now()) / 1000)));
       localStorage.removeItem("erp_locked_identity");
       syncCookies(res.user, res.accessToken);
-      window.location.href = "/";
+      window.location.replace("/");
     }
   }, []);
 

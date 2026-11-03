@@ -261,10 +261,11 @@ export class AuthService implements OnModuleInit {
     let user: any = null;
     let rateLimitKey = '';
 
-    // 1. Authenticate via Account Name + Username (Enterprise 3-field flow)
-    if (dto.accountName && dto.username) {
-      const acc = dto.accountName.trim();
-      const usr = dto.username.trim();
+    const acc = dto.accountName?.trim();
+    const usr = dto.username?.trim();
+
+    // 1. Authenticate via Account Name + Username or Username fallback (Enterprise 3-field flow)
+    if (acc && usr) {
       rateLimitKey = `${acc}:${usr}`.toLowerCase();
       this.rateLimiter.check(rateLimitKey, clientIp);
 
@@ -272,6 +273,19 @@ export class AuthService implements OnModuleInit {
         where: {
           accountName: { equals: acc, mode: 'insensitive' },
           username: { equals: usr, mode: 'insensitive' },
+        },
+      });
+    } else if (usr) {
+      rateLimitKey = usr.toLowerCase();
+      this.rateLimiter.check(rateLimitKey, clientIp);
+
+      user = await this.prisma.user.findFirst({
+        where: {
+          OR: [
+            { username: { equals: usr, mode: 'insensitive' } },
+            { email: { equals: usr, mode: 'insensitive' } },
+            { accountName: { equals: usr, mode: 'insensitive' } },
+          ],
         },
       });
     } else if (dto.email) {
@@ -284,7 +298,7 @@ export class AuthService implements OnModuleInit {
         where: { email },
       });
     } else {
-      throw new UnauthorizedException('Account Name and Username are required.');
+      throw new UnauthorizedException('Username or email is required.');
     }
 
     const failureMessage = dto.accountName

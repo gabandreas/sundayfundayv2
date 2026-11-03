@@ -56,8 +56,10 @@ function LoginForm() {
     setIsLoading(true);
     setErrorMessage(null);
 
-    const targetAccount = lockedIdentity ? lockedIdentity.accountName : accountName.trim();
     const targetUsername = lockedIdentity ? lockedIdentity.username : username.trim();
+    const targetAccount = lockedIdentity
+      ? lockedIdentity.accountName
+      : accountName.trim() || targetUsername;
 
     try {
       const res = await login({
@@ -158,18 +160,24 @@ function LoginForm() {
               <>
                 {/* Field 1: Account Name */}
                 <div>
-                  <label className="block text-xs font-medium text-text-secondary mb-1.5">
-                    Account Name
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-medium text-text-secondary">
+                      Account Name
+                    </label>
+                    <span className="text-[10px] font-mono text-text-tertiary">
+                      Optional if unified
+                    </span>
+                  </div>
                   <div className="relative">
                     <Building className="w-4 h-4 absolute left-3 top-2.5 text-text-tertiary" />
                     <input
                       type="text"
-                      required
+                      name="accountName"
+                      autoComplete="organization"
                       autoFocus
                       value={accountName}
                       onChange={(e) => setAccountName(e.target.value)}
-                      placeholder="Enter account name"
+                      placeholder="Enter account name (or leave blank)"
                       className="w-full pl-9 pr-3 py-2 text-xs rounded border border-border bg-surface-subtle text-text-primary focus:outline-none focus:border-border-strong font-mono"
                     />
                   </div>
@@ -184,6 +192,8 @@ function LoginForm() {
                     <User className="w-4 h-4 absolute left-3 top-2.5 text-text-tertiary" />
                     <input
                       type="text"
+                      name="username"
+                      autoComplete="username"
                       required
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
@@ -211,6 +221,8 @@ function LoginForm() {
                 <Lock className="w-4 h-4 absolute left-3 top-2.5 text-text-tertiary" />
                 <input
                   type={showPassword ? "text" : "password"}
+                  name="password"
+                  autoComplete="current-password"
                   required
                   autoFocus={Boolean(lockedIdentity)}
                   value={password}
