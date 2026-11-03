@@ -119,9 +119,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setRemainingSeconds(0);
       syncCookies(null, null);
       if (isExpired) {
-        router.push("/login?expired=1");
+        router.replace("/login?expired=1");
       } else {
-        router.push("/login");
+        router.replace("/login");
       }
     },
     [router]
@@ -130,72 +130,90 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Initialize session on mount
   useEffect(() => {
     let isMounted = true;
-    const storedToken = localStorage.getItem("erp_auth_token");
-    const storedUserJson = localStorage.getItem("erp_auth_user");
+    const storedToken =
+      typeof window !== "undefined"
+        ? localStorage.getItem("erp_auth_token")
+        : null;
+    const storedUserJson =
+      typeof window !== "undefined"
+        ? localStorage.getItem("erp_auth_user")
+        : null;
 
-    if (storedToken && storedUserJson) {
-      try {
-        const parsedUser = JSON.parse(storedUserJson);
-        const expMs = parseJwtExp(storedToken);
-        const now = Date.now();
-
-        if (expMs && expMs <= now) {
-          // Token is already expired
-          try {
-            localStorage.setItem(
-              "erp_locked_identity",
-              JSON.stringify({
-                accountName: parsedUser.accountName,
-                username: parsedUser.username,
-                fullName: parsedUser.fullName,
-                role: parsedUser.role,
-              })
-            );
-          } catch {}
-          logout(true);
-          setIsLoading(false);
-          return;
-        }
-
-        setUser(parsedUser);
-        setToken(storedToken);
-        setExpiresAt(expMs);
-        if (expMs) {
-          setRemainingSeconds(Math.max(0, Math.floor((expMs - now) / 1000)));
-        }
-        syncCookies(parsedUser, storedToken);
-        setIsLoading(false);
-        return;
-      } catch {
-        // Corrupted session
+    if (!storedToken || !storedUserJson) {
+      setUser(null);
+      setToken(null);
+      setExpiresAt(null);
+      setRemainingSeconds(0);
+      syncCookies(null, null);
+      setIsLoading(false);
+      if (pathname !== "/login") {
+        router.replace("/login");
       }
+      return;
     }
 
-    // Attempt to verify via /api/auth/me (falls back to default account or returns 401)
-    fetchMe()
-      .then((me) => {
-        if (!isMounted) return;
-        if (me) {
-          setUser(me);
-          syncCookies(me, storedToken || "session_token");
-        } else if (pathname !== "/login") {
-          // If unauthenticated and on protected page, redirect to login
-          logout(false);
-        }
-      })
-      .catch(() => {
-        if (isMounted && pathname !== "/login") {
-          logout(false);
-        }
-      })
-      .finally(() => {
-        if (isMounted) setIsLoading(false);
-      });
+    try {
+      const parsedUser = JSON.parse(storedUserJson);
+      const expMs = parseJwtExp(storedToken);
+      const now = Date.now();
+
+      if (expMs && expMs <= now) {
+        // Token is already expired
+        try {
+          localStorage.setItem(
+            "erp_locked_identity",
+            JSON.stringify({
+              accountName: parsedUser.accountName,
+              username: parsedUser.username,
+              fullName: parsedUser.fullName,
+              role: parsedUser.role,
+            })
+          );
+        } catch {}
+        logout(true);
+        setIsLoading(false);
+        return;
+      }
+
+      setUser(parsedUser);
+      setToken(storedToken);
+      setExpiresAt(expMs);
+      if (expMs) {
+        setRemainingSeconds(Math.max(0, Math.floor((expMs - now) / 1000)));
+      }
+      syncCookies(parsedUser, storedToken);
+
+      // Verify token with backend
+      fetchMe()
+        .then((me) => {
+          if (!isMounted) return;
+          if (me) {
+            setUser(me);
+            syncCookies(me, storedToken);
+          } else {
+            logout(false);
+          }
+        })
+        .catch(() => {
+          if (isMounted) {
+            logout(false);
+          }
+        })
+        .finally(() => {
+          if (isMounted) setIsLoading(false);
+        });
+
+      return;
+    } catch {
+      // Corrupted session
+      logout(false);
+      setIsLoading(false);
+    }
 
     return () => {
       isMounted = false;
     };
-  }, [logout, pathname]);
+  }, [logout, pathname, router]);
 
   // Live Session Countdown Timer (1s interval)
   useEffect(() => {

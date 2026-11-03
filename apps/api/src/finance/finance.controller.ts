@@ -22,6 +22,7 @@ import {
   PreviewReconcileBalanceDto,
   ExecuteReconcileBalanceDto,
 } from './dto/reconcile-balance.dto';
+import { getUserIdOrThrow } from '../auth/auth.utils';
 
 @Controller('api/finance')
 export class FinanceController {
@@ -45,7 +46,7 @@ export class FinanceController {
       throw new BadRequestException('Valid month (1-12) and year are required');
     }
 
-    const userId = req?.userId || 1;
+    const userId = getUserIdOrThrow(req);
     return this.financeSelectors.listTransactions(month, year, userId);
   }
 
@@ -80,7 +81,7 @@ export class FinanceController {
       throw new BadRequestException('Valid month (1-12) and year are required');
     }
 
-    const userId = req?.userId || 1;
+    const userId = getUserIdOrThrow(req);
     return this.financeSelectors.getPayroll(month, year, userId);
   }
 
@@ -106,7 +107,7 @@ export class FinanceController {
       ? parseFloat(weekendMultiplierStr)
       : undefined;
 
-    const userId = req?.userId || 1;
+    const userId = getUserIdOrThrow(req);
     return this.financeSelectors.getPacing(
       month,
       year,
@@ -118,13 +119,13 @@ export class FinanceController {
 
   @Post('reconcile/preview')
   async previewReconcile(@Body() dto: PreviewReconcileBalanceDto, @Req() req?: any) {
-    const userId = req?.userId || 1;
+    const userId = getUserIdOrThrow(req);
     return this.financeSelectors.previewCashReconciliation({ ...dto, userId });
   }
 
   @Post('reconcile-balance/preview')
   async previewReconcileBalance(@Body() dto: PreviewReconcileBalanceDto, @Req() req?: any) {
-    const userId = req?.userId || 1;
+    const userId = getUserIdOrThrow(req);
     return this.financeSelectors.previewCashReconciliation({ ...dto, userId });
   }
 
@@ -148,7 +149,7 @@ export class FinanceController {
     @Req() req?: any,
   ) {
     const limit = limitStr ? parseInt(limitStr, 10) : 50;
-    const userId = req?.userId || 1;
+    const userId = getUserIdOrThrow(req);
     return this.financeSelectors.searchTransactions({
       q,
       type,

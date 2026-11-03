@@ -15,6 +15,7 @@ import { UpsertGlobalConfigDto } from './dto/upsert-global-config.dto';
 import { SimulateRulesDto } from './dto/simulate-rules.dto';
 import { CreateCustomRequestDto } from './dto/create-custom-request.dto';
 import { UpdateCustomRequestDto } from './dto/update-custom-request.dto';
+import { getUserIdOrThrow } from '../auth/auth.utils';
 
 @Controller('api/config')
 export class ConfigController {
@@ -25,13 +26,13 @@ export class ConfigController {
 
   @Get()
   getConfig(@Req() req?: any) {
-    const userId = req?.userId || 1;
+    const userId = getUserIdOrThrow(req);
     return this.configSelectors.getConfig(userId);
   }
 
   @Post()
   upsertConfig(@Body() dto: UpsertGlobalConfigDto, @Req() req?: any) {
-    const userId = req?.userId || 1;
+    const userId = getUserIdOrThrow(req);
     return this.configService.upsertConfig(dto, userId);
   }
 
@@ -47,7 +48,7 @@ export class ConfigController {
 
   @Post('sync-to-period')
   syncToPeriod(@Body() body?: { month?: number; year?: number }, @Req() req?: any) {
-    const userId = req?.userId || 1;
+    const userId = getUserIdOrThrow(req);
     return this.configService.syncToCurrentPeriod(body?.month, body?.year, userId);
   }
 
@@ -105,7 +106,7 @@ export class ConfigController {
 
   @Get('routine-categories')
   getRoutineCategories(@Req() req?: any) {
-    const userId = req?.userId || 1;
+    const userId = getUserIdOrThrow(req);
     return this.configService.getRoutineCategories(userId);
   }
 
@@ -114,13 +115,13 @@ export class ConfigController {
     @Body() body: { label: string; target: number },
     @Req() req?: any,
   ) {
-    const userId = req?.userId || 1;
+    const userId = getUserIdOrThrow(req);
     return this.configService.addRoutineCategory(body.label, body.target, userId);
   }
 
   @Delete('routine-categories/:id')
   removeRoutineCategory(@Param('id') id: string, @Req() req?: any) {
-    const userId = req?.userId || 1;
+    const userId = getUserIdOrThrow(req);
     return this.configService.removeRoutineCategory(id, userId);
   }
 }

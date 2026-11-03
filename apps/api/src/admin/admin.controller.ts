@@ -17,7 +17,7 @@ import {
 import type { Request, Response } from 'express';
 import { AdminService } from './admin.service';
 import { PlatformOwnerGuard } from '../auth/roles.guard';
-import { extractClientIp } from '../auth/auth.utils';
+import { extractClientIp, getUserIdOrThrow } from '../auth/auth.utils';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
 import { UpdateFeatureRequestDto } from './dto/update-feature-request.dto';
@@ -153,7 +153,7 @@ export class AdminController {
   @Post('backup/restore')
   @HttpCode(HttpStatus.OK)
   async restoreBackup(@Body() dto: RestoreBackupDto, @Req() req: any) {
-    const userId = req?.userId || 1;
+    const userId = getUserIdOrThrow(req);
     return this.adminService.restoreFullBackup(dto, userId);
   }
 }

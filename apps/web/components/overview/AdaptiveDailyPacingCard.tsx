@@ -21,6 +21,8 @@ import {
 } from "@/lib/api";
 import { MiniTrendChart } from "@/components/primitives/MiniTrendChart";
 import { formatRupiah } from "@/lib/utils";
+import { usePrivacyMask } from "@/context/PrivacyMaskContext";
+import { InlinePrivacyEye } from "../shell/InlinePrivacyEye";
 
 interface AdaptiveDailyPacingCardProps {
   pacing: DailyPacing | null;
@@ -69,6 +71,7 @@ export function AdaptiveDailyPacingCard({
 }: AdaptiveDailyPacingCardProps) {
   const router = useRouter();
   const [, startTransition] = useTransition();
+  const { isAmountsMasked, openVerifyModal } = usePrivacyMask();
 
   const [isWeightedMode, setIsWeightedMode] = useState<boolean>(true);
   const [bankBalanceInput, setBankBalanceInput] = useState<string>("");
@@ -296,8 +299,23 @@ export function AdaptiveDailyPacingCard({
         {/* Centerpiece Number (Newsreader Serif Display Signature) */}
         <div className="mt-2 flex items-baseline justify-between gap-4">
           <div>
-            <div className="font-serif text-[42px] leading-tight font-normal tracking-tight text-text-primary tabular-nums">
-              {formatIdr(displaySafeToday)}
+            <div className="flex items-center gap-2">
+              <div
+                onClick={isAmountsMasked ? openVerifyModal : undefined}
+                title={
+                  isAmountsMasked
+                    ? "Click to verify password & reveal figures"
+                    : undefined
+                }
+                className={`font-serif text-[42px] leading-tight font-normal tracking-tight text-text-primary tabular-nums ${
+                  isAmountsMasked
+                    ? "cursor-pointer hover:text-emerald-300 transition-colors"
+                    : ""
+                }`}
+              >
+                {formatIdr(displaySafeToday)}
+              </div>
+              {isAmountsMasked && <InlinePrivacyEye size="lg" />}
             </div>
             <div className="text-xs font-sans text-text-tertiary mt-0.5">
               {isWeightedMode ? (

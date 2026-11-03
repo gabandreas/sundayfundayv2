@@ -25,6 +25,7 @@ import { UpdateCreditUsageLimitDto } from './dto/update-credit-usage-limit.dto';
 import { CreateKillSwitchDto } from './dto/create-kill-switch.dto';
 import { UpdateKillSwitchDto } from './dto/update-kill-switch.dto';
 import { UpdateKillSwitchNotificationConfigDto } from './dto/update-kill-switch-notification-config.dto';
+import { getUserIdOrThrow } from '../auth/auth.utils';
 
 @Controller('api/credit')
 export class CreditController {
@@ -41,7 +42,7 @@ export class CreditController {
   async listContracts(@Query('isActive') isActive?: string, @Req() req?: any) {
     const activeBool =
       isActive === undefined ? undefined : isActive === 'true';
-    const userId = req?.userId || 1;
+    const userId = getUserIdOrThrow(req);
     return this.creditSelectors.listContracts(activeBool, userId);
   }
 
@@ -77,7 +78,7 @@ export class CreditController {
     const sm = startMonth ? parseInt(startMonth, 10) : 7;
     const sy = startYear ? parseInt(startYear, 10) : 2026;
     const c = count ? parseInt(count, 10) : 12;
-    const userId = req?.userId || 1;
+    const userId = getUserIdOrThrow(req);
     return this.creditSelectors.getLiabilityMatrix(sm, sy, c, userId);
   }
 
@@ -93,7 +94,7 @@ export class CreditController {
   ) {
     const m = month ? parseInt(month, 10) : undefined;
     const y = year ? parseInt(year, 10) : undefined;
-    const userId = req?.userId || 1;
+    const userId = getUserIdOrThrow(req);
     return this.creditSelectors.getCardSummary(m, y, userId);
   }
 
@@ -109,7 +110,7 @@ export class CreditController {
     const y = year ? parseInt(year, 10) : undefined;
     const cm = contextMonth ? parseInt(contextMonth, 10) : undefined;
     const cy = contextYear ? parseInt(contextYear, 10) : undefined;
-    const userId = req?.userId || 1;
+    const userId = getUserIdOrThrow(req);
     return this.creditSelectors.listCardTransactions(m, y, cm, cy, userId);
   }
 
@@ -168,7 +169,7 @@ export class CreditController {
   ) {
     const m = month ? parseInt(month, 10) : undefined;
     const y = year ? parseInt(year, 10) : undefined;
-    const userId = req?.userId || 1;
+    const userId = getUserIdOrThrow(req);
     return this.creditSelectors.listBulkBills(m, y, userId);
   }
 
@@ -231,7 +232,7 @@ export class CreditController {
       );
     }
 
-    const userId = req?.userId || 1;
+    const userId = getUserIdOrThrow(req);
     return this.creditSelectors.getCreditUsageLimit(month, year, userId);
   }
 
@@ -246,7 +247,7 @@ export class CreditController {
 
   @Get('kill-switches/notification-config')
   async getKillSwitchNotificationConfig(@Req() req?: any) {
-    const userId = req?.userId || 1;
+    const userId = getUserIdOrThrow(req);
     return this.creditSelectors.getKillSwitchNotificationConfig(userId);
   }
 
@@ -255,7 +256,7 @@ export class CreditController {
     @Body() dto: UpdateKillSwitchNotificationConfigDto,
     @Req() req?: any,
   ) {
-    const userId = req?.userId || 1;
+    const userId = getUserIdOrThrow(req);
     return this.creditService.updateKillSwitchNotificationConfig(dto, userId);
   }
 
@@ -264,19 +265,19 @@ export class CreditController {
     @Param('id', ParseIntPipe) id: number,
     @Req() req?: any,
   ) {
-    const userId = req?.userId || 1;
+    const userId = getUserIdOrThrow(req);
     return this.creditService.sendKillSwitchReminder(id, userId);
   }
 
   @Get('kill-switches')
   async getKillSwitches(@Req() req?: any) {
-    const userId = req?.userId || 1;
+    const userId = getUserIdOrThrow(req);
     return this.creditSelectors.getKillSwitches(userId);
   }
 
   @Post('kill-switches')
   async createKillSwitch(@Body() dto: CreateKillSwitchDto, @Req() req?: any) {
-    const userId = req?.userId || 1;
+    const userId = getUserIdOrThrow(req);
     return this.creditService.createKillSwitch(dto, userId);
   }
 
@@ -286,7 +287,7 @@ export class CreditController {
     @Body() dto: UpdateKillSwitchDto,
     @Req() req?: any,
   ) {
-    const userId = req?.userId || 1;
+    const userId = getUserIdOrThrow(req);
     return this.creditService.updateKillSwitch(id, dto, userId);
   }
 }

@@ -5,31 +5,31 @@ import { usePathname } from "next/navigation";
 import { X } from "lucide-react";
 import { Sidebar } from "./Sidebar";
 import { AppHeader } from "./AppHeader";
-import { AuthProvider } from "@/context/AuthContext";
+import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { PerspectiveProvider } from "@/context/PerspectiveContext";
 import { PrivacyMaskProvider } from "@/context/PrivacyMaskContext";
 import { OnboardingWizardModal } from "@/components/onboarding/OnboardingWizardModal";
 import { CustomRuleRequestModal } from "@/components/shell/CustomRuleRequestModal";
 
-export function AppShell({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
+function AppShellProtected({ children }: { children: React.ReactNode }) {
+  const { user, isLoading } = useAuth();
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
 
-  if (pathname === "/login") {
+  if (isLoading || !user) {
     return (
-      <AuthProvider>
-        <div className="h-screen w-screen overflow-y-auto bg-canvas text-text-primary">
-          {children}
+      <div className="flex h-screen w-screen items-center justify-center bg-canvas text-text-tertiary font-mono text-xs">
+        <div className="flex flex-col items-center gap-2">
+          <div className="w-5 h-5 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
+          <span>Authenticating session...</span>
         </div>
-      </AuthProvider>
+      </div>
     );
   }
 
   return (
-    <AuthProvider>
-      <PerspectiveProvider>
-        <PrivacyMaskProvider>
-          <div className="flex h-screen w-screen overflow-hidden bg-canvas text-text-primary">
+    <PerspectiveProvider>
+      <PrivacyMaskProvider>
+        <div className="flex h-screen w-screen overflow-hidden bg-canvas text-text-primary">
           {/* Persistent Left Navigation Sidebar (Desktop) */}
           <div className="hidden lg:flex w-60 h-screen shrink-0">
             <Suspense
@@ -91,8 +91,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {/* Global Perspective Modals */}
         <OnboardingWizardModal />
         <CustomRuleRequestModal />
-        </PrivacyMaskProvider>
-      </PerspectiveProvider>
+      </PrivacyMaskProvider>
+    </PerspectiveProvider>
+  );
+}
+
+export function AppShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+
+  if (pathname === "/login") {
+    return (
+      <AuthProvider>
+        <div className="h-screen w-screen overflow-y-auto bg-canvas text-text-primary">
+          {children}
+        </div>
+      </AuthProvider>
+    );
+  }
+
+  return (
+    <AuthProvider>
+      <AppShellProtected>{children}</AppShellProtected>
     </AuthProvider>
   );
 }

@@ -96,21 +96,23 @@ export function AppHeader({ onToggleMobileDrawer }: { onToggleMobileDrawer?: () 
                 ? "Privacy Mask Active: Click to reveal financial figures (password required)"
                 : "Financial Figures Visible: Click to mask figures"
             }
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono transition-colors border cursor-pointer ${
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono font-medium transition-all border cursor-pointer shadow-sm ${
               isAmountsMasked
-                ? "border-border bg-surface text-text-secondary hover:text-text-primary hover:bg-surface-subtle"
-                : "border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20"
+                ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/25"
+                : "bg-amber-500/15 text-amber-300 border-amber-500/40 hover:bg-amber-500/25"
             }`}
           >
             {isAmountsMasked ? (
               <>
-                <EyeOff className="w-3.5 h-3.5 text-text-tertiary" />
-                <span className="hidden sm:inline">Reveal</span>
+                <Eye className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span className="hidden sm:inline">Reveal Figures</span>
+                <span className="sm:hidden">Reveal</span>
               </>
             ) : (
               <>
-                <Eye className="w-3.5 h-3.5 text-emerald-400" />
-                <span className="hidden sm:inline">Hide</span>
+                <EyeOff className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span className="hidden sm:inline">Hide Figures</span>
+                <span className="sm:hidden">Hide</span>
               </>
             )}
           </button>

@@ -39,8 +39,8 @@ export class AuthMiddleware implements NestMiddleware {
 
     (req as any).isAuthenticated = tokenValid;
 
-    // 3. Fallback: default to userId = 1 for backwards compatibility with non-guarded legacy tests
-    if (!userId && !authHeader) {
+    // 3. Fallback ONLY in automated test suite (NODE_ENV === 'test') for legacy unit/integration specs
+    if (!userId && !authHeader && process.env.NODE_ENV === 'test') {
       userId = 1;
     }
 

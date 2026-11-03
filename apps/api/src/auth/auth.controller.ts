@@ -7,6 +7,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  UnauthorizedException,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { AuthService } from './auth.service';
@@ -69,7 +70,10 @@ export class AuthController {
 
   @Get('me')
   async getMe(@CurrentUser() user: any, @Req() req: any) {
-    const userId = user?.id || req.userId || 1;
+    const userId = user?.id || req.userId || (process.env.NODE_ENV === 'test' ? 1 : null);
+    if (!userId) {
+      throw new UnauthorizedException('No active session.');
+    }
     return this.authService.getMe(userId);
   }
 

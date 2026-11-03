@@ -21,6 +21,7 @@ import {
   UpdateSavingsGoalDto,
   ConfirmPeriodDepositDto,
 } from './dto/savings-goal.dto';
+import { getUserIdOrThrow } from '../auth/auth.utils';
 
 @Controller('api/savings')
 export class SavingsController {
@@ -37,13 +38,13 @@ export class SavingsController {
   ) {
     const month = monthStr ? parseInt(monthStr, 10) : undefined;
     const year = yearStr ? parseInt(yearStr, 10) : undefined;
-    const userId = req?.userId || 1;
+    const userId = getUserIdOrThrow(req);
     return this.savingsSelectors.getVault(month, year, userId);
   }
 
   @Get('overview')
   getOverview(@Req() req?: any) {
-    const userId = req?.userId || 1;
+    const userId = getUserIdOrThrow(req);
     return this.savingsSelectors.getOverview(new Date(), userId);
   }
 
@@ -67,8 +68,8 @@ export class SavingsController {
 
   @Get('goals')
   listGoals(@Req() req?: any) {
-    const userId = req?.userId || 1;
-    return this.savingsSelectors.getGoals(userId);
+    const userId = getUserIdOrThrow(req);
+    return this.savingsSelectors.getGoals(undefined, userId);
   }
 
   @Post('goals')

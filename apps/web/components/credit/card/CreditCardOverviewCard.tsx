@@ -3,12 +3,15 @@
 import React from "react";
 import { CreditCardSummary } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
+import { usePrivacyMask } from "@/context/PrivacyMaskContext";
+import { InlinePrivacyEye } from "@/components/shell/InlinePrivacyEye";
 
 interface CreditCardOverviewCardProps {
   summary: CreditCardSummary;
 }
 
 export function CreditCardOverviewCard({ summary }: CreditCardOverviewCardProps) {
+  const { isAmountsMasked, openVerifyModal } = usePrivacyMask();
   const {
     creditLimit,
     statementCutoffDay,
@@ -73,8 +76,23 @@ export function CreditCardOverviewCard({ summary }: CreditCardOverviewCardProps)
           <div className="text-[11px] font-sans font-medium text-text-tertiary">
             CURRENT STATEMENT DUE
           </div>
-          <div className="font-display text-[28px] font-normal leading-none tracking-tight text-text-primary my-1.5">
-            {formatRupiah(currentCycleDue)}
+          <div className="flex items-center gap-1.5 my-1.5">
+            <span
+              onClick={isAmountsMasked ? openVerifyModal : undefined}
+              title={
+                isAmountsMasked
+                  ? "Click to verify password & reveal figures"
+                  : undefined
+              }
+              className={`font-display text-[28px] font-normal leading-none tracking-tight text-text-primary ${
+                isAmountsMasked
+                  ? "cursor-pointer hover:text-emerald-300 transition-colors"
+                  : ""
+              }`}
+            >
+              {formatRupiah(currentCycleDue)}
+            </span>
+            {isAmountsMasked && <InlinePrivacyEye size="md" />}
           </div>
           <div className="text-[11px] font-sans text-text-tertiary">
             Due on the <span className="font-mono font-semibold text-text-secondary">{paymentDueDay}th</span> of this month

@@ -11,6 +11,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { SnapshotsSelectors } from './snapshots.selectors';
+import { getUserIdOrThrow } from '../auth/auth.utils';
 import { SnapshotsService } from './snapshots.service';
 import { UpdateSnapshotDto } from './dto/update-snapshot.dto';
 import { CreateBudgetRevisionDto } from './dto/create-budget-revision.dto';
@@ -35,7 +36,7 @@ export class SnapshotsController {
     const defaultPeriod = getPayrollPeriodForDate();
     const month = monthStr ? parseInt(monthStr, 10) : defaultPeriod.month;
     const year = yearStr ? parseInt(yearStr, 10) : defaultPeriod.year;
-    const userId = req?.userId || 1;
+    const userId = getUserIdOrThrow(req);
 
     return this.selectors.getOrCreateDraftSnapshot(month, year, userId);
   }
@@ -48,7 +49,7 @@ export class SnapshotsController {
     if (!body?.month || !body?.year) {
       throw new BadRequestException('Both month and year are required');
     }
-    const userId = req?.userId || 1;
+    const userId = getUserIdOrThrow(req);
     return this.service.initializePeriod(body.month, body.year, userId);
   }
 

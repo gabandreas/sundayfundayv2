@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { ReportsSelectors } from './reports.selectors';
 import { ReportScope } from '../calculator/reports';
+import { getUserIdOrThrow } from '../auth/auth.utils';
 
 @Controller('api/reports')
 export class ReportsController {
@@ -35,7 +36,7 @@ export class ReportsController {
     }
 
     const scope: ReportScope = scopeParam === 'locked' ? 'locked' : 'all';
-    const userId = req?.userId || 1;
+    const userId = getUserIdOrThrow(req);
     return this.reportsSelectors.getExecutiveReport(month, year, scope, userId);
   }
 
@@ -62,7 +63,7 @@ export class ReportsController {
       throw new BadRequestException('Valid month (1-12) and year are required');
     }
 
-    const userId = req?.userId || 1;
+    const userId = getUserIdOrThrow(req);
     return this.reportsSelectors.getLiquidityForecast(
       month,
       year,

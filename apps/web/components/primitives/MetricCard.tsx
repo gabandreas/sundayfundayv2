@@ -1,5 +1,9 @@
+"use client";
+
 import React from "react";
 import { DeltaBadge, DeltaBadgeProps } from "./DeltaBadge";
+import { usePrivacyMask } from "@/context/PrivacyMaskContext";
+import { InlinePrivacyEye } from "../shell/InlinePrivacyEye";
 
 export interface MetricCardProps {
   label: string;
@@ -32,6 +36,12 @@ export function MetricCard({
   footer,
   className = "",
 }: MetricCardProps) {
+  const { isAmountsMasked, openVerifyModal } = usePrivacyMask();
+  const isMaskedValue =
+    isAmountsMasked &&
+    typeof value === "string" &&
+    (value.includes("•••••••") || value.includes("•••"));
+
   return (
     <div
       className={`relative flex flex-col justify-between rounded-lg border bg-surface p-5 transition-colors duration-150 ${statusBorderStyles[statusVariant]} ${className}`}
@@ -58,15 +68,30 @@ export function MetricCard({
 
       {/* Main Metric Value: Centerpiece uses Newsreader serif display, secondary uses tight tabular font-mono */}
       <div className="flex items-baseline gap-2 my-1">
-        <span
-          className={
-            isCenterpiece
-              ? "font-display text-[32px] font-normal leading-none tracking-tight text-text-primary"
-              : "font-mono text-[24px] font-semibold leading-none tracking-tight text-text-primary"
-          }
-        >
-          {value}
-        </span>
+        <div className="flex items-center gap-1.5">
+          <span
+            onClick={isMaskedValue ? openVerifyModal : undefined}
+            title={
+              isMaskedValue
+                ? "Click to verify password & reveal figures"
+                : undefined
+            }
+            className={`${
+              isCenterpiece
+                ? "font-display text-[32px] font-normal leading-none tracking-tight text-text-primary"
+                : "font-mono text-[24px] font-semibold leading-none tracking-tight text-text-primary"
+            } ${
+              isMaskedValue
+                ? "cursor-pointer hover:text-emerald-300 transition-colors"
+                : ""
+            }`}
+          >
+            {value}
+          </span>
+          {isMaskedValue && (
+            <InlinePrivacyEye size={isCenterpiece ? "md" : "sm"} />
+          )}
+        </div>
         {subvalue && (
           <span className="text-xs font-mono text-text-tertiary">
             {subvalue}
