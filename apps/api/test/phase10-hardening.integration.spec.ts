@@ -253,17 +253,17 @@ describe('Phase 10 — Production Hardening, Rate Limiting & Transactional Resto
       expect(restoreRes.body.restoredCounts).toBeDefined();
 
       // Verify that after sequence reset, inserting a new record works with auto-increment
-      const newConfig = await prisma.globalConfig.create({
+      const newBill = await prisma.scheduledBill.create({
         data: {
-          userId: 1,
-          baseSalary: 10000000,
-          dailyAllowance: 50000,
+          label: 'Sequence Test Bill',
+          amount: 50000,
+          dueDayOfMonth: 1,
         },
       });
-      expect(newConfig.id).toBeGreaterThan(0);
+      expect(newBill.id).toBeGreaterThan(0);
 
-      // Clean up test config
-      await prisma.globalConfig.delete({ where: { id: newConfig.id } });
+      // Clean up test record
+      await prisma.scheduledBill.delete({ where: { id: newBill.id } });
     });
   });
 

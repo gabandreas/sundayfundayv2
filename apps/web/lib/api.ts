@@ -289,7 +289,7 @@ export interface CreditContract {
 }
 
 async function handleResponse<T>(res: Response, notFoundFallback: T): Promise<T> {
-  if (res.status === 404) {
+  if (res.status === 404 || res.status === 401) {
     return notFoundFallback;
   }
   if (!res.ok) {
@@ -310,7 +310,7 @@ export async function fetchSnapshot(
   year: number
 ): Promise<MonthlySnapshot | null> {
   const res = await fetch(`${API_URL}/api/snapshots?month=${month}&year=${year}`, {
-    headers: getAuthHeaders(),
+    headers: await getAuthHeaders(),
     cache: "no-store",
   });
   return handleResponse<MonthlySnapshot | null>(res, null);
@@ -321,7 +321,7 @@ export async function fetchPacing(
   year: number
 ): Promise<DailyPacing | null> {
   const res = await fetch(`${API_URL}/api/finance/pacing?month=${month}&year=${year}`, {
-    headers: getAuthHeaders(),
+    headers: await getAuthHeaders(),
     cache: "no-store",
   });
   return handleResponse<DailyPacing | null>(res, null);
@@ -333,7 +333,7 @@ export async function fetchTransactions(
 ): Promise<Transaction[]> {
   const res = await fetch(
     `${API_URL}/api/finance/transactions?month=${month}&year=${year}`,
-    { headers: getAuthHeaders(), cache: "no-store" }
+    { headers: await getAuthHeaders(), cache: "no-store" }
   );
   return handleResponse<Transaction[]>(res, []);
 }
@@ -347,7 +347,7 @@ export async function fetchSavingsVault(
       ? `?month=${month}&year=${year}`
       : "";
   const res = await fetch(`${API_URL}/api/savings${query}`, {
-    headers: getAuthHeaders(),
+    headers: await getAuthHeaders(),
     cache: "no-store",
   });
   return handleResponse<SavingsVault | null>(res, null);
@@ -424,7 +424,7 @@ export async function deleteSavingsTransaction(
 
 export async function fetchSavingsOverview(): Promise<SavingsOverviewResult | null> {
   const res = await fetch(`${API_URL}/api/savings/overview`, {
-    headers: getAuthHeaders(),
+    headers: await getAuthHeaders(),
     cache: "no-store",
   });
   return handleResponse<SavingsOverviewResult | null>(res, null);
@@ -454,7 +454,7 @@ export async function confirmPeriodDeposit(data: {
 
 export async function fetchSavingsGoals(): Promise<EnrichedSavingsGoal[]> {
   const res = await fetch(`${API_URL}/api/savings/goals`, {
-    headers: getAuthHeaders(),
+    headers: await getAuthHeaders(),
     cache: "no-store",
   });
   return handleResponse<EnrichedSavingsGoal[]>(res, []);
@@ -595,7 +595,7 @@ export async function resumeRecurringCardSubscription(
 
 export async function fetchContracts(): Promise<CreditContract[]> {
   const res = await fetch(`${API_URL}/api/credit/contracts?isActive=true`, {
-    headers: getAuthHeaders(),
+    headers: await getAuthHeaders(),
     cache: "no-store",
   });
   return handleResponse<CreditContract[]>(res, []);
@@ -625,7 +625,7 @@ export async function fetchPayroll(
 ): Promise<PayrollResult | null> {
   const res = await fetch(
     `${API_URL}/api/finance/payroll?month=${month}&year=${year}`,
-    { headers: getAuthHeaders(), cache: "no-store" }
+    { headers: await getAuthHeaders(), cache: "no-store" }
   );
   return handleResponse<PayrollResult | null>(res, null);
 }
@@ -1048,7 +1048,7 @@ export async function fetchLiabilityMatrix(
 ): Promise<LiabilityMatrixResponse | null> {
   const res = await fetch(
     `${API_URL}/api/credit/matrix?startMonth=${startMonth}&startYear=${startYear}&count=${count}`,
-    { headers: getAuthHeaders(), cache: "no-store" }
+    { headers: await getAuthHeaders(), cache: "no-store" }
   );
   return handleResponse<LiabilityMatrixResponse | null>(res, null);
 }
@@ -1059,7 +1059,7 @@ export async function fetchCardSummary(
 ): Promise<CreditCardSummary | null> {
   const res = await fetch(
     `${API_URL}/api/credit/cards/summary?month=${month}&year=${year}`,
-    { headers: getAuthHeaders(), cache: "no-store" }
+    { headers: await getAuthHeaders(), cache: "no-store" }
   );
   return handleResponse<CreditCardSummary | null>(res, null);
 }
@@ -1077,7 +1077,7 @@ export async function fetchCardTransactions(
   if (contextYear !== undefined) params.set("contextYear", String(contextYear));
   const query = params.toString() ? `?${params.toString()}` : "";
   const res = await fetch(`${API_URL}/api/credit/cards${query}`, {
-    headers: getAuthHeaders(),
+    headers: await getAuthHeaders(),
     cache: "no-store",
   });
   return handleResponse<CreditCardTransaction[]>(res, []);
@@ -1237,7 +1237,7 @@ export async function updateBulkBillCell(data: {
 
 export async function fetchKillSwitches(): Promise<KillSwitchResponse | null> {
   const res = await fetch(`${API_URL}/api/credit/kill-switches`, {
-    headers: getAuthHeaders(),
+    headers: await getAuthHeaders(),
     cache: "no-store",
   });
   return handleResponse<KillSwitchResponse | null>(res, null);
@@ -1249,7 +1249,7 @@ export async function createKillSwitch(
   try {
     const res = await fetch(`${API_URL}/api/credit/kill-switches`, {
       method: "POST",
-      headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(data),
     });
     const body = await res.json();
@@ -1274,7 +1274,7 @@ export async function updateKillSwitch(
   try {
     const res = await fetch(`${API_URL}/api/credit/kill-switches/${id}`, {
       method: "PATCH",
-      headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(data),
     });
     const body = await res.json();
@@ -1294,7 +1294,7 @@ export async function updateKillSwitch(
 
 export async function fetchKillSwitchNotificationConfig(): Promise<KillSwitchNotificationConfig | null> {
   const res = await fetch(`${API_URL}/api/credit/kill-switches/notification-config`, {
-    headers: getAuthHeaders(),
+    headers: await getAuthHeaders(),
     cache: "no-store",
   });
   return handleResponse<KillSwitchNotificationConfig | null>(res, null);
@@ -1306,7 +1306,7 @@ export async function updateKillSwitchNotificationConfig(
   try {
     const res = await fetch(`${API_URL}/api/credit/kill-switches/notification-config`, {
       method: "PATCH",
-      headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(data),
     });
     const body = await res.json();
@@ -1330,7 +1330,7 @@ export async function sendKillSwitchReminder(
   try {
     const res = await fetch(`${API_URL}/api/credit/kill-switches/${id}/send-reminder`, {
       method: "POST",
-      headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
     });
     const body = await res.json();
     if (!res.ok) {
@@ -1671,7 +1671,7 @@ export async function updateCreditUsageLimit(data: {
 export async function fetchGlobalConfig(): Promise<GlobalConfig | null> {
   try {
     const res = await fetch(`${API_URL}/api/config`, {
-      headers: getAuthHeaders(),
+      headers: await getAuthHeaders(),
       cache: "no-store",
     });
     return handleResponse<GlobalConfig | null>(res, null);
@@ -1686,7 +1686,7 @@ export async function updateGlobalConfig(
   try {
     const res = await fetch(`${API_URL}/api/config`, {
       method: "POST",
-      headers: getAuthHeaders({ "Content-Type": "application/json" }),
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(data),
     });
     const body = await res.json();
@@ -1710,7 +1710,7 @@ export async function syncConfigToPeriod(
   try {
     const res = await fetch(`${API_URL}/api/config/sync-to-period`, {
       method: "POST",
-      headers: getAuthHeaders({ "Content-Type": "application/json" }),
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({ month, year }),
     });
     const body = await res.json();
@@ -3268,7 +3268,7 @@ export async function resetDemoSandbox(): Promise<{
   try {
     const res = await fetch(`${API_URL}/api/auth/reset-demo`, {
       method: "POST",
-      headers: getAuthHeaders({ "Content-Type": "application/json" }),
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
     });
     const body = await res.json();
     if (!res.ok) {
@@ -3286,7 +3286,7 @@ export async function resetDemoSandbox(): Promise<{
 export async function fetchRoutineCategories(): Promise<RoutineCategoryConfig[]> {
   try {
     const res = await fetch(`${API_URL}/api/config/routine-categories`, {
-      headers: getAuthHeaders(),
+      headers: await getAuthHeaders(),
       cache: "no-store",
     });
     if (!res.ok) return [];
@@ -3307,7 +3307,7 @@ export async function addRoutineCategory(payload: {
   try {
     const res = await fetch(`${API_URL}/api/config/routine-categories`, {
       method: "POST",
-      headers: getAuthHeaders({ "Content-Type": "application/json" }),
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(payload),
     });
     const body = await res.json();
@@ -3337,7 +3337,7 @@ export async function removeRoutineCategory(
       `${API_URL}/api/config/routine-categories/${encodeURIComponent(id)}`,
       {
         method: "DELETE",
-        headers: getAuthHeaders(),
+        headers: await getAuthHeaders(),
       }
     );
     const body = await res.json();
@@ -3684,7 +3684,7 @@ export interface SecuritySettings {
   trustedIps: TrustedIpRecord[];
 }
 
-export function getAuthHeaders(initHeaders?: HeadersInit): HeadersInit {
+export async function getAuthHeaders(initHeaders?: HeadersInit): Promise<HeadersInit> {
   const headers = new Headers(initHeaders || {});
   if (typeof window !== "undefined") {
     const token = localStorage.getItem("erp_auth_token");
@@ -3698,6 +3698,19 @@ export function getAuthHeaders(initHeaders?: HeadersInit): HeadersInit {
         if (u?.id) headers.set("x-user-id", String(u.id));
       } catch {}
     }
+  } else {
+    try {
+      const { cookies } = await import("next/headers");
+      const cookieStore = await cookies();
+      const token = cookieStore.get("erp_auth_token")?.value;
+      if (token) {
+        headers.set("Authorization", `Bearer ${decodeURIComponent(token)}`);
+      }
+      const userId = cookieStore.get("erp_user_id")?.value;
+      if (userId) {
+        headers.set("x-user-id", userId);
+      }
+    } catch {}
   }
   return headers;
 }
@@ -3726,7 +3739,7 @@ export async function loginUser(payload: {
 export async function refreshSessionToken(): Promise<AuthResponse> {
   const res = await fetch(`${API_URL}/api/auth/refresh`, {
     method: "POST",
-    headers: getAuthHeaders(),
+    headers: await getAuthHeaders(),
   });
   const data = await res.json();
   if (!res.ok) {
@@ -3742,7 +3755,7 @@ export async function fetchSessionInfo(): Promise<{
   user?: AuthenticatedUser;
 }> {
   const res = await fetch(`${API_URL}/api/auth/session`, {
-    headers: getAuthHeaders(),
+    headers: await getAuthHeaders(),
     cache: "no-store",
   });
   const data = await res.json();
@@ -3767,7 +3780,7 @@ export async function loginDemoUser(): Promise<AuthResponse> {
 export async function verifyAccountPassword(password: string): Promise<{ verified: boolean }> {
   const res = await fetch(`${API_URL}/api/auth/verify-password`, {
     method: "POST",
-    headers: getAuthHeaders({ "Content-Type": "application/json" }),
+    headers: await getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({ password }),
   });
   const data = await res.json().catch(() => ({}));
@@ -3802,7 +3815,7 @@ export async function registerMember(payload: {
 export async function fetchMe(): Promise<AuthenticatedUser | null> {
   try {
     const res = await fetch(`${API_URL}/api/auth/me`, {
-      headers: getAuthHeaders(),
+      headers: await getAuthHeaders(),
       cache: "no-store",
     });
     if (!res.ok) return null;
@@ -3820,7 +3833,7 @@ export async function fetchMe(): Promise<AuthenticatedUser | null> {
 
 export async function fetchAdminUsers(): Promise<AdminUserSummary[]> {
   const res = await fetch(`${API_URL}/api/admin/users`, {
-    headers: getAuthHeaders(),
+    headers: await getAuthHeaders(),
     cache: "no-store",
   });
   if (!res.ok) {
@@ -3845,7 +3858,7 @@ export async function createAdminClient(payload: {
 }): Promise<AuthenticatedUser> {
   const res = await fetch(`${API_URL}/api/admin/clients`, {
     method: "POST",
-    headers: getAuthHeaders({ "Content-Type": "application/json" }),
+    headers: await getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({
       ...payload,
       password: payload.password || payload.tempPassword || "SundayFunday#2026",
@@ -3874,7 +3887,7 @@ export async function updateAdminClient(
 ): Promise<AuthenticatedUser> {
   const res = await fetch(`${API_URL}/api/admin/clients/${id}`, {
     method: "PATCH",
-    headers: getAuthHeaders({ "Content-Type": "application/json" }),
+    headers: await getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({
       ...payload,
       ...(payload.password || payload.newPassword
@@ -3891,7 +3904,7 @@ export async function updateAdminClient(
 
 export async function fetchAdminUserConfig(userId: number): Promise<GlobalConfig> {
   const res = await fetch(`${API_URL}/api/admin/users/${userId}/config`, {
-    headers: getAuthHeaders(),
+    headers: await getAuthHeaders(),
     cache: "no-store",
   });
   if (!res.ok) {
@@ -3906,7 +3919,7 @@ export async function updateAdminUserConfig(
 ): Promise<GlobalConfig> {
   const res = await fetch(`${API_URL}/api/admin/users/${userId}/config`, {
     method: "PATCH",
-    headers: getAuthHeaders({ "Content-Type": "application/json" }),
+    headers: await getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(payload),
   });
   const data = await res.json();
@@ -3918,7 +3931,7 @@ export async function updateAdminUserConfig(
 
 export async function fetchAdminFeatureRequests(): Promise<CustomFeatureRequest[]> {
   const res = await fetch(`${API_URL}/api/admin/feature-requests`, {
-    headers: getAuthHeaders(),
+    headers: await getAuthHeaders(),
     cache: "no-store",
   });
   if (!res.ok) {
@@ -3937,7 +3950,7 @@ export async function updateAdminFeatureRequest(
 ): Promise<CustomFeatureRequest> {
   const res = await fetch(`${API_URL}/api/admin/feature-requests/${id}`, {
     method: "PATCH",
-    headers: getAuthHeaders({ "Content-Type": "application/json" }),
+    headers: await getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(payload),
   });
   const data = await res.json();
@@ -3949,7 +3962,7 @@ export async function updateAdminFeatureRequest(
 
 export async function fetchAdminSecuritySettings(): Promise<SecuritySettings> {
   const res = await fetch(`${API_URL}/api/admin/security/settings`, {
-    headers: getAuthHeaders(),
+    headers: await getAuthHeaders(),
     cache: "no-store",
   });
   if (!res.ok) {
@@ -3964,7 +3977,7 @@ export async function addAdminTrustedIp(payload: {
 }): Promise<TrustedIpRecord> {
   const res = await fetch(`${API_URL}/api/admin/security/trusted-ips`, {
     method: "POST",
-    headers: getAuthHeaders({ "Content-Type": "application/json" }),
+    headers: await getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(payload),
   });
   const data = await res.json();
@@ -3977,7 +3990,7 @@ export async function addAdminTrustedIp(payload: {
 export async function removeAdminTrustedIp(id: number): Promise<{ success: boolean }> {
   const res = await fetch(`${API_URL}/api/admin/security/trusted-ips/${id}`, {
     method: "DELETE",
-    headers: getAuthHeaders(),
+    headers: await getAuthHeaders(),
   });
   if (!res.ok) {
     throw new Error("Failed to remove IP");
@@ -3992,7 +4005,7 @@ export async function updateAdminSecuritySettings(payload: {
 }): Promise<{ success: boolean; message: string }> {
   const res = await fetch(`${API_URL}/api/admin/security/settings`, {
     method: "PATCH",
-    headers: getAuthHeaders({ "Content-Type": "application/json" }),
+    headers: await getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(payload),
   });
   const data = await res.json();
@@ -4043,7 +4056,7 @@ export async function restoreAdminBackup(payload: {
 }): Promise<RestoreBackupResult> {
   const res = await fetch(`${API_URL}/api/admin/backup/restore`, {
     method: "POST",
-    headers: getAuthHeaders({ "Content-Type": "application/json" }),
+    headers: await getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(payload),
   });
   const data = await res.json();
@@ -4061,7 +4074,7 @@ export async function updateAdminCredentials(payload: {
 }): Promise<{ success: boolean; message: string; user?: any }> {
   const res = await fetch(`${API_URL}/api/admin/security/credentials`, {
     method: "POST",
-    headers: getAuthHeaders({ "Content-Type": "application/json" }),
+    headers: await getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(payload),
   });
   const data = await res.json();
@@ -4112,7 +4125,7 @@ export interface SqlRecordsResponse {
 
 export async function fetchSqlTables(): Promise<SqlTableSummary[]> {
   const res = await fetch(`${API_URL}/api/admin/sql/tables`, {
-    headers: getAuthHeaders(),
+    headers: await getAuthHeaders(),
     cache: "no-store",
   });
   const data = await res.json();
@@ -4128,7 +4141,7 @@ export async function executeSqlQuery(payload: {
 }): Promise<SqlQueryResult> {
   const res = await fetch(`${API_URL}/api/admin/sql/query`, {
     method: "POST",
-    headers: getAuthHeaders({ "Content-Type": "application/json" }),
+    headers: await getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(payload),
   });
   const data = await res.json();
@@ -4163,7 +4176,7 @@ export async function fetchSqlRecords(
   const res = await fetch(
     `${API_URL}/api/admin/sql/records/${encodeURIComponent(tableName)}?${query.toString()}`,
     {
-      headers: getAuthHeaders(),
+      headers: await getAuthHeaders(),
       cache: "no-store",
     }
   );
@@ -4182,7 +4195,7 @@ export async function createSqlRecord(
     `${API_URL}/api/admin/sql/records/${encodeURIComponent(tableName)}`,
     {
       method: "POST",
-      headers: getAuthHeaders({ "Content-Type": "application/json" }),
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(data),
     }
   );
@@ -4202,7 +4215,7 @@ export async function updateSqlRecord(
     `${API_URL}/api/admin/sql/records/${encodeURIComponent(tableName)}/${encodeURIComponent(id)}`,
     {
       method: "PATCH",
-      headers: getAuthHeaders({ "Content-Type": "application/json" }),
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(data),
     }
   );
@@ -4221,7 +4234,7 @@ export async function deleteSqlRecord(
     `${API_URL}/api/admin/sql/records/${encodeURIComponent(tableName)}/${encodeURIComponent(id)}`,
     {
       method: "DELETE",
-      headers: getAuthHeaders(),
+      headers: await getAuthHeaders(),
     }
   );
   const json = await res.json();

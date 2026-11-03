@@ -16,8 +16,6 @@ import {
 import { EditableTarget } from "./EditableTarget";
 import { usePerspective } from "@/context/PerspectiveContext";
 import { useAuth } from "@/context/AuthContext";
-import { usePrivacyMask } from "@/context/PrivacyMaskContext";
-import { InlinePrivacyEye } from "../shell/InlinePrivacyEye";
 import { formatRupiah } from "@/lib/utils";
 
 interface RoutineBillsQuotaCardProps {
@@ -50,7 +48,6 @@ export function RoutineBillsQuotaCard({
   const router = useRouter();
   const [, startTransition] = useTransition();
   const { user } = useAuth();
-  const { isAmountsMasked, openVerifyModal } = usePrivacyMask();
   const { profileMode, getRoutineLabel, setCustomRoutineLabel } = usePerspective();
   const isOwnerBespoke =
     user?.role === "PLATFORM_OWNER" ||
@@ -278,24 +275,9 @@ export function RoutineBillsQuotaCard({
         </div>
 
         <div className="flex items-baseline justify-between my-1">
-          <div className="flex items-center gap-1.5">
-            <span
-              onClick={isAmountsMasked ? openVerifyModal : undefined}
-              title={
-                isAmountsMasked
-                  ? "Click to verify password & reveal figures"
-                  : undefined
-              }
-              className={`font-mono text-[24px] font-semibold leading-none tracking-tight text-text-primary tabular-nums ${
-                isAmountsMasked
-                  ? "cursor-pointer hover:text-emerald-300 transition-colors"
-                  : ""
-              }`}
-            >
-              {formatIdr(baselineTotal)}
-            </span>
-            {isAmountsMasked && <InlinePrivacyEye size="md" />}
-          </div>
+          <span className="font-mono text-[24px] font-semibold leading-none tracking-tight text-text-primary tabular-nums">
+            {formatIdr(baselineTotal)}
+          </span>
           <span className="text-xs font-sans text-text-tertiary">
             Total Monthly Budget
           </span>

@@ -1,10 +1,6 @@
-"use client";
-
 import React from "react";
 import { MonthlySnapshot, DailyPacing } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
-import { usePrivacyMask } from "@/context/PrivacyMaskContext";
-import { InlinePrivacyEye } from "../shell/InlinePrivacyEye";
 
 interface CashflowSummaryCardProps {
   snapshot: MonthlySnapshot;
@@ -12,7 +8,6 @@ interface CashflowSummaryCardProps {
 }
 
 export function CashflowSummaryCard({ snapshot, pacing }: CashflowSummaryCardProps) {
-  const { isAmountsMasked, openVerifyModal } = usePrivacyMask();
   const totalIncome = snapshot.finalTotalIncome ?? snapshot.netSalaryIncome ?? 0;
   const totalDeductions = snapshot.totalDeductions ?? 0;
   const dailySpent = pacing?.totalDailySpent ?? 0;
@@ -22,12 +17,9 @@ export function CashflowSummaryCard({ snapshot, pacing }: CashflowSummaryCardPro
     <div className="rounded-lg border border-border bg-surface p-5 flex flex-col justify-between">
       <div>
         <div className="flex items-center justify-between gap-2 mb-4 pb-3 border-b border-border-subtle">
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
-              CASHFLOW SUMMARY
-            </span>
-            {isAmountsMasked && <InlinePrivacyEye size="sm" />}
-          </div>
+          <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
+            CASHFLOW SUMMARY
+          </span>
           <span className="text-[10px] font-mono text-text-tertiary">
             MONTH {snapshot.month} / {snapshot.year}
           </span>
@@ -54,26 +46,13 @@ export function CashflowSummaryCard({ snapshot, pacing }: CashflowSummaryCardPro
           {/* Net Remaining Cashflow */}
           <div className="flex items-center justify-between py-2 border-t border-border mt-2">
             <span className="font-medium text-text-primary">Net Waterfall Baseline</span>
-            <div className="flex items-center gap-1.5">
-              <span
-                onClick={isAmountsMasked ? openVerifyModal : undefined}
-                title={
-                  isAmountsMasked
-                    ? "Click to verify password & reveal figures"
-                    : undefined
-                }
-                className={`font-mono tabular-nums text-sm font-semibold ${
-                  netSurplus >= 0 ? "text-text-primary" : "text-urgency"
-                } ${
-                  isAmountsMasked
-                    ? "cursor-pointer hover:text-emerald-300 transition-colors"
-                    : ""
-                }`}
-              >
-                {formatRupiah(netSurplus)}
-              </span>
-              {isAmountsMasked && <InlinePrivacyEye size="sm" />}
-            </div>
+            <span
+              className={`font-mono tabular-nums text-sm font-semibold ${
+                netSurplus >= 0 ? "text-text-primary" : "text-urgency"
+              }`}
+            >
+              {formatRupiah(netSurplus)}
+            </span>
           </div>
 
           {/* Consumption Cycle Daily Spending (tracked against Operational Budget) */}

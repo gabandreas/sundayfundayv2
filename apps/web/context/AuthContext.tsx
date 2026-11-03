@@ -73,8 +73,9 @@ function syncCookies(user: AuthenticatedUser | null, token: string | null) {
   if (user && token) {
     localStorage.setItem("erp_auth_token", token);
     localStorage.setItem("erp_auth_user", JSON.stringify(user));
-    document.cookie = `erp_user_id=${user.id}; path=/; credentials=include; max-age=2592000; SameSite=Lax`;
-    document.cookie = `erp_auth_token=${token}; path=/; credentials=include; max-age=2592000; SameSite=Lax`;
+    const secureFlag = window.location.protocol === "https:" ? "; Secure" : "";
+    document.cookie = `erp_user_id=${user.id}; path=/; max-age=2592000; SameSite=Lax${secureFlag}`;
+    document.cookie = `erp_auth_token=${encodeURIComponent(token)}; path=/; max-age=2592000; SameSite=Lax${secureFlag}`;
   } else {
     localStorage.removeItem("erp_auth_token");
     localStorage.removeItem("erp_auth_user");
@@ -268,12 +269,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setRemainingSeconds(Math.max(0, Math.floor((expMs - Date.now()) / 1000)));
         localStorage.removeItem("erp_locked_identity");
         syncCookies(res.user, res.accessToken);
-        router.push("/");
-        router.refresh();
+        window.location.href = "/";
       }
       return res;
     },
-    [router]
+    []
   );
 
   const demoLogin = useCallback(async () => {
@@ -286,10 +286,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setRemainingSeconds(Math.max(0, Math.floor((expMs - Date.now()) / 1000)));
       localStorage.removeItem("erp_locked_identity");
       syncCookies(res.user, res.accessToken);
-      router.push("/");
-      router.refresh();
+      window.location.href = "/";
     }
-  }, [router]);
+  }, []);
 
   const register = useCallback(
     async (payload: {
@@ -310,11 +309,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setExpiresAt(expMs);
         setRemainingSeconds(Math.max(0, Math.floor((expMs - Date.now()) / 1000)));
         syncCookies(res.user, res.accessToken);
-        router.push("/");
-        router.refresh();
+        window.location.href = "/";
       }
     },
-    [router]
+    []
   );
 
   const resetDemo = useCallback(async () => {

@@ -5,8 +5,6 @@ import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { MonthlySnapshot } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
-import { usePrivacyMask } from "@/context/PrivacyMaskContext";
-import { InlinePrivacyEye } from "../shell/InlinePrivacyEye";
 import { EditableTarget } from "./EditableTarget";
 
 interface CoreSavingsCardProps {
@@ -15,7 +13,6 @@ interface CoreSavingsCardProps {
 }
 
 export function CoreSavingsCard({ snapshot, isLocked }: CoreSavingsCardProps) {
-  const { isAmountsMasked, openVerifyModal } = usePrivacyMask();
   const actualSavings = snapshot?.actualSavings ?? 0;
   const targetSavings = snapshot?.savings ?? 0;
   const progressPercent =
@@ -37,24 +34,9 @@ export function CoreSavingsCard({ snapshot, isLocked }: CoreSavingsCardProps) {
         </div>
 
         <div className="flex items-baseline justify-between gap-2">
-          <div className="flex items-center gap-1.5">
-            <span
-              onClick={isAmountsMasked ? openVerifyModal : undefined}
-              title={
-                isAmountsMasked
-                  ? "Click to verify password & reveal figures"
-                  : undefined
-              }
-              className={`font-mono text-xl font-semibold leading-none tracking-tight text-text-primary tabular-nums ${
-                isAmountsMasked
-                  ? "cursor-pointer hover:text-emerald-300 transition-colors"
-                  : ""
-              }`}
-            >
-              {formatRupiah(actualSavings)}
-            </span>
-            {isAmountsMasked && <InlinePrivacyEye size="sm" />}
-          </div>
+          <span className="font-mono text-xl font-semibold leading-none tracking-tight text-text-primary tabular-nums">
+            {formatRupiah(actualSavings)}
+          </span>
           <div className="flex items-center gap-1.5">
             <span className="text-xs font-mono text-text-secondary tabular-nums">
               of {formatRupiah(targetSavings)}

@@ -84,14 +84,6 @@ export default async function OverviewPage({ searchParams }: OverviewPageProps) 
           >
             {formatSnapshotStatus(snapshot?.status)}
           </span>
-          {!isLocked && (
-            <span
-              title="Locks final numbers and rejects further manual edits once the 14-day post-cycle grace window elapses."
-              className="px-2 py-0.5 rounded text-[10px] font-mono text-text-tertiary bg-surface-subtle border border-border-subtle cursor-help whitespace-nowrap"
-            >
-              Auto-closes 14d after cycle ends
-            </span>
-          )}
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:gap-4">
           <span className="text-xs font-sans text-text-tertiary whitespace-nowrap">

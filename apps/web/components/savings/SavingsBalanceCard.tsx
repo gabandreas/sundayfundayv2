@@ -10,8 +10,6 @@ import {
 } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
 import { usePerspective } from "@/context/PerspectiveContext";
-import { usePrivacyMask } from "@/context/PrivacyMaskContext";
-import { InlinePrivacyEye } from "../shell/InlinePrivacyEye";
 
 interface SavingsBalanceCardProps {
   vault: SavingsVault;
@@ -20,7 +18,6 @@ interface SavingsBalanceCardProps {
 export function SavingsBalanceCard({ vault }: SavingsBalanceCardProps) {
   const router = useRouter();
   const { profileMode, getVaultLabels } = usePerspective();
-  const { isAmountsMasked, openVerifyModal } = usePrivacyMask();
   const isStandard = profileMode === "STANDARD_GENERAL";
   const vaultLabels = getVaultLabels();
 
@@ -101,23 +98,8 @@ export function SavingsBalanceCard({ vault }: SavingsBalanceCardProps) {
             </div>
 
             <div className="my-2.5">
-              <div className="flex items-center gap-2">
-                <div
-                  onClick={isAmountsMasked ? openVerifyModal : undefined}
-                  title={
-                    isAmountsMasked
-                      ? "Click to verify password & reveal figures"
-                      : undefined
-                  }
-                  className={`font-serif text-[34px] font-normal leading-none tracking-tight text-text-primary ${
-                    isAmountsMasked
-                      ? "cursor-pointer hover:text-emerald-300 transition-colors"
-                      : ""
-                  }`}
-                >
-                  {formatRupiah(vault.balance)}
-                </div>
-                {isAmountsMasked && <InlinePrivacyEye size="lg" />}
+              <div className="font-serif text-[34px] font-normal leading-none tracking-tight text-text-primary">
+                {formatRupiah(vault.balance)}
               </div>
               <p className="text-xs font-sans text-text-secondary mt-1.5">
                 {isStandard

@@ -2,7 +2,7 @@
 
 import React, { Suspense } from "react";
 import { usePathname } from "next/navigation";
-import { Menu, Clock, RefreshCw, Eye, EyeOff } from "lucide-react";
+import { Menu, Eye, EyeOff } from "lucide-react";
 import { MonthYearSwitcher } from "./MonthYearSwitcher";
 import { GlobalSearchModal } from "./GlobalSearchModal";
 import { AccountHeaderBadge } from "./AccountHeaderBadge";
@@ -26,15 +26,9 @@ const ROUTE_TITLES: Record<string, { title: string; category: string }> = {
   "/dev/components": { title: "Design System Primitives", category: "Spec" },
 };
 
-function formatSessionTime(seconds: number): string {
-  const m = Math.floor(Math.max(0, seconds) / 60);
-  const s = Math.max(0, seconds) % 60;
-  return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
-}
-
 export function AppHeader({ onToggleMobileDrawer }: { onToggleMobileDrawer?: () => void }) {
   const pathname = usePathname();
-  const { user, remainingSeconds, isSessionExpiring, refreshSession } = useAuth();
+  const { user } = useAuth();
   const { isAmountsMasked, toggleMask } = usePrivacyMask();
 
   const routeInfo = ROUTE_TITLES[pathname] || {
@@ -66,35 +60,26 @@ export function AppHeader({ onToggleMobileDrawer }: { onToggleMobileDrawer?: () 
         </h1>
       </div>
 
-      {/* Account Header Badge + Session Timer + Global Search + Month/Year Context Switcher */}
+      {/* Global Controls: Search + Period Context + Privacy Eye + Profile Badge */}
       <div className="flex items-center gap-2 sm:gap-3">
-        {/* Live ERP Session Timer Pill */}
-        {user && (
-          <button
-            type="button"
-            onClick={refreshSession}
-            title={`Session expires in ${formatSessionTime(remainingSeconds)}. Click to extend session.`}
-            className={`hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono transition-colors border cursor-pointer ${
-              isSessionExpiring
-                ? "border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20"
-                : "border-border bg-surface text-text-secondary hover:text-text-primary hover:bg-surface-subtle"
-            }`}
-          >
-            <Clock className={`w-3.5 h-3.5 ${isSessionExpiring ? "text-amber-400 animate-pulse" : "text-text-tertiary"}`} />
-            <span>Session: {formatSessionTime(remainingSeconds)}</span>
-            <RefreshCw className="w-2.5 h-2.5 text-text-tertiary opacity-70 hover:opacity-100" />
-          </button>
-        )}
+        <GlobalSearchModal />
+        <Suspense
+          fallback={
+            <div className="h-8 w-28 sm:w-44 rounded-md bg-surface border border-border animate-pulse" />
+          }
+        >
+          <MonthYearSwitcher />
+        </Suspense>
 
-        {/* Privacy Mask Eye Toggle */}
+        {/* Unified Global Privacy Eye Toggle */}
         {user && (
           <button
             type="button"
             onClick={toggleMask}
             title={
               isAmountsMasked
-                ? "Privacy Mask Active: Click to reveal financial figures (password required)"
-                : "Financial Figures Visible: Click to mask figures"
+                ? "Privacy Mask Active: Click to reveal financial figures across workspace (password required)"
+                : "Financial Figures Visible: Click to mask figures globally"
             }
             className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono font-medium transition-all border cursor-pointer shadow-sm ${
               isAmountsMasked
@@ -119,14 +104,6 @@ export function AppHeader({ onToggleMobileDrawer }: { onToggleMobileDrawer?: () 
         )}
 
         <AccountHeaderBadge />
-        <GlobalSearchModal />
-        <Suspense
-          fallback={
-            <div className="h-8 w-28 sm:w-44 rounded-md bg-surface border border-border animate-pulse" />
-          }
-        >
-          <MonthYearSwitcher />
-        </Suspense>
       </div>
     </header>
   );
