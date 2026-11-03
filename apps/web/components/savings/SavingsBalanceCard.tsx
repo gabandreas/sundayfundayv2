@@ -10,6 +10,7 @@ import {
 } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
 import { usePerspective } from "@/context/PerspectiveContext";
+import { PrivacyEyeButton } from "@/components/shell/PrivacyEyeButton";
 
 interface SavingsBalanceCardProps {
   vault: SavingsVault;
@@ -81,9 +82,12 @@ export function SavingsBalanceCard({ vault }: SavingsBalanceCardProps) {
         <div className="col-span-5 rounded-lg border border-border bg-surface p-5 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
-                TOTAL ACCUMULATED IN VAULT
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
+                  TOTAL ACCUMULATED IN VAULT
+                </span>
+                <PrivacyEyeButton />
+              </div>
               <button
                 type="button"
                 onClick={() => {

@@ -1,5 +1,6 @@
 import React from "react";
 import { DeltaBadge, DeltaBadgeProps } from "./DeltaBadge";
+import { PrivacyEyeButton } from "@/components/shell/PrivacyEyeButton";
 
 export interface MetricCardProps {
   label: string;
@@ -38,9 +39,14 @@ export function MetricCard({
     >
       {/* Top section: small muted label */}
       <div className="flex items-center justify-between gap-2 mb-2">
-        <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
-          {label}
-        </span>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans truncate">
+            {label}
+          </span>
+          {(value.includes("Rp") || value.includes("••••")) && (
+            <PrivacyEyeButton size="sm" />
+          )}
+        </div>
         {statusLabel && (
           <span
             className={`px-1.5 py-0.5 text-[10px] font-mono font-medium rounded border ${

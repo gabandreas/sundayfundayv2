@@ -6,6 +6,7 @@ import { ArrowUpRight } from "lucide-react";
 import { MonthlySnapshot } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
 import { EditableTarget } from "./EditableTarget";
+import { PrivacyEyeButton } from "@/components/shell/PrivacyEyeButton";
 
 interface CoreSavingsCardProps {
   snapshot: MonthlySnapshot | null;
@@ -25,9 +26,12 @@ export function CoreSavingsCard({ snapshot, isLocked }: CoreSavingsCardProps) {
       {/* Header */}
       <div>
         <div className="flex items-center justify-between gap-2 mb-1.5">
-          <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
-            Core Savings (P1)
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
+              Core Savings (P1)
+            </span>
+            <PrivacyEyeButton />
+          </div>
           <span className="text-[10px] font-mono text-text-tertiary">
             Priority 1
           </span>

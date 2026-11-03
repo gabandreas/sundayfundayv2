@@ -3,6 +3,7 @@
 import React from "react";
 import { CreditCardSummary } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
+import { PrivacyEyeButton } from "@/components/shell/PrivacyEyeButton";
 
 interface CreditCardOverviewCardProps {
   summary: CreditCardSummary;
@@ -51,9 +52,12 @@ export function CreditCardOverviewCard({ summary }: CreditCardOverviewCardProps)
       {/* Top Header */}
       <div className="flex items-center justify-between border-b border-border-subtle pb-3">
         <div>
-          <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
-            Credit Facility & Utilization
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
+              Credit Facility & Utilization
+            </span>
+            <PrivacyEyeButton />
+          </div>
           <h2 className="text-base font-semibold font-sans text-text-primary mt-0.5">
             BCA Everyday Card & Active Lines
           </h2>

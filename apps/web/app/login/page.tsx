@@ -7,7 +7,6 @@ import {
   ShieldCheck,
   Lock,
   User,
-  Building,
   AlertCircle,
   ArrowRight,
   Eye,
@@ -27,7 +26,6 @@ function LoginForm() {
     role: string;
   } | null>(null);
 
-  const [accountName, setAccountName] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -57,13 +55,9 @@ function LoginForm() {
     setErrorMessage(null);
 
     const targetUsername = lockedIdentity ? lockedIdentity.username : username.trim();
-    const targetAccount = lockedIdentity
-      ? lockedIdentity.accountName
-      : accountName.trim() || targetUsername;
 
     try {
       const res = await login({
-        accountName: targetAccount,
         username: targetUsername,
         password,
         securityPin: requiresPin ? securityPin : undefined,
@@ -129,8 +123,8 @@ function LoginForm() {
           {requiresPin
             ? `Client IP: ${detectedIp || "Unknown"}`
             : lockedIdentity
-            ? `Account: ${lockedIdentity.accountName} · User: ${lockedIdentity.username}`
-            : "Pre-deployment enterprise auth gate with active session telemetry"}
+            ? `User: ${lockedIdentity.fullName || lockedIdentity.username}`
+            : "Enterprise financial workspace access"}
         </p>
       </div>
 
@@ -155,54 +149,27 @@ function LoginForm() {
       <form onSubmit={handleSubmit} className="space-y-4">
         {!requiresPin && (
           <>
-            {/* Show Account & Username ONLY if NOT locked */}
+            {/* Show Username ONLY if NOT locked */}
             {!lockedIdentity && (
-              <>
-                {/* Field 1: Account Name */}
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="block text-xs font-medium text-text-secondary">
-                      Account Name
-                    </label>
-                    <span className="text-[10px] font-mono text-text-tertiary">
-                      Optional if unified
-                    </span>
-                  </div>
-                  <div className="relative">
-                    <Building className="w-4 h-4 absolute left-3 top-2.5 text-text-tertiary" />
-                    <input
-                      type="text"
-                      name="accountName"
-                      autoComplete="organization"
-                      autoFocus
-                      value={accountName}
-                      onChange={(e) => setAccountName(e.target.value)}
-                      placeholder="Enter account name (or leave blank)"
-                      className="w-full pl-9 pr-3 py-2 text-xs rounded border border-border bg-surface-subtle text-text-primary focus:outline-none focus:border-border-strong font-mono"
-                    />
-                  </div>
+              <div>
+                <label className="block text-xs font-medium text-text-secondary mb-1.5">
+                  Username
+                </label>
+                <div className="relative">
+                  <User className="w-4 h-4 absolute left-3 top-2.5 text-text-tertiary" />
+                  <input
+                    type="text"
+                    name="username"
+                    autoComplete="username"
+                    autoFocus
+                    required
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="Enter username"
+                    className="w-full pl-9 pr-3 py-2 text-xs rounded border border-border bg-surface-subtle text-text-primary focus:outline-none focus:border-border-strong font-mono"
+                  />
                 </div>
-
-                {/* Field 2: Username */}
-                <div>
-                  <label className="block text-xs font-medium text-text-secondary mb-1.5">
-                    Username
-                  </label>
-                  <div className="relative">
-                    <User className="w-4 h-4 absolute left-3 top-2.5 text-text-tertiary" />
-                    <input
-                      type="text"
-                      name="username"
-                      autoComplete="username"
-                      required
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      placeholder="Enter username"
-                      className="w-full pl-9 pr-3 py-2 text-xs rounded border border-border bg-surface-subtle text-text-primary focus:outline-none focus:border-border-strong font-mono"
-                    />
-                  </div>
-                </div>
-              </>
+              </div>
             )}
 
             {/* Field: Password (Always shown, autofocused in locked mode) */}

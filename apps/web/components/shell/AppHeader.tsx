@@ -2,12 +2,11 @@
 
 import React, { Suspense } from "react";
 import { usePathname } from "next/navigation";
-import { Menu, Eye, EyeOff } from "lucide-react";
+import { Menu } from "lucide-react";
 import { MonthYearSwitcher } from "./MonthYearSwitcher";
 import { GlobalSearchModal } from "./GlobalSearchModal";
 import { AccountHeaderBadge } from "./AccountHeaderBadge";
 import { useAuth } from "@/context/AuthContext";
-import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 
 const ROUTE_TITLES: Record<string, { title: string; category: string }> = {
   "/": { title: "Overview", category: "Dashboard" },
@@ -29,7 +28,6 @@ const ROUTE_TITLES: Record<string, { title: string; category: string }> = {
 export function AppHeader({ onToggleMobileDrawer }: { onToggleMobileDrawer?: () => void }) {
   const pathname = usePathname();
   const { user } = useAuth();
-  const { isAmountsMasked, toggleMask } = usePrivacyMask();
 
   const routeInfo = ROUTE_TITLES[pathname] || {
     title: pathname.replace("/", ""),
@@ -70,38 +68,6 @@ export function AppHeader({ onToggleMobileDrawer }: { onToggleMobileDrawer?: () 
         >
           <MonthYearSwitcher />
         </Suspense>
-
-        {/* Unified Global Privacy Eye Toggle */}
-        {user && (
-          <button
-            type="button"
-            onClick={toggleMask}
-            title={
-              isAmountsMasked
-                ? "Privacy Mask Active: Click to reveal financial figures across workspace (password required)"
-                : "Financial Figures Visible: Click to mask figures globally"
-            }
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono font-medium transition-all border cursor-pointer shadow-sm ${
-              isAmountsMasked
-                ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/25"
-                : "bg-amber-500/15 text-amber-300 border-amber-500/40 hover:bg-amber-500/25"
-            }`}
-          >
-            {isAmountsMasked ? (
-              <>
-                <Eye className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                <span className="hidden sm:inline">Reveal Figures</span>
-                <span className="sm:hidden">Reveal</span>
-              </>
-            ) : (
-              <>
-                <EyeOff className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                <span className="hidden sm:inline">Hide Figures</span>
-                <span className="sm:hidden">Hide</span>
-              </>
-            )}
-          </button>
-        )}
 
         <AccountHeaderBadge />
       </div>

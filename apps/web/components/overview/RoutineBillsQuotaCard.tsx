@@ -17,6 +17,7 @@ import { EditableTarget } from "./EditableTarget";
 import { usePerspective } from "@/context/PerspectiveContext";
 import { useAuth } from "@/context/AuthContext";
 import { formatRupiah } from "@/lib/utils";
+import { PrivacyEyeButton } from "@/components/shell/PrivacyEyeButton";
 
 interface RoutineBillsQuotaCardProps {
   snapshot: MonthlySnapshot | null;
@@ -266,9 +267,12 @@ export function RoutineBillsQuotaCard({
       <div>
         {/* Header — Plain-English Financial Terminology */}
         <div className="flex items-center justify-between gap-2 mb-2">
-          <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
-            LIVING & ROUTINE BILLS
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
+              LIVING & ROUTINE BILLS
+            </span>
+            <PrivacyEyeButton />
+          </div>
           <span className="text-[10px] font-mono text-accent tabular-nums font-medium">
             Remaining Bills Quota: {formatIdr(totalRoutinePoolRemaining)}
           </span>

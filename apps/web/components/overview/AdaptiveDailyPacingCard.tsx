@@ -21,6 +21,7 @@ import {
 } from "@/lib/api";
 import { MiniTrendChart } from "@/components/primitives/MiniTrendChart";
 import { formatRupiah } from "@/lib/utils";
+import { PrivacyEyeButton } from "@/components/shell/PrivacyEyeButton";
 
 interface AdaptiveDailyPacingCardProps {
   pacing: DailyPacing | null;
@@ -253,6 +254,7 @@ export function AdaptiveDailyPacingCard({
             <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
               SAFE-TO-SPEND TODAY
             </span>
+            <PrivacyEyeButton />
             <span
               className={`text-[10px] font-mono px-2 py-0.5 rounded font-semibold uppercase tracking-wider ${
                 statusVariant === "urgency"

@@ -4,6 +4,7 @@ import React from "react";
 import { MonthlySnapshot } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
 import { EditableTarget } from "./EditableTarget";
+import { PrivacyEyeButton } from "@/components/shell/PrivacyEyeButton";
 
 interface SelfRewardBufferCardProps {
   snapshot: MonthlySnapshot | null;
@@ -24,9 +25,12 @@ export function SelfRewardBufferCard({
       {/* Header */}
       <div>
         <div className="flex items-center justify-between gap-2 mb-2">
-          <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
-            Self-Reward & Buffer (P2)
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
+              Self-Reward & Buffer (P2)
+            </span>
+            <PrivacyEyeButton />
+          </div>
           <span className="text-[10px] font-mono text-text-tertiary">
             Secondary Allocations
           </span>

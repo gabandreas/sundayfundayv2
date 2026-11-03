@@ -1,6 +1,7 @@
 import React from "react";
 import { MonthlySnapshot, DailyPacing } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
+import { PrivacyEyeButton } from "@/components/shell/PrivacyEyeButton";
 
 interface CashflowSummaryCardProps {
   snapshot: MonthlySnapshot;
@@ -17,9 +18,12 @@ export function CashflowSummaryCard({ snapshot, pacing }: CashflowSummaryCardPro
     <div className="rounded-lg border border-border bg-surface p-5 flex flex-col justify-between">
       <div>
         <div className="flex items-center justify-between gap-2 mb-4 pb-3 border-b border-border-subtle">
-          <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
-            CASHFLOW SUMMARY
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
+              CASHFLOW SUMMARY
+            </span>
+            <PrivacyEyeButton />
+          </div>
           <span className="text-[10px] font-mono text-text-tertiary">
             MONTH {snapshot.month} / {snapshot.year}
           </span>
