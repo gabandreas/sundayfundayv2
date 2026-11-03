@@ -1,80 +1,94 @@
-# Production Deployment Guide (Free-Tier Cloud Topology)
+# Production Deployment Guide (100% Free Cloud Topology)
 
-This document details the configuration and deployment procedures for hosting Sunday Funday ERP on a zero-cost, high-availability cloud topology:
+This document details the configuration and deployment procedures for hosting Sunday Funday ERP on a zero-cost, high-availability cloud topology without requiring a credit card:
 
 | Layer | Provider | Free Tier Specification |
 |---|---|---|
-| **Relational Database** | [Neon.tech](https://neon.tech) | Serverless PostgreSQL 16 (0.5 GB RAM, pooled connection string, SSL) |
-| **Backend API** | [Koyeb](https://koyeb.com) or [Render](https://render.com) | Docker container (512 MB RAM, automatic HTTPS, health check) |
+| **Relational Database** | [Neon.tech](https://neon.tech) | Serverless PostgreSQL 16/18 (0.5 GB RAM, connection pooling, SSL) |
+| **Backend API** | [Vercel Serverless](https://vercel.com) | Express/NestJS Serverless Function (warm execution cache, automatic HTTPS) |
 | **Frontend UI** | [Vercel](https://vercel.com) | Edge-optimized Next.js 14 App Router (automatic CI/CD on git push) |
 
 ---
 
-## 1. Relational Database (Neon.tech)
+## 1. Relational Database Setup (Neon.tech)
 
 1. **Create Project:**
-   - Create a project named `sunday-funday-erp` in the closest geographic region (e.g., `Singapore / ap-southeast-1`).
-   - Copy the Pooled Connection String:
-     ```
-     postgresql://<username>:<password>@<ep-identifier>-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require
-     ```
-2. **Apply Schema & Generate Prisma Client:**
-   - From your local terminal or CI pipeline:
+   - Sign up at [neon.tech](https://neon.tech) (GitHub auth, no credit card required).
+   - Create a project named `sunday-funday-erp` in region `Singapore (ap-southeast-1)`.
+   - Neon provides two connection strings:
+     - **Pooled URL (`-pooler`):** Use for runtime API connections (`DATABASE_URL`).
+       ```text
+       postgresql://neondb_owner:<password>@<ep-name>-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require
+       ```
+     - **Direct URL:** Use for schema pushes and initial database cloning.
+       ```text
+       postgresql://neondb_owner:<password>@<ep-name>.ap-southeast-1.aws.neon.tech/neondb?sslmode=require
+       ```
+
+2. **1-Command Database Migration from Local:**
+   - Run the automated database cloner from your local workspace:
      ```bash
-     cd apps/api
-     DATABASE_URL="postgresql://<username>:<password>@<ep-identifier>-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require" npx prisma db push
+     $env:CLOUD_DATABASE_URL="postgresql://neondb_owner:<password>@<ep-name>.ap-southeast-1.aws.neon.tech/neondb?sslmode=require"
+     npm run db:push-to-cloud
      ```
-   - On first startup, the backend automatically initializes the isolated Recruiter Sandbox account (`id = 2`).
+   - This executes schema sync (`prisma db push`), clones all 15 relational tables atomically, and realigns PostgreSQL auto-increment sequences (`setval`).
 
 ---
 
-## 2. Backend API Service (Koyeb / Render)
+## 2. Backend API Deployment (`apps/api` on Vercel)
 
-### Option A: Koyeb (Recommended)
-1. **Create App & Service:**
-   - Select **GitHub Repository** -> `mondaymondayv2`.
-   - Set **Work Directory**: `apps/api`.
-   - Select **Dockerfile** build method (`apps/api/Dockerfile`).
-2. **Environment Variables:**
-   | Variable | Value |
-   |---|---|
-   | `NODE_ENV` | `production` |
-   | `PORT` | `3001` |
-   | `DATABASE_URL` | `postgresql://<user>:<pwd>@<neon-host>/neondb?sslmode=require` |
-   | `JWT_SECRET` | Strong 64-character secret string |
-   | `CORS_ORIGIN` | `https://<your-vercel-app>.vercel.app` |
-3. **Health Check:**
-   - Protocol: `HTTP`
-   - Path: `/api/auth/session` or `/`
-   - Port: `3001`
+The backend is configured for Vercel Serverless via `apps/api/src/serverless.ts`, `apps/api/api/index.js`, and `apps/api/vercel.json`.
 
-### Option B: Render Web Service
-1. Create a **Web Service** pointing to the GitHub repository.
-2. Root Directory: `apps/api`.
-3. Runtime: **Docker**.
-4. Configure the same environment variables as above.
-
----
-
-## 3. Frontend Web Application (Vercel)
-
-1. **Import Git Repository:**
-   - Select repository `mondaymondayv2`.
-2. **Configure Project Settings:**
-   - **Framework Preset:** Next.js
-   - **Root Directory:** `apps/web`
+1. **Import Git Repository on Vercel:**
+   - Log in to [vercel.com](https://vercel.com) and click **Add New... -> Project**.
+   - Select your repository (`gabandreas/sundayfundayv2`).
+2. **Project Settings:**
+   - **Project Name:** `sunday-funday-api`
+   - **Framework Preset:** `Other`
+   - **Root Directory:** Click **Edit** and select `apps/api`.
+   - **Build Command:** `npx prisma generate && npm run build` (set automatically by `vercel.json`).
+   - **Output Directory:** `dist`
 3. **Environment Variables:**
-   | Variable | Value |
-   |---|---|
-   | `NEXT_PUBLIC_API_URL` | `https://<your-api-domain>.koyeb.app` (no trailing slash) |
+   | Variable | Value | Notes |
+   |---|---|---|
+   | `DATABASE_URL` | `postgresql://neondb_owner:...-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require` | Use Neon Pooled Connection String |
+   | `JWT_SECRET` | Strong 64-character random string | Used for signing 30-minute JWT auth tokens |
+   | `CORS_ORIGIN` | `https://sunday-funday.vercel.app` | Set to your frontend Vercel URL |
+   | `NODE_ENV` | `production` | Enables production optimizations |
 4. **Deploy:**
-   - Click **Deploy**. Vercel will compile all 18 routes with Turbopack and optimize server/client bundles.
+   - Click **Deploy**. Vercel routes `/api/*` and root routes to the serverless entrypoint.
 
 ---
 
-## 4. Post-Deployment Verification
+## 3. Frontend Web Application (`apps/web` on Vercel)
 
-1. Navigate to the deployed Vercel URL (e.g. `https://sunday-funday.vercel.app/login`).
-2. Verify that `accountName`, `username`, and `password` fields are blank.
-3. Click **Explore Portfolio Sandbox (Recruiter Demo) →**.
-4. Confirm access to the dashboard (`10/2026`), test the **Privacy Eye Mask** toggle using demo password `Recruiter2026!`, and test the 10-second balance reconciliation workflow.
+1. **Create Second Project on Vercel:**
+   - From Vercel dashboard, click **Add New... -> Project**.
+   - Select the same repository (`gabandreas/sundayfundayv2`).
+2. **Project Settings:**
+   - **Project Name:** `sunday-funday` (or your chosen frontend domain).
+   - **Framework Preset:** `Next.js`
+   - **Root Directory:** Click **Edit** and select `apps/web`.
+3. **Environment Variables:**
+   | Variable | Value | Notes |
+   |---|---|---|
+   | `NEXT_PUBLIC_API_URL` | `https://sunday-funday-api.vercel.app` | Point to your deployed API project URL (no trailing slash) |
+4. **Deploy:**
+   - Click **Deploy**. Vercel compiles all 18 routes with zero errors.
+
+---
+
+## 4. Post-Deployment Verification & Sandbox Access
+
+1. Navigate to your frontend URL: `https://sunday-funday.vercel.app/login`.
+2. **Security Check:** Confirm all credential fields (`accountName`, `username`, `password`) are unpopulated.
+3. **General Demo Sandbox Access:**
+   - Click **"Explore General Sandbox (Demo) →"** to access the isolated demonstration workspace in 1 click.
+   - Alternatively, enter credentials:
+     - **Account Name:** `demo`
+     - **Username:** `guest`
+     - **Password:** `Sandbox2026!`
+4. **Interactive Feature Validation:**
+   - **Privacy Eye Mask:** Verify financial figures default to `Rp •••••••`. Click **Reveal** and enter `Sandbox2026!` to unmask.
+   - **Dynamic Spend Pacing:** Inspect the payday-to-payday variable consumption window and status indicators.
+   - **10-Second Balance Reconciler:** Execute real-time balance checkpoints against the operational pool.

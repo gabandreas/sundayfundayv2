@@ -112,13 +112,14 @@ export class AuthService implements OnModuleInit {
         }
       }
 
-      // 2. Ensure User #2 (Demo Sandbox / Recruiter Portfolio Account) exists
+      // 2. Ensure User #2 (General Sandbox Demo Account) exists
       const demoEmail = 'demo@sundayfunday.id';
       let demoUser = await this.prisma.user.findFirst({
         where: {
           OR: [
             { id: 2 },
             { email: demoEmail },
+            { accountName: 'demo', username: 'guest' },
             { accountName: 'portfolio', username: 'recruiter' },
           ],
         },
@@ -128,11 +129,11 @@ export class AuthService implements OnModuleInit {
         demoUser = await this.prisma.user.create({
           data: {
             id: 2,
-            accountName: 'portfolio',
-            username: 'recruiter',
+            accountName: 'demo',
+            username: 'guest',
             email: demoEmail,
-            passwordHash: hashPassword('Recruiter2026!'),
-            fullName: 'Recruiter Sandbox (Demo)',
+            passwordHash: hashPassword('Sandbox2026!'),
+            fullName: 'General Sandbox (Demo)',
             role: 'DEMO_SANDBOX',
             status: 'ACTIVE',
             blueprintType: 'STANDARD_GENERAL',
@@ -143,12 +144,12 @@ export class AuthService implements OnModuleInit {
         });
       } else {
         const demoUpdates: any = {};
-        if (demoUser.accountName !== 'portfolio') demoUpdates.accountName = 'portfolio';
-        if (demoUser.username !== 'recruiter') demoUpdates.username = 'recruiter';
-        if (demoUser.fullName !== 'Recruiter Sandbox (Demo)') demoUpdates.fullName = 'Recruiter Sandbox (Demo)';
+        if (demoUser.accountName !== 'demo') demoUpdates.accountName = 'demo';
+        if (demoUser.username !== 'guest') demoUpdates.username = 'guest';
+        if (demoUser.fullName !== 'General Sandbox (Demo)') demoUpdates.fullName = 'General Sandbox (Demo)';
         if (demoUser.role !== 'DEMO_SANDBOX') demoUpdates.role = 'DEMO_SANDBOX';
-        if (!verifyPassword('Recruiter2026!', demoUser.passwordHash)) {
-          demoUpdates.passwordHash = hashPassword('Recruiter2026!');
+        if (!verifyPassword('Sandbox2026!', demoUser.passwordHash)) {
+          demoUpdates.passwordHash = hashPassword('Sandbox2026!');
         }
         if (Object.keys(demoUpdates).length > 0) {
           demoUser = await this.prisma.user.update({
@@ -385,6 +386,7 @@ export class AuthService implements OnModuleInit {
           { role: 'DEMO_SANDBOX' },
           { id: 2 },
           { email: 'demo@sundayfunday.id' },
+          { accountName: 'demo', username: 'guest' },
           { accountName: 'portfolio', username: 'recruiter' },
         ],
       },
@@ -398,6 +400,7 @@ export class AuthService implements OnModuleInit {
             { role: 'DEMO_SANDBOX' },
             { id: 2 },
             { email: 'demo@sundayfunday.id' },
+            { accountName: 'demo', username: 'guest' },
             { accountName: 'portfolio', username: 'recruiter' },
           ],
         },
@@ -410,8 +413,8 @@ export class AuthService implements OnModuleInit {
 
     const token = signToken({
       sub: demoUser.id,
-      accountName: demoUser.accountName || 'portfolio',
-      username: demoUser.username || 'recruiter',
+      accountName: demoUser.accountName || 'demo',
+      username: demoUser.username || 'guest',
       email: demoUser.email,
       fullName: demoUser.fullName,
       role: demoUser.role,

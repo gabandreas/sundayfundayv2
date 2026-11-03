@@ -88,13 +88,13 @@ function LoginForm() {
     }
   };
 
-  const handleRecruiterDemoLogin = async () => {
+  const handleDemoLogin = async () => {
     setIsLoading(true);
     setErrorMessage(null);
     try {
       await demoLogin();
     } catch (err: any) {
-      setErrorMessage(err.message || "Failed to launch Recruiter Demo Sandbox.");
+      setErrorMessage(err.message || "Failed to launch General Demo Sandbox.");
     } finally {
       setIsLoading(false);
     }
@@ -326,18 +326,18 @@ function LoginForm() {
         )}
       </form>
 
-      {/* Recruiter Portfolio Sandbox Entry */}
+      {/* General Sandbox Entry */}
       <div className="mt-6 pt-5 border-t border-border space-y-2">
         <div className="text-[10px] font-mono text-text-tertiary uppercase tracking-wider text-center">
-          Portfolio Review & Code Assessment
+          Interactive Evaluation & Demo Sandbox
         </div>
         <button
           type="button"
-          onClick={handleRecruiterDemoLogin}
+          onClick={handleDemoLogin}
           disabled={isLoading}
           className="w-full py-2 px-3 text-xs rounded border border-emerald-500/30 bg-surface-subtle hover:bg-emerald-950/20 text-text-secondary hover:text-emerald-300 transition-colors flex items-center justify-center gap-1.5 font-mono cursor-pointer disabled:opacity-50"
         >
-          <span>Explore Portfolio Sandbox (Recruiter Demo) &rarr;</span>
+          <span>Explore General Sandbox (Demo) &rarr;</span>
         </button>
       </div>
 

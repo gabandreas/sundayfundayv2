@@ -4,11 +4,11 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 
-describe('Phase 12 — Privacy Masking & Recruiter Portfolio Sandbox (e2e)', () => {
+describe('Phase 12 — Privacy Masking & General Sandbox (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   let superadminToken: string;
-  let recruiterToken: string;
+  let demoToken: string;
 
   beforeAll(async () => {
     process.env.DATABASE_URL =
@@ -34,10 +34,10 @@ describe('Phase 12 — Privacy Masking & Recruiter Portfolio Sandbox (e2e)', () 
       });
     superadminToken = saLogin.body.accessToken;
 
-    // Authenticate recruiter
+    // Authenticate demo sandbox
     const recLogin = await request(app.getHttpServer())
       .post('/api/auth/demo-login');
-    recruiterToken = recLogin.body.accessToken;
+    demoToken = recLogin.body.accessToken;
   });
 
   afterAll(async () => {
@@ -79,33 +79,33 @@ describe('Phase 12 — Privacy Masking & Recruiter Portfolio Sandbox (e2e)', () 
     });
   });
 
-  describe('Part 2: Recruiter Portfolio Sandbox Authentication & Isolation', () => {
-    it('authenticates via 3 fields (portfolio / recruiter / Recruiter2026!)', async () => {
+  describe('Part 2: General Sandbox Authentication & Isolation', () => {
+    it('authenticates via 3 fields (demo / guest / Sandbox2026!)', async () => {
       const res = await request(app.getHttpServer())
         .post('/api/auth/login')
         .send({
-          accountName: 'portfolio',
-          username: 'recruiter',
-          password: 'Recruiter2026!',
+          accountName: 'demo',
+          username: 'guest',
+          password: 'Sandbox2026!',
         });
       expect(res.status).toBe(200);
       expect(res.body.user.role).toBe('DEMO_SANDBOX');
-      expect(res.body.user.fullName).toBe('Recruiter Sandbox (Demo)');
+      expect(res.body.user.fullName).toBe('General Sandbox (Demo)');
     });
 
-    it('verifies recruiter password successfully via /api/auth/verify-password', async () => {
+    it('verifies sandbox password successfully via /api/auth/verify-password', async () => {
       const res = await request(app.getHttpServer())
         .post('/api/auth/verify-password')
-        .set('Authorization', `Bearer ${recruiterToken}`)
-        .send({ password: 'Recruiter2026!' });
+        .set('Authorization', `Bearer ${demoToken}`)
+        .send({ password: 'Sandbox2026!' });
       expect(res.status).toBe(200);
       expect(res.body).toEqual({ verified: true });
     });
 
-    it('strictly forbids recruiter sandbox from accessing /api/admin/sql/*', async () => {
+    it('strictly forbids demo sandbox from accessing /api/admin/sql/*', async () => {
       const res = await request(app.getHttpServer())
         .get('/api/admin/sql/tables')
-        .set('Authorization', `Bearer ${recruiterToken}`);
+        .set('Authorization', `Bearer ${demoToken}`);
       expect(res.status).toBe(403);
     });
   });

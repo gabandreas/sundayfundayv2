@@ -8,21 +8,21 @@ The application is structured as a TypeScript monorepo combining a NestJS busine
 
 ---
 
-## 1. Live Portfolio Sandbox Access
+## 1. Live Demonstration Sandbox Access
 
-Technical evaluators and recruiters can access an isolated demonstration sandbox without configuring local dependencies.
+Technical evaluators and visitors can access an isolated demonstration sandbox without configuring local dependencies.
 
 | Parameter | Value |
 |---|---|
 | **Login URL** | `/login` |
-| **Account Name** | `portfolio` |
-| **Username** | `recruiter` |
-| **Password** | `Recruiter2026!` |
-| **Direct 1-Click Access** | Click **"Explore Portfolio Sandbox (Recruiter Demo) →"** on `/login` |
+| **Account Name** | `demo` |
+| **Username** | `guest` |
+| **Password** | `Sandbox2026!` |
+| **Direct 1-Click Access** | Click **"Explore General Sandbox (Demo) →"** on `/login` |
 | **Role & Scope** | `DEMO_SANDBOX` (`userId = 2`, isolated from production records) |
 
 ### Testable Technical Workflows
-- **Financial Privacy Masking:** Financial amounts initialize masked as `Rp •••••••`. Click the topbar **Reveal** button and verify with password `Recruiter2026!` to unmask figures in real time.
+- **Financial Privacy Masking:** Financial amounts initialize masked as `Rp •••••••`. Click the topbar **Reveal** button and verify with password `Sandbox2026!` to unmask figures in real time.
 - **Dynamic Spend Pacing:** Inspect the payday-to-payday variable consumption window (`28 Oct – 26 Nov 2026`), daily burn rate gauges, and status transitions (`ON_TRACK`, `CAUTION`, `BURNING_FAST`).
 - **10-Second Balance Reconciler:** Execute real-time bank balance checkpoints with automated surplus allocation or deficit absorption against the operational pool.
 - **Credit Card Billing Cycle Engine:** Review credit statement cutoff versus due-date mapping across 12-month amortized liability projections.
