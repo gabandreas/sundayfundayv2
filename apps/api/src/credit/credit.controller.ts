@@ -115,46 +115,65 @@ export class CreditController {
   }
 
   @Post('cards')
-  async createCardTransaction(@Body() dto: CreateCreditCardTransactionDto) {
-    return this.creditService.createCardTransaction(dto);
+  async createCardTransaction(
+    @Body() dto: CreateCreditCardTransactionDto,
+    @Req() req?: any,
+  ) {
+    const userId = getUserIdOrThrow(req);
+    return this.creditService.createCardTransaction(dto, userId);
   }
 
   @Patch('cards/:id')
   async updateCardTransaction(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateCreditCardTransactionDto,
+    @Req() req?: any,
   ) {
-    return this.creditService.updateCardTransaction(id, dto);
+    const userId = getUserIdOrThrow(req);
+    return this.creditService.updateCardTransaction(id, dto, userId);
   }
 
   @Post('cards/:id/settle-early')
   async settleCardInstallmentEarly(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: SettleCardEarlyDto,
+    @Req() req?: any,
   ) {
-    return this.creditService.settleCardInstallmentEarly(id, dto);
+    const userId = getUserIdOrThrow(req);
+    return this.creditService.settleCardInstallmentEarly(id, dto, userId);
   }
 
   @Patch('cards/:id/stop-recurring')
   async stopRecurringSubscription(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: { stopFromMonth: number; stopFromYear: number },
+    @Req() req?: any,
   ) {
+    const userId = getUserIdOrThrow(req);
     return this.creditService.stopRecurringSubscription(
       id,
       dto.stopFromMonth,
       dto.stopFromYear,
+      userId,
     );
   }
 
   @Patch('cards/:id/resume-recurring')
-  async resumeRecurringSubscription(@Param('id', ParseIntPipe) id: number) {
-    return this.creditService.resumeRecurringSubscription(id);
+  async resumeRecurringSubscription(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req?: any,
+  ) {
+    const userId = getUserIdOrThrow(req);
+    return this.creditService.resumeRecurringSubscription(id, userId);
   }
 
   @Delete('cards/:id')
-  async deleteCardTransaction(@Param('id', ParseIntPipe) id: number) {
-    return this.creditService.deleteCardTransaction(id);
+  async deleteCardTransaction(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req?: any,
+  ) {
+    const userId = getUserIdOrThrow(req);
+    return this.creditService.deleteCardTransaction(id, userId);
   }
 
   // -------------------------------------------------------------------------
@@ -174,21 +193,31 @@ export class CreditController {
   }
 
   @Post('bulk-bills')
-  async createBulkBill(@Body() dto: CreateMonthlyBulkBillDto) {
-    return this.creditService.createBulkBill(dto);
+  async createBulkBill(
+    @Body() dto: CreateMonthlyBulkBillDto,
+    @Req() req?: any,
+  ) {
+    const userId = getUserIdOrThrow(req);
+    return this.creditService.createBulkBill(dto, userId);
   }
 
   @Put('bulk-bills/:id')
   async updateBulkBill(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateMonthlyBulkBillDto,
+    @Req() req?: any,
   ) {
-    return this.creditService.updateBulkBill(id, dto);
+    const userId = getUserIdOrThrow(req);
+    return this.creditService.updateBulkBill(id, dto, userId);
   }
 
   @Delete('bulk-bills/:id')
-  async deleteBulkBill(@Param('id', ParseIntPipe) id: number) {
-    return this.creditService.deleteBulkBill(id);
+  async deleteBulkBill(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req?: any,
+  ) {
+    const userId = getUserIdOrThrow(req);
+    return this.creditService.deleteBulkBill(id, userId);
   }
 
   // -------------------------------------------------------------------------
@@ -199,6 +228,7 @@ export class CreditController {
   async syncLiabilities(
     @Query('month') monthStr: string,
     @Query('year') yearStr: string,
+    @Req() req?: any,
   ) {
     const month = parseInt(monthStr, 10);
     const year = parseInt(yearStr, 10);
@@ -209,7 +239,8 @@ export class CreditController {
       );
     }
 
-    return this.creditService.syncLiabilitiesToSnapshot(month, year);
+    const userId = getUserIdOrThrow(req);
+    return this.creditService.syncLiabilitiesToSnapshot(month, year, undefined, userId);
   }
 
   // -------------------------------------------------------------------------

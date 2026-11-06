@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
   Inject,
   forwardRef,
 } from '@nestjs/common';
@@ -221,8 +222,11 @@ export class CreditService {
 
   async createCardTransaction(
     dto: CreateCreditCardTransactionDto,
+    userId: number = 1,
   ): Promise<CreditCardTransaction> {
-    const config = await this.prisma.globalConfig.findFirst();
+    const config =
+      (await this.prisma.globalConfig.findFirst({ where: { userId } })) ||
+      (await this.prisma.globalConfig.findFirst({ where: { userId: 1 } }));
     const statementDay = config?.creditStatementDay ?? 20;
 
     const { billingMonth, billingYear } = this.calculateBillingCycle(
@@ -232,7 +236,7 @@ export class CreditService {
 
     // Locked guard: check if the target billing period snapshot is locked
     const targetSnapshot = await this.prisma.monthlySnapshot.findUnique({
-      where: { userId_month_year: { userId: 1, month: billingMonth, year: billingYear } },
+      where: { userId_month_year: { userId, month: billingMonth, year: billingYear } },
     });
     if (targetSnapshot?.status === 'LOCKED') {
       throw new BadRequestException(
@@ -256,6 +260,7 @@ export class CreditService {
 
     const created = await this.prisma.creditCardTransaction.create({
       data: {
+        userId,
         label: dto.label,
         amount: dto.amount,
         totalAmount,
@@ -284,7 +289,7 @@ export class CreditService {
     });
 
     if (targetSnapshot && targetSnapshot.status === SnapshotStatus.DRAFT) {
-      await this.syncLiabilitiesToSnapshot(billingMonth, billingYear);
+      await this.syncLiabilitiesToSnapshot(billingMonth, billingYear, undefined, userId);
     }
 
     if (
@@ -295,10 +300,11 @@ export class CreditService {
         created,
         billingMonth,
         billingYear,
+        userId,
       );
     }
 
-    await this.checkAndLogCreditLimitBreach(billingMonth, billingYear, 'CC');
+    await this.checkAndLogCreditLimitBreach(billingMonth, billingYear, 'CC', userId);
 
     return created;
   }
@@ -306,12 +312,16 @@ export class CreditService {
   async updateCardTransaction(
     id: number,
     dto: UpdateCreditCardTransactionDto,
+    userId?: number,
   ): Promise<CreditCardTransaction> {
     const existing = await this.prisma.creditCardTransaction.findUnique({
       where: { id },
     });
     if (!existing) {
       throw new NotFoundException(`CreditCardTransaction #${id} not found`);
+    }
+    if (userId && existing.userId !== userId) {
+      throw new ForbiddenException(`Cannot modify credit card transaction belonging to another workspace`);
     }
 
     if (
@@ -357,17 +367,24 @@ export class CreditService {
       details: JSON.stringify(dto),
     });
 
-    await this.syncAllDraftSnapshots();
+    await this.syncAllDraftSnapshots(existing.userId);
 
     return updated;
   }
 
-  async settleCardInstallmentEarly(id: number, dto: SettleCardEarlyDto) {
+  async settleCardInstallmentEarly(
+    id: number,
+    dto: SettleCardEarlyDto,
+    userId?: number,
+  ) {
     const existing = await this.prisma.creditCardTransaction.findUnique({
       where: { id },
     });
     if (!existing) {
       throw new NotFoundException(`CreditCardTransaction #${id} not found`);
+    }
+    if (userId && existing.userId !== userId) {
+      throw new ForbiddenException(`Cannot settle credit card installment belonging to another workspace`);
     }
 
     if (existing.chargeType !== CreditCardChargeType.INSTALLMENT) {
@@ -400,6 +417,7 @@ export class CreditService {
         await this.snapshotsSelectors.getOrCreateDraftSnapshot(
           dto.month,
           dto.year,
+          existing.userId,
         );
       await this.snapshotsService.assertSnapshotUnlocked(targetSnapshot.id);
     }
@@ -418,7 +436,7 @@ export class CreditService {
       },
     });
 
-    await this.syncAllDraftSnapshots();
+    await this.syncAllDraftSnapshots(existing.userId);
 
     await this.auditLogService.record({
       category: AuditCategory.LIABILITIES,
@@ -449,12 +467,18 @@ export class CreditService {
     };
   }
 
-  async deleteCardTransaction(id: number): Promise<CreditCardTransaction> {
+  async deleteCardTransaction(
+    id: number,
+    userId?: number,
+  ): Promise<CreditCardTransaction> {
     const existing = await this.prisma.creditCardTransaction.findUnique({
       where: { id },
     });
     if (!existing) {
       throw new NotFoundException(`CreditCardTransaction #${id} not found`);
+    }
+    if (userId && existing.userId !== userId) {
+      throw new ForbiddenException(`Cannot delete credit card transaction belonging to another workspace`);
     }
 
     const targetSnapshot = await this.prisma.monthlySnapshot.findUnique({
@@ -486,7 +510,7 @@ export class CreditService {
     });
 
     if (targetSnapshot && targetSnapshot.status === SnapshotStatus.DRAFT) {
-      await this.syncLiabilitiesToSnapshot(existing.billingMonth, existing.billingYear);
+      await this.syncLiabilitiesToSnapshot(existing.billingMonth, existing.billingYear, undefined, existing.userId);
     }
 
     if (
@@ -497,6 +521,7 @@ export class CreditService {
         existing,
         existing.billingMonth,
         existing.billingYear,
+        existing.userId,
       );
     }
 
@@ -507,12 +532,16 @@ export class CreditService {
     id: number,
     stopFromMonth: number,
     stopFromYear: number,
+    userId?: number,
   ): Promise<CreditCardTransaction> {
     const existing = await this.prisma.creditCardTransaction.findUnique({
       where: { id },
     });
     if (!existing) {
       throw new NotFoundException(`Credit card transaction #${id} not found`);
+    }
+    if (userId && existing.userId !== userId) {
+      throw new ForbiddenException(`Cannot modify recurring subscription belonging to another workspace`);
     }
 
     if (
@@ -543,17 +572,17 @@ export class CreditService {
       details: JSON.stringify({ id, stopFromMonth, stopFromYear }),
     });
 
-    // Re-sync all DRAFT snapshots from (stopFromMonth, stopFromYear) onward
+    // Re-sync all DRAFT snapshots for this user from (stopFromMonth, stopFromYear) onward
     const stopSerial = stopFromYear * 12 + stopFromMonth;
     const draftSnapshots = await this.prisma.monthlySnapshot.findMany({
-      where: { status: SnapshotStatus.DRAFT },
+      where: { userId: existing.userId, status: SnapshotStatus.DRAFT },
       select: { month: true, year: true },
     });
 
     for (const s of draftSnapshots) {
       const sSerial = s.year * 12 + s.month;
       if (sSerial >= stopSerial) {
-        await this.syncLiabilitiesToSnapshot(s.month, s.year);
+        await this.syncLiabilitiesToSnapshot(s.month, s.year, undefined, existing.userId);
       }
     }
 
@@ -562,12 +591,16 @@ export class CreditService {
 
   async resumeRecurringSubscription(
     id: number,
+    userId?: number,
   ): Promise<CreditCardTransaction> {
     const existing = await this.prisma.creditCardTransaction.findUnique({
       where: { id },
     });
     if (!existing) {
       throw new NotFoundException(`Credit card transaction #${id} not found`);
+    }
+    if (userId && existing.userId !== userId) {
+      throw new ForbiddenException(`Cannot modify recurring subscription belonging to another workspace`);
     }
 
     const updated = await this.prisma.creditCardTransaction.update({
@@ -589,8 +622,8 @@ export class CreditService {
       details: JSON.stringify({ id }),
     });
 
-    // Re-sync all DRAFT snapshots
-    await this.syncAllDraftSnapshots();
+    // Re-sync all DRAFT snapshots for this user
+    await this.syncAllDraftSnapshots(existing.userId);
 
     return updated;
   }
@@ -601,9 +634,10 @@ export class CreditService {
 
   async createBulkBill(
     dto: CreateMonthlyBulkBillDto,
+    userId: number = 1,
   ): Promise<MonthlyBulkBill> {
     const targetSnapshot = await this.prisma.monthlySnapshot.findUnique({
-      where: { userId_month_year: { userId: 1, month: dto.month, year: dto.year } },
+      where: { userId_month_year: { userId, month: dto.month, year: dto.year } },
     });
     if (targetSnapshot?.status === 'LOCKED') {
       throw new BadRequestException(
@@ -612,7 +646,7 @@ export class CreditService {
     }
 
     const existing = await this.prisma.monthlyBulkBill.findFirst({
-      where: { month: dto.month, year: dto.year },
+      where: { userId, month: dto.month, year: dto.year },
     });
 
     if (existing) {
@@ -622,7 +656,7 @@ export class CreditService {
         paylaterAmount: dto.paylaterAmount,
         personalDebtAmount: dto.personalDebtAmount,
         creditCardAmount: dto.creditCardAmount,
-      });
+      }, userId);
     }
 
     const paylaterAmount = dto.paylaterAmount ?? 0;
@@ -638,6 +672,7 @@ export class CreditService {
 
     const created = await this.prisma.monthlyBulkBill.create({
       data: {
+        userId,
         label: dto.label ?? 'Monthly Bulk Bill',
         amount,
         paylaterAmount,
@@ -658,10 +693,10 @@ export class CreditService {
     });
 
     if (targetSnapshot && targetSnapshot.status === SnapshotStatus.DRAFT) {
-      await this.syncLiabilitiesToSnapshot(dto.month, dto.year);
+      await this.syncLiabilitiesToSnapshot(dto.month, dto.year, undefined, userId);
     }
 
-    await this.checkAndLogCreditLimitBreach(dto.month, dto.year, 'PAYLATER');
+    await this.checkAndLogCreditLimitBreach(dto.month, dto.year, 'PAYLATER', userId);
 
     return created;
   }
@@ -669,12 +704,17 @@ export class CreditService {
   async updateBulkBill(
     id: number,
     dto: UpdateMonthlyBulkBillDto,
+    userId?: number,
   ): Promise<MonthlyBulkBill> {
     const existing = await this.prisma.monthlyBulkBill.findUnique({
       where: { id },
     });
     if (!existing) {
       throw new NotFoundException(`MonthlyBulkBill #${id} not found`);
+    }
+
+    if (userId && existing.userId !== userId) {
+      throw new ForbiddenException(`Cannot modify bulk bill belonging to another workspace`);
     }
 
     const targetSnapshot = await this.prisma.monthlySnapshot.findUnique({
@@ -733,17 +773,22 @@ export class CreditService {
       existing.month,
       existing.year,
       'PAYLATER',
+      existing.userId,
     );
 
     return updated;
   }
 
-  async deleteBulkBill(id: number): Promise<MonthlyBulkBill> {
+  async deleteBulkBill(id: number, userId?: number): Promise<MonthlyBulkBill> {
     const existing = await this.prisma.monthlyBulkBill.findUnique({
       where: { id },
     });
     if (!existing) {
       throw new NotFoundException(`MonthlyBulkBill #${id} not found`);
+    }
+
+    if (userId && existing.userId !== userId) {
+      throw new ForbiddenException(`Cannot delete bulk bill belonging to another workspace`);
     }
 
     const targetSnapshot = await this.prisma.monthlySnapshot.findUnique({
@@ -1065,9 +1110,10 @@ export class CreditService {
     card: CreditCardTransaction,
     primaryMonth: number,
     primaryYear: number,
+    userId: number = 1,
   ): Promise<void> {
     const draftSnapshots = await this.prisma.monthlySnapshot.findMany({
-      where: { status: SnapshotStatus.DRAFT },
+      where: { userId, status: SnapshotStatus.DRAFT },
       select: { month: true, year: true },
     });
 
@@ -1075,19 +1121,19 @@ export class CreditService {
       if (s.month === primaryMonth && s.year === primaryYear) continue;
       const due = calculateCardDueAmountForMonth(card, s.month, s.year);
       if (due > 0) {
-        await this.syncLiabilitiesToSnapshot(s.month, s.year);
+        await this.syncLiabilitiesToSnapshot(s.month, s.year, undefined, userId);
       }
     }
   }
 
-  private async syncAllDraftSnapshots(): Promise<void> {
+  private async syncAllDraftSnapshots(userId: number = 1): Promise<void> {
     const draftSnapshots = await this.prisma.monthlySnapshot.findMany({
-      where: { status: SnapshotStatus.DRAFT },
+      where: { userId, status: SnapshotStatus.DRAFT },
       select: { month: true, year: true },
     });
 
     for (const s of draftSnapshots) {
-      await this.syncLiabilitiesToSnapshot(s.month, s.year);
+      await this.syncLiabilitiesToSnapshot(s.month, s.year, undefined, userId);
     }
   }
 
@@ -1095,10 +1141,12 @@ export class CreditService {
     month: number,
     year: number,
     instrument: 'CC' | 'PAYLATER',
+    userId: number = 1,
   ): Promise<void> {
     const limitReport = await this.creditSelectors.getCreditUsageLimit(
       month,
       year,
+      userId,
     );
 
     if (
@@ -1184,7 +1232,7 @@ export class CreditService {
 
     // If amount > 0, sync affected draft snapshots
     if (created.amount > 0) {
-      await this.syncAffectedDraftSnapshotsForCard(created, bMonth, bYear);
+      await this.syncAffectedDraftSnapshotsForCard(created, bMonth, bYear, userId);
     }
 
     return created;
