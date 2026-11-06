@@ -1205,14 +1205,13 @@ export async function updateBulkBillCell(data: {
   value: number;
 }): Promise<{ success: boolean; error?: string }> {
   try {
-    const authHeaders = await getAuthHeaders();
+    const headers = await getAuthHeaders({
+      "Content-Type": "application/json",
+    });
     if (data.id) {
       const res = await fetch(`${API_URL}/api/credit/bulk-bills/${data.id}`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          ...authHeaders,
-        },
+        headers,
         body: JSON.stringify({
           [data.field]: data.value,
         }),
@@ -1225,10 +1224,7 @@ export async function updateBulkBillCell(data: {
     } else {
       const res = await fetch(`${API_URL}/api/credit/bulk-bills`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...authHeaders,
-        },
+        headers,
         body: JSON.stringify({
           month: data.month,
           year: data.year,
