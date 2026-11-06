@@ -24,6 +24,18 @@ export function PrivacyMaskProvider({ children }: { children: React.ReactNode })
   const [isAmountsMasked, setIsAmountsMasked] = useState<boolean>(true);
   const [isVerifyModalOpen, setIsVerifyModalOpen] = useState<boolean>(false);
 
+  // Sync from localStorage on initial mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("erp_privacy_masked");
+      if (stored !== null) {
+        const val = stored === "1";
+        setIsAmountsMasked(val);
+        setGlobalAmountsMasked(val);
+      }
+    } catch {}
+  }, []);
+
   // Sync with global formatter state on mount and change
   useEffect(() => {
     setGlobalAmountsMasked(isAmountsMasked);
@@ -35,21 +47,34 @@ export function PrivacyMaskProvider({ children }: { children: React.ReactNode })
       setIsAmountsMasked(true);
       setGlobalAmountsMasked(true);
       setIsVerifyModalOpen(false);
+      try {
+        localStorage.removeItem("erp_privacy_masked");
+      } catch {}
     }
   }, [user]);
 
+  // m-Banking style instant privacy toggle
   const toggleMask = useCallback(() => {
-    if (isAmountsMasked) {
-      setIsVerifyModalOpen(true);
-    } else {
-      setIsAmountsMasked(true);
-      setGlobalAmountsMasked(true);
-    }
-  }, [isAmountsMasked]);
+    setIsAmountsMasked((prev) => {
+      const next = !prev;
+      setGlobalAmountsMasked(next);
+      if (typeof window !== "undefined") {
+        const secureFlag = window.location.protocol === "https:" ? "; Secure" : "";
+        document.cookie = `erp_privacy_masked=${next ? "1" : "0"}; path=/; max-age=2592000; SameSite=Lax${secureFlag}`;
+        try {
+          localStorage.setItem("erp_privacy_masked", next ? "1" : "0");
+        } catch {}
+      }
+      return next;
+    });
+  }, []);
 
   const hideFigures = useCallback(() => {
     setIsAmountsMasked(true);
     setGlobalAmountsMasked(true);
+    try {
+      localStorage.setItem("erp_privacy_masked", "1");
+    } catch {}
   }, []);
 
   const openVerifyModal = useCallback(() => {

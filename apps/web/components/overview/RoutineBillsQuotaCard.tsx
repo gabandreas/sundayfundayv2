@@ -18,6 +18,7 @@ import { usePerspective } from "@/context/PerspectiveContext";
 import { useAuth } from "@/context/AuthContext";
 import { formatRupiah } from "@/lib/utils";
 import { PrivacyEyeButton } from "@/components/shell/PrivacyEyeButton";
+import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 
 interface RoutineBillsQuotaCardProps {
   snapshot: MonthlySnapshot | null;
@@ -49,6 +50,8 @@ export function RoutineBillsQuotaCard({
   const router = useRouter();
   const [, startTransition] = useTransition();
   const { user } = useAuth();
+  const { isAmountsMasked } = usePrivacyMask();
+  const formatIdr = (amount: number): string => formatRupiah(amount, isAmountsMasked);
   const { profileMode, getRoutineLabel, setCustomRoutineLabel } = usePerspective();
   const isOwnerBespoke =
     user?.role === "PLATFORM_OWNER" ||
@@ -267,21 +270,21 @@ export function RoutineBillsQuotaCard({
       <div>
         {/* Header — Plain-English Financial Terminology */}
         <div className="flex items-center justify-between gap-2 mb-2">
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
-              LIVING & ROUTINE BILLS
-            </span>
-            <PrivacyEyeButton />
-          </div>
+          <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
+            LIVING & ROUTINE BILLS
+          </span>
           <span className="text-[10px] font-mono text-accent tabular-nums font-medium">
             Remaining Bills Quota: {formatIdr(totalRoutinePoolRemaining)}
           </span>
         </div>
 
         <div className="flex items-baseline justify-between my-1">
-          <span className="font-mono text-[24px] font-semibold leading-none tracking-tight text-text-primary tabular-nums">
-            {formatIdr(baselineTotal)}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-[24px] font-semibold leading-none tracking-tight text-text-primary tabular-nums">
+              {formatIdr(baselineTotal)}
+            </span>
+            <PrivacyEyeButton size="sm" />
+          </div>
           <span className="text-xs font-sans text-text-tertiary">
             Total Monthly Budget
           </span>

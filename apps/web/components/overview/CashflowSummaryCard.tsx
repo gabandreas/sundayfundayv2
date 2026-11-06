@@ -1,7 +1,10 @@
+"use client";
+
 import React from "react";
 import { MonthlySnapshot, DailyPacing } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
 import { PrivacyEyeButton } from "@/components/shell/PrivacyEyeButton";
+import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 
 interface CashflowSummaryCardProps {
   snapshot: MonthlySnapshot;
@@ -9,6 +12,7 @@ interface CashflowSummaryCardProps {
 }
 
 export function CashflowSummaryCard({ snapshot, pacing }: CashflowSummaryCardProps) {
+  const { isAmountsMasked } = usePrivacyMask();
   const totalIncome = snapshot.finalTotalIncome ?? snapshot.netSalaryIncome ?? 0;
   const totalDeductions = snapshot.totalDeductions ?? 0;
   const dailySpent = pacing?.totalDailySpent ?? 0;
@@ -18,12 +22,9 @@ export function CashflowSummaryCard({ snapshot, pacing }: CashflowSummaryCardPro
     <div className="rounded-lg border border-border bg-surface p-5 flex flex-col justify-between">
       <div>
         <div className="flex items-center justify-between gap-2 mb-4 pb-3 border-b border-border-subtle">
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
-              CASHFLOW SUMMARY
-            </span>
-            <PrivacyEyeButton />
-          </div>
+          <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
+            CASHFLOW SUMMARY
+          </span>
           <span className="text-[10px] font-mono text-text-tertiary">
             MONTH {snapshot.month} / {snapshot.year}
           </span>
@@ -35,7 +36,7 @@ export function CashflowSummaryCard({ snapshot, pacing }: CashflowSummaryCardPro
           <div className="flex items-center justify-between py-1">
             <span className="text-text-secondary">Total Net Income (Payroll + Adjustments)</span>
             <span className="font-mono tabular-nums text-[13px] font-medium text-delta-positive">
-              +{formatRupiah(totalIncome)}
+              +{formatRupiah(totalIncome, isAmountsMasked)}
             </span>
           </div>
 
@@ -43,20 +44,23 @@ export function CashflowSummaryCard({ snapshot, pacing }: CashflowSummaryCardPro
           <div className="flex items-center justify-between py-1 border-t border-border-subtle">
             <span className="text-text-secondary">Materialized Liabilities & Debt (Upfront)</span>
             <span className="font-mono tabular-nums text-[13px] font-medium text-text-primary">
-              -{formatRupiah(totalDeductions)}
+              -{formatRupiah(totalDeductions, isAmountsMasked)}
             </span>
           </div>
 
           {/* Net Remaining Cashflow */}
           <div className="flex items-center justify-between py-2 border-t border-border mt-2">
             <span className="font-medium text-text-primary">Net Waterfall Baseline</span>
-            <span
-              className={`font-mono tabular-nums text-sm font-semibold ${
-                netSurplus >= 0 ? "text-text-primary" : "text-urgency"
-              }`}
-            >
-              {formatRupiah(netSurplus)}
-            </span>
+            <div className="flex items-center gap-2">
+              <span
+                className={`font-mono tabular-nums text-sm font-semibold ${
+                  netSurplus >= 0 ? "text-text-primary" : "text-urgency"
+                }`}
+              >
+                {formatRupiah(netSurplus, isAmountsMasked)}
+              </span>
+              <PrivacyEyeButton size="xs" />
+            </div>
           </div>
 
           {/* Consumption Cycle Daily Spending (tracked against Operational Budget) */}
@@ -64,7 +68,7 @@ export function CashflowSummaryCard({ snapshot, pacing }: CashflowSummaryCardPro
             <div className="flex items-center justify-between pt-1 border-t border-border-subtle/60 text-[11px] text-text-tertiary">
               <span>Daily spending in consumption cycle ({pacing.cycleDateLabel})</span>
               <span className="font-mono tabular-nums text-text-secondary">
-                {formatRupiah(dailySpent)}
+                {formatRupiah(dailySpent, isAmountsMasked)}
               </span>
             </div>
           )}
@@ -79,16 +83,16 @@ export function CashflowSummaryCard({ snapshot, pacing }: CashflowSummaryCardPro
             <div className="p-2 rounded bg-surface-subtle border border-border-subtle">
               <div className="text-[10px] text-text-tertiary font-sans">Savings (P1)</div>
               <div className="font-mono text-xs font-medium text-text-primary mt-0.5 tabular-nums">
-                {formatRupiah(snapshot.actualSavings ?? 0)}
+                {formatRupiah(snapshot.actualSavings ?? 0, isAmountsMasked)}
               </div>
             </div>
             <div className="p-2 rounded bg-surface-subtle border border-border-subtle">
               <div className="text-[10px] text-text-tertiary font-sans">Self-Reward (P2)</div>
               <div className="font-mono text-xs font-medium text-text-primary mt-0.5 tabular-nums flex items-center justify-center gap-1">
-                <span>{formatRupiah(snapshot.selfReward ?? 0)}</span>
+                <span>{formatRupiah(snapshot.selfReward ?? 0, isAmountsMasked)}</span>
                 {(snapshot.selfReward ?? 0) === 0 && (snapshot.selfRewardTarget ?? 0) > 0 && (
                   <span
-                    title={`Target ${formatRupiah(snapshot.selfRewardTarget)} was consumed by higher priority commitments`}
+                    title={`Target ${formatRupiah(snapshot.selfRewardTarget, isAmountsMasked)} was consumed by higher priority commitments`}
                     className="text-[9px] font-mono text-caution"
                   >
                     (squeezed)
@@ -99,7 +103,7 @@ export function CashflowSummaryCard({ snapshot, pacing }: CashflowSummaryCardPro
             <div className="p-2 rounded bg-surface-subtle border border-border-subtle">
               <div className="text-[10px] text-text-tertiary font-sans">Emergency Buffer</div>
               <div className="font-mono text-xs font-medium text-text-primary mt-0.5 tabular-nums">
-                {formatRupiah(snapshot.bufferPocket ?? 0)}
+                {formatRupiah(snapshot.bufferPocket ?? 0, isAmountsMasked)}
               </div>
             </div>
           </div>

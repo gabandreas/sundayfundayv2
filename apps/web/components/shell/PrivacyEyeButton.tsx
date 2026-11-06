@@ -6,13 +6,20 @@ import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 
 interface PrivacyEyeButtonProps {
   className?: string;
-  size?: "sm" | "md";
+  size?: "xs" | "sm" | "md" | "lg";
 }
 
-export function PrivacyEyeButton({ className = "", size = "sm" }: PrivacyEyeButtonProps) {
+export function PrivacyEyeButton({ className = "", size = "md" }: PrivacyEyeButtonProps) {
   const { isAmountsMasked, toggleMask } = usePrivacyMask();
 
-  const iconClass = size === "sm" ? "w-3.5 h-3.5" : "w-4 h-4";
+  const iconClass =
+    size === "xs"
+      ? "w-3.5 h-3.5"
+      : size === "sm"
+      ? "w-4 h-4"
+      : size === "lg"
+      ? "w-5 h-5"
+      : "w-4.5 h-4.5";
 
   return (
     <button
@@ -24,16 +31,16 @@ export function PrivacyEyeButton({ className = "", size = "sm" }: PrivacyEyeButt
       }}
       title={
         isAmountsMasked
-          ? "Figures are hidden for privacy. Click to reveal (password required)."
-          : "Figures are visible. Click to hide figures."
+          ? "Amounts hidden. Click to reveal."
+          : "Amounts visible. Click to hide."
       }
-      aria-label={isAmountsMasked ? "Reveal figures" : "Hide figures"}
-      className={`p-1 rounded text-text-tertiary hover:text-text-primary hover:bg-surface-subtle transition-colors cursor-pointer inline-flex items-center justify-center shrink-0 ${className}`}
+      aria-label={isAmountsMasked ? "Reveal amounts" : "Hide amounts"}
+      className={`p-1 rounded text-text-secondary hover:text-text-primary hover:bg-surface-elevated active:scale-95 transition-all cursor-pointer inline-flex items-center justify-center shrink-0 ${className}`}
     >
       {isAmountsMasked ? (
-        <Eye className={iconClass} />
+        <Eye className={iconClass} strokeWidth={2} />
       ) : (
-        <EyeOff className={iconClass} />
+        <EyeOff className={iconClass} strokeWidth={2} />
       )}
     </button>
   );

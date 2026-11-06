@@ -11,6 +11,7 @@ import {
 import { formatRupiah } from "@/lib/utils";
 import { usePerspective } from "@/context/PerspectiveContext";
 import { PrivacyEyeButton } from "@/components/shell/PrivacyEyeButton";
+import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 
 interface SavingsBalanceCardProps {
   vault: SavingsVault;
@@ -18,6 +19,7 @@ interface SavingsBalanceCardProps {
 
 export function SavingsBalanceCard({ vault }: SavingsBalanceCardProps) {
   const router = useRouter();
+  const { isAmountsMasked } = usePrivacyMask();
   const { profileMode, getVaultLabels } = usePerspective();
   const isStandard = profileMode === "STANDARD_GENERAL";
   const vaultLabels = getVaultLabels();
@@ -82,12 +84,9 @@ export function SavingsBalanceCard({ vault }: SavingsBalanceCardProps) {
         <div className="col-span-5 rounded-lg border border-border bg-surface p-5 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
-                  TOTAL ACCUMULATED IN VAULT
-                </span>
-                <PrivacyEyeButton />
-              </div>
+              <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
+                TOTAL ACCUMULATED IN VAULT
+              </span>
               <button
                 type="button"
                 onClick={() => {
@@ -102,8 +101,11 @@ export function SavingsBalanceCard({ vault }: SavingsBalanceCardProps) {
             </div>
 
             <div className="my-2.5">
-              <div className="font-serif text-[34px] font-normal leading-none tracking-tight text-text-primary">
-                {formatRupiah(vault.balance)}
+              <div className="flex items-center gap-3">
+                <div className="font-serif text-[34px] font-normal leading-none tracking-tight text-text-primary">
+                  {formatRupiah(vault.balance, isAmountsMasked)}
+                </div>
+                <PrivacyEyeButton size="lg" />
               </div>
               <p className="text-xs font-sans text-text-secondary mt-1.5">
                 {isStandard
@@ -119,7 +121,7 @@ export function SavingsBalanceCard({ vault }: SavingsBalanceCardProps) {
                 <span title={vaultLabels.liquid}>{isStandard ? "Liquid (Cash/HYSA)" : "Cash"} ({liquidShare}%)</span>
               </div>
               <div className="text-xs font-semibold text-text-primary mt-0.5 tabular-nums">
-                {formatRupiah(liquidBalance)}
+                {formatRupiah(liquidBalance, isAmountsMasked)}
               </div>
             </div>
 
@@ -127,8 +129,8 @@ export function SavingsBalanceCard({ vault }: SavingsBalanceCardProps) {
               <div className="flex items-center justify-between text-[10px] uppercase text-text-tertiary">
                 <span title={vaultLabels.investment}>{isStandard ? "Portfolio (Invest)" : "RDPU"} ({rdpuShare}%)</span>
               </div>
-              <div className="text-xs font-semibold text-delta-positive mt-0.5 tabular-nums">
-                {formatRupiah(rdpuBalance)}
+              <div className="text-xs font-semibold text-text-primary mt-0.5 tabular-nums">
+                {formatRupiah(rdpuBalance, isAmountsMasked)}
               </div>
             </div>
           </div>

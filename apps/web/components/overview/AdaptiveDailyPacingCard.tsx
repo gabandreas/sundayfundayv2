@@ -22,6 +22,7 @@ import {
 import { MiniTrendChart } from "@/components/primitives/MiniTrendChart";
 import { formatRupiah } from "@/lib/utils";
 import { PrivacyEyeButton } from "@/components/shell/PrivacyEyeButton";
+import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 
 interface AdaptiveDailyPacingCardProps {
   pacing: DailyPacing | null;
@@ -70,6 +71,8 @@ export function AdaptiveDailyPacingCard({
 }: AdaptiveDailyPacingCardProps) {
   const router = useRouter();
   const [, startTransition] = useTransition();
+  const { isAmountsMasked } = usePrivacyMask();
+  const formatIdr = (amount: number): string => formatRupiah(amount, isAmountsMasked);
 
   const [isWeightedMode, setIsWeightedMode] = useState<boolean>(true);
   const [bankBalanceInput, setBankBalanceInput] = useState<string>("");
@@ -254,7 +257,6 @@ export function AdaptiveDailyPacingCard({
             <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
               SAFE-TO-SPEND TODAY
             </span>
-            <PrivacyEyeButton />
             <span
               className={`text-[10px] font-mono px-2 py-0.5 rounded font-semibold uppercase tracking-wider ${
                 statusVariant === "urgency"
@@ -298,8 +300,11 @@ export function AdaptiveDailyPacingCard({
         {/* Centerpiece Number (Newsreader Serif Display Signature) */}
         <div className="mt-2 flex items-baseline justify-between gap-4">
           <div>
-            <div className="font-serif text-[42px] leading-tight font-normal tracking-tight text-text-primary tabular-nums">
-              {formatIdr(displaySafeToday)}
+            <div className="flex items-center gap-3">
+              <div className="font-serif text-[42px] leading-tight font-normal tracking-tight text-text-primary tabular-nums">
+                {formatIdr(displaySafeToday)}
+              </div>
+              <PrivacyEyeButton size="lg" />
             </div>
             <div className="text-xs font-sans text-text-tertiary mt-0.5">
               {isWeightedMode ? (

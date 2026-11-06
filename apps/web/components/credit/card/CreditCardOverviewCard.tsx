@@ -4,12 +4,14 @@ import React from "react";
 import { CreditCardSummary } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
 import { PrivacyEyeButton } from "@/components/shell/PrivacyEyeButton";
+import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 
 interface CreditCardOverviewCardProps {
   summary: CreditCardSummary;
 }
 
 export function CreditCardOverviewCard({ summary }: CreditCardOverviewCardProps) {
+  const { isAmountsMasked } = usePrivacyMask();
   const {
     creditLimit,
     statementCutoffDay,
@@ -52,12 +54,9 @@ export function CreditCardOverviewCard({ summary }: CreditCardOverviewCardProps)
       {/* Top Header */}
       <div className="flex items-center justify-between border-b border-border-subtle pb-3">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
-              Credit Facility & Utilization
-            </span>
-            <PrivacyEyeButton />
-          </div>
+          <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
+            Credit Facility & Utilization
+          </span>
           <h2 className="text-base font-semibold font-sans text-text-primary mt-0.5">
             BCA Everyday Card & Active Lines
           </h2>
@@ -77,8 +76,11 @@ export function CreditCardOverviewCard({ summary }: CreditCardOverviewCardProps)
           <div className="text-[11px] font-sans font-medium text-text-tertiary">
             CURRENT STATEMENT DUE
           </div>
-          <div className="font-display text-[28px] font-normal leading-none tracking-tight text-text-primary my-1.5">
-            {formatRupiah(currentCycleDue)}
+          <div className="flex items-center gap-2.5 my-1.5">
+            <div className="font-display text-[28px] font-normal leading-none tracking-tight text-text-primary">
+              {formatRupiah(currentCycleDue, isAmountsMasked)}
+            </div>
+            <PrivacyEyeButton size="sm" />
           </div>
           <div className="text-[11px] font-sans text-text-tertiary">
             Due on the <span className="font-mono font-semibold text-text-secondary">{paymentDueDay}th</span> of this month
@@ -91,7 +93,7 @@ export function CreditCardOverviewCard({ summary }: CreditCardOverviewCardProps)
             TOTAL OUTSTANDING BALANCE
           </div>
           <div className="font-mono text-[22px] font-semibold leading-none tracking-tight text-text-primary my-1.5 tabular-nums">
-            {formatRupiah(totalOutstandingBalance)}
+            {formatRupiah(totalOutstandingBalance, isAmountsMasked)}
           </div>
           <div className="text-[11px] font-sans text-text-tertiary">
             Includes multi-month 0% installments
@@ -104,7 +106,7 @@ export function CreditCardOverviewCard({ summary }: CreditCardOverviewCardProps)
             CREDIT LIMIT & CYCLES
           </div>
           <div className="font-mono text-[22px] font-semibold leading-none tracking-tight text-text-primary my-1.5 tabular-nums">
-            {formatRupiah(creditLimit)}
+            {formatRupiah(creditLimit, isAmountsMasked)}
           </div>
           <div className="text-[11px] font-sans text-text-tertiary flex items-center gap-3">
             <span>Cutoff: <strong className="font-mono text-text-secondary">{statementCutoffDay}th</strong></span>
@@ -118,7 +120,7 @@ export function CreditCardOverviewCard({ summary }: CreditCardOverviewCardProps)
         <div className="flex justify-between text-[11px] font-sans mb-1.5">
           <span className="text-text-tertiary">Facility Utilization Meter</span>
           <span className="font-mono text-text-secondary tabular-nums">
-            {formatRupiah(totalOutstandingBalance)} / {formatRupiah(creditLimit)}
+            {formatRupiah(totalOutstandingBalance, isAmountsMasked)} / {formatRupiah(creditLimit, isAmountsMasked)}
           </span>
         </div>
         <div className="h-2 w-full bg-surface-subtle rounded-full overflow-hidden border border-border-subtle">

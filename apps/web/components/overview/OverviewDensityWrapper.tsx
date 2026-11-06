@@ -3,8 +3,10 @@
 import React from "react";
 import Link from "next/link";
 import { usePerspective } from "@/context/PerspectiveContext";
+import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 import { MonthlySnapshot, DailyPacing, SavingsVault } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
+import { PrivacyEyeButton } from "@/components/shell/PrivacyEyeButton";
 import { RecordExpenseCard } from "@/components/overview/RecordExpenseCard";
 
 interface OverviewDensityWrapperProps {
@@ -29,6 +31,7 @@ export function OverviewDensityWrapper({
   children,
 }: OverviewDensityWrapperProps) {
   const { uiDensityMode, setUiDensityMode, formulaEngineType } = usePerspective();
+  const { isAmountsMasked } = usePrivacyMask();
 
   if (uiDensityMode !== "SIMPLE_CLARITY") {
     return <>{children}</>;
@@ -82,8 +85,11 @@ export function OverviewDensityWrapper({
             <div className="text-sm font-semibold uppercase tracking-wider text-text-secondary">
               Monthly Income & Pension
             </div>
-            <div className="font-display text-4xl font-bold text-text-primary mt-3 tabular-nums">
-              {formatRupiah(totalIncome)}
+            <div className="flex items-center gap-2 mt-3">
+              <div className="font-display text-4xl font-bold text-text-primary tabular-nums">
+                {formatRupiah(totalIncome, isAmountsMasked)}
+              </div>
+              <PrivacyEyeButton size="lg" />
             </div>
           </div>
           <div className="mt-4 pt-4 border-t border-border-subtle flex items-center justify-between text-base text-text-secondary">
@@ -103,13 +109,16 @@ export function OverviewDensityWrapper({
             <div className="text-sm font-semibold uppercase tracking-wider text-delta-positive">
               Safe Daily Spending Today
             </div>
-            <div className="font-display text-4xl font-bold text-delta-positive mt-3 tabular-nums">
-              {formatRupiah(safeDaily)}
+            <div className="flex items-center gap-2 mt-3">
+              <div className="font-display text-4xl font-bold text-delta-positive tabular-nums">
+                {formatRupiah(safeDaily, isAmountsMasked)}
+              </div>
+              <PrivacyEyeButton size="lg" />
             </div>
           </div>
           <div className="mt-4 pt-4 border-t border-border-subtle flex items-center justify-between text-base text-text-secondary">
             <span>
-              Remaining Living Pool: <strong className="text-text-primary font-mono">{formatRupiah(remainingDailyBudget)}</strong>
+              Remaining Living Pool: <strong className="text-text-primary font-mono">{formatRupiah(remainingDailyBudget, isAmountsMasked)}</strong>
             </span>
             <span className="font-mono text-sm">
               {daysRemaining} days left
@@ -123,13 +132,16 @@ export function OverviewDensityWrapper({
             <div className="text-sm font-semibold uppercase tracking-wider text-text-secondary">
               Routine Monthly Bills & Healthcare
             </div>
-            <div className="font-display text-4xl font-bold text-text-primary mt-3 tabular-nums">
-              {formatRupiah(routineAndBillsTotal)}
+            <div className="flex items-center gap-2 mt-3">
+              <div className="font-display text-4xl font-bold text-text-primary tabular-nums">
+                {formatRupiah(routineAndBillsTotal, isAmountsMasked)}
+              </div>
+              <PrivacyEyeButton size="lg" />
             </div>
           </div>
           <div className="mt-4 pt-4 border-t border-border-subtle flex items-center justify-between text-base text-text-secondary">
             <span>
-              Routine Envelopes: <strong className="text-text-primary font-mono">{formatRupiah(fixedEssentialsTotal)}</strong>
+              Routine Envelopes: <strong className="text-text-primary font-mono">{formatRupiah(fixedEssentialsTotal, isAmountsMasked)}</strong>
             </span>
             <Link
               href={`/allocations?month=${month}&year=${year}`}
@@ -146,13 +158,16 @@ export function OverviewDensityWrapper({
             <div className="text-sm font-semibold uppercase tracking-wider text-text-secondary">
               Savings Balance & Reserve
             </div>
-            <div className="font-display text-4xl font-bold text-text-primary mt-3 tabular-nums">
-              {formatRupiah(totalSavingsBalance)}
+            <div className="flex items-center gap-2 mt-3">
+              <div className="font-display text-4xl font-bold text-text-primary tabular-nums">
+                {formatRupiah(totalSavingsBalance, isAmountsMasked)}
+              </div>
+              <PrivacyEyeButton size="lg" />
             </div>
           </div>
           <div className="mt-4 pt-4 border-t border-border-subtle flex items-center justify-between text-base text-text-secondary">
             <span>
-              This Period Allocation: <strong className="text-text-primary font-mono">{formatRupiah(snapshot?.actualSavings ?? 0)}</strong>
+              This Period Allocation: <strong className="text-text-primary font-mono">{formatRupiah(snapshot?.actualSavings ?? 0, isAmountsMasked)}</strong>
             </span>
             <Link
               href={`/savings?month=${month}&year=${year}`}

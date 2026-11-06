@@ -13,8 +13,9 @@ export function getGlobalAmountsMasked(): boolean {
  * When amounts are masked (privacy mode default), returns "Rp •••••••" or "-Rp •••••••".
  * Example: 18500000 -> "Rp 18.500.000", -45000 -> "-Rp 45.000"
  */
-export function formatRupiah(amount: number | null | undefined): string {
-  if (_isAmountsMasked) {
+export function formatRupiah(amount: number | null | undefined, forceMasked?: boolean): string {
+  const isMasked = forceMasked !== undefined ? forceMasked : _isAmountsMasked;
+  if (isMasked) {
     if (amount !== null && amount !== undefined && !isNaN(amount) && amount < 0) {
       return "-Rp •••••••";
     }

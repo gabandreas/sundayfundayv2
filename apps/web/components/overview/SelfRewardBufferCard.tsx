@@ -5,6 +5,7 @@ import { MonthlySnapshot } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
 import { EditableTarget } from "./EditableTarget";
 import { PrivacyEyeButton } from "@/components/shell/PrivacyEyeButton";
+import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 
 interface SelfRewardBufferCardProps {
   snapshot: MonthlySnapshot | null;
@@ -15,6 +16,7 @@ export function SelfRewardBufferCard({
   snapshot,
   isLocked,
 }: SelfRewardBufferCardProps) {
+  const { isAmountsMasked } = usePrivacyMask();
   const actualSelfReward = snapshot?.selfReward ?? 0;
   const targetSelfReward = snapshot?.selfRewardTarget ?? 0;
   const bufferPocket = snapshot?.bufferPocket ?? 0;
@@ -25,12 +27,9 @@ export function SelfRewardBufferCard({
       {/* Header */}
       <div>
         <div className="flex items-center justify-between gap-2 mb-2">
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
-              Self-Reward & Buffer (P2)
-            </span>
-            <PrivacyEyeButton />
-          </div>
+          <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
+            Self-Reward & Buffer (P2)
+          </span>
           <span className="text-[10px] font-mono text-text-tertiary">
             Secondary Allocations
           </span>
@@ -45,22 +44,23 @@ export function SelfRewardBufferCard({
               </span>
               {actualSelfReward < targetSelfReward && (
                 <span className="text-[10px] text-text-tertiary font-mono">
-                  Target: {formatRupiah(targetSelfReward)}
+                  Target: {formatRupiah(targetSelfReward, isAmountsMasked)}
                 </span>
               )}
             </div>
             <div className="flex items-center gap-1.5">
               <span className="font-mono tabular-nums text-xs font-medium text-text-primary inline-flex items-center gap-1">
-                {formatRupiah(actualSelfReward)}
+                {formatRupiah(actualSelfReward, isAmountsMasked)}
                 {isSqueezed && (
                   <span
-                    title={`Target ${formatRupiah(targetSelfReward)} was consumed by higher priority commitments`}
+                    title={`Target ${formatRupiah(targetSelfReward, isAmountsMasked)} was consumed by higher priority commitments`}
                     className="text-[9px] font-mono px-1 py-0.2 rounded border border-[rgba(229,155,44,0.30)] text-caution bg-[rgba(229,155,44,0.08)]"
                   >
                     Squeezed
                   </span>
                 )}
               </span>
+              <PrivacyEyeButton size="xs" />
               {snapshot && (
                 <EditableTarget
                   snapshotId={snapshot.id}
@@ -81,7 +81,7 @@ export function SelfRewardBufferCard({
             </span>
             <div className="flex items-center gap-1.5">
               <span className="font-mono tabular-nums text-xs font-medium text-text-primary">
-                {formatRupiah(bufferPocket)}
+                {formatRupiah(bufferPocket, isAmountsMasked)}
               </span>
               {snapshot && (
                 <EditableTarget

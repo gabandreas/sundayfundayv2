@@ -7,6 +7,7 @@ import { MonthlySnapshot } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
 import { EditableTarget } from "./EditableTarget";
 import { PrivacyEyeButton } from "@/components/shell/PrivacyEyeButton";
+import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 
 interface CoreSavingsCardProps {
   snapshot: MonthlySnapshot | null;
@@ -14,6 +15,7 @@ interface CoreSavingsCardProps {
 }
 
 export function CoreSavingsCard({ snapshot, isLocked }: CoreSavingsCardProps) {
+  const { isAmountsMasked } = usePrivacyMask();
   const actualSavings = snapshot?.actualSavings ?? 0;
   const targetSavings = snapshot?.savings ?? 0;
   const progressPercent =
@@ -26,24 +28,24 @@ export function CoreSavingsCard({ snapshot, isLocked }: CoreSavingsCardProps) {
       {/* Header */}
       <div>
         <div className="flex items-center justify-between gap-2 mb-1.5">
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
-              Core Savings (P1)
-            </span>
-            <PrivacyEyeButton />
-          </div>
+          <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
+            Core Savings (P1)
+          </span>
           <span className="text-[10px] font-mono text-text-tertiary">
             Priority 1
           </span>
         </div>
 
         <div className="flex items-baseline justify-between gap-2">
-          <span className="font-mono text-xl font-semibold leading-none tracking-tight text-text-primary tabular-nums">
-            {formatRupiah(actualSavings)}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-xl font-semibold leading-none tracking-tight text-text-primary tabular-nums">
+              {formatRupiah(actualSavings, isAmountsMasked)}
+            </span>
+            <PrivacyEyeButton size="xs" />
+          </div>
           <div className="flex items-center gap-1.5">
             <span className="text-xs font-mono text-text-secondary tabular-nums">
-              of {formatRupiah(targetSavings)}
+              of {formatRupiah(targetSavings, isAmountsMasked)}
             </span>
             {snapshot && (
               <EditableTarget
@@ -71,7 +73,7 @@ export function CoreSavingsCard({ snapshot, isLocked }: CoreSavingsCardProps) {
             <span>
               {actualSavings >= targetSavings
                 ? "Target met"
-                : `Shortfall: ${formatRupiah(targetSavings - actualSavings)}`}
+                : `Shortfall: ${formatRupiah(targetSavings - actualSavings, isAmountsMasked)}`}
             </span>
           </div>
         </div>

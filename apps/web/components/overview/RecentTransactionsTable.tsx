@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import { Transaction, deleteFinanceTransaction } from "@/lib/api";
 import { DataTableRow, DataTableHeader } from "@/components/primitives/DataTableRow";
+import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 import {
   formatRupiah,
   formatDate,
@@ -22,6 +23,7 @@ export function RecentTransactionsTable({
   isLocked,
 }: RecentTransactionsTableProps) {
   const router = useRouter();
+  const { isAmountsMasked } = usePrivacyMask();
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [, startTransition] = useTransition();
 
@@ -105,7 +107,7 @@ export function RecentTransactionsTable({
                   tx.sourceType,
                   tx.fixedEssentialCategory
                 )}
-                amount={`${amountPrefix}${formatRupiah(tx.amount)}`}
+                amount={`${amountPrefix}${formatRupiah(tx.amount, isAmountsMasked)}`}
                 type={isIncome ? "income" : "deduction"}
                 action={deleteAction}
               />
