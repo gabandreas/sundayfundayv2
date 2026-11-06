@@ -365,7 +365,7 @@ export async function createSavingsTransaction(data: {
   try {
     const res = await fetch(`${API_URL}/api/savings`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(data),
     });
     if (!res.ok) {
@@ -387,7 +387,7 @@ export async function rebalanceSavingsInstrument(data: {
   try {
     const res = await fetch(`${API_URL}/api/savings/rebalance`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(data),
     });
     if (!res.ok) {
@@ -411,6 +411,7 @@ export async function deleteSavingsTransaction(
   try {
     const res = await fetch(`${API_URL}/api/savings/${id}`, {
       method: "DELETE",
+      headers: await getAuthHeaders(),
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
@@ -439,7 +440,7 @@ export async function confirmPeriodDeposit(data: {
   try {
     const res = await fetch(`${API_URL}/api/savings/confirm-period-deposit`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(data),
     });
     if (!res.ok) {
@@ -471,7 +472,7 @@ export async function createSavingsGoal(data: {
   try {
     const res = await fetch(`${API_URL}/api/savings/goals`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(data),
     });
     if (!res.ok) {
@@ -499,7 +500,7 @@ export async function updateSavingsGoal(
   try {
     const res = await fetch(`${API_URL}/api/savings/goals/${id}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(data),
     });
     if (!res.ok) {
@@ -518,6 +519,7 @@ export async function deleteSavingsGoal(
   try {
     const res = await fetch(`${API_URL}/api/savings/goals/${id}`, {
       method: "DELETE",
+      headers: await getAuthHeaders(),
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
@@ -538,7 +540,7 @@ export async function saveWealthTarget(data: {
   try {
     const res = await fetch(`${API_URL}/api/savings/wealth-target`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(data),
     });
     const body = await res.json().catch(() => ({}));
@@ -563,7 +565,7 @@ export async function stopRecurringCardSubscription(
   try {
     const res = await fetch(`${API_URL}/api/credit/cards/${id}/stop-recurring`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({ stopFromMonth, stopFromYear }),
     });
     if (!res.ok) {
@@ -640,7 +642,7 @@ export async function closeSnapshot(
   try {
     const res = await fetch(`${API_URL}/api/snapshots/${id}/close`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(options ?? {}),
     });
     const body = await res.json().catch(() => ({}));
@@ -660,7 +662,7 @@ export async function recalculateSnapshot(
   try {
     const res = await fetch(`${API_URL}/api/snapshots/${id}/recalculate`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) {
@@ -679,7 +681,7 @@ export async function reopenSnapshot(
   try {
     const res = await fetch(`${API_URL}/api/snapshots/${id}/reopen`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) {
@@ -703,7 +705,7 @@ export async function evaluateAutoClosePeriods(): Promise<{
   try {
     const res = await fetch(`${API_URL}/api/snapshots/evaluate-auto-close`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) {
@@ -736,7 +738,7 @@ export async function updateSnapshot(
   try {
     const res = await fetch(`${API_URL}/api/snapshots/${id}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(data),
     });
     if (!res.ok) {
@@ -759,7 +761,7 @@ export async function createIncomeTransaction(data: {
   try {
     const res = await fetch(`${API_URL}/api/finance/transactions`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({
         ...data,
         type: "INCOME",
@@ -788,7 +790,7 @@ export async function createExpenseTransaction(data: {
   try {
     const res = await fetch(`${API_URL}/api/finance/transactions`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({
         ...data,
         type: data.isOperationalRefund ? "INCOME" : "DEDUCTION",
@@ -811,6 +813,7 @@ export async function deleteFinanceTransaction(
   try {
     const res = await fetch(`${API_URL}/api/finance/transactions/${id}`, {
       method: "DELETE",
+      headers: await getAuthHeaders(),
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
@@ -833,7 +836,7 @@ export async function updateFinanceTransaction(
   try {
     const res = await fetch(`${API_URL}/api/finance/transactions/${id}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(data),
     });
     const body = await res.json().catch(() => ({}));
@@ -1099,7 +1102,7 @@ export async function createCardCharge(data: {
   try {
     const res = await fetch(`${API_URL}/api/credit/cards`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(data),
     });
     const body = await res.json();
@@ -1126,7 +1129,7 @@ export async function updateCardCharge(
   try {
     const res = await fetch(`${API_URL}/api/credit/cards/${id}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(data),
     });
     const body = await res.json();
@@ -1157,7 +1160,7 @@ export async function settleCardInstallmentEarly(
   try {
     const res = await fetch(`${API_URL}/api/credit/cards/${id}/settle-early`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(data),
     });
     const body = await res.json();
@@ -1182,6 +1185,7 @@ export async function deleteCardCharge(
   try {
     const res = await fetch(`${API_URL}/api/credit/cards/${id}`, {
       method: "DELETE",
+      headers: await getAuthHeaders(),
     });
     if (!res.ok) {
       const body = await res.json();
@@ -1201,23 +1205,30 @@ export async function updateBulkBillCell(data: {
   value: number;
 }): Promise<{ success: boolean; error?: string }> {
   try {
+    const authHeaders = await getAuthHeaders();
     if (data.id) {
       const res = await fetch(`${API_URL}/api/credit/bulk-bills/${data.id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeaders,
+        },
         body: JSON.stringify({
           [data.field]: data.value,
         }),
       });
       if (!res.ok) {
-        const body = await res.json();
+        const body = await res.json().catch(() => ({}));
         return { success: false, error: body.message || "Failed to update bulk bill cell" };
       }
       return { success: true };
     } else {
       const res = await fetch(`${API_URL}/api/credit/bulk-bills`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeaders,
+        },
         body: JSON.stringify({
           month: data.month,
           year: data.year,
@@ -1225,7 +1236,7 @@ export async function updateBulkBillCell(data: {
         }),
       });
       if (!res.ok) {
-        const body = await res.json();
+        const body = await res.json().catch(() => ({}));
         return { success: false, error: body.message || "Failed to create bulk bill cell" };
       }
       return { success: true };
@@ -1649,7 +1660,7 @@ export async function updateCreditUsageLimit(data: {
   try {
     const res = await fetch(`${API_URL}/api/credit/usage-limit`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(data),
     });
     const body = await res.json();
@@ -1741,7 +1752,7 @@ export async function simulateModularRules(payload: {
   try {
     const res = await fetch(`${API_URL}/api/config/simulate-rules`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(payload),
     });
     const body = await res.json();
@@ -1762,7 +1773,7 @@ export async function restoreDefaultRules(): Promise<{ success: boolean; error?:
   try {
     const res = await fetch(`${API_URL}/api/config/restore-defaults`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
     });
     const body = await res.json();
     if (!res.ok) {
@@ -1817,7 +1828,7 @@ export async function createCustomRequest(data: {
   try {
     const res = await fetch(`${API_URL}/api/config/custom-requests`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(data),
     });
     const body = await res.json();
@@ -1850,7 +1861,7 @@ export async function updateCustomRequest(
   try {
     const res = await fetch(`${API_URL}/api/config/custom-requests/${id}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(data),
     });
     const body = await res.json();
@@ -1873,6 +1884,7 @@ export async function deleteCustomRequest(
   try {
     const res = await fetch(`${API_URL}/api/config/custom-requests/${id}`, {
       method: "DELETE",
+      headers: await getAuthHeaders(),
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
@@ -1893,7 +1905,7 @@ export async function resyncSnapshotRules(
   try {
     const res = await fetch(`${API_URL}/api/snapshots/${snapshotId}/resync-rules`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
     });
     const body = await res.json();
     if (!res.ok) {
@@ -1922,7 +1934,7 @@ export async function createBudgetRevision(
   try {
     const res = await fetch(`${API_URL}/api/snapshots/${snapshotId}/budget-revision`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(data),
     });
     const body = await res.json();
@@ -1970,7 +1982,7 @@ export async function previewBudgetRevision(
   try {
     const res = await fetch(`${API_URL}/api/snapshots/${snapshotId}/budget-revision/preview`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(data),
     });
     const body = await res.json();
@@ -2102,7 +2114,7 @@ export async function createWishlistItem(
   try {
     const res = await fetch(`${API_URL}/api/wishlist`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(data),
     });
     const body = await res.json();
@@ -2126,7 +2138,7 @@ export async function updateWishlistItem(
   try {
     const res = await fetch(`${API_URL}/api/wishlist/${id}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(data),
     });
     const body = await res.json();
@@ -2149,6 +2161,7 @@ export async function deleteWishlistItem(
   try {
     const res = await fetch(`${API_URL}/api/wishlist/${id}`, {
       method: "DELETE",
+      headers: await getAuthHeaders(),
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
@@ -2177,7 +2190,7 @@ export async function analyzeWishlistDraft(
 
     const res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(data),
     });
     const body = await res.json();
@@ -2227,7 +2240,7 @@ export async function convertWishlistToContract(
   try {
     const res = await fetch(`${API_URL}/api/wishlist/${id}/convert-to-contract`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
     });
     const body = await res.json();
     if (!res.ok) {
@@ -2249,7 +2262,7 @@ export async function trackWishlistAsSavingsGoal(
   try {
     const res = await fetch(`${API_URL}/api/wishlist/${id}/track-as-savings-goal`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) {
@@ -3102,7 +3115,7 @@ export async function previewCashReconciliation(data: {
   try {
     const res = await fetch(`${API_URL}/api/finance/reconcile-balance/preview`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(data),
     });
     const body = await res.json();
@@ -3132,7 +3145,7 @@ export async function executeCashReconciliation(data: {
   try {
     const res = await fetch(`${API_URL}/api/finance/reconcile`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(data),
     });
     const body = await res.json();
@@ -3234,7 +3247,7 @@ export async function restoreDatabaseBackup(payload: {
   try {
     const res = await fetch(`${API_URL}/api/config/restore`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(payload),
     });
     const body = await res.json();
@@ -3364,7 +3377,7 @@ export async function initializeNewPeriod(payload: {
   try {
     const res = await fetch(`${API_URL}/api/snapshots`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(payload),
     });
     const body = await res.json();
@@ -3768,7 +3781,7 @@ export async function fetchSessionInfo(): Promise<{
 export async function loginDemoUser(): Promise<AuthResponse> {
   const res = await fetch(`${API_URL}/api/auth/demo-login`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: await getAuthHeaders({ "Content-Type": "application/json" }),
   });
   const data = await res.json();
   if (!res.ok) {
@@ -3802,7 +3815,7 @@ export async function registerMember(payload: {
 }): Promise<AuthResponse> {
   const res = await fetch(`${API_URL}/api/auth/register`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: await getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(payload),
   });
   const data = await res.json();

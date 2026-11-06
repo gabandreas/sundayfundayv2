@@ -10,6 +10,7 @@ import { PerspectiveProvider } from "@/context/PerspectiveContext";
 import { PrivacyMaskProvider } from "@/context/PrivacyMaskContext";
 import { OnboardingWizardModal } from "@/components/onboarding/OnboardingWizardModal";
 import { CustomRuleRequestModal } from "@/components/shell/CustomRuleRequestModal";
+import { TopProgressBar } from "./TopProgressBar";
 
 function AppShellProtected({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
@@ -29,6 +30,9 @@ function AppShellProtected({ children }: { children: React.ReactNode }) {
   return (
     <PerspectiveProvider>
       <PrivacyMaskProvider>
+        <Suspense fallback={null}>
+          <TopProgressBar />
+        </Suspense>
         <div className="flex h-screen w-screen overflow-hidden bg-canvas text-text-primary">
           {/* Persistent Left Navigation Sidebar (Desktop) */}
           <div className="hidden lg:flex w-60 h-screen shrink-0">

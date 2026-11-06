@@ -726,7 +726,7 @@ export class CreditService {
     });
 
     if (targetSnapshot && targetSnapshot.status === SnapshotStatus.DRAFT) {
-      await this.syncLiabilitiesToSnapshot(existing.month, existing.year);
+      await this.syncLiabilitiesToSnapshot(existing.month, existing.year, undefined, existing.userId);
     }
 
     await this.checkAndLogCreditLimitBreach(
@@ -767,7 +767,7 @@ export class CreditService {
     });
 
     if (targetSnapshot && targetSnapshot.status === SnapshotStatus.DRAFT) {
-      await this.syncLiabilitiesToSnapshot(existing.month, existing.year);
+      await this.syncLiabilitiesToSnapshot(existing.month, existing.year, undefined, existing.userId);
     }
 
     return deleted;
@@ -792,37 +792,36 @@ export class CreditService {
       );
       await this.snapshotsService.assertSnapshotUnlocked(snapshot.id, tx);
 
-      // 2. Fetch due liabilities
-      // a) Active Credit Contracts (Owner only)
-      const contracts = userId === 1 ? await tx.creditContract.findMany({
-        where: {
-          isActive: true,
-          remainingTenor: { gt: 0 },
-        },
-      }) : [];
+      // 2. Fetch due liabilities in parallel
+      const [contracts, bulkBills, cardTxs] = await Promise.all([
+        userId === 1
+          ? tx.creditContract.findMany({
+              where: {
+                isActive: true,
+                remainingTenor: { gt: 0 },
+              },
+            })
+          : Promise.resolve<CreditContract[]>([]),
+        tx.monthlyBulkBill.findMany({
+          where: {
+            userId,
+            month,
+            year,
+          },
+        }),
+        tx.creditCardTransaction.findMany({
+          where: {
+            userId,
+            status: { in: [CreditCardStatus.ACTIVE, CreditCardStatus.SETTLED] },
+          },
+        }),
+      ]);
 
       // Filter contracts that have started by (month, year)
       const dueContracts = contracts.filter((c) => {
         if (c.startYear < year) return true;
         if (c.startYear === year && c.startMonth <= month) return true;
         return false;
-      });
-
-      // b) Monthly Bulk Bills for this (month, year) and userId
-      const bulkBills = await tx.monthlyBulkBill.findMany({
-        where: {
-          userId,
-          month,
-          year,
-        },
-      });
-
-      // c) CreditCardTransaction with status ACTIVE or SETTLED for this userId
-      const cardTxs = await tx.creditCardTransaction.findMany({
-        where: {
-          userId,
-          status: { in: [CreditCardStatus.ACTIVE, CreditCardStatus.SETTLED] },
-        },
       });
 
       const dueCardTxs: { tx: CreditCardTransaction; dueAmount: number }[] = [];
@@ -931,7 +930,7 @@ export class CreditService {
 
     const result = txClient
       ? await execute(txClient)
-      : await this.prisma.$transaction(execute);
+      : await this.prisma.$transaction(execute, { maxWait: 15000, timeout: 30000 });
 
     await this.auditLogService.record({
       action: 'SYNC_LIABILITIES',

@@ -99,19 +99,23 @@ export class SnapshotsService {
         throw new BadRequestException('Cannot recalculate a locked snapshot');
       }
 
-      const config =
-        (await tx.globalConfig.findUnique({ where: { userId: snapshot.userId } })) ||
-        (await tx.globalConfig.findFirst({ where: { userId: snapshot.userId } })) ||
-        (await tx.globalConfig.findFirst({ where: { userId: 1 } }));
+      const [config, transactions] = await Promise.all([
+        (async () => {
+          return (
+            (await tx.globalConfig.findUnique({ where: { userId: snapshot.userId } })) ||
+            (await tx.globalConfig.findFirst({ where: { userId: snapshot.userId } })) ||
+            (await tx.globalConfig.findFirst({ where: { userId: 1 } }))
+          );
+        })(),
+        tx.transaction.findMany({
+          where: { snapshotId },
+        }),
+      ]);
       if (!config) {
         throw new BadRequestException(
           'Global configuration has not been initialized',
         );
       }
-
-      const transactions = await tx.transaction.findMany({
-        where: { snapshotId },
-      });
 
       const extraIncome = sumExtraIncome(transactions);
 
@@ -225,7 +229,9 @@ export class SnapshotsService {
       });
     };
 
-    return txClient ? execute(txClient) : this.prisma.$transaction(execute);
+    return txClient
+      ? execute(txClient)
+      : this.prisma.$transaction(execute, { maxWait: 15000, timeout: 30000 });
   }
 
   /**
@@ -342,7 +348,10 @@ export class SnapshotsService {
       });
     };
 
-    const updated = await this.prisma.$transaction(execute);
+    const updated = await this.prisma.$transaction(execute, {
+      maxWait: 15000,
+      timeout: 30000,
+    });
 
     // 5. Audit log side effect with category: BUDGET
     await this.auditLogService.record({
@@ -374,8 +383,9 @@ export class SnapshotsService {
    * Attempting to close a later period while an earlier one remains DRAFT will throw.
    */
   async closePeriod(snapshotId: number, dto?: ClosePeriodDto) {
-    const result = await this.prisma.$transaction(async (tx) => {
-      // 1. Verify snapshot is currently DRAFT (rejects with BadRequestException if LOCKED)
+    const result = await this.prisma.$transaction(
+      async (tx) => {
+        // 1. Verify snapshot is currently DRAFT (rejects with BadRequestException if LOCKED)
       const current = await this.assertSnapshotUnlocked(snapshotId, tx);
 
       // 2. Enforce chronological order: no earlier DRAFT snapshot may exist.
@@ -463,7 +473,7 @@ export class SnapshotsService {
         decrementedContractsCount: activeContracts.length,
         vaultTransfer,
       };
-    });
+    }, { maxWait: 15000, timeout: 30000 });
 
     const isDeficit = (result.snapshot.deficitUncovered ?? 0) > 0;
     await this.auditLogService.record({
@@ -675,7 +685,7 @@ export class SnapshotsService {
       const updatedSnapshot = await this.recalculateSnapshot(snapshotId, tx);
 
       return { revision, snapshot: updatedSnapshot };
-    });
+    }, { maxWait: 15000, timeout: 30000 });
 
     await this.auditLogService.record({
       action: 'BUDGET_TARGET_REVISED',

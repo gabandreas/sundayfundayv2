@@ -100,7 +100,7 @@ export function InlineBulkBillCell({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      handleSave();
+      inputRef.current?.blur();
     } else if (e.key === "Escape") {
       e.preventDefault();
       handleCancel();

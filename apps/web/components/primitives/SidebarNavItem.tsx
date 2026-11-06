@@ -1,4 +1,6 @@
-import React from "react";
+"use client";
+
+import React, { useState } from "react";
 import Link from "next/link";
 import { LucideIcon } from "lucide-react";
 
@@ -23,27 +25,39 @@ export function SidebarNavItem({
   className = "",
   onClick,
 }: SidebarNavItemProps) {
+  const [isClicked, setIsClicked] = useState(false);
+
   const badgeStyles = {
     neutral: "bg-surface-subtle text-text-tertiary border-border-subtle",
     caution: "bg-[rgba(229,155,44,0.12)] text-caution border-[rgba(229,155,44,0.3)]",
     urgency: "bg-[rgba(255,56,56,0.14)] text-urgency border-[rgba(255,56,56,0.35)]",
   };
 
+  const handleClick = () => {
+    setIsClicked(true);
+    setTimeout(() => setIsClicked(false), 300);
+    onClick?.();
+  };
+
   return (
     <Link
       href={href}
-      onClick={onClick}
-      className={`group flex items-center justify-between px-3 py-2 rounded-md text-xs font-medium transition-colors duration-100 ${
+      onClick={handleClick}
+      className={`group flex items-center justify-between px-3 py-2 rounded-md text-xs font-medium transition-all duration-100 cursor-pointer select-none active:scale-[0.97] ${
         isActive
-          ? "bg-surface-active text-text-primary shadow-sm"
-          : "text-text-secondary hover:text-text-primary hover:bg-surface-hover/50"
+          ? "bg-surface-active text-text-primary shadow-xs font-semibold"
+          : isClicked
+          ? "bg-surface-active/60 text-text-primary"
+          : "text-text-secondary hover:text-text-primary hover:bg-surface-hover/70"
       } ${className}`}
     >
       <div className="flex items-center gap-2.5 min-w-0">
         {/* Direct, unadorned icon — strictly NO pastel circular background */}
         <Icon
           className={`w-4 h-4 shrink-0 transition-colors ${
-            isActive ? "text-text-primary" : "text-text-tertiary group-hover:text-text-secondary"
+            isActive || isClicked
+              ? "text-text-primary"
+              : "text-text-tertiary group-hover:text-text-secondary"
           }`}
           strokeWidth={1.8}
         />
