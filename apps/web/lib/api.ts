@@ -2004,6 +2004,7 @@ export async function fetchBudgetRevisions(
 ): Promise<BudgetRevision[]> {
   try {
     const res = await fetch(`${API_URL}/api/snapshots/${snapshotId}/budget-revisions`, {
+      headers: await getAuthHeaders(),
       cache: "no-store",
     });
     if (!res.ok) {
