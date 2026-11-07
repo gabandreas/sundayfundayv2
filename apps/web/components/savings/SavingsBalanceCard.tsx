@@ -8,7 +8,7 @@ import {
   SavingsInstrumentType,
   rebalanceSavingsInstrument,
 } from "@/lib/api";
-import { formatRupiah } from "@/lib/utils";
+import { formatRupiah, formatCurrencyInput, parseCurrencyInput } from "@/lib/utils";
 import { usePerspective } from "@/context/PerspectiveContext";
 import { PrivacyEyeButton } from "@/components/shell/PrivacyEyeButton";
 import { usePrivacyMask } from "@/context/PrivacyMaskContext";
@@ -44,8 +44,8 @@ export function SavingsBalanceCard({ vault }: SavingsBalanceCardProps) {
 
   const handleRebalance = async (e: React.FormEvent) => {
     e.preventDefault();
-    const numericAmount = parseInt(amount.replace(/\D/g, ""), 10);
-    if (isNaN(numericAmount) || numericAmount <= 0) {
+    const numericAmount = parseCurrencyInput(amount);
+    if (numericAmount <= 0) {
       setError("Rebalance amount must be greater than Rp 0");
       return;
     }
@@ -149,8 +149,11 @@ export function SavingsBalanceCard({ vault }: SavingsBalanceCardProps) {
             </div>
 
             <div className="my-2.5">
-              <div className="font-mono text-[28px] font-semibold leading-none tracking-tight text-text-primary tabular-nums">
-                {formatRupiah(totalPlanned2026P1)}
+              <div className="flex items-center gap-2.5">
+                <div className="font-mono text-[28px] font-semibold leading-none tracking-tight text-text-primary tabular-nums">
+                  {formatRupiah(totalPlanned2026P1, isAmountsMasked)}
+                </div>
+                <PrivacyEyeButton size="xs" />
               </div>
               <p className="text-xs font-sans text-text-secondary mt-1.5">
                 Total Priority 1 salary allocations funded across all 6 active 2026 periods.
@@ -161,7 +164,7 @@ export function SavingsBalanceCard({ vault }: SavingsBalanceCardProps) {
           <div className="pt-2.5 border-t border-border-subtle flex items-center justify-between text-xs font-mono">
             <span className="text-text-tertiary">P1 Monthly Pace:</span>
             <span className="font-semibold text-text-primary tabular-nums">
-              {formatRupiah(avgMonthlySavingsP1)}/mo
+              {formatRupiah(avgMonthlySavingsP1, isAmountsMasked)}/mo
             </span>
           </div>
         </div>
@@ -249,7 +252,7 @@ export function SavingsBalanceCard({ vault }: SavingsBalanceCardProps) {
                 type="text"
                 placeholder="e.g. 500.000"
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                onChange={(e) => setAmount(formatCurrencyInput(e.target.value))}
                 className="w-full px-2.5 py-1.5 rounded bg-surface-subtle border border-border text-xs font-mono tabular-nums text-text-primary focus:outline-none focus:border-border-strong"
               />
             </div>

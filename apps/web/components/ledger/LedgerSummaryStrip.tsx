@@ -1,5 +1,10 @@
+"use client";
+
+import React from "react";
 import { Transaction, MonthlySnapshot } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
+import { PrivacyEyeButton } from "@/components/shell/PrivacyEyeButton";
+import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 
 interface LedgerSummaryStripProps {
   transactions: Transaction[];
@@ -7,6 +12,8 @@ interface LedgerSummaryStripProps {
 }
 
 export function LedgerSummaryStrip({ transactions, snapshot }: LedgerSummaryStripProps) {
+  const { isAmountsMasked } = usePrivacyMask();
+
   const snapshotIncome = snapshot?.finalTotalIncome ?? snapshot?.netSalaryIncome ?? 0;
   const extraIncomeSum = transactions
     .filter((t) => t.type === "INCOME")
@@ -25,12 +32,15 @@ export function LedgerSummaryStrip({ transactions, snapshot }: LedgerSummaryStri
     <div className="grid grid-cols-12 gap-4">
       {/* Total Inflow */}
       <div className="col-span-4 rounded-lg border border-border bg-surface p-4 flex flex-col justify-between">
-        <div className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
-          TOTAL PERIOD INFLOW
+        <div className="flex items-center justify-between gap-1.5">
+          <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
+            TOTAL PERIOD INFLOW
+          </span>
+          <PrivacyEyeButton size="xs" />
         </div>
         <div className="my-2">
-          <div className="font-mono text-[22px] font-semibold leading-none tracking-tight text-delta-positive tabular-nums">
-            +{formatRupiah(totalInflow)}
+          <div className="font-mono text-[22px] font-semibold leading-none tracking-tight text-delta-positive tabular-nums whitespace-nowrap">
+            +{formatRupiah(totalInflow, isAmountsMasked)}
           </div>
           <div className="text-xs font-sans text-text-tertiary mt-1.5">
             Net salary, allowances & auxiliary income
@@ -43,12 +53,15 @@ export function LedgerSummaryStrip({ transactions, snapshot }: LedgerSummaryStri
 
       {/* Total Outflow */}
       <div className="col-span-4 rounded-lg border border-border bg-surface p-4 flex flex-col justify-between">
-        <div className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
-          TOTAL PERIOD OUTFLOW
+        <div className="flex items-center justify-between gap-1.5">
+          <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
+            TOTAL PERIOD OUTFLOW
+          </span>
+          <PrivacyEyeButton size="xs" />
         </div>
         <div className="my-2">
-          <div className="font-mono text-[22px] font-semibold leading-none tracking-tight text-text-primary tabular-nums">
-            -{formatRupiah(totalOutflow)}
+          <div className="font-mono text-[22px] font-semibold leading-none tracking-tight text-text-primary tabular-nums whitespace-nowrap">
+            -{formatRupiah(totalOutflow, isAmountsMasked)}
           </div>
           <div className="text-xs font-sans text-text-tertiary mt-1.5">
             Materialized debt, credit bills & daily expenses
@@ -61,16 +74,21 @@ export function LedgerSummaryStrip({ transactions, snapshot }: LedgerSummaryStri
 
       {/* Net Period Cashflow */}
       <div className="col-span-4 rounded-lg border border-border bg-surface p-4 flex flex-col justify-between">
-        <div className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
-          NET PERIOD CASHFLOW
+        <div className="flex items-center justify-between gap-1.5">
+          <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
+            NET PERIOD CASHFLOW
+          </span>
+          <PrivacyEyeButton size="xs" />
         </div>
         <div className="my-2">
           <div
-            className={`font-mono text-[22px] font-semibold leading-none tracking-tight tabular-nums ${
+            className={`font-mono text-[22px] font-semibold leading-none tracking-tight tabular-nums whitespace-nowrap ${
               netCashflow >= 0 ? "text-delta-positive" : "text-delta-negative"
             }`}
           >
-            {netCashflow >= 0 ? `+${formatRupiah(netCashflow)}` : formatRupiah(netCashflow)}
+            {netCashflow >= 0
+              ? `+${formatRupiah(netCashflow, isAmountsMasked)}`
+              : formatRupiah(netCashflow, isAmountsMasked)}
           </div>
           <div className="text-xs font-sans text-text-tertiary mt-1.5">
             Retained cash before savings & investment allocation

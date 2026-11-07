@@ -9,6 +9,8 @@ import {
   updateCreditUsageLimit,
 } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
+import { PrivacyEyeButton } from "@/components/shell/PrivacyEyeButton";
+import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 
 interface CreditUsageLimitPanelProps {
   limitData: CreditLimitCalculationResult;
@@ -61,6 +63,8 @@ export function CreditUsageLimitPanel({
   limitData,
 }: CreditUsageLimitPanelProps) {
   const router = useRouter();
+  const { isAmountsMasked } = usePrivacyMask();
+  const formatRp = (amt: number): string => formatRupiah(amt, isAmountsMasked);
   const [isRefreshing, startTransition] = useTransition();
   const [isEditing, setIsEditing] = useState(false);
   const [ccLimitInput, setCcLimitInput] = useState(
@@ -185,11 +189,11 @@ export function CreditUsageLimitPanel({
         <div>
           <div className="flex items-baseline justify-between gap-2">
             <span className="font-mono text-base font-bold tabular-nums text-text-primary">
-              {formatRupiah(evaluation.usage)}
+              {formatRp(evaluation.usage)}
             </span>
             <span className="font-mono text-xs tabular-nums text-text-tertiary">
               {evaluation.limit > 0
-                ? `/ ${formatRupiah(evaluation.limit)} (${evaluation.utilizationPercent.toFixed(1)}%)`
+                ? `/ ${formatRp(evaluation.limit)} (${evaluation.utilizationPercent.toFixed(1)}%)`
                 : "/ Uncapped (Rp 0)"}
             </span>
           </div>
@@ -205,11 +209,11 @@ export function CreditUsageLimitPanel({
         <div className="flex items-center justify-between text-[11px] font-mono pt-1 border-t border-border-subtle/60">
           {evaluation.status === "EXCEEDED" ? (
             <span className="text-delta-negative">
-              Over limit by +{formatRupiah(evaluation.exceededBy)}
+              Over limit by +{formatRp(evaluation.exceededBy)}
             </span>
           ) : evaluation.limit > 0 ? (
             <span className="text-text-secondary">
-              Remaining cap: {formatRupiah(evaluation.remainingBeforeLimit)}
+              Remaining cap: {formatRp(evaluation.remainingBeforeLimit)}
             </span>
           ) : (
             <span className="text-text-tertiary">
@@ -217,7 +221,7 @@ export function CreditUsageLimitPanel({
             </span>
           )}
           <span className="text-text-tertiary">
-            Safe max: {formatRupiah(safeHeadroom)}
+            Safe max: {formatRp(safeHeadroom)}
           </span>
         </div>
       </div>
@@ -234,6 +238,7 @@ export function CreditUsageLimitPanel({
               Per-Period Credit Usage Limit & Safe Ceiling ({limitData.month}/
               {limitData.year})
             </h2>
+            <PrivacyEyeButton size="xs" />
             {isSaved && (
               <span className="inline-flex items-center gap-1 text-[11px] font-mono text-delta-positive">
                 <Check className="w-3.5 h-3.5" strokeWidth={1.8} />
@@ -297,20 +302,20 @@ export function CreditUsageLimitPanel({
                   Configured Period Limit Exceeded:
                 </strong>{" "}
                 {ccEvaluation.status === "EXCEEDED" &&
-                  `Credit Card due (${formatRupiah(ccEvaluation.usage)}) exceeds limit (${formatRupiah(ccEvaluation.limit)}) by +${formatRupiah(ccEvaluation.exceededBy)}. `}
+                  `Credit Card due (${formatRp(ccEvaluation.usage)}) exceeds limit (${formatRp(ccEvaluation.limit)}) by +${formatRp(ccEvaluation.exceededBy)}. `}
                 {paylaterEvaluation.status === "EXCEEDED" &&
-                  `PayLater bill (${formatRupiah(paylaterEvaluation.usage)}) exceeds limit (${formatRupiah(paylaterEvaluation.limit)}) by +${formatRupiah(paylaterEvaluation.exceededBy)}.`}
+                  `PayLater bill (${formatRp(paylaterEvaluation.usage)}) exceeds limit (${formatRp(paylaterEvaluation.limit)}) by +${formatRp(paylaterEvaluation.exceededBy)}.`}
               </div>
             )}
             {limitData.isSafeCeilingExceeded && (
               <div className="text-text-secondary">
                 Combined Credit Card + PayLater obligations (
                 <span className="font-mono text-text-primary">
-                  {formatRupiah(limitData.currentCombinedRevolvingUsage)}
+                  {formatRp(limitData.currentCombinedRevolvingUsage)}
                 </span>
                 ) exceed the period&apos;s Deficit-Safe Ceiling (
                 <span className="font-mono text-text-primary">
-                  {formatRupiah(ceilingBreakdown.recommendedSafeCombinedCeiling)}
+                  {formatRp(ceilingBreakdown.recommendedSafeCombinedCeiling)}
                 </span>
                 ), eating into upfront operational or fixed essentials.
               </div>
@@ -324,7 +329,7 @@ export function CreditUsageLimitPanel({
         <div className="col-span-7 grid grid-cols-2 gap-4">
           {renderInstrumentCard(
             "Credit Card Period Usage",
-            `Statement due in ${limitData.month}/${limitData.year} (Bank Facility: ${formatRupiah(limitData.bankCreditLimit)})`,
+            `Statement due in ${limitData.month}/${limitData.year} (Bank Facility: ${formatRp(limitData.bankCreditLimit)})`,
             ccEvaluation,
             ceilingBreakdown.remainingSafeHeadroomForCc
           )}
@@ -345,7 +350,7 @@ export function CreditUsageLimitPanel({
             <span className="text-[11px] font-mono text-text-tertiary tabular-nums">
               Current Combined:{" "}
               <strong className="text-text-primary">
-                {formatRupiah(limitData.currentCombinedRevolvingUsage)}
+                {formatRp(limitData.currentCombinedRevolvingUsage)}
               </strong>
             </span>
           </div>
@@ -356,7 +361,7 @@ export function CreditUsageLimitPanel({
                 Optimal Ceiling (P1 Safe)
               </div>
               <div className="text-sm font-mono font-bold tabular-nums text-delta-positive mt-0.5">
-                {formatRupiah(
+                {formatRp(
                   ceilingBreakdown.recommendedOptimalCombinedCeiling
                 )}
               </div>
@@ -370,7 +375,7 @@ export function CreditUsageLimitPanel({
                 Max Safe Ceiling (No Deficit)
               </div>
               <div className="text-sm font-mono font-bold tabular-nums text-caution mt-0.5">
-                {formatRupiah(ceilingBreakdown.recommendedSafeCombinedCeiling)}
+                {formatRp(ceilingBreakdown.recommendedSafeCombinedCeiling)}
               </div>
               <div className="text-[10px] font-sans text-text-tertiary mt-1 leading-tight">
                 {safeConstraintLabel}
@@ -382,19 +387,19 @@ export function CreditUsageLimitPanel({
             <div>
               <span className="block text-text-tertiary/80">Income</span>
               <span className="text-text-secondary tabular-nums">
-                {formatRupiah(ceilingBreakdown.totalIncome)}
+                {formatRp(ceilingBreakdown.totalIncome)}
               </span>
             </div>
             <div>
               <span className="block text-text-tertiary/80">Op. & Fixed</span>
               <span className="text-text-secondary tabular-nums">
-                {formatRupiah(ceilingBreakdown.upfrontEssentialsAndOperational)}
+                {formatRp(ceilingBreakdown.upfrontEssentialsAndOperational)}
               </span>
             </div>
             <div>
               <span className="block text-text-tertiary/80">Locked Debt</span>
               <span className="text-text-secondary tabular-nums">
-                {formatRupiah(
+                {formatRp(
                   ceilingBreakdown.fixedLockedDebt +
                     ceilingBreakdown.manualDeductions
                 )}
@@ -403,7 +408,7 @@ export function CreditUsageLimitPanel({
             <div>
               <span className="block text-text-tertiary/80">P1 Savings</span>
               <span className="text-text-secondary tabular-nums">
-                {formatRupiah(ceilingBreakdown.savingsTarget)}
+                {formatRp(ceilingBreakdown.savingsTarget)}
               </span>
             </div>
           </div>
@@ -436,7 +441,7 @@ export function CreditUsageLimitPanel({
                 className="w-full bg-surface-subtle border border-border focus:border-accent rounded px-3 py-1.5 text-xs font-mono text-text-primary tabular-nums outline-none"
               />
               <span className="text-[10px] font-mono text-text-tertiary mt-0.5 block">
-                {formatRupiah(parseInt(ccLimitInput, 10) || 0)} (0 = Unset)
+                {formatRp(parseInt(ccLimitInput, 10) || 0)} (0 = Unset)
               </span>
             </div>
 
@@ -453,7 +458,7 @@ export function CreditUsageLimitPanel({
                 className="w-full bg-surface-subtle border border-border focus:border-accent rounded px-3 py-1.5 text-xs font-mono text-text-primary tabular-nums outline-none"
               />
               <span className="text-[10px] font-mono text-text-tertiary mt-0.5 block">
-                {formatRupiah(parseInt(paylaterLimitInput, 10) || 0)} (0 = Unset)
+                {formatRp(parseInt(paylaterLimitInput, 10) || 0)} (0 = Unset)
               </span>
             </div>
 

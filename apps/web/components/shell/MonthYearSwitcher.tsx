@@ -1,24 +1,18 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
+import React, { useState, useRef, useEffect, useTransition } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { ChevronLeft, ChevronRight, Calendar, Plus, X, Loader2 } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  Calendar,
+  Plus,
+  X,
+  Loader2,
+} from "lucide-react";
 import { initializeNewPeriod } from "@/lib/api";
-
-const MONTH_NAMES = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
+import { getDefaultPayrollPeriod } from "@/lib/utils";
 
 const MONTH_SHORT = [
   "Jan",
@@ -34,8 +28,6 @@ const MONTH_SHORT = [
   "Nov",
   "Dec",
 ];
-
-import { getDefaultPayrollPeriod } from "@/lib/utils";
 
 const START_YEAR = 2026;
 const START_MONTH = 7; // July 2026 (app launch boundary)
@@ -61,11 +53,37 @@ export function MonthYearSwitcher() {
   const isAtStartBoundary =
     currentYear < START_YEAR || (currentYear === START_YEAR && currentMonth <= START_MONTH);
 
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isNewPeriodModalOpen, setIsNewPeriodModalOpen] = useState(false);
   const [newMonth, setNewMonth] = useState<number>(currentMonth === 12 ? 1 : currentMonth + 1);
   const [newYear, setNewYear] = useState<number>(currentMonth === 12 ? currentYear + 1 : currentYear);
   const [isInitializing, setIsInitializing] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
+
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on click outside or Escape
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsDropdownOpen(false);
+      }
+    }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape" && isDropdownOpen) {
+        setIsDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isDropdownOpen]);
 
   const handleOpenNewPeriod = () => {
     const calcNextMonth = currentMonth === 12 ? 1 : currentMonth + 1;
@@ -122,18 +140,6 @@ export function MonthYearSwitcher() {
     }
   };
 
-  const handleMonthSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newMonth = parseInt(e.target.value, 10);
-    navigateToPeriod(newMonth, currentYear);
-  };
-
-  const handleYearSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newYear = parseInt(e.target.value, 10);
-    const targetMonth =
-      newYear === START_YEAR && currentMonth < START_MONTH ? START_MONTH : currentMonth;
-    navigateToPeriod(targetMonth, newYear);
-  };
-
   const handleResetToCurrent = () => {
     navigateToPeriod(defaultPeriod.month, defaultPeriod.year);
   };
@@ -146,113 +152,148 @@ export function MonthYearSwitcher() {
   }
 
   return (
-    <div className="flex items-center gap-2">
-      {/* Control Pill: Prev, Month/Year selector, Next */}
+    <div className="relative" ref={dropdownRef}>
+      {/* Unified Period Capsule: [ ‹  Oct 2026 ▾  › ] */}
       <div
-        className={`flex items-center rounded-md border border-border bg-surface px-1 py-1 shadow-sm transition-opacity ${
+        className={`flex items-center h-8 rounded-md border border-border bg-surface shadow-xs transition-opacity ${
           isPending ? "opacity-60" : "opacity-100"
         }`}
       >
-        {/* Previous Month Button — strictly disabled at July 2026 boundary */}
+        {/* Previous Month Button: ‹ */}
         <button
           type="button"
           onClick={handlePrevMonth}
           disabled={isAtStartBoundary}
           title={isAtStartBoundary ? "Historical boundary reached (July 2026)" : "Previous Month"}
           aria-label="Previous Month"
-          className={`p-1 rounded transition-colors ${
+          className={`h-full px-2 flex items-center justify-center transition-colors rounded-l-md ${
             isAtStartBoundary
               ? "text-text-disabled cursor-not-allowed opacity-30"
               : "text-text-tertiary hover:text-text-primary hover:bg-surface-hover cursor-pointer"
           }`}
         >
-          <ChevronLeft className="w-4 h-4" strokeWidth={1.8} />
+          <ChevronLeft className="w-3.5 h-3.5" strokeWidth={1.8} />
         </button>
 
-        {/* Month Selector Dropdown */}
-        <div className="relative mx-1">
-          <select
-            value={currentMonth}
-            onChange={handleMonthSelect}
-            aria-label="Select month"
-            className="appearance-none bg-transparent pl-2 pr-5 py-0.5 text-xs font-sans font-medium text-text-primary cursor-pointer hover:text-text-primary focus:outline-none"
-          >
-            {MONTH_NAMES.map((name, idx) => {
-              const monthNum = idx + 1;
-              const isBeforeStart = currentYear === START_YEAR && monthNum < START_MONTH;
-              return (
-                <option
-                  key={name}
-                  value={monthNum}
-                  disabled={isBeforeStart}
-                  className={`bg-surface font-sans ${
-                    isBeforeStart ? "text-text-disabled" : "text-text-primary"
-                  }`}
-                >
-                  {MONTH_SHORT[idx]}
-                </option>
-              );
-            })}
-          </select>
-          <span className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-[9px] text-text-tertiary">
-            ▾
-          </span>
-        </div>
+        {/* Center Trigger: Oct 2026 ▾ */}
+        <button
+          type="button"
+          onClick={() => setIsDropdownOpen((prev) => !prev)}
+          className="h-full px-2.5 flex items-center gap-1.5 text-xs font-sans font-medium text-text-primary hover:bg-surface-hover transition-colors cursor-pointer select-none border-x border-border-subtle"
+          title="Select Financial Period"
+        >
+          <span className="font-sans font-medium">{MONTH_SHORT[currentMonth - 1]}</span>
+          <span className="font-mono text-text-secondary">{currentYear}</span>
+          <ChevronDown
+            className={`w-3 h-3 text-text-tertiary transition-transform ${
+              isDropdownOpen ? "rotate-180" : ""
+            }`}
+          />
+        </button>
 
-        <span className="text-border-strong select-none">/</span>
-
-        {/* Year Selector Dropdown — JetBrains Mono strictly for numeric data */}
-        <div className="relative mx-1">
-          <select
-            value={currentYear}
-            onChange={handleYearSelect}
-            aria-label="Select year"
-            className="appearance-none bg-transparent pl-2 pr-5 py-0.5 text-xs font-mono font-medium tabular-nums text-text-primary cursor-pointer hover:text-text-primary focus:outline-none"
-          >
-            {availableYears.map((y) => (
-              <option key={y} value={y} className="bg-surface text-text-primary font-mono tabular-nums">
-                {y}
-              </option>
-            ))}
-          </select>
-          <span className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-[9px] text-text-tertiary">
-            ▾
-          </span>
-        </div>
-
-        {/* Next Month Button — uncapped forward navigation */}
+        {/* Next Month Button: › */}
         <button
           type="button"
           onClick={handleNextMonth}
           title="Next Month"
           aria-label="Next Month"
-          className="p-1 rounded text-text-tertiary hover:text-text-primary hover:bg-surface-hover transition-colors cursor-pointer"
+          className="h-full px-2 flex items-center justify-center text-text-tertiary hover:text-text-primary hover:bg-surface-hover transition-colors rounded-r-md cursor-pointer"
         >
-          <ChevronRight className="w-4 h-4" strokeWidth={1.8} />
+          <ChevronRight className="w-3.5 h-3.5" strokeWidth={1.8} />
         </button>
       </div>
 
-      {/* Jump to Current Month Button (only visible when viewing a different period) */}
-      {!isCurrentPeriod && (
-        <button
-          type="button"
-          onClick={handleResetToCurrent}
-          className="px-2 py-1 rounded text-[11px] font-sans text-text-tertiary hover:text-text-primary border border-border-subtle hover:border-border bg-surface-subtle transition-colors cursor-pointer"
-        >
-          Current ({MONTH_SHORT[defaultPeriod.month - 1]} {defaultPeriod.year})
-        </button>
-      )}
+      {/* Unified Popover Dropdown */}
+      {isDropdownOpen && (
+        <div className="absolute right-0 mt-1.5 w-60 rounded-md border border-border bg-surface shadow-xl z-50 p-2 animate-in fade-in zoom-in-95 duration-100">
+          {/* Year selector tabs */}
+          <div className="flex items-center justify-between pb-2 mb-2 border-b border-border-subtle px-1">
+            <span className="text-[10px] font-sans font-semibold text-text-tertiary uppercase tracking-wider">
+              Year
+            </span>
+            <div className="flex items-center gap-1">
+              {availableYears.map((y) => (
+                <button
+                  key={y}
+                  type="button"
+                  onClick={() => {
+                    const targetMonth =
+                      y === START_YEAR && currentMonth < START_MONTH ? START_MONTH : currentMonth;
+                    navigateToPeriod(targetMonth, y);
+                  }}
+                  className={`px-1.5 py-0.5 rounded text-[11px] font-mono tabular-nums transition-colors cursor-pointer ${
+                    y === currentYear
+                      ? "bg-surface-active text-text-primary font-semibold border border-border"
+                      : "text-text-tertiary hover:text-text-secondary"
+                  }`}
+                >
+                  {y}
+                </button>
+              ))}
+            </div>
+          </div>
 
-      {/* Initialize Next Period Action Button */}
-      <button
-        type="button"
-        onClick={handleOpenNewPeriod}
-        className="h-8 w-8 rounded text-xs font-sans font-medium bg-surface hover:bg-surface-active text-text-primary border border-border hover:border-border-strong transition-colors flex items-center justify-center cursor-pointer shadow-xs active:scale-95 shrink-0"
-        title="Create New Period (e.g. 01/2027)"
-        aria-label="Create New Period"
-      >
-        <Plus className="w-3.5 h-3.5 text-text-secondary hover:text-text-primary" />
-      </button>
+          {/* 12-Month Grid */}
+          <div className="grid grid-cols-4 gap-1 p-1">
+            {MONTH_SHORT.map((short, idx) => {
+              const mNum = idx + 1;
+              const isSelected = mNum === currentMonth;
+              const isBeforeStart = currentYear === START_YEAR && mNum < START_MONTH;
+              return (
+                <button
+                  key={short}
+                  type="button"
+                  disabled={isBeforeStart}
+                  onClick={() => {
+                    navigateToPeriod(mNum, currentYear);
+                    setIsDropdownOpen(false);
+                  }}
+                  className={`py-1 text-center text-xs font-sans rounded transition-colors cursor-pointer ${
+                    isSelected
+                      ? "bg-surface-active text-text-primary font-semibold border border-border"
+                      : isBeforeStart
+                      ? "text-text-disabled cursor-not-allowed opacity-30"
+                      : "text-text-secondary hover:text-text-primary hover:bg-surface-hover"
+                  }`}
+                >
+                  {short}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Bottom Divider & Actions */}
+          <div className="mt-2 pt-2 border-t border-border-subtle space-y-1">
+            {!isCurrentPeriod && (
+              <button
+                type="button"
+                onClick={() => {
+                  handleResetToCurrent();
+                  setIsDropdownOpen(false);
+                }}
+                className="w-full flex items-center justify-between px-2 py-1.5 text-xs text-text-secondary hover:text-text-primary hover:bg-surface-subtle rounded transition-colors text-left cursor-pointer"
+              >
+                <span>Jump to Current Period</span>
+                <span className="font-mono text-[10px] text-text-tertiary">
+                  {MONTH_SHORT[defaultPeriod.month - 1]} {defaultPeriod.year}
+                </span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => {
+                setIsDropdownOpen(false);
+                handleOpenNewPeriod();
+              }}
+              className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-text-primary hover:bg-surface-subtle rounded transition-colors text-left cursor-pointer font-medium"
+            >
+              <Plus className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <span>Initialize New Period...</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* New Period Initialization Modal */}
       {isNewPeriodModalOpen && (
@@ -279,23 +320,17 @@ export function MonthYearSwitcher() {
                 Creates a new draft period, inherits global budget rules, auto-materializes active installment contracts, and rolls recurring subscriptions.
               </p>
 
-              {initError && (
-                <div className="p-2 rounded bg-urgency/10 border border-urgency/30 text-urgency text-xs">
-                  {initError}
-                </div>
-              )}
-
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[11px] font-sans font-medium text-text-tertiary mb-1">
-                    Month
+                    MONTH
                   </label>
                   <select
                     value={newMonth}
                     onChange={(e) => setNewMonth(parseInt(e.target.value, 10))}
-                    className="w-full px-2.5 py-1.5 rounded bg-surface-subtle border border-border text-xs font-sans text-text-primary focus:outline-none focus:border-accent"
+                    className="w-full bg-surface-subtle border border-border rounded px-2.5 py-1.5 text-xs text-text-primary font-sans focus:outline-none"
                   >
-                    {MONTH_NAMES.map((m, idx) => (
+                    {MONTH_SHORT.map((m, idx) => (
                       <option key={m} value={idx + 1}>
                         {m} ({idx + 1})
                       </option>
@@ -305,14 +340,14 @@ export function MonthYearSwitcher() {
 
                 <div>
                   <label className="block text-[11px] font-sans font-medium text-text-tertiary mb-1">
-                    Year
+                    YEAR
                   </label>
                   <select
                     value={newYear}
                     onChange={(e) => setNewYear(parseInt(e.target.value, 10))}
-                    className="w-full px-2.5 py-1.5 rounded bg-surface-subtle border border-border text-xs font-mono tabular-nums text-text-primary focus:outline-none focus:border-accent"
+                    className="w-full bg-surface-subtle border border-border rounded px-2.5 py-1.5 text-xs font-mono tabular-nums text-text-primary focus:outline-none"
                   >
-                    {[2026, 2027, 2028, 2029].map((y) => (
+                    {availableYears.map((y) => (
                       <option key={y} value={y}>
                         {y}
                       </option>
@@ -321,21 +356,27 @@ export function MonthYearSwitcher() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-border-subtle">
+              {initError && (
+                <div className="p-2.5 bg-urgency/10 border border-urgency/30 rounded text-xs font-sans text-urgency">
+                  {initError}
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
                 <button
                   type="button"
                   onClick={() => setIsNewPeriodModalOpen(false)}
-                  className="px-3 py-1.5 rounded text-xs font-sans text-text-secondary hover:text-text-primary border border-border hover:bg-surface-subtle transition-colors cursor-pointer"
+                  className="px-3 py-1.5 rounded text-xs text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isInitializing}
-                  className="px-3.5 py-1.5 rounded text-xs font-sans font-medium bg-accent text-white hover:bg-accent/90 transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  className="px-3 py-1.5 rounded text-xs font-medium bg-emerald-500 hover:bg-emerald-600 text-black transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
                 >
-                  {isInitializing && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                  <span>{isInitializing ? "Creating..." : "Initialize Period"}</span>
+                  {isInitializing && <Loader2 className="w-3 h-3 animate-spin" />}
+                  <span>{isInitializing ? "Creating..." : "Initialize"}</span>
                 </button>
               </div>
             </form>

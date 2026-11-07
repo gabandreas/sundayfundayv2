@@ -26,7 +26,9 @@ export function PayrollCashflowHighlights({
       <div className="col-span-5">
         <MetricCard
           label="Final Total Income"
+          amount={finalTotalIncome}
           value={formatRupiah(finalTotalIncome, isAmountsMasked)}
+          hasCurrency={true}
           footer="Net distributed salary + bonuses + THR + windfall"
           isCenterpiece={true}
           statusVariant="default"
@@ -37,7 +39,9 @@ export function PayrollCashflowHighlights({
       <div className="col-span-3">
         <MetricCard
           label="Net Distributed Salary"
+          amount={netSalaryIncome}
           value={formatRupiah(netSalaryIncome, isAmountsMasked)}
+          hasCurrency={true}
           footer="Base payroll + daily allowances - BPJS"
           statusVariant="default"
         />
@@ -47,7 +51,9 @@ export function PayrollCashflowHighlights({
       <div className="col-span-2">
         <MetricCard
           label="Extra / Windfall"
+          amount={extraIncome}
           value={formatRupiah(extraIncome, isAmountsMasked)}
+          hasCurrency={true}
           footer="Freelance & bonuses"
           statusVariant="default"
         />

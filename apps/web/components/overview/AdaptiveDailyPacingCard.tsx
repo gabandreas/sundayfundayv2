@@ -20,7 +20,7 @@ import {
   deleteFinanceTransaction,
 } from "@/lib/api";
 import { MiniTrendChart } from "@/components/primitives/MiniTrendChart";
-import { formatRupiah } from "@/lib/utils";
+import { formatRupiah, formatCurrencyInput } from "@/lib/utils";
 import { PrivacyEyeButton } from "@/components/shell/PrivacyEyeButton";
 import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 
@@ -300,11 +300,11 @@ export function AdaptiveDailyPacingCard({
         {/* Centerpiece Number (Newsreader Serif Display Signature) */}
         <div className="mt-2 flex items-baseline justify-between gap-4">
           <div>
-            <div className="flex items-center gap-3">
-              <div className="font-serif text-[42px] leading-tight font-normal tracking-tight text-text-primary tabular-nums">
+            <div className="whitespace-nowrap inline-flex items-baseline gap-2">
+              <div className="font-serif text-[42px] leading-tight font-normal tracking-tight text-text-primary tabular-nums whitespace-nowrap">
                 {formatIdr(displaySafeToday)}
               </div>
-              <PrivacyEyeButton size="lg" />
+              <PrivacyEyeButton size="sm" />
             </div>
             <div className="text-xs font-sans text-text-tertiary mt-0.5">
               {isWeightedMode ? (
@@ -437,7 +437,7 @@ export function AdaptiveDailyPacingCard({
               type="text"
               disabled={isLocked || isSubmittingSync}
               value={bankBalanceInput}
-              onChange={(e) => setBankBalanceInput(e.target.value)}
+              onChange={(e) => setBankBalanceInput(formatCurrencyInput(e.target.value))}
               placeholder="Bank balance (IDR)..."
               className={`w-full px-2.5 py-1.5 rounded bg-surface-subtle border font-mono text-xs text-text-primary placeholder:text-text-tertiary focus:outline-none disabled:opacity-50 ${
                 isSpike

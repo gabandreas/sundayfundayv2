@@ -73,7 +73,7 @@ export default async function OverviewPage({ searchParams }: OverviewPageProps) 
       <div className="flex flex-wrap items-center justify-between gap-y-2 gap-x-4 pb-2 border-b border-border-subtle">
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <span className="text-sm font-medium font-sans text-text-primary whitespace-nowrap">
-            Period: {month}/{year}
+            {pacing?.cycleDateLabel ? `Active Cycle: ${pacing.cycleDateLabel}` : `Period: ${month}/${year}`}
           </span>
           <span
             className={`px-2 py-0.5 rounded text-[10px] font-sans font-medium border whitespace-nowrap ${

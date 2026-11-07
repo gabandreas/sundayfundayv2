@@ -9,6 +9,25 @@ export function getGlobalAmountsMasked(): boolean {
 }
 
 /**
+ * Formats user typed input with live thousand dots.
+ * Example: "1500000" -> "1.500.000"
+ */
+export function formatCurrencyInput(val: string | number): string {
+  const digits = String(val).replace(/\D/g, "");
+  if (!digits) return "";
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+}
+
+/**
+ * Parses user typed currency input string to a clean integer.
+ * Example: "1.500.000" -> 1500000
+ */
+export function parseCurrencyInput(val: string | number): number {
+  const digits = String(val).replace(/\D/g, "");
+  return digits ? parseInt(digits, 10) : 0;
+}
+
+/**
  * Formats a numeric amount to Indonesian Rupiah currency string.
  * When amounts are masked (privacy mode default), returns "Rp •••••••" or "-Rp •••••••".
  * Example: 18500000 -> "Rp 18.500.000", -45000 -> "-Rp 45.000"

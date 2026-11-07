@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, AlertTriangle } from "lucide-react";
 import { createCardCharge, CreditLimitCalculationResult } from "@/lib/api";
-import { formatRupiah } from "@/lib/utils";
+import { formatRupiah, formatCurrencyInput, parseCurrencyInput } from "@/lib/utils";
 
 interface AddCardChargeFormProps {
   currentMonth: number;
@@ -54,7 +54,7 @@ export function AddCardChargeForm({
   const isCrossPeriod = billingMonth !== currentMonth || billingYear !== currentYear;
 
   // Live pre-submission limit guardrail when billing into current period
-  const typedAmount = parseInt(amount.replace(/\D/g, ""), 10) || 0;
+  const typedAmount = parseCurrencyInput(amount);
   const parsedTenor = Math.max(1, parseInt(tenor, 10) || 1);
   const addedMonthlyCcImpact =
     chargeType === "INSTALLMENT"
@@ -97,8 +97,8 @@ export function AddCardChargeForm({
       errors.label = "Description / merchant is required";
     }
 
-    const numericAmount = parseInt(amount.replace(/\D/g, ""), 10);
-    if (isNaN(numericAmount) || numericAmount <= 0) {
+    const numericAmount = parseCurrencyInput(amount);
+    if (numericAmount <= 0) {
       errors.amount = "Amount must be greater than Rp 0";
     }
 
@@ -198,15 +198,16 @@ export function AddCardChargeForm({
               AMOUNT (RP)
             </label>
             <input
-              type="number"
+              type="text"
+              inputMode="numeric"
               value={amount}
               onChange={(e) => {
-                setAmount(e.target.value);
+                setAmount(formatCurrencyInput(e.target.value));
                 if (fieldErrors.amount) {
                   setFieldErrors((prev) => ({ ...prev, amount: undefined }));
                 }
               }}
-              placeholder="850000"
+              placeholder="850.000"
               className={`w-full bg-surface-subtle border rounded px-3 py-2 text-xs font-mono text-text-primary text-right focus:outline-none tabular-nums ${
                 fieldErrors.amount
                   ? "border-urgency focus:border-urgency"

@@ -84,6 +84,20 @@ function syncCookies(user: AuthenticatedUser | null, token: string | null) {
   }
 }
 
+function clearSessionPrivacyStorage() {
+  if (typeof window === "undefined") return;
+  try {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const k = sessionStorage.key(i);
+      if (k && k.startsWith("erp_privacy_session_")) {
+        keysToRemove.push(k);
+      }
+    }
+    keysToRemove.forEach((k) => sessionStorage.removeItem(k));
+  } catch {}
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -119,6 +133,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setExpiresAt(null);
       setRemainingSeconds(0);
       syncCookies(null, null);
+      clearSessionPrivacyStorage();
       if (isExpired) {
         router.replace("/login?expired=1");
       } else {
@@ -268,6 +283,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setExpiresAt(expMs);
         setRemainingSeconds(Math.max(0, Math.floor((expMs - Date.now()) / 1000)));
         localStorage.removeItem("erp_locked_identity");
+        clearSessionPrivacyStorage();
         syncCookies(res.user, res.accessToken);
         window.location.replace("/");
       }
@@ -285,6 +301,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setExpiresAt(expMs);
       setRemainingSeconds(Math.max(0, Math.floor((expMs - Date.now()) / 1000)));
       localStorage.removeItem("erp_locked_identity");
+      clearSessionPrivacyStorage();
       syncCookies(res.user, res.accessToken);
       window.location.replace("/");
     }

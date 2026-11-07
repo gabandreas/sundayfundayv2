@@ -21,6 +21,7 @@ export function WishlistSummaryMetrics({ items }: WishlistSummaryMetricsProps) {
       {/* Centerpiece Card: Total Planned Capital */}
       <MetricCard
         label="Total Active Wishlist"
+        amount={totalActiveValue}
         value={formatRupiah(totalActiveValue)}
         isCenterpiece={true}
         subvalue={`${activeItems.length} planned items`}

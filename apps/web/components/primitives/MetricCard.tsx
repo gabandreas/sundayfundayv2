@@ -1,10 +1,16 @@
+"use client";
+
 import React from "react";
 import { DeltaBadge, DeltaBadgeProps } from "./DeltaBadge";
 import { PrivacyEyeButton } from "@/components/shell/PrivacyEyeButton";
+import { usePrivacyMask } from "@/context/PrivacyMaskContext";
+import { formatRupiah } from "@/lib/utils";
 
 export interface MetricCardProps {
   label: string;
-  value: string;
+  value?: string;
+  amount?: number | null;
+  hasCurrency?: boolean;
   subvalue?: string;
   delta?: DeltaBadgeProps;
   isCenterpiece?: boolean;
@@ -23,7 +29,9 @@ const statusBorderStyles: Record<"default" | "caution" | "urgency", string> = {
 
 export function MetricCard({
   label,
-  value,
+  value = "",
+  amount,
+  hasCurrency: hasCurrencyProp,
   subvalue,
   delta,
   isCenterpiece = false,
@@ -33,6 +41,19 @@ export function MetricCard({
   footer,
   className = "",
 }: MetricCardProps) {
+  const { isAmountsMasked } = usePrivacyMask();
+
+  const displayValue =
+    amount !== undefined && amount !== null
+      ? formatRupiah(amount, isAmountsMasked)
+      : value;
+
+  const isCurrency =
+    hasCurrencyProp ??
+    (amount !== undefined ||
+      (typeof displayValue === "string" &&
+        (displayValue.includes("Rp") || displayValue.includes("••••"))));
+
   return (
     <div
       className={`relative flex flex-col justify-between rounded-lg border bg-surface p-5 transition-colors duration-150 ${statusBorderStyles[statusVariant]} ${className}`}
@@ -43,9 +64,7 @@ export function MetricCard({
           <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans truncate">
             {label}
           </span>
-          {(value.includes("Rp") || value.includes("••••")) && (
-            <PrivacyEyeButton size="sm" />
-          )}
+          {isCurrency && <PrivacyEyeButton size="xs" />}
         </div>
         {statusLabel && (
           <span
@@ -63,18 +82,18 @@ export function MetricCard({
       </div>
 
       {/* Main Metric Value: Centerpiece uses Newsreader serif display, secondary uses tight tabular font-mono */}
-      <div className="flex items-baseline gap-2 my-1">
+      <div className="flex items-baseline gap-2 my-1 whitespace-nowrap">
         <span
-          className={
+          className={`whitespace-nowrap tabular-nums ${
             isCenterpiece
               ? "font-display text-[32px] font-normal leading-none tracking-tight text-text-primary"
               : "font-mono text-[24px] font-semibold leading-none tracking-tight text-text-primary"
-          }
+          }`}
         >
-          {value}
+          {displayValue}
         </span>
         {subvalue && (
-          <span className="text-xs font-mono text-text-tertiary">
+          <span className="text-xs font-mono text-text-tertiary whitespace-nowrap">
             {subvalue}
           </span>
         )}

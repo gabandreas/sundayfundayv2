@@ -137,6 +137,7 @@ export default async function AllocationsPage({ searchParams }: AllocationsPageP
           <div className="col-span-3">
             <MetricCard
               label="Liabilities / Deductions"
+              amount={totalDeductions}
               value={formatRupiah(totalDeductions)}
               footer="Upfront: KPR, installments & bills"
               statusVariant="default"
@@ -147,6 +148,7 @@ export default async function AllocationsPage({ searchParams }: AllocationsPageP
           <div className="col-span-3">
             <MetricCard
               label={deficitUncovered > 0 ? "Survival Baseline Need" : "Survival Pocket"}
+              amount={survivalPocket}
               value={formatRupiah(survivalPocket)}
               footer={
                 deficitUncovered > 0
@@ -162,6 +164,7 @@ export default async function AllocationsPage({ searchParams }: AllocationsPageP
           <div className="col-span-3">
             <MetricCard
               label="Locked Core Savings"
+              amount={actualSavings}
               value={formatRupiah(actualSavings)}
               footer={`Priority 1: Target ${formatRupiah(snapshot?.savings ?? 0)}`}
               statusVariant="default"
@@ -172,6 +175,7 @@ export default async function AllocationsPage({ searchParams }: AllocationsPageP
           <div className="col-span-3">
             <MetricCard
               label="Self-Reward Surplus"
+              amount={selfReward}
               value={formatRupiah(selfReward)}
               footer="Priority 2: Unallocated surplus"
               statusVariant="default"

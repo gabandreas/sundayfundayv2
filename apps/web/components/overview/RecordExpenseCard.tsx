@@ -7,6 +7,7 @@ import {
   createExpenseTransaction,
   FixedEssentialCategory,
 } from "@/lib/api";
+import { formatCurrencyInput, parseCurrencyInput } from "@/lib/utils";
 
 interface RecordExpenseCardProps {
   month: number;
@@ -78,7 +79,7 @@ export function RecordExpenseCard({
   }, [isLocked]);
 
   const handlePresetClick = (presetValue: number) => {
-    setAmount(presetValue.toString());
+    setAmount(formatCurrencyInput(presetValue));
     setFieldErrors((prev) => ({ ...prev, amount: undefined }));
   };
 
@@ -92,8 +93,8 @@ export function RecordExpenseCard({
       errors.label = "Description is required";
     }
 
-    const numAmount = parseInt(amount, 10);
-    if (isNaN(numAmount) || numAmount <= 0) {
+    const numAmount = parseCurrencyInput(amount);
+    if (numAmount <= 0) {
       errors.amount = "Amount must be greater than Rp 0";
     }
 
@@ -284,11 +285,12 @@ export function RecordExpenseCard({
             </div>
             <div className="col-span-5">
               <input
-                type="number"
+                type="text"
+                inputMode="numeric"
                 placeholder="Rp Amount"
                 value={amount}
                 onChange={(e) => {
-                  setAmount(e.target.value);
+                  setAmount(formatCurrencyInput(e.target.value));
                   if (fieldErrors.amount) {
                     setFieldErrors((prev) => ({ ...prev, amount: undefined }));
                   }

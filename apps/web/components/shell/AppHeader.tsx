@@ -2,12 +2,10 @@
 
 import React, { Suspense } from "react";
 import { usePathname } from "next/navigation";
-import { Menu, Eye, EyeOff } from "lucide-react";
+import { Menu } from "lucide-react";
 import { MonthYearSwitcher } from "./MonthYearSwitcher";
 import { GlobalSearchModal } from "./GlobalSearchModal";
 import { AccountHeaderBadge } from "./AccountHeaderBadge";
-import { useAuth } from "@/context/AuthContext";
-import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 
 const ROUTE_TITLES: Record<string, { title: string; category: string }> = {
   "/": { title: "Overview", category: "Dashboard" },
@@ -28,8 +26,6 @@ const ROUTE_TITLES: Record<string, { title: string; category: string }> = {
 
 export function AppHeader({ onToggleMobileDrawer }: { onToggleMobileDrawer?: () => void }) {
   const pathname = usePathname();
-  const { user } = useAuth();
-  const { isAmountsMasked, openVerifyModal, hideFigures } = usePrivacyMask();
 
   const routeInfo = ROUTE_TITLES[pathname] || {
     title: pathname.replace("/", ""),
@@ -38,8 +34,8 @@ export function AppHeader({ onToggleMobileDrawer }: { onToggleMobileDrawer?: () 
 
   return (
     <header className="h-14 border-b border-border bg-canvas/80 px-4 sm:px-6 lg:px-8 flex items-center justify-between shrink-0 select-none">
-      {/* Route breadcrumb + Mobile Drawer Trigger */}
-      <div className="flex items-center gap-2.5 text-xs font-sans">
+      {/* Left Zone: Route breadcrumb + Mobile Drawer Trigger */}
+      <div className="flex items-center gap-2.5 text-xs font-sans min-w-[180px]">
         {onToggleMobileDrawer && (
           <button
             type="button"
@@ -60,9 +56,13 @@ export function AppHeader({ onToggleMobileDrawer }: { onToggleMobileDrawer?: () 
         </h1>
       </div>
 
-      {/* Global Controls: Search + Period Context + Privacy Eye + Profile Badge */}
-      <div className="flex items-center gap-2 sm:gap-3">
+      {/* Center Zone: Quick Global Search Input */}
+      <div className="flex-1 flex justify-center px-4">
         <GlobalSearchModal />
+      </div>
+
+      {/* Right Zone: Period Capsule Navigator + Account Profile */}
+      <div className="flex items-center gap-3 justify-end min-w-[240px]">
         <Suspense
           fallback={
             <div className="h-8 w-28 sm:w-44 rounded-md bg-surface border border-border animate-pulse" />
@@ -70,31 +70,6 @@ export function AppHeader({ onToggleMobileDrawer }: { onToggleMobileDrawer?: () 
         >
           <MonthYearSwitcher />
         </Suspense>
-
-        {/* Global Privacy Eye Toggle */}
-        <button
-          type="button"
-          onClick={() => {
-            if (isAmountsMasked) {
-              openVerifyModal();
-            } else {
-              hideFigures();
-            }
-          }}
-          className="h-8 w-8 rounded text-xs font-sans font-medium bg-surface hover:bg-surface-active text-text-primary border border-border hover:border-border-strong transition-colors flex items-center justify-center cursor-pointer shadow-xs active:scale-95 shrink-0"
-          title={
-            isAmountsMasked
-              ? "Reveal financial figures (Password verification required)"
-              : "Hide figures (Mask)"
-          }
-          aria-label={isAmountsMasked ? "Reveal financial figures" : "Hide financial figures"}
-        >
-          {isAmountsMasked ? (
-            <EyeOff className="w-3.5 h-3.5 text-text-tertiary hover:text-text-primary" />
-          ) : (
-            <Eye className="w-3.5 h-3.5 text-emerald-400" />
-          )}
-        </button>
 
         <AccountHeaderBadge />
       </div>

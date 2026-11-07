@@ -8,7 +8,7 @@ import {
   SavingsInstrumentType,
   UntransferredLockedPeriod,
 } from "@/lib/api";
-import { formatRupiah } from "@/lib/utils";
+import { formatRupiah, formatCurrencyInput, parseCurrencyInput } from "@/lib/utils";
 
 interface ManualSavingsFormProps {
   untransferredLockedPeriods?: UntransferredLockedPeriod[];
@@ -41,8 +41,7 @@ export function ManualSavingsForm({
   }>({});
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value.replace(/\D/g, "");
-    setAmount(raw);
+    setAmount(formatCurrencyInput(e.target.value));
     if (fieldErrors.amount) {
       setFieldErrors((prev) => ({ ...prev, amount: undefined }));
     }
@@ -53,8 +52,8 @@ export function ManualSavingsForm({
     if (isSubmitting) return;
     const errors: { amount?: string; label?: string; date?: string } = {};
 
-    const numericAmount = parseInt(amount, 10);
-    if (isNaN(numericAmount) || numericAmount <= 0) {
+    const numericAmount = parseCurrencyInput(amount);
+    if (numericAmount <= 0) {
       errors.amount = "Amount must be greater than Rp 0";
     }
 
@@ -114,7 +113,7 @@ export function ManualSavingsForm({
   const handlePrefillLockedPeriod = (p: UntransferredLockedPeriod) => {
     setIsOpen(true);
     setType("TOPUP");
-    setAmount(String(p.untransferredAmount));
+    setAmount(formatCurrencyInput(p.untransferredAmount));
     setLabel(p.suggestedLabel);
     setAttributedPeriod({ month: p.month, year: p.year });
     setFieldErrors({});

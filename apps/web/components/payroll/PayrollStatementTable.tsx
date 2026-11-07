@@ -4,6 +4,8 @@ import React, { useState } from "react";
 import { formatRupiah } from "@/lib/utils";
 import { PayrollResult } from "@/lib/api";
 import { usePerspective } from "@/context/PerspectiveContext";
+import { usePrivacyMask } from "@/context/PrivacyMaskContext";
+import { PrivacyEyeButton } from "@/components/shell/PrivacyEyeButton";
 import { ChevronDown } from "lucide-react";
 
 interface PayrollStatementTableProps {
@@ -59,7 +61,7 @@ function StatementLineItem({
         {note && <span className="text-[11px] text-text-tertiary block mt-0.5">{note}</span>}
       </div>
       <div className="text-right">
-        <span className={`font-mono tabular-nums ${getAmountColor()}`}>
+        <span className={`font-mono tabular-nums whitespace-nowrap ${getAmountColor()}`}>
           {amount}
         </span>
       </div>
@@ -69,19 +71,27 @@ function StatementLineItem({
 
 export function PayrollStatementTable({ payroll }: PayrollStatementTableProps) {
   const { profileMode, payrollMode } = usePerspective();
+  const { isAmountsMasked } = usePrivacyMask();
   const [showAdvancedCorporate, setShowAdvancedCorporate] = useState(false);
   const isStandardSimple =
     profileMode === "STANDARD_GENERAL" && payrollMode === "SIMPLE_FIXED_SALARY";
 
+  const formatRp = (amt: number) => formatRupiah(amt, isAmountsMasked);
+
   return (
     <div className="bg-surface border border-border-subtle rounded-lg p-5 space-y-4">
-      <div className="pb-3 border-b border-border-subtle">
-        <h2 className="text-sm font-semibold font-sans text-text-primary tracking-tight">
-          Itemized Payroll Statement
-        </h2>
-        <p className="text-xs font-sans text-text-tertiary mt-0.5">
-          Breakdown of gross base, statutory deductions, allowances, and net distribution.
-        </p>
+      <div className="pb-3 border-b border-border-subtle flex items-center justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-semibold font-sans text-text-primary tracking-tight">
+              Itemized Payroll Statement
+            </h2>
+            <PrivacyEyeButton size="xs" />
+          </div>
+          <p className="text-xs font-sans text-text-tertiary mt-0.5">
+            Breakdown of gross base, statutory deductions, allowances, and net distribution.
+          </p>
+        </div>
       </div>
 
       <div className="space-y-1">
@@ -91,22 +101,22 @@ export function PayrollStatementTable({ payroll }: PayrollStatementTableProps) {
         </div>
         <StatementLineItem
           label="Gross Base Salary"
-          amount={formatRupiah(payroll.baseSalary)}
+          amount={formatRp(payroll.baseSalary)}
         />
         {payroll.salaryAdjustment !== 0 && (
           <StatementLineItem
             label="Salary Adjustment"
             amount={
               payroll.salaryAdjustment > 0
-                ? `+${formatRupiah(payroll.salaryAdjustment)}`
-                : formatRupiah(payroll.salaryAdjustment)
+                ? `+${formatRp(payroll.salaryAdjustment)}`
+                : formatRp(payroll.salaryAdjustment)
             }
             type={payroll.salaryAdjustment > 0 ? "allowance" : "deduction"}
           />
         )}
         <StatementLineItem
           label="Adjusted Gross Base"
-          amount={formatRupiah(payroll.adjustedBaseSalary)}
+          amount={formatRp(payroll.adjustedBaseSalary)}
           highlight={true}
         />
 
@@ -132,26 +142,26 @@ export function PayrollStatementTable({ payroll }: PayrollStatementTableProps) {
                 <StatementLineItem
                   label="BPJS Deduction (3%)"
                   note="Statutory health and pension contribution"
-                  amount={`-${formatRupiah(payroll.bpjsDeduction)}`}
+                  amount={`-${formatRp(payroll.bpjsDeduction)}`}
                   type="deduction"
                 />
                 <StatementLineItem
                   label="Laptop Allowance"
                   note="Monthly technology stipend"
-                  amount={`+${formatRupiah(payroll.laptopAllowance)}`}
+                  amount={`+${formatRp(payroll.laptopAllowance)}`}
                   type="allowance"
                 />
                 <StatementLineItem
                   label="Daily Allowance Total"
-                  note={`${payroll.totalWorkingDays} attended working days @ ${formatRupiah(payroll.dailyAllowance)}/day`}
-                  amount={`+${formatRupiah(payroll.totalDailyAllowance)}`}
+                  note={`${payroll.totalWorkingDays} attended working days @ ${formatRp(payroll.dailyAllowance)}/day`}
+                  amount={`+${formatRp(payroll.totalDailyAllowance)}`}
                   type="allowance"
                 />
                 {payroll.cafeteriaDeduction > 0 && (
                   <StatementLineItem
                     label="Cafeteria Deduction"
                     note="Meal voucher and cafeteria charges"
-                    amount={`-${formatRupiah(payroll.cafeteriaDeduction)}`}
+                    amount={`-${formatRp(payroll.cafeteriaDeduction)}`}
                     type="deduction"
                   />
                 )}
@@ -166,26 +176,26 @@ export function PayrollStatementTable({ payroll }: PayrollStatementTableProps) {
             <StatementLineItem
               label="BPJS Deduction (3%)"
               note="Statutory health and pension contribution"
-              amount={`-${formatRupiah(payroll.bpjsDeduction)}`}
+              amount={`-${formatRp(payroll.bpjsDeduction)}`}
               type="deduction"
             />
             <StatementLineItem
               label="Laptop Allowance"
               note="Monthly technology stipend"
-              amount={`+${formatRupiah(payroll.laptopAllowance)}`}
+              amount={`+${formatRp(payroll.laptopAllowance)}`}
               type="allowance"
             />
             <StatementLineItem
               label="Daily Allowance Total"
-              note={`${payroll.totalWorkingDays} attended working days @ ${formatRupiah(payroll.dailyAllowance)}/day`}
-              amount={`+${formatRupiah(payroll.totalDailyAllowance)}`}
+              note={`${payroll.totalWorkingDays} attended working days @ ${formatRp(payroll.dailyAllowance)}/day`}
+              amount={`+${formatRp(payroll.totalDailyAllowance)}`}
               type="allowance"
             />
             {payroll.cafeteriaDeduction > 0 && (
               <StatementLineItem
                 label="Cafeteria Deduction"
                 note="Meal voucher and cafeteria charges"
-                amount={`-${formatRupiah(payroll.cafeteriaDeduction)}`}
+                amount={`-${formatRp(payroll.cafeteriaDeduction)}`}
                 type="deduction"
               />
             )}
@@ -197,7 +207,7 @@ export function PayrollStatementTable({ payroll }: PayrollStatementTableProps) {
           <StatementLineItem
             label="Net Distributed Salary"
             note="Distributed to primary checking account"
-            amount={formatRupiah(payroll.netSalaryIncome)}
+            amount={formatRp(payroll.netSalaryIncome)}
             type="subtotal"
             highlight={true}
           />
@@ -212,7 +222,7 @@ export function PayrollStatementTable({ payroll }: PayrollStatementTableProps) {
             {payroll.bonusAmount > 0 && (
               <StatementLineItem
                 label="Performance Bonus"
-                amount={`+${formatRupiah(payroll.bonusAmount)}`}
+                amount={`+${formatRp(payroll.bonusAmount)}`}
                 type="allowance"
               />
             )}
@@ -220,7 +230,7 @@ export function PayrollStatementTable({ payroll }: PayrollStatementTableProps) {
               <StatementLineItem
                 label="Tunjangan Hari Raya (THR)"
                 note="Pro-rated religious holiday allowance"
-                amount={`+${formatRupiah(payroll.thrAmount)}`}
+                amount={`+${formatRp(payroll.thrAmount)}`}
                 type="allowance"
               />
             )}
@@ -228,7 +238,7 @@ export function PayrollStatementTable({ payroll }: PayrollStatementTableProps) {
               <StatementLineItem
                 label="Extra / Windfall Income"
                 note="Logged freelance, dividends, or other receipts"
-                amount={`+${formatRupiah(payroll.extraIncome)}`}
+                amount={`+${formatRp(payroll.extraIncome)}`}
                 type="allowance"
               />
             )}
@@ -240,7 +250,7 @@ export function PayrollStatementTable({ payroll }: PayrollStatementTableProps) {
           <StatementLineItem
             label="Final Total Take-Home Cashflow"
             note="Net distributed salary + bonus + THR + windfall"
-            amount={formatRupiah(payroll.finalTotalIncome)}
+            amount={formatRp(payroll.finalTotalIncome)}
             type="total"
             highlight={true}
           />

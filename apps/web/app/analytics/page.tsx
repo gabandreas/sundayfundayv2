@@ -73,6 +73,7 @@ export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps
         {/* Card 1: Average Monthly Income (Centerpiece) */}
         <MetricCard
           label="Average Monthly Income"
+          amount={kpis.averageMonthlyIncome}
           value={formatRp(kpis.averageMonthlyIncome)}
           isCenterpiece={true}
           footer={`Total ${formatRp(kpis.totalIncomeAcrossPeriods)} across ${report.periodCount} ${
@@ -83,6 +84,7 @@ export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps
         {/* Card 2: Average Monthly Savings (Tabular Mono) */}
         <MetricCard
           label="Average Monthly Savings"
+          amount={kpis.averageMonthlySavings}
           value={formatRp(kpis.averageMonthlySavings)}
           isCenterpiece={false}
           footer={`Funded P1 total: ${formatRp(kpis.cumulativePlannedSavings)} (target ${formatRp(
@@ -103,6 +105,7 @@ export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps
         {/* Card 4: Cumulative Vault Inflow (Tabular Mono) */}
         <MetricCard
           label="Cumulative Vault Inflow"
+          amount={kpis.cumulativeVaultInflow}
           value={formatRp(kpis.cumulativeVaultInflow)}
           isCenterpiece={false}
           footer={`Vault realization: ${kpis.vaultRealizationRatePercent.toFixed(1)}% of P1 (${formatRp(

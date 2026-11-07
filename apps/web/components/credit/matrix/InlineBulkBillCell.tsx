@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Check, RefreshCw } from "lucide-react";
 import { updateBulkBillCell } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
+import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 
 interface InlineBulkBillCellProps {
   bulkBillId?: number;
@@ -30,6 +31,7 @@ export function InlineBulkBillCell({
   safeHeadroom = 0,
 }: InlineBulkBillCellProps) {
   const router = useRouter();
+  const { isAmountsMasked } = usePrivacyMask();
   const [isRefreshing, startTransition] = useTransition();
   const [isEditing, setIsEditing] = useState(false);
   const [inputValue, setInputValue] = useState(String(initialAmount || ""));
@@ -170,11 +172,11 @@ export function InlineBulkBillCell({
           {isPending ? (
             <span className="flex items-center gap-1 font-mono text-[10px] text-text-tertiary">
               <RefreshCw className="w-2.5 h-2.5 animate-spin" strokeWidth={1.8} />
-              <span>Syncing...</span>
+              <span>Saving...</span>
             </span>
           ) : isJustSaved ? (
             <span className="flex items-center gap-1 font-mono text-[10px] text-delta-positive">
-              <Check className="w-3 h-3" strokeWidth={1.8} />
+              <Check className="w-3 h-3 text-delta-positive" strokeWidth={1.8} />
               <span>Saved</span>
             </span>
           ) : (
@@ -209,15 +211,15 @@ export function InlineBulkBillCell({
         {isPending ? (
           <span className="inline-flex items-center gap-1 text-text-tertiary">
             <RefreshCw className="w-2.5 h-2.5 animate-spin" strokeWidth={1.8} />
-            <span>Syncing...</span>
+            <span>Saving...</span>
           </span>
         ) : isJustSaved ? (
           <>
-            <span>{formatRupiah(initialAmount)}</span>
+            <span>{formatRupiah(initialAmount, isAmountsMasked)}</span>
             <Check className="w-3 h-3 text-delta-positive" strokeWidth={1.8} />
           </>
         ) : (
-          formatRupiah(initialAmount)
+          formatRupiah(initialAmount, isAmountsMasked)
         )}
       </span>
       {errorMessage && (
