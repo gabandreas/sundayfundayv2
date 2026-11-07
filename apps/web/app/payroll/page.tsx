@@ -2,6 +2,7 @@ import React from "react";
 import { fetchSnapshot, fetchPayroll, fetchGlobalConfig } from "@/lib/api";
 import { MetricCard } from "@/components/primitives/MetricCard";
 import { PayrollStatementTable } from "@/components/payroll/PayrollStatementTable";
+import { PayrollCashflowHighlights } from "@/components/payroll/PayrollCashflowHighlights";
 import { PayrollAdjustmentForm } from "@/components/payroll/PayrollAdjustmentForm";
 import { PayrollArchetypeSelector } from "@/components/payroll/PayrollArchetypeSelector";
 import { ContractualBaseRateEditor } from "@/components/payroll/ContractualBaseRateEditor";
@@ -73,48 +74,12 @@ export default async function PayrollPage({ searchParams }: PayrollPageProps) {
         <div className="text-[11px] font-sans font-medium text-text-tertiary uppercase tracking-wider">
           Cashflow Highlights
         </div>
-        <div className="grid grid-cols-12 gap-4">
-          {/* Centerpiece: Final Total Income */}
-          <div className="col-span-5">
-            <MetricCard
-              label="Final Total Income"
-              value={formatRupiah(finalTotalIncome)}
-              footer="Net distributed salary + bonuses + THR + windfall"
-              isCenterpiece={true}
-              statusVariant="default"
-            />
-          </div>
-
-          {/* Net Distributed Base */}
-          <div className="col-span-3">
-            <MetricCard
-              label="Net Distributed Salary"
-              value={formatRupiah(netSalaryIncome)}
-              footer="Base payroll + daily allowances - BPJS"
-              statusVariant="default"
-            />
-          </div>
-
-          {/* Windfall / Extra */}
-          <div className="col-span-2">
-            <MetricCard
-              label="Extra / Windfall"
-              value={formatRupiah(extraIncome)}
-              footer="Freelance & bonuses"
-              statusVariant="default"
-            />
-          </div>
-
-          {/* Working Days */}
-          <div className="col-span-2">
-            <MetricCard
-              label="Working Days"
-              value={`${workingDays} days`}
-              footer="Attended office days"
-              statusVariant="default"
-            />
-          </div>
-        </div>
+        <PayrollCashflowHighlights
+          finalTotalIncome={finalTotalIncome}
+          netSalaryIncome={netSalaryIncome}
+          extraIncome={extraIncome}
+          workingDays={workingDays}
+        />
       </section>
 
       {/* Main Content: Itemized Statement & Adjustments */}

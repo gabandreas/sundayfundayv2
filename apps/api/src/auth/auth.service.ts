@@ -10,6 +10,8 @@ import { RateLimiterService } from './rate-limiter.service';
 import {
   hashPassword,
   verifyPassword,
+  verifyPasswordWithStatus,
+  isPasswordHashV2,
   hashPin,
   verifyPin,
   signToken,
@@ -60,7 +62,7 @@ export class AuthService implements OnModuleInit {
             username: 'cheeseburger',
             email: ownerEmail,
             passwordHash: hashPassword('Djakarta2026Nov!@#'),
-            fullName: 'Gab Andreas (Platform Owner)',
+            fullName: 'Gabriel',
             role: 'PLATFORM_OWNER',
             status: 'ACTIVE',
             blueprintType: 'SUPERADMIN_BESPOKE',
@@ -78,7 +80,8 @@ export class AuthService implements OnModuleInit {
         if (owner.lifeStagePreset !== 'SUPERADMIN_BESPOKE') updates.lifeStagePreset = 'SUPERADMIN_BESPOKE';
         if (owner.accountName !== 'cheeseburger') updates.accountName = 'cheeseburger';
         if (owner.username !== 'cheeseburger') updates.username = 'cheeseburger';
-        if (!verifyPassword('Djakarta2026Nov!@#', owner.passwordHash)) {
+        if (owner.fullName !== 'Gabriel') updates.fullName = 'Gabriel';
+        if (!isPasswordHashV2(owner.passwordHash) || !verifyPassword('Djakarta2026Nov!@#', owner.passwordHash)) {
           updates.passwordHash = hashPassword('Djakarta2026Nov!@#');
         }
 
@@ -148,7 +151,7 @@ export class AuthService implements OnModuleInit {
         if (demoUser.username !== 'guest') demoUpdates.username = 'guest';
         if (demoUser.fullName !== 'General Sandbox (Demo)') demoUpdates.fullName = 'General Sandbox (Demo)';
         if (demoUser.role !== 'DEMO_SANDBOX') demoUpdates.role = 'DEMO_SANDBOX';
-        if (!verifyPassword('Sandbox2026!', demoUser.passwordHash)) {
+        if (!isPasswordHashV2(demoUser.passwordHash) || !verifyPassword('Sandbox2026!', demoUser.passwordHash)) {
           demoUpdates.passwordHash = hashPassword('Sandbox2026!');
         }
         if (Object.keys(demoUpdates).length > 0) {
@@ -314,12 +317,21 @@ export class AuthService implements OnModuleInit {
       throw new UnauthorizedException('Your account has been suspended. Contact support.');
     }
 
+    const pwStatus = verifyPasswordWithStatus(dto.password, user.passwordHash);
     const isPasswordValid =
-      verifyPassword(dto.password, user.passwordHash) ||
+      pwStatus.isValid ||
       (user.id === 1 && (dto.password === 'SundayFunday#2026' || dto.password === 'Djakarta2026Nov!@#'));
     if (!isPasswordValid) {
       this.rateLimiter.recordFailure(rateLimitKey || user.email, clientIp);
       throw new UnauthorizedException(failureMessage);
+    }
+
+    // Auto-upgrade legacy hash to scryptv2 upon successful verification
+    if (pwStatus.needsUpgrade || !isPasswordHashV2(user.passwordHash)) {
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { passwordHash: hashPassword(dto.password) },
+      }).catch(() => {});
     }
 
     const normalizedClientIp = normalizeIp(clientIp);
@@ -462,7 +474,8 @@ export class AuthService implements OnModuleInit {
       throw new UnauthorizedException('User not found.');
     }
 
-    let isValid = verifyPassword(password, user.passwordHash);
+    const pwStatus = verifyPasswordWithStatus(password, user.passwordHash);
+    let isValid = pwStatus.isValid;
 
     // Fallback for User 1 in legacy test runs if SundayFunday#2026 is used
     if (!isValid && user.id === 1 && password === 'SundayFunday#2026') {
@@ -472,6 +485,14 @@ export class AuthService implements OnModuleInit {
     if (!isValid) {
       this.rateLimiter.recordFailure(rateLimitKey, clientIp);
       throw new UnauthorizedException('Invalid account password.');
+    }
+
+    // Auto-upgrade legacy hash to scryptv2 upon successful verification
+    if (pwStatus.needsUpgrade || !isPasswordHashV2(user.passwordHash)) {
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { passwordHash: hashPassword(password) },
+      }).catch(() => {});
     }
 
     this.rateLimiter.recordSuccess(rateLimitKey, clientIp);

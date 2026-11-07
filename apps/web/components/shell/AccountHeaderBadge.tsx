@@ -90,10 +90,10 @@ export function AccountHeaderBadge() {
   }, [isOpen]);
 
   const roleMeta = getRoleBadge(user?.role);
-  const cleanName = (user?.fullName || "Account").replace(/\s*\([^)]*\)$/, "");
+  const cleanName = (user?.fullName || "Gabriel").replace(/\s*\([^)]*\)$/, "");
 
   const getInitials = (name?: string) => {
-    if (!name) return "U";
+    if (!name) return "G";
     const parts = name.trim().split(" ");
     if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
@@ -134,29 +134,14 @@ export function AccountHeaderBadge() {
           onClick={() => setIsOpen((prev) => !prev)}
           className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded border border-border bg-surface hover:bg-surface-subtle transition-all active:scale-[0.98] text-left cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
         >
-          {/* Avatar Initials */}
-          <div className="w-5 h-5 rounded-sm bg-surface-subtle border border-border-strong flex items-center justify-center text-[10px] font-mono font-medium text-text-primary shrink-0">
+          {/* Avatar Initial */}
+          <div className="w-5 h-5 rounded-sm bg-surface-subtle border border-border-strong flex items-center justify-center text-[10px] font-mono font-semibold text-text-primary shrink-0">
             {getInitials(cleanName)}
           </div>
 
-          {/* Mobile Compact View (< 640px) */}
-          <div className="flex sm:hidden items-center gap-1.5">
-            <span className="text-[10px] font-mono font-medium text-text-secondary">
-              {getCompactRoleLabel(user?.role)}
-            </span>
-          </div>
-
-          {/* Desktop Clean Expanded View (>= 640px) */}
-          <div className="hidden sm:flex items-center gap-2">
-            <span className="text-xs font-medium text-text-primary whitespace-nowrap">
-              {cleanName}
-            </span>
-            <span
-              className={`px-1.5 py-0.5 text-[9px] font-mono font-medium tracking-wide rounded border ${roleMeta.classes}`}
-            >
-              {roleMeta.label}
-            </span>
-          </div>
+          <span className="text-xs font-medium text-text-primary whitespace-nowrap">
+            {cleanName}
+          </span>
 
           <ChevronDown
             className={`w-3 h-3 text-text-tertiary transition-transform ${
@@ -171,20 +156,21 @@ export function AccountHeaderBadge() {
         <div className="absolute right-0 mt-2 w-64 rounded-md border border-border bg-surface shadow-xl z-50 p-1.5 animate-in fade-in zoom-in-95 duration-100">
           {/* Account Profile Header */}
           <div className="px-3 py-2 border-b border-border mb-1">
-            <div className="text-xs font-medium text-text-primary truncate">
+            <div className="text-xs font-semibold text-text-primary truncate">
               {cleanName}
             </div>
-            <div className="text-[11px] font-mono text-text-tertiary truncate">
-              {user?.email || "Signed in"}
+            <div className="text-[11px] font-sans text-text-tertiary truncate">
+              {user?.role === "PLATFORM_OWNER" ? "Personal Admin" : user?.email || "Signed in"}
             </div>
             <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
               <span
-                className={`px-1.5 py-0.2 text-[9px] font-mono rounded border ${roleMeta.classes}`}
+                className={`px-1.5 py-0.5 text-[9px] font-mono rounded border ${
+                  user?.role === "PLATFORM_OWNER"
+                    ? "border-border-strong text-text-primary bg-surface-subtle"
+                    : roleMeta.classes
+                }`}
               >
-                {roleMeta.label}
-              </span>
-              <span className="px-1.5 py-0.2 text-[9px] font-mono rounded border border-border text-text-secondary">
-                {(user?.lifeStagePreset || lifeStagePreset).replace(/_/g, " ")}
+                {user?.role === "PLATFORM_OWNER" ? "Personal Admin" : roleMeta.label}
               </span>
               <span className="text-[10px] text-text-tertiary font-mono">
                 ID #{user?.id ?? 1}

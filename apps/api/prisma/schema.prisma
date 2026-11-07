@@ -238,6 +238,7 @@ model MonthlySnapshot {
 
   @@unique([userId, month, year])
   @@index([userId])
+  @@index([userId, year, month])
 }
 
 // ─────────────────────────────────────────────
@@ -258,6 +259,8 @@ model Transaction {
   createdAt              DateTime                @default(now())
 
   snapshot   MonthlySnapshot       @relation(fields: [snapshotId], references: [id])
+
+  @@index([snapshotId])
 }
 
 // ─────────────────────────────────────────────
@@ -328,6 +331,7 @@ model CreditCardTransaction {
   updatedAt       DateTime             @updatedAt
 
   @@index([userId])
+  @@index([userId, status])
 }
 
 // ─────────────────────────────────────────────
@@ -349,6 +353,7 @@ model MonthlyBulkBill {
 
   @@unique([userId, month, year])
   @@index([userId])
+  @@index([userId, year, month])
 }
 
 // ─────────────────────────────────────────────

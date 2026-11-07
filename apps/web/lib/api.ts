@@ -305,37 +305,145 @@ async function handleResponse<T>(res: Response, notFoundFallback: T): Promise<T>
   return await res.json();
 }
 
+// ─────────────────────────────────────────────
+// Zero-Latency SWR In-Memory Client Cache
+// ─────────────────────────────────────────────
+
+interface SwrCacheEntry<T> {
+  data: T;
+  timestamp: number;
+}
+
+const clientSwrCache = new Map<string, SwrCacheEntry<any>>();
+const inFlightRequests = new Map<string, Promise<any>>();
+const SWR_STALE_MS = 60 * 1000; // 60s TTL
+
+export function getCached<T>(key: string): T | undefined {
+  if (typeof window === "undefined") return undefined;
+  const entry = clientSwrCache.get(key);
+  return entry ? (entry.data as T) : undefined;
+}
+
+export function setCached<T>(key: string, data: T): void {
+  if (typeof window === "undefined") return;
+  clientSwrCache.set(key, { data, timestamp: Date.now() });
+}
+
+export function invalidateCache(keyPattern?: string | RegExp): void {
+  if (typeof window === "undefined") return;
+  if (!keyPattern) {
+    clientSwrCache.clear();
+    return;
+  }
+  for (const key of Array.from(clientSwrCache.keys())) {
+    if (typeof keyPattern === "string") {
+      if (key.includes(keyPattern)) clientSwrCache.delete(key);
+    } else if (keyPattern.test(key)) {
+      clientSwrCache.delete(key);
+    }
+  }
+}
+
+export async function swrFetch<T>(
+  cacheKey: string,
+  fetcher: () => Promise<T>,
+  ttlMs = SWR_STALE_MS
+): Promise<T> {
+  if (typeof window === "undefined") {
+    return await fetcher();
+  }
+
+  const cached = clientSwrCache.get(cacheKey);
+  const now = Date.now();
+
+  // If cached and fresh, return immediately (<1ms)
+  if (cached && now - cached.timestamp < ttlMs) {
+    return cached.data as T;
+  }
+
+  // Deduplicate in-flight requests
+  if (inFlightRequests.has(cacheKey)) {
+    return inFlightRequests.get(cacheKey)!;
+  }
+
+  // Stale-While-Revalidate: return stale data immediately and revalidate in background
+  if (cached) {
+    const bg = (async () => {
+      try {
+        const fresh = await fetcher();
+        clientSwrCache.set(cacheKey, { data: fresh, timestamp: Date.now() });
+      } catch {
+        // preserve stale data on revalidation failure
+      } finally {
+        inFlightRequests.delete(cacheKey);
+      }
+    })();
+    inFlightRequests.set(cacheKey, bg);
+    return cached.data as T;
+  }
+
+  // Cold cache
+  const p = (async () => {
+    try {
+      const fresh = await fetcher();
+      clientSwrCache.set(cacheKey, { data: fresh, timestamp: Date.now() });
+      return fresh;
+    } finally {
+      inFlightRequests.delete(cacheKey);
+    }
+  })();
+
+  inFlightRequests.set(cacheKey, p);
+  return await p;
+}
+
+export async function prefetchPeriodData(month: number, year: number): Promise<void> {
+  if (typeof window === "undefined") return;
+  Promise.allSettled([
+    fetchSnapshot(month, year),
+    fetchPacing(month, year),
+    fetchTransactions(month, year),
+    fetchSavingsVault(month, year),
+  ]).catch(() => {});
+}
+
 export async function fetchSnapshot(
   month: number,
   year: number
 ): Promise<MonthlySnapshot | null> {
-  const res = await fetch(`${API_URL}/api/snapshots?month=${month}&year=${year}`, {
-    headers: await getAuthHeaders(),
-    cache: "no-store",
+  return swrFetch(`snapshot:${month}:${year}`, async () => {
+    const res = await fetch(`${API_URL}/api/snapshots?month=${month}&year=${year}`, {
+      headers: await getAuthHeaders(),
+      cache: "no-store",
+    });
+    return handleResponse<MonthlySnapshot | null>(res, null);
   });
-  return handleResponse<MonthlySnapshot | null>(res, null);
 }
 
 export async function fetchPacing(
   month: number,
   year: number
 ): Promise<DailyPacing | null> {
-  const res = await fetch(`${API_URL}/api/finance/pacing?month=${month}&year=${year}`, {
-    headers: await getAuthHeaders(),
-    cache: "no-store",
+  return swrFetch(`pacing:${month}:${year}`, async () => {
+    const res = await fetch(`${API_URL}/api/finance/pacing?month=${month}&year=${year}`, {
+      headers: await getAuthHeaders(),
+      cache: "no-store",
+    });
+    return handleResponse<DailyPacing | null>(res, null);
   });
-  return handleResponse<DailyPacing | null>(res, null);
 }
 
 export async function fetchTransactions(
   month: number,
   year: number
 ): Promise<Transaction[]> {
-  const res = await fetch(
-    `${API_URL}/api/finance/transactions?month=${month}&year=${year}`,
-    { headers: await getAuthHeaders(), cache: "no-store" }
-  );
-  return handleResponse<Transaction[]>(res, []);
+  return swrFetch(`transactions:${month}:${year}`, async () => {
+    const res = await fetch(
+      `${API_URL}/api/finance/transactions?month=${month}&year=${year}`,
+      { headers: await getAuthHeaders(), cache: "no-store" }
+    );
+    return handleResponse<Transaction[]>(res, []);
+  });
 }
 
 export async function fetchSavingsVault(
@@ -346,11 +454,13 @@ export async function fetchSavingsVault(
     month !== undefined && year !== undefined
       ? `?month=${month}&year=${year}`
       : "";
-  const res = await fetch(`${API_URL}/api/savings${query}`, {
-    headers: await getAuthHeaders(),
-    cache: "no-store",
+  return swrFetch(`savings:${month ?? "all"}:${year ?? "all"}`, async () => {
+    const res = await fetch(`${API_URL}/api/savings${query}`, {
+      headers: await getAuthHeaders(),
+      cache: "no-store",
+    });
+    return handleResponse<SavingsVault | null>(res, null);
   });
-  return handleResponse<SavingsVault | null>(res, null);
 }
 
 export async function createSavingsTransaction(data: {
@@ -649,6 +759,7 @@ export async function closeSnapshot(
     if (!res.ok) {
       return { success: false, error: body.message || `Failed to close period (${res.status})` };
     }
+    invalidateCache();
     return { success: true, data: body };
   } catch (error: any) {
     return { success: false, error: error.message || "Network error" };
@@ -668,6 +779,7 @@ export async function recalculateSnapshot(
     if (!res.ok) {
       return { success: false, error: body.message || `Failed to recalculate snapshot (${res.status})` };
     }
+    invalidateCache();
     return { success: true, data: body };
   } catch (error: any) {
     return { success: false, error: error.message || "Network error" };
@@ -744,6 +856,7 @@ export async function updateSnapshot(
     if (!res.ok) {
       return null;
     }
+    invalidateCache();
     return await res.json();
   } catch (error) {
     console.error("updateSnapshot error:", error);
@@ -770,6 +883,7 @@ export async function createIncomeTransaction(data: {
     if (!res.ok) {
       return null;
     }
+    invalidateCache();
     return await res.json();
   } catch (error) {
     console.error("createIncomeTransaction error:", error);
@@ -801,6 +915,7 @@ export async function createExpenseTransaction(data: {
       return { success: false, error: body.message || "Failed to record expense" };
     }
     const tx = await res.json();
+    invalidateCache();
     return { success: true, data: tx };
   } catch (error: any) {
     return { success: false, error: error.message || "Network error" };
@@ -819,6 +934,7 @@ export async function deleteFinanceTransaction(
       const body = await res.json().catch(() => ({}));
       return { success: false, error: body.message || "Failed to delete transaction" };
     }
+    invalidateCache();
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message || "Network error" };
@@ -846,6 +962,7 @@ export async function updateFinanceTransaction(
         error: Array.isArray(body.message) ? body.message.join(", ") : body.message || "Failed to update transaction",
       };
     }
+    invalidateCache();
     return { success: true, data: body };
   } catch (error: any) {
     return { success: false, error: error.message || "Network error" };
@@ -1220,6 +1337,7 @@ export async function updateBulkBillCell(data: {
         const body = await res.json().catch(() => ({}));
         return { success: false, error: body.message || "Failed to update bulk bill cell" };
       }
+      invalidateCache();
       return { success: true };
     } else {
       const res = await fetch(`${API_URL}/api/credit/bulk-bills`, {
@@ -1235,6 +1353,7 @@ export async function updateBulkBillCell(data: {
         const body = await res.json().catch(() => ({}));
         return { success: false, error: body.message || "Failed to create bulk bill cell" };
       }
+      invalidateCache();
       return { success: true };
     }
   } catch (error: any) {

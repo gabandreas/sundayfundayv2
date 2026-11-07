@@ -42,6 +42,7 @@ export function SidebarNavItem({
   return (
     <Link
       href={href}
+      prefetch={true}
       onClick={handleClick}
       className={`group flex items-center justify-between px-3 py-2 rounded-md text-xs font-medium transition-all duration-100 cursor-pointer select-none active:scale-[0.97] ${
         isActive

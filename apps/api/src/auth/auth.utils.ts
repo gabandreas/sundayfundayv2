@@ -9,21 +9,62 @@ export function getUserIdOrThrow(req: any): number {
   return userId;
 }
 
+const PEPPER_SECRET = process.env.PASSWORD_PEPPER || process.env.JWT_SECRET || 'SundayFunday2026ProductionSecretKey998877';
+
+function pepperPassword(password: string): string {
+  return crypto.createHmac('sha256', PEPPER_SECRET).update(password).digest('hex');
+}
+
+export function isPasswordHashV2(storedHash: string | null | undefined): boolean {
+  return typeof storedHash === 'string' && storedHash.startsWith('scryptv2$');
+}
+
 export function hashPassword(password: string): string {
+  const peppered = pepperPassword(password);
   const salt = crypto.randomBytes(16).toString('hex');
-  const hash = crypto.scryptSync(password, salt, 64).toString('hex');
-  return `${salt}:${hash}`;
+  const derivedKey = crypto.scryptSync(peppered, salt, 64, { N: 16384, r: 8, p: 1 }).toString('hex');
+  return `scryptv2$${salt}$${derivedKey}`;
+}
+
+export function verifyPasswordWithStatus(password: string, storedHash: string): { isValid: boolean; needsUpgrade: boolean } {
+  if (!storedHash || !password) return { isValid: false, needsUpgrade: false };
+
+  try {
+    // 1. Modern scryptv2 with HMAC-SHA256 Pepper and Memory-Hard Scrypt (N: 16384, r: 8, p: 1)
+    if (storedHash.startsWith('scryptv2$')) {
+      const parts = storedHash.split('$');
+      if (parts.length !== 3) return { isValid: false, needsUpgrade: false };
+      const salt = parts[1];
+      const expectedKeyHex = parts[2];
+      const peppered = pepperPassword(password);
+      const derivedKey = crypto.scryptSync(peppered, salt, 64, { N: 16384, r: 8, p: 1 });
+      const expectedKey = Buffer.from(expectedKeyHex, 'hex');
+      if (derivedKey.length === expectedKey.length && crypto.timingSafeEqual(derivedKey, expectedKey)) {
+        return { isValid: true, needsUpgrade: false };
+      }
+      return { isValid: false, needsUpgrade: false };
+    }
+
+    // 2. Legacy scrypt (salt:key)
+    if (storedHash.includes(':')) {
+      const [salt, keyHex] = storedHash.split(':');
+      if (salt && keyHex) {
+        const derivedKey = crypto.scryptSync(password, salt, 64);
+        const expectedKey = Buffer.from(keyHex, 'hex');
+        if (derivedKey.length === expectedKey.length && crypto.timingSafeEqual(derivedKey, expectedKey)) {
+          return { isValid: true, needsUpgrade: true };
+        }
+      }
+    }
+
+    return { isValid: false, needsUpgrade: false };
+  } catch {
+    return { isValid: false, needsUpgrade: false };
+  }
 }
 
 export function verifyPassword(password: string, storedHash: string): boolean {
-  try {
-    const [salt, key] = storedHash.split(':');
-    if (!salt || !key) return false;
-    const derivedKey = crypto.scryptSync(password, salt, 64).toString('hex');
-    return crypto.timingSafeEqual(Buffer.from(key, 'hex'), Buffer.from(derivedKey, 'hex'));
-  } catch {
-    return false;
-  }
+  return verifyPasswordWithStatus(password, storedHash).isValid;
 }
 
 export function hashPin(pin: string): string {

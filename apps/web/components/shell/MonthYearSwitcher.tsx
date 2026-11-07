@@ -247,11 +247,11 @@ export function MonthYearSwitcher() {
       <button
         type="button"
         onClick={handleOpenNewPeriod}
-        className="h-8 px-2.5 rounded text-xs font-sans font-medium bg-surface hover:bg-surface-active text-text-primary border border-border hover:border-border-strong transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
-        title="Initialize New Period (e.g. 01/2027)"
+        className="h-8 w-8 rounded text-xs font-sans font-medium bg-surface hover:bg-surface-active text-text-primary border border-border hover:border-border-strong transition-colors flex items-center justify-center cursor-pointer shadow-xs active:scale-95 shrink-0"
+        title="Create New Period (e.g. 01/2027)"
+        aria-label="Create New Period"
       >
-        <Plus className="w-3.5 h-3.5 text-accent" />
-        <span>New Period</span>
+        <Plus className="w-3.5 h-3.5 text-text-secondary hover:text-text-primary" />
       </button>
 
       {/* New Period Initialization Modal */}

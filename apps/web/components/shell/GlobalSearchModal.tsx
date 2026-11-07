@@ -132,12 +132,14 @@ export function GlobalSearchModal() {
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="hidden sm:flex h-8 px-3 rounded-md bg-surface hover:bg-surface-hover border border-border items-center gap-3 text-xs font-sans text-text-secondary hover:text-text-primary transition-all active:scale-[0.98] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
+        className="hidden sm:flex h-8 w-44 px-2.5 rounded-md bg-surface hover:bg-surface-hover border border-border items-center justify-between text-xs font-sans text-text-secondary hover:text-text-primary transition-all active:scale-[0.98] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
         title="Cross-Period Global Ledger Search (Ctrl+K)"
       >
-        <Search className="w-3.5 h-3.5 text-text-tertiary" />
-        <span>Search all periods...</span>
-        <kbd className="px-1.5 py-0.5 text-[10px] font-mono text-text-tertiary bg-surface-subtle border border-border-subtle rounded">
+        <div className="flex items-center gap-2 min-w-0">
+          <Search className="w-3.5 h-3.5 text-text-tertiary shrink-0" />
+          <span className="truncate">Search...</span>
+        </div>
+        <kbd className="px-1.5 py-0.5 text-[10px] font-mono text-text-tertiary bg-surface-subtle border border-border-subtle rounded shrink-0">
           Ctrl+K
         </kbd>
       </button>
