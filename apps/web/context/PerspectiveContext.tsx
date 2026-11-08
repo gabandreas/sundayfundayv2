@@ -235,6 +235,10 @@ export function PerspectiveProvider({ children }: { children: React.ReactNode })
   };
 
   const getRoutineLabel = (slot: string): string => {
+    const custom = customRoutineLabels?.[slot.toLowerCase()];
+    if (custom) {
+      return custom;
+    }
     if (
       user?.role === "PLATFORM_OWNER" ||
       user?.lifeStagePreset === "SUPERADMIN_BESPOKE" ||
