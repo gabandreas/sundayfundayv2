@@ -89,6 +89,20 @@ export function RoutineBillsQuotaCard({
   const [renameValue, setRenameValue] = useState("");
   const [renameSaving, setRenameSaving] = useState(false);
 
+  const getCategoryLabel = (slot: string): string => {
+    // Specifically in 10/2026, the internet slot is reserved for the one-time Nov 25 Bill
+    if (snapshot?.month === 10 && snapshot?.year === 2026 && slot.toUpperCase() === "INTERNET") {
+      return "Nov 25 Bill";
+    }
+    const bucket = (snapshot?.bucketRealizationsJson as any[])?.find(
+      (b) => b.bucketId?.toLowerCase() === slot.toLowerCase()
+    );
+    if (bucket?.label && bucket.label !== "Internet & Connectivity" && bucket.label !== "Internet") {
+      return bucket.label;
+    }
+    return getRoutineLabel(slot);
+  };
+
   const categories: Array<{
     id?: string;
     key: string;
@@ -126,22 +140,22 @@ export function RoutineBillsQuotaCard({
       : [
           {
             key: "TRANSPORT",
-            label: getRoutineLabel("TRANSPORT"),
+            label: getCategoryLabel("TRANSPORT"),
             target: snapshot?.transport ?? 0,
           },
           {
             key: "INTERNET",
-            label: getRoutineLabel("INTERNET"),
+            label: getCategoryLabel("INTERNET"),
             target: snapshot?.internet ?? 0,
           },
           {
             key: "VAPE",
-            label: getRoutineLabel("VAPE"),
+            label: getCategoryLabel("VAPE"),
             target: snapshot?.vape ?? 0,
           },
           {
             key: "HAIRCUT",
-            label: getRoutineLabel("HAIRCUT"),
+            label: getCategoryLabel("HAIRCUT"),
             target: snapshot?.haircut ?? 0,
           },
         ];
