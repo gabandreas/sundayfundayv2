@@ -25,7 +25,7 @@ interface ChatMessageItem {
 const QUICK_PROMPTS = [
   "Safe to spend today?",
   "Log kopi kenangan 34k",
-  "Split my 3.4jt Natal THR bonus",
+  "Split my 3.8jt Natal THR bonus",
   "Compare 11/2026 vs 12/2026 variance",
   "Cek sisa cicilan aktif SPinjam",
   "Formula net_income - total_debt - living_pool",

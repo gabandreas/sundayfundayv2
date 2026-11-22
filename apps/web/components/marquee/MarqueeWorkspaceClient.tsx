@@ -36,7 +36,7 @@ const EXAMPLE_GROUPS = [
   {
     label: "THR Split, Debt & Formulas",
     prompts: [
-      "Split my 3.4jt Natal THR bonus",
+      "Split my 3.8jt Natal THR bonus",
       "Cek sisa cicilan aktif SPinjam",
       "Formula net_income - total_debt - living_pool",
     ],

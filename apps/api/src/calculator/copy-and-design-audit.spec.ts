@@ -275,4 +275,31 @@ describe('System-Wide Anti-AI-Slop Visual Design, Temporal Chart Axis & Human Co
     expect(cal).toContain('SPENDING');
     expect(cal).toContain('subItems');
   });
+
+  it('preserves positive contract remainingPrincipal & freedMilestones on zero-slice cycles and prevents Payroll THR card clipping', () => {
+    const hub = fs.readFileSync(
+      path.join(WEB_DIR, 'components', 'credit', 'contracts', 'ActiveContractsHub.tsx'),
+      'utf8',
+    );
+    expect(hub).not.toContain('remainingPrincipal: Math.round(activeSliceAmount * remainingMonths)');
+    expect(hub).toContain('contractMonthlyInstallment');
+
+    const payrollCards = fs.readFileSync(
+      path.join(WEB_DIR, 'components', 'payroll', 'PayrollCashflowHighlights.tsx'),
+      'utf8',
+    );
+    expect(payrollCards).toContain('col-span-4');
+    expect(payrollCards).not.toMatch(/col-span-2">\s*<MetricCard[\s\S]*?THR, Bonus/);
+
+    const drawer = fs.readFileSync(
+      path.join(WEB_DIR, 'components', 'marquee', 'MarqueeCoPilotDrawer.tsx'),
+      'utf8',
+    );
+    const workspace = fs.readFileSync(
+      path.join(WEB_DIR, 'components', 'marquee', 'MarqueeWorkspaceClient.tsx'),
+      'utf8',
+    );
+    expect(drawer).not.toContain('3.4jt Natal THR');
+    expect(workspace).not.toContain('3.4jt Natal THR');
+  });
 });

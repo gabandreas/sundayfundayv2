@@ -29,7 +29,7 @@ export function PayrollCashflowHighlights({
   return (
     <div className="grid grid-cols-12 gap-4">
       {/* Centerpiece: Final Total Income */}
-      <div className="col-span-5">
+      <div className="col-span-4">
         <MetricCard
           label="Final Total Income"
           amount={finalTotalIncome}
@@ -54,7 +54,7 @@ export function PayrollCashflowHighlights({
       </div>
 
       {/* Windfall / Extra / THR */}
-      <div className="col-span-2">
+      <div className="col-span-3">
         <MetricCard
           label={hasThrOrBonus ? "THR, Bonus & Windfall" : "Extra / Windfall"}
           amount={supplementalTotal}

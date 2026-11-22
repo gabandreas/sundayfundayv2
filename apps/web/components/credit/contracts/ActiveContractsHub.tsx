@@ -66,6 +66,7 @@ interface EnrichedPlanView {
   category: string;
   principalAmount: number;
   monthlyInstallment: number;
+  contractMonthlyInstallment: number;
   remainingPrincipal: number;
   remainingMonths: number;
   totalTenor: number;
@@ -162,7 +163,27 @@ export function ActiveContractsHub({
         .map((p) => {
           const slice = p.cells?.[currentKey];
           const sliceBadge = slice?.sliceBadge ?? null;
-          const activeSliceAmount = slice?.amount ?? p.monthlyInstallment;
+          const activeSliceAmount = slice !== undefined ? slice.amount : p.monthlyInstallment;
+          const contractMonthlyInstallment =
+            slice && slice.amount > 0 ? slice.amount : p.monthlyInstallment;
+
+          const cellEntries = Object.entries(p.cells ?? {});
+          let maxColYm = 0;
+          let futureCellSum = 0;
+          for (const [ymKey, c] of cellEntries) {
+            const [cy, cm] = ymKey.split("-").map(Number);
+            if (!cy || !cm) continue;
+            const ym = cy * 12 + cm;
+            if (ym > maxColYm) maxColYm = ym;
+            if (ym >= selectedYm) {
+              futureCellSum += Math.max(0, Math.round(c?.amount ?? 0));
+            }
+          }
+          const payoffYm = (p.payoffYear ?? currentYear) * 12 + (p.payoffMonth ?? currentMonth);
+          const remainingPrincipal =
+            cellEntries.length > 0 && payoffYm <= maxColYm
+              ? futureCellSum
+              : Math.max(futureCellSum, Math.round(p.remainingPrincipal || 0));
 
           let remainingMonths = Math.max(
             1,
@@ -220,7 +241,8 @@ export function ActiveContractsHub({
             category: p.category,
             principalAmount: p.principalAmount,
             monthlyInstallment: activeSliceAmount,
-            remainingPrincipal: Math.round(activeSliceAmount * remainingMonths),
+            contractMonthlyInstallment,
+            remainingPrincipal,
             remainingMonths,
             totalTenor: p.totalTenor,
             paidMonths,
@@ -259,6 +281,7 @@ export function ActiveContractsHub({
         category: "CREDIT_CARD",
         principalAmount: c.principalAmount,
         monthlyInstallment: c.monthlyInstallment,
+        contractMonthlyInstallment: c.monthlyInstallment,
         remainingPrincipal: Math.round(c.remainingPrincipal ?? c.remainingTenor * c.monthlyInstallment),
         remainingMonths: c.remainingTenor,
         totalTenor: c.totalTenor,
@@ -315,7 +338,7 @@ export function ActiveContractsHub({
         planIds: [],
         titles: [],
       };
-      cur.freedMonthly += Math.round(p.monthlyInstallment);
+      cur.freedMonthly += Math.round(p.contractMonthlyInstallment || p.monthlyInstallment);
       cur.planIds.push(p.id);
       cur.titles.push(p.title);
       map.set(key, cur);
@@ -448,6 +471,9 @@ export function ActiveContractsHub({
   const spinjamMonthlyTotal = spinjamGroup
     ? spinjamGroup.plans.reduce((s, p) => s + p.monthlyInstallment, 0)
     : 0;
+  const spinjamScheduledMonthlyTotal = spinjamGroup
+    ? spinjamGroup.plans.reduce((s, p) => s + (p.contractMonthlyInstallment || p.monthlyInstallment), 0)
+    : 0;
   const spinjamRemainingTotal = spinjamGroup
     ? spinjamGroup.plans.reduce((s, p) => s + p.remainingPrincipal, 0)
     : 0;
@@ -464,7 +490,11 @@ export function ActiveContractsHub({
                 Focused View: SPinjam Priority Tracker
               </div>
               <h2 className="text-sm font-semibold text-text-primary mt-0.5">
-                {spinjamGroup.plans.length} active SPinjam obligations ({formatRp(spinjamMonthlyTotal)}/cycle in {periodLabel})
+                {spinjamGroup.plans.length} active SPinjam obligations (
+                {spinjamMonthlyTotal > 0
+                  ? `${formatRp(spinjamMonthlyTotal)}/cycle in ${periodLabel}`
+                  : `${formatRp(spinjamScheduledMonthlyTotal)}/mo starting next cycle`}
+                )
               </h2>
             </div>
             <div className="text-right font-mono tabular-nums">
@@ -684,7 +714,7 @@ export function ActiveContractsHub({
 
                         <div className="text-right shrink-0">
                           <div className="text-sm font-mono font-semibold text-text-primary tabular-nums">
-                            {formatRp(plan.monthlyInstallment)}/mo
+                            {formatRp(plan.monthlyInstallment > 0 ? plan.monthlyInstallment : plan.contractMonthlyInstallment)}/mo
                           </div>
                           <div className="text-[11px] font-mono text-text-tertiary tabular-nums">
                             Rem: {formatRp(plan.remainingPrincipal)}
