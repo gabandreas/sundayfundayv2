@@ -12,8 +12,16 @@ interface ReportsPageProps {
     year?: string;
     scope?: string;
     tab?: string;
+    sub?: string;
   }>;
 }
+
+const SUB_TO_TAB: Record<string, ReportTab> = {
+  executive: "statement",
+  variance: "comparative",
+  audit: "dossier",
+  export: "amortization",
+};
 
 const VALID_TABS: ReportTab[] = [
   "statement",
@@ -35,15 +43,16 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
     !Number.isNaN(year) && year >= 2000 && year <= 2100 ? year : defaults.year;
 
   const scope: ReportScope = params.scope === "locked" ? "locked" : "all";
+  const mappedSubTab = params.sub ? SUB_TO_TAB[params.sub] : undefined;
   const activeTab: ReportTab = VALID_TABS.includes(params.tab as ReportTab)
     ? (params.tab as ReportTab)
-    : "statement";
+    : mappedSubTab ?? "statement";
 
   const report = await fetchExecutiveReport(validMonth, validYear, scope);
 
   if (!report) {
     return (
-      <div className="space-y-6 max-w-7xl pb-20">
+      <div className="space-y-6 w-full max-w-full pb-20">
         <div className="pb-3 border-b border-border-subtle">
           <h1 className="text-xl font-bold font-sans tracking-tight text-text-primary">
             Executive Financial Reports & Statements
@@ -60,7 +69,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   }
 
   return (
-    <div className="max-w-7xl">
+    <div className="w-full max-w-full">
       <ReportsClientView report={report} activeTab={activeTab} />
     </div>
   );

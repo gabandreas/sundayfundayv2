@@ -1,5 +1,6 @@
 export type UserRole =
-  | 'PLATFORM_OWNER'
+  | 'SUPERADMIN'
+  | 'USER'
   | 'BESPOKE_CLIENT'
   | 'STANDARD_MEMBER'
   | 'DEMO_SANDBOX';

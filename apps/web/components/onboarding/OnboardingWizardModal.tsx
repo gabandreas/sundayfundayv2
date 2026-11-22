@@ -153,7 +153,7 @@ export function OnboardingWizardModal() {
   const totalCommitted = totalFixedRoutine + dailyLiving + savingsTarget;
   const projectedBuffer = Math.max(0, netIncome - totalCommitted);
 
-  const isOwnerProtected = user?.id === 1 && user?.role === "PLATFORM_OWNER";
+  const isOwnerProtected = user?.id === 1 && user?.blueprintType === "SUPERADMIN_BESPOKE";
 
   const handleFinish = async (applyToSnapshots: boolean) => {
     setIsSubmitting(true);
@@ -292,7 +292,7 @@ export function OnboardingWizardModal() {
                       onClick={() => handleSelectLifeStage(preset.id)}
                       className={`w-full p-3 rounded border text-left transition-all cursor-pointer ${
                         isSelected
-                          ? "bg-surface-subtle border-text-primary text-text-primary"
+                          ? "bg-accent/[0.06] border-accent/50 ring-1 ring-accent/20 text-text-primary"
                           : "bg-surface border-border-subtle text-text-secondary hover:border-border"
                       }`}
                     >

@@ -13,8 +13,10 @@ import {
   ModuleKey,
   ALL_MODULE_KEYS,
   CustomRoutineLabels,
+  ModularStudioConfig,
   fetchGlobalConfig,
   updateGlobalConfig,
+  updateStudioConfigApi,
 } from "@/lib/api";
 import { getRoutineEnvelopeLabel, getSavingsVaultLabels } from "@/lib/utils";
 
@@ -27,6 +29,8 @@ interface PerspectiveContextType {
   formulaEngineType: FormulaEngineType;
   formulaParamsJson: FormulaParams | null;
   customRoutineLabels: CustomRoutineLabels;
+  studioConfig: ModularStudioConfig | null;
+  updateStudioConfig: (patch: Partial<ModularStudioConfig>) => Promise<ModularStudioConfig | null>;
   isOnboardingOpen: boolean;
   isCustomRequestModalOpen: boolean;
   isModuleEnabled: (key: ModuleKey) => boolean;
@@ -60,6 +64,7 @@ export function PerspectiveProvider({ children }: { children: React.ReactNode })
   const [formulaEngineType, setFormulaEngineTypeState] = useState<FormulaEngineType>("DEBT_FIRST_WATERFALL");
   const [formulaParamsJson, setFormulaParamsJsonState] = useState<FormulaParams | null>(null);
   const [customRoutineLabels, setCustomRoutineLabelsState] = useState<CustomRoutineLabels>({});
+  const [studioConfig, setStudioConfigState] = useState<ModularStudioConfig | null>(null);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   const [isCustomRequestModalOpen, setIsCustomRequestModalOpen] = useState(false);
 
@@ -106,11 +111,29 @@ export function PerspectiveProvider({ children }: { children: React.ReactNode })
       if (config.customRoutineLabelsJson) {
         setCustomRoutineLabelsState(config.customRoutineLabelsJson);
       }
+      if (config.studioConfig) {
+        setStudioConfigState(config.studioConfig);
+      }
     });
+    const onStudioUpdated = (e: Event) => {
+      const next = (e as CustomEvent<ModularStudioConfig>).detail;
+      if (next) setStudioConfigState(next);
+    };
+    window.addEventListener("erp:studio-updated", onStudioUpdated);
     return () => {
       isMounted = false;
+      window.removeEventListener("erp:studio-updated", onStudioUpdated);
     };
   }, [user?.id]);
+
+  const updateStudioConfig = async (patch: Partial<ModularStudioConfig>) => {
+    const res = await updateStudioConfigApi(patch);
+    if (res?.studioConfig) {
+      setStudioConfigState(res.studioConfig);
+      return res.studioConfig;
+    }
+    return null;
+  };
 
   const isModuleEnabled = (key: ModuleKey): boolean => {
     const coreModules: ModuleKey[] = ["overview", "income", "allocations", "ledger", "preferences"];
@@ -240,7 +263,7 @@ export function PerspectiveProvider({ children }: { children: React.ReactNode })
       return custom;
     }
     if (
-      user?.role === "PLATFORM_OWNER" ||
+      user?.blueprintType === "SUPERADMIN_BESPOKE" ||
       user?.lifeStagePreset === "SUPERADMIN_BESPOKE" ||
       profileMode === "SUPERADMIN_BESPOKE"
     ) {
@@ -275,6 +298,8 @@ export function PerspectiveProvider({ children }: { children: React.ReactNode })
         formulaEngineType,
         formulaParamsJson,
         customRoutineLabels,
+        studioConfig,
+        updateStudioConfig,
         isOnboardingOpen,
         isCustomRequestModalOpen,
         isModuleEnabled,

@@ -436,21 +436,21 @@ export default function AdminConsolePage() {
     document.body.removeChild(a);
   };
 
-  // Restrict access to Platform Owner only
-  if (user && user.role !== "PLATFORM_OWNER") {
+  // Restrict access to Superadmin only
+  if (user && user.role !== "SUPERADMIN") {
     return (
       <div className="max-w-xl mx-auto mt-20 p-8 rounded-lg border border-negative/30 bg-surface text-center">
         <ShieldCheck className="w-10 h-10 text-negative mx-auto mb-3" />
         <h2 className="text-lg font-medium text-text-primary">Access Restricted</h2>
         <p className="text-xs text-text-secondary mt-2">
-          The Platform Admin Console is strictly reserved for PLATFORM_OWNER accounts.
+          The Platform Admin Console is strictly reserved for SUPERADMIN accounts.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="w-full max-w-full space-y-6">
       {/* Top Banner / Executive Title */}
       <div className="flex items-center justify-between border-b border-border pb-5">
         <div>

@@ -2,18 +2,28 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Search, X, ArrowUpRight, Terminal } from "lucide-react";
+import { Search, X, ArrowUpRight, Terminal, Zap, CheckCircle2 } from "lucide-react";
+import { BrandMark } from "@/components/primitives/BrandMark";
 import { useAuth } from "@/context/AuthContext";
+import { usePeriod } from "@/context/PeriodContext";
 import {
+  CutoffSimulateResponse,
   GlobalSearchResponse,
   GlobalSearchResultItem,
+  WalletGuardStatusResponse,
+  createCardCharge,
+  createLineItem,
+  evaluateWalletGuardApi,
   searchGlobalTransactions,
+  simulateCutoffApi,
 } from "@/lib/api";
+import { ParsedSmartCommand, parseSmartCommand } from "@/lib/smartCommandParser";
 import {
   formatIDR,
   formatDate,
   formatSourceTypeLabel,
   formatFixedEssentialCategoryLabel,
+  getJakartaDateParts,
 } from "@/lib/utils";
 
 type FilterPreset =
@@ -27,14 +37,31 @@ type FilterPreset =
 export function GlobalSearchModal() {
   const router = useRouter();
   const { user } = useAuth();
+  const { month: activeMonth, year: activeYear, refreshPeriod } = usePeriod();
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [preset, setPreset] = useState<FilterPreset>("ALL");
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<GlobalSearchResponse | null>(null);
+  const [smartCutoffPreview, setSmartCutoffPreview] = useState<CutoffSimulateResponse | null>(
+    null
+  );
+  const [smartWalletPreview, setSmartWalletPreview] =
+    useState<WalletGuardStatusResponse | null>(null);
+  const [smartExecuting, setSmartExecuting] = useState(false);
+  const [smartStatusMsg, setSmartStatusMsg] = useState<{
+    ok: boolean;
+    text: string;
+  } | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  const isSuperadmin = user?.role === "PLATFORM_OWNER" && user?.id === 1;
+  const todayIso = getJakartaDateParts().isoDate;
+  const parsedSmart: ParsedSmartCommand | null = React.useMemo(
+    () => parseSmartCommand(query, activeYear || 2026, todayIso),
+    [query, activeYear, todayIso]
+  );
+
+  const isSuperadmin = user?.role === "SUPERADMIN";
   const normalizedQuery = query.trim().toLowerCase();
   const isSqlMatch =
     isSuperadmin &&
@@ -47,6 +74,96 @@ export function GlobalSearchModal() {
       normalizedQuery.startsWith("sql")
     );
 
+  const executeSmartCommand = React.useCallback(async () => {
+    if (!parsedSmart || smartExecuting) return;
+    setSmartExecuting(true);
+    setSmartStatusMsg(null);
+
+    if (parsedSmart.kind === "WALLET_CHECKIN") {
+      const res = await evaluateWalletGuardApi({
+        month: activeMonth,
+        year: activeYear,
+        actualWalletBalance: parsedSmart.actualWalletBalance,
+        persist: true,
+        note: "Quick-entry via Ctrl+K",
+      });
+      setSmartExecuting(false);
+      if (!res?.guard) {
+        setSmartStatusMsg({ ok: false, text: "Failed to persist wallet check-in." });
+        return;
+      }
+      setSmartWalletPreview(res);
+      setSmartStatusMsg({
+        ok: true,
+        text: `Saved check-in (${res.guard.guardStatus}): Free cash ${formatIDR(res.guard.freeSpendableCash)}.`,
+      });
+      return;
+    }
+
+    if (parsedSmart.kind === "SIMULATE_AFFORD") {
+      setSmartExecuting(false);
+      setIsOpen(false);
+      router.push("/credit?tab=matrix&tool=simulator");
+      return;
+    }
+
+    if (parsedSmart.instrument === "CREDIT_CARD") {
+      const res = await createCardCharge({
+        label: parsedSmart.title,
+        amount: parsedSmart.amount,
+        chargeType: parsedSmart.tenorMonths > 1 ? "INSTALLMENT" : "FULL",
+        category: "Quick Entry",
+        tenor: parsedSmart.tenorMonths,
+        monthlyAmount:
+          parsedSmart.tenorMonths > 1
+            ? Math.round(parsedSmart.amount / parsedSmart.tenorMonths)
+            : parsedSmart.amount,
+        transactionDate: `${parsedSmart.purchaseDateIso}T12:00:00.000Z`,
+      });
+      setSmartExecuting(false);
+      if (!res.success) {
+        setSmartStatusMsg({ ok: false, text: res.error || "Failed to add card charge." });
+        return;
+      }
+      setSmartStatusMsg({
+        ok: true,
+        text: `Recorded CC "${parsedSmart.title}" (${formatIDR(parsedSmart.amount)}) starting ${smartCutoffPreview?.startPeriodLabel ?? "routed cycle"}.`,
+      });
+      return;
+    }
+
+    const res = await createLineItem({
+      title: parsedSmart.title,
+      category: parsedSmart.instrument === "SPINJAM" ? "PERSONAL_DEBT" : "PAYLATER",
+      merchantOrPlatform: parsedSmart.instrument === "SPINJAM" ? "SPinjam" : "SPayLater",
+      totalAmount: parsedSmart.amount,
+      amountMode: "PRINCIPAL_SPLIT",
+      tenorMonths: parsedSmart.tenorMonths,
+      purchaseDate: `${parsedSmart.purchaseDateIso}T12:00:00.000Z`,
+      autoRouteByCutoff: true,
+      cutoffDay: parsedSmart.instrument === "SPAYLATER" ? 15 : 8,
+      dueDay: parsedSmart.instrument === "SPAYLATER" ? 25 : 8,
+      notes: "Quick-entry via Ctrl+K",
+    });
+    setSmartExecuting(false);
+    if (!res.success) {
+      setSmartStatusMsg({ ok: false, text: res.error || "Failed to add liability item." });
+      return;
+    }
+    setSmartStatusMsg({
+      ok: true,
+      text: `Added ${parsedSmart.instrument} "${parsedSmart.title}" (${formatIDR(parsedSmart.amount)}) -> ${smartCutoffPreview?.startPeriodLabel ?? "routed"}.`,
+    });
+  }, [
+    parsedSmart,
+    smartExecuting,
+    activeMonth,
+    activeYear,
+    refreshPeriod,
+    router,
+    smartCutoffPreview,
+  ]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
@@ -58,11 +175,48 @@ export function GlobalSearchModal() {
         e.preventDefault();
         setIsOpen(false);
         router.push("/admin/sql");
+      } else if (e.key === "Enter" && isOpen && parsedSmart) {
+        e.preventDefault();
+        void executeSmartCommand();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, isSqlMatch, router]);
+  }, [isOpen, isSqlMatch, parsedSmart, executeSmartCommand, router]);
+
+  useEffect(() => {
+    if (!isOpen || !parsedSmart) {
+      setSmartCutoffPreview(null);
+      setSmartWalletPreview(null);
+      return;
+    }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      if (parsedSmart.kind === "WALLET_CHECKIN") {
+        const res = await evaluateWalletGuardApi({
+          month: activeMonth,
+          year: activeYear,
+          actualWalletBalance: parsedSmart.actualWalletBalance,
+          persist: false,
+        });
+        if (!cancelled) setSmartWalletPreview(res);
+      } else {
+        const res = await simulateCutoffApi({
+          title: parsedSmart.title,
+          instrument: parsedSmart.instrument,
+          amountMode: "PRINCIPAL_SPLIT",
+          principalAmount: parsedSmart.amount,
+          tenorMonths: parsedSmart.tenorMonths,
+          purchaseDate: parsedSmart.purchaseDateIso,
+        });
+        if (!cancelled) setSmartCutoffPreview(res);
+      }
+    }, 120);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [isOpen, parsedSmart, activeMonth, activeYear]);
 
   useEffect(() => {
     if (isOpen) {
@@ -96,12 +250,28 @@ export function GlobalSearchModal() {
       }
       const res = await searchGlobalTransactions(params);
       if (!cancelled) {
-        if (res && preset === "FIXED_ESSENTIAL") {
-          const filteredItems = res.items.filter(
+        const normalizedRes: GlobalSearchResponse | null = Array.isArray(res)
+          ? {
+              query: query.trim(),
+              totalMatches: res.length,
+              totalDeductionsMatched: (res as GlobalSearchResultItem[])
+                .filter((i) => i.type === "DEDUCTION" || i.type === "CREDIT_BILL")
+                .reduce((s, i) => s + Number(i.amount ?? 0), 0),
+              totalIncomeMatched: (res as GlobalSearchResultItem[])
+                .filter((i) => i.type === "INCOME")
+                .reduce((s, i) => s + Number(i.amount ?? 0), 0),
+              items: res,
+            }
+          : res && Array.isArray(res.items)
+            ? res
+            : null;
+
+        if (normalizedRes && preset === "FIXED_ESSENTIAL") {
+          const filteredItems = normalizedRes.items.filter(
             (i) => i.fixedEssentialCategory !== null
           );
           setResults({
-            ...res,
+            ...normalizedRes,
             totalMatches: filteredItems.length,
             totalDeductionsMatched: filteredItems.reduce(
               (s, i) => s + i.amount,
@@ -110,7 +280,7 @@ export function GlobalSearchModal() {
             items: filteredItems,
           });
         } else {
-          setResults(res);
+          setResults(normalizedRes);
         }
         setLoading(false);
       }
@@ -132,14 +302,14 @@ export function GlobalSearchModal() {
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="hidden sm:flex h-8 w-64 max-w-xs px-2.5 rounded-md bg-surface hover:bg-surface-hover border border-border items-center justify-between text-xs font-sans text-text-secondary hover:text-text-primary transition-all active:scale-[0.98] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
+        className="hidden md:flex h-8 w-8 xl:w-full xl:max-w-[240px] px-0 xl:px-2.5 rounded-md bg-surface hover:bg-surface-hover border border-border items-center justify-center xl:justify-between gap-2 text-xs font-sans text-text-secondary hover:text-text-primary transition-all active:scale-[0.98] cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
         title="Cross-Period Global Ledger Search (Ctrl+K)"
       >
         <div className="flex items-center gap-2 min-w-0">
           <Search className="w-3.5 h-3.5 text-text-tertiary shrink-0" />
-          <span className="truncate">Search or jump to...</span>
+          <span className="hidden xl:inline truncate">Search or jump to...</span>
         </div>
-        <kbd className="px-1.5 py-0.5 text-[10px] font-mono text-text-tertiary bg-surface-subtle border border-border-subtle rounded shrink-0">
+        <kbd className="hidden xl:inline-block px-1.5 py-0.5 text-[10px] font-mono text-text-tertiary bg-surface-subtle border border-border-subtle rounded shrink-0">
           Ctrl+K
         </kbd>
       </button>
@@ -155,13 +325,17 @@ export function GlobalSearchModal() {
           >
             {/* Top Search Input */}
             <div className="px-4 py-3 border-b border-border flex items-center gap-3">
+              <BrandMark size={18} className="shrink-0" />
               <Search className="w-4 h-4 text-text-tertiary shrink-0" />
               <input
                 ref={inputRef}
                 type="text"
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search any transaction across all periods (e.g. 'Tokopedia', 'Bensin', 'Netflix', 'Patungan')..."
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setSmartStatusMsg(null);
+                }}
+                placeholder="Search ledger or type quick command (e.g. 'kopken 34200 spaylater', 'claude 350000 cc 21 nov', 'wallet 515000', 'afford 1.5m spaylater 3x')..."
                 className="w-full bg-transparent text-sm font-sans text-text-primary placeholder:text-text-tertiary focus:outline-none"
               />
               {query && (
@@ -231,6 +405,117 @@ export function GlobalSearchModal() {
               )}
             </div>
 
+            {/* Quick Actions Shortcuts */}
+            {(normalizedQuery.length === 0 ||
+              [
+                "matrix",
+                "simulator",
+                "bridge",
+                "loan",
+                "contract",
+                "credit",
+                "borrow",
+                "p1",
+                "overview",
+                "subscription",
+                "recurring",
+                "kill",
+                "quota",
+                "guide",
+                "help",
+                "panduan",
+                "sop",
+                "manual",
+              ].some((kw) => normalizedQuery.includes(kw))) && (
+              <div className="px-4 py-2.5 border-b border-border-subtle bg-canvas/40 flex flex-wrap items-center gap-1.5">
+                <span className="text-[10px] font-mono uppercase text-text-tertiary mr-1">
+                  Quick Jumps:
+                </span>
+                {[
+                  { label: "12-Month Matrix", href: "/credit?tab=matrix" },
+                  { label: "Safe-Spend Simulator", href: "/credit?tab=matrix&tool=simulator" },
+                  { label: "Record Bridge Loan", href: "/credit?tab=matrix&tool=bridge" },
+                  { label: "Active Contracts", href: "/credit?tab=contracts" },
+                  { label: "Subscriptions & Recurring", href: "/subscriptions" },
+                  { label: "Kill-Switch & SMTP", href: "/preferences?tab=killswitch" },
+                  { label: "Overview & P1 Borrow", href: "/" },
+                  { label: "User Guide & SOP", href: "/guide" },
+                ].map((act) => (
+                  <button
+                    key={act.href}
+                    type="button"
+                    onClick={() => {
+                      setIsOpen(false);
+                      router.push(act.href);
+                    }}
+                    className="px-2 py-1 rounded border border-border bg-surface hover:bg-surface-hover text-[11px] font-mono text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
+                  >
+                    {act.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Smart Command Execution Bar */}
+            {(parsedSmart || smartStatusMsg) && (
+              <div className="px-4 py-3 border-b border-border bg-surface-subtle/80 space-y-2">
+                {parsedSmart && (
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-start gap-2.5 min-w-0">
+                      <Zap className="w-4 h-4 text-delta-positive shrink-0 mt-0.5" />
+                      <div className="space-y-0.5 min-w-0">
+                        <div className="text-xs font-mono font-semibold text-text-primary flex flex-wrap items-center gap-2">
+                          <span>
+                            {parsedSmart.kind === "WALLET_CHECKIN"
+                              ? `WALLET CHECK-IN · ${formatIDR(parsedSmart.actualWalletBalance)}`
+                              : parsedSmart.kind === "SIMULATE_AFFORD"
+                                ? `AFFORDABILITY CHECK · "${parsedSmart.title}" (${formatIDR(parsedSmart.amount)} · ${parsedSmart.tenorMonths}x ${parsedSmart.instrument})`
+                                : `QUICK ENTRY · ${parsedSmart.instrument} "${parsedSmart.title}" (${formatIDR(parsedSmart.amount)} · ${parsedSmart.tenorMonths}x)`}
+                          </span>
+                        </div>
+                        {parsedSmart.kind !== "WALLET_CHECKIN" && smartCutoffPreview && (
+                          <div className="text-[11px] font-mono text-text-secondary">
+                            Routed: <strong className="text-text-primary">{smartCutoffPreview.startPeriodLabel}</strong> · 1st Due {smartCutoffPreview.firstDueDateIso} · DSR {smartCutoffPreview.dsrBeforePercent}% → {smartCutoffPreview.dsrAfterPercent}% ({smartCutoffPreview.verdict})
+                          </div>
+                        )}
+                        {parsedSmart.kind === "WALLET_CHECKIN" && smartWalletPreview?.guard && (
+                          <div className="text-[11px] font-mono text-text-secondary">
+                            Free Cash: <strong className="text-text-primary">{formatIDR(smartWalletPreview.guard.freeSpendableCash)}</strong> · Hold: {formatIDR(smartWalletPreview.guard.reservedBillsTotal)} · Guard: <strong>{smartWalletPreview.guard.guardStatus}</strong>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={smartExecuting}
+                      onClick={() => void executeSmartCommand()}
+                      className="px-3 py-1.5 rounded bg-text-primary text-canvas text-xs font-mono font-semibold hover:opacity-90 disabled:opacity-50 shrink-0 cursor-pointer"
+                    >
+                      {smartExecuting
+                        ? "Executing..."
+                        : parsedSmart.kind === "SIMULATE_AFFORD"
+                          ? "Open Simulator (Enter)"
+                          : parsedSmart.kind === "WALLET_CHECKIN"
+                            ? "Save Check-In (Enter)"
+                            : "Execute Entry (Enter)"}
+                    </button>
+                  </div>
+                )}
+
+                {smartStatusMsg && (
+                  <div
+                    className={`flex items-center gap-2 text-xs font-mono ${
+                      smartStatusMsg.ok ? "text-delta-positive" : "text-urgency"
+                    }`}
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                    <span>{smartStatusMsg.text}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Top-Priority Command Route: Superadmin SQL Query Studio */}
             {isSqlMatch && (
               <button
@@ -274,7 +559,7 @@ export function GlobalSearchModal() {
                 <div className="py-12 text-center text-xs font-mono text-text-tertiary">
                   Searching all snapshots...
                 </div>
-              ) : !results || results.items.length === 0 ? (
+              ) : !results || !Array.isArray(results.items) || results.items.length === 0 ? (
                 <div className="py-12 text-center space-y-1">
                   <div className="text-xs font-medium text-text-secondary">
                     No matching ledger transactions found

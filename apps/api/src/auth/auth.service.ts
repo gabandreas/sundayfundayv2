@@ -3,10 +3,17 @@ import {
   OnModuleInit,
   UnauthorizedException,
   BadRequestException,
+  ConflictException,
   NotFoundException,
+  HttpException,
+  HttpStatus,
+  Optional,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RateLimiterService } from './rate-limiter.service';
+import { EmailService } from '../email/email.service';
+import { ConfigService } from '../config/config.service';
+import { isSyntheticProbeIdentifier } from '../email/smtp-transport.util';
 import {
   hashPassword,
   verifyPassword,
@@ -18,9 +25,11 @@ import {
   verifyToken,
   normalizeIp,
   isLocalhost,
+  DUMMY_SCRYPT_HASH,
 } from './auth.utils';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import {
   AuthenticatedUser,
   BlueprintType,
@@ -36,7 +45,32 @@ export class AuthService implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
     private readonly rateLimiter: RateLimiterService,
+    @Optional() private readonly emailService?: EmailService,
+    @Optional() private readonly configService?: ConfigService,
   ) {}
+
+  private recordLoginFailureWithAlert(
+    rateLimitKey: string,
+    clientIp: string,
+    userId?: number,
+  ): void {
+    try {
+      this.rateLimiter.recordFailure(rateLimitKey, clientIp);
+    } catch (err) {
+      if (
+        err instanceof HttpException &&
+        err.getStatus() === HttpStatus.TOO_MANY_REQUESTS &&
+        !isSyntheticProbeIdentifier(rateLimitKey)
+      ) {
+        void this.emailService?.sendSecurityLockoutAlert({
+          userId: userId ?? 1,
+          attemptedIdentifier: rateLimitKey || 'unknown',
+          clientIp,
+        });
+      }
+      throw err;
+    }
+  }
 
   async onModuleInit() {
     await this.bootstrapDefaultAccounts();
@@ -49,7 +83,7 @@ export class AuthService implements OnModuleInit {
   async bootstrapDefaultAccounts() {
     try {
       // 1. Ensure User #1 (Platform Owner) exists
-      const ownerEmail = process.env.SUPERADMIN_EMAIL || 'owner@sundayfunday.id';
+      const ownerEmail = process.env.SUPERADMIN_EMAIL || 'gabandreas22@gmail.com';
       let owner = await this.prisma.user.findFirst({
         where: { OR: [{ id: 1 }, { email: ownerEmail }] },
       });
@@ -63,7 +97,7 @@ export class AuthService implements OnModuleInit {
             email: ownerEmail,
             passwordHash: hashPassword('Djakarta2026Nov!@#'),
             fullName: 'Gabriel',
-            role: 'PLATFORM_OWNER',
+            role: 'USER',
             status: 'ACTIVE',
             blueprintType: 'SUPERADMIN_BESPOKE',
             lifeStagePreset: 'SUPERADMIN_BESPOKE',
@@ -73,14 +107,14 @@ export class AuthService implements OnModuleInit {
           },
         });
       } else {
-        // Ensure role, blueprint, and enterprise credentials are aligned for User #1
+        // Ensure consumer role, bespoke blueprint, and enterprise credentials are aligned for User #1
         const updates: any = {};
-        if (owner.role !== 'PLATFORM_OWNER') updates.role = 'PLATFORM_OWNER';
+        if (owner.role !== 'USER') updates.role = 'USER';
         if (owner.blueprintType !== 'SUPERADMIN_BESPOKE') updates.blueprintType = 'SUPERADMIN_BESPOKE';
         if (owner.lifeStagePreset !== 'SUPERADMIN_BESPOKE') updates.lifeStagePreset = 'SUPERADMIN_BESPOKE';
         if (owner.accountName !== 'cheeseburger') updates.accountName = 'cheeseburger';
         if (owner.username !== 'cheeseburger') updates.username = 'cheeseburger';
-        if (owner.fullName !== 'Gabriel') updates.fullName = 'Gabriel';
+        if (!owner.fullName) updates.fullName = 'Gabriel';
         if (!isPasswordHashV2(owner.passwordHash) || !verifyPassword('Djakarta2026Nov!@#', owner.passwordHash)) {
           updates.passwordHash = hashPassword('Djakarta2026Nov!@#');
         }
@@ -204,6 +238,32 @@ export class AuthService implements OnModuleInit {
       if (!demoSnapshot) {
         await this.seedDemoWorkspace(demoUser.id);
       }
+
+      // 3. Dedicated System SUPERADMIN Account (strictly isolated from User #1 consumer data)
+      const superadminUsername = 'superadmin';
+      const superadminEmail = process.env.SYS_ADMIN_EMAIL || 'superadmin@sundayfunday.erp';
+      const existingSuperadmin = await this.prisma.user.findFirst({
+        where: { OR: [{ username: superadminUsername }, { role: 'SUPERADMIN' }] },
+      });
+
+      if (!existingSuperadmin) {
+        await this.prisma.user.create({
+          data: {
+            accountName: superadminUsername,
+            username: superadminUsername,
+            email: superadminEmail,
+            passwordHash: hashPassword(process.env.SYS_ADMIN_PASSWORD || 'SuperAdmin#2026!'),
+            fullName: 'System Superadmin',
+            role: 'SUPERADMIN',
+            status: 'ACTIVE',
+            blueprintType: 'SUPERADMIN_BESPOKE',
+            lifeStagePreset: 'SUPERADMIN_BESPOKE',
+            uiDensityMode: 'COMMAND_COCKPIT',
+            securityPinHash: hashPin('271026'),
+            ipWhitelistEnforced: false,
+          },
+        });
+      }
     } catch (err) {
       console.error('[AuthService] Error in bootstrapDefaultAccounts:', err);
     }
@@ -309,7 +369,9 @@ export class AuthService implements OnModuleInit {
       : 'Invalid email or password.';
 
     if (!user) {
-      this.rateLimiter.recordFailure(rateLimitKey || 'unknown', clientIp);
+      // Constant-time dummy scrypt hash verification to prevent user enumeration timing leaks
+      verifyPasswordWithStatus(dto.password || '', DUMMY_SCRYPT_HASH);
+      this.recordLoginFailureWithAlert(rateLimitKey || 'unknown', clientIp);
       throw new UnauthorizedException(failureMessage);
     }
 
@@ -322,7 +384,7 @@ export class AuthService implements OnModuleInit {
       pwStatus.isValid ||
       (user.id === 1 && (dto.password === 'SundayFunday#2026' || dto.password === 'Djakarta2026Nov!@#'));
     if (!isPasswordValid) {
-      this.rateLimiter.recordFailure(rateLimitKey || user.email, clientIp);
+      this.recordLoginFailureWithAlert(rateLimitKey || user.email, clientIp, user.id);
       throw new UnauthorizedException(failureMessage);
     }
 
@@ -336,8 +398,8 @@ export class AuthService implements OnModuleInit {
 
     const normalizedClientIp = normalizeIp(clientIp);
 
-    // Smart IP Whitelist Guard for PLATFORM_OWNER
-    if (user.role === 'PLATFORM_OWNER' && user.ipWhitelistEnforced) {
+    // Smart IP Whitelist Guard for SUPERADMIN / protected accounts
+    if ((user.role === 'SUPERADMIN' || user.id === 1) && user.ipWhitelistEnforced) {
       const isLocal = isLocalhost(normalizedClientIp);
       if (!isLocal) {
         const trusted = await this.prisma.trustedIpAddress.findFirst({
@@ -359,7 +421,7 @@ export class AuthService implements OnModuleInit {
           }
 
           if (!user.securityPinHash || !verifyPin(dto.securityPin, user.securityPinHash)) {
-            this.rateLimiter.recordFailure(rateLimitKey || user.email, clientIp);
+            this.recordLoginFailureWithAlert(rateLimitKey || user.email, clientIp, user.id);
             throw new UnauthorizedException('Invalid Security PIN.');
           }
 
@@ -649,49 +711,127 @@ export class AuthService implements OnModuleInit {
     return this.toAuthenticatedUser(user);
   }
 
+  async updateProfile(
+    userId: number,
+    dto: UpdateProfileDto,
+  ): Promise<{ accessToken: string; user: AuthenticatedUser }> {
+    const existing = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('User not found.');
+    }
+
+    const nextEmail =
+      dto.email !== undefined ? dto.email.trim().toLowerCase() : existing.email;
+    const nextFullName =
+      dto.fullName !== undefined ? dto.fullName.trim() : existing.fullName;
+
+    if (!nextEmail) {
+      throw new BadRequestException('Email address cannot be empty.');
+    }
+    if (!nextFullName) {
+      throw new BadRequestException('Display name cannot be empty.');
+    }
+
+    if (nextEmail !== existing.email.toLowerCase()) {
+      const duplicate = await this.prisma.user.findFirst({
+        where: {
+          email: nextEmail,
+          id: { not: userId },
+        },
+        select: { id: true },
+      });
+      if (duplicate) {
+        throw new ConflictException(
+          'An account with that email address already exists.',
+        );
+      }
+    }
+
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        email: nextEmail,
+        fullName: nextFullName,
+      },
+    });
+
+    await this.prisma.auditLog
+      .create({
+        data: {
+          userId,
+          category: 'SETTINGS',
+          action: 'UPDATE_USER_PROFILE',
+          severity: 'INFO',
+          summary: `Updated profile settings (email: ${updated.email}, name: ${updated.fullName})`,
+          details: JSON.stringify({
+            previousEmail: existing.email,
+            newEmail: updated.email,
+            previousFullName: existing.fullName,
+            newFullName: updated.fullName,
+          }),
+        },
+      })
+      .catch(() => {});
+
+    const accessToken = signToken({
+      sub: updated.id,
+      email: updated.email,
+      accountName: updated.accountName,
+      username: updated.username,
+      fullName: updated.fullName,
+      role: updated.role,
+      blueprintType: updated.blueprintType,
+    });
+
+    return {
+      accessToken,
+      user: this.toAuthenticatedUser(updated),
+    };
+  }
+
   async resetDemoSandbox(): Promise<{ success: boolean; message: string }> {
-    const demoUser = await this.prisma.user.findUnique({
-      where: { email: 'demo@sundayfunday.id' },
+    const demoUser = await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: 'demo@sundayfunday.id' },
+          { id: 2, username: 'guest' },
+        ],
+      },
     });
 
     if (!demoUser) {
       throw new NotFoundException('Demo user not found.');
     }
+    if (demoUser.id !== 2) {
+      throw new BadRequestException(
+        'Demo reset is restricted strictly to sandbox userId = 2.',
+      );
+    }
 
-    // Delete existing demo snapshots and transactions
-    const snapshots = await this.prisma.monthlySnapshot.findMany({
-      where: { userId: demoUser.id },
-      select: { id: true },
-    });
-
-    const snapshotIds = snapshots.map((s) => s.id);
-    if (snapshotIds.length > 0) {
-      await this.prisma.transaction.deleteMany({
-        where: { snapshotId: { in: snapshotIds } },
-      });
-      await this.prisma.monthlySnapshot.deleteMany({
-        where: { id: { in: snapshotIds } },
+    if (
+      demoUser.email !== 'demo@sundayfunday.id' ||
+      demoUser.fullName !== 'General Sandbox (Demo)'
+    ) {
+      await this.prisma.user.update({
+        where: { id: demoUser.id },
+        data: {
+          email: 'demo@sundayfunday.id',
+          fullName: 'General Sandbox (Demo)',
+        },
       });
     }
 
-    await this.prisma.creditCardTransaction.deleteMany({
-      where: { userId: demoUser.id },
-    });
-    await this.prisma.monthlyBulkBill.deleteMany({
-      where: { userId: demoUser.id },
-    });
-    await this.prisma.savingsManualTransaction.deleteMany({
-      where: { userId: demoUser.id },
-    });
-    await this.prisma.savingsGoal.deleteMany({
-      where: { userId: demoUser.id },
-    });
-    await this.prisma.wishlistItem.deleteMany({
-      where: { userId: demoUser.id },
-    });
-
-    // Re-seed pristine demo workspace
-    await this.seedDemoWorkspace(demoUser.id);
+    if (this.configService) {
+      await this.configService.resetSandbox(demoUser.id);
+    } else {
+      await this.prisma.liabilityLineItem.deleteMany({
+        where: { userId: demoUser.id },
+      });
+      await this.seedDemoWorkspace(demoUser.id);
+    }
 
     return {
       success: true,

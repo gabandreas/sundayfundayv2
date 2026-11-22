@@ -15,18 +15,9 @@ export class AuthMiddleware implements NestMiddleware {
   async use(req: ExtendedRequest, res: Response, next: NextFunction) {
     let userId: number | undefined;
     let tokenValid = false;
+    let tokenPayload: ReturnType<typeof verifyToken> = null;
 
-    // 1. Check x-user-id header
-    const xUserId = req.headers['x-user-id'];
-    if (xUserId) {
-      const parsed = parseInt(xUserId as string, 10);
-      if (!isNaN(parsed)) {
-        userId = parsed;
-        tokenValid = true;
-      }
-    }
-
-    // 2. Check Authorization Bearer header
+    // 1. Verify Authorization Bearer JWT FIRST
     const authHeader = req.headers['authorization'];
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.slice(7).trim();
@@ -34,6 +25,25 @@ export class AuthMiddleware implements NestMiddleware {
       if (payload && payload.sub) {
         userId = payload.sub;
         tokenValid = true;
+        tokenPayload = payload;
+      }
+    }
+
+    // 2. Only honor x-user-id when in Jest test harness OR backed by matching/owner JWT
+    const xUserId = req.headers['x-user-id'];
+    if (xUserId) {
+      const parsed = parseInt(xUserId as string, 10);
+      if (!isNaN(parsed)) {
+        if (process.env.NODE_ENV === 'test' && !authHeader) {
+          userId = parsed;
+          tokenValid = true;
+        } else if (
+          tokenValid &&
+          tokenPayload &&
+          (tokenPayload.sub === parsed || tokenPayload.role === 'SUPERADMIN')
+        ) {
+          userId = parsed;
+        }
       }
     }
 
@@ -55,7 +65,7 @@ export class AuthMiddleware implements NestMiddleware {
           req.user = user;
         }
       } catch {
-        req.user = { id: userId, role: userId === 1 ? 'PLATFORM_OWNER' : 'STANDARD_MEMBER' };
+        req.user = { id: userId, role: 'USER' };
       }
     }
 

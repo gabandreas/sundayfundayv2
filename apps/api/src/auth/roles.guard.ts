@@ -28,8 +28,8 @@ export class PlatformOwnerGuard implements CanActivate {
       throw new UnauthorizedException('Authentication required.');
     }
 
-    if (user.role !== 'PLATFORM_OWNER' || user.id !== 1) {
-      throw new ForbiddenException('Restricted to Platform Owner only.');
+    if (user.role !== 'SUPERADMIN') {
+      throw new ForbiddenException('Restricted to Superadmin only.');
     }
 
     return true;

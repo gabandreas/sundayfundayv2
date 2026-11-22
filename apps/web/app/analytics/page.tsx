@@ -1,9 +1,11 @@
 import React from "react";
+import Link from "next/link";
 import { fetchAnalytics, AnalyticsScope } from "@/lib/api";
 import { MetricCard } from "@/components/primitives/MetricCard";
 import { AnalyticsScopeToggle } from "@/components/analytics/AnalyticsScopeToggle";
 import { CashflowComparisonChart } from "@/components/analytics/CashflowComparisonChart";
 import { CategoryDistributionPanel } from "@/components/analytics/CategoryDistributionPanel";
+import { AnalyticsGoTelemetryStrip } from "@/components/analytics/AnalyticsGoTelemetryStrip";
 import { formatRupiah } from "@/lib/utils";
 
 interface AnalyticsPageProps {
@@ -23,7 +25,7 @@ export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps
 
   if (!report) {
     return (
-      <div className="space-y-6 max-w-7xl pb-20">
+      <div className="space-y-6 w-full max-w-full pb-20">
         <div className="pb-3 border-b border-border-subtle">
           <h1 className="text-xl font-bold font-sans tracking-tight text-text-primary">
             Analytics
@@ -43,7 +45,7 @@ export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps
   const isOptimalSavings = kpis.savingsRateStatus === "OPTIMAL";
 
   return (
-    <div className="space-y-6 max-w-7xl pb-20">
+    <div className="space-y-6 w-full max-w-full pb-20">
       {/* Header & Period Scope Filter */}
       <div className="flex items-center justify-between pb-3 border-b border-border-subtle">
         <div>
@@ -61,15 +63,20 @@ export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps
           </p>
         </div>
 
-        <AnalyticsScopeToggle
-          currentScope={currentScope}
-          totalAvailableCount={report.totalAvailableSnapshotsCount}
-          lockedCount={report.lockedSnapshotsCount}
-        />
+        <div className="flex items-center gap-3">
+          <Link href="/reports?sub=variance" className="text-xs font-mono text-text-secondary hover:text-text-primary hover:underline">
+            Open in Reports
+          </Link>
+          <AnalyticsScopeToggle
+            currentScope={currentScope}
+            totalAvailableCount={report.totalAvailableSnapshotsCount}
+            lockedCount={report.lockedSnapshotsCount}
+          />
+        </div>
       </div>
 
       {/* Top KPI Row: 4 MetricCards (Centerpiece serif strictly on Card 1 & Card 3) */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Average Monthly Income (Centerpiece) */}
         <MetricCard
           label="Average Monthly Income"
@@ -127,6 +134,8 @@ export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps
         kpis={report.kpis}
         periodCount={report.periodCount}
       />
+
+      <AnalyticsGoTelemetryStrip />
     </div>
   );
 }

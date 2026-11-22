@@ -1,15 +1,16 @@
 "use client";
 
-import React, { useState, useEffect, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState, useEffect } from "react";
 import { Check, Loader2, Plus, Pencil, X, Trash2 } from "lucide-react";
 import {
   MonthlySnapshot,
   DailyPacing,
   FixedEssentialCategory,
   createExpenseTransaction,
+  dispatchOptimisticRoutineSpend,
   fetchRoutineCategories,
   addRoutineCategory,
+  invalidateCache,
   removeRoutineCategory,
   RoutineCategoryConfig,
 } from "@/lib/api";
@@ -19,6 +20,7 @@ import { useAuth } from "@/context/AuthContext";
 import { formatRupiah } from "@/lib/utils";
 import { PrivacyEyeButton } from "@/components/shell/PrivacyEyeButton";
 import { usePrivacyMask } from "@/context/PrivacyMaskContext";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface RoutineBillsQuotaCardProps {
   snapshot: MonthlySnapshot | null;
@@ -47,14 +49,13 @@ export function RoutineBillsQuotaCard({
   isLocked,
   baselineTotal,
 }: RoutineBillsQuotaCardProps) {
-  const router = useRouter();
-  const [, startTransition] = useTransition();
   const { user } = useAuth();
   const { isAmountsMasked } = usePrivacyMask();
+  const { t } = useLanguage();
   const formatIdr = (amount: number): string => formatRupiah(amount, isAmountsMasked);
   const { profileMode, getRoutineLabel, setCustomRoutineLabel } = usePerspective();
   const isOwnerBespoke =
-    user?.role === "PLATFORM_OWNER" ||
+    user?.blueprintType === "SUPERADMIN_BESPOKE" ||
     user?.lifeStagePreset === "SUPERADMIN_BESPOKE" ||
     profileMode === "SUPERADMIN_BESPOKE";
   const isStandard = !isOwnerBespoke && profileMode === "STANDARD_GENERAL";
@@ -82,6 +83,7 @@ export function RoutineBillsQuotaCard({
   const [activeCustomCategory, setActiveCustomCategory] =
     useState<string | null>(null);
   const [customAmount, setCustomAmount] = useState<string>("");
+  const [showInactiveQuotas, setShowInactiveQuotas] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Inline rename state for Standard Edition
@@ -90,7 +92,12 @@ export function RoutineBillsQuotaCard({
   const [renameSaving, setRenameSaving] = useState(false);
 
   const getCategoryLabel = (slot: string): string => {
-    // Specifically in 10/2026, the internet slot is reserved for the one-time Nov 25 Bill
+    const oneOffMatch = snapshot?.oneOffBillsJson?.find(
+      (b) => b.slot?.toLowerCase() === slot.toLowerCase()
+    );
+    if (oneOffMatch?.label) {
+      return oneOffMatch.label;
+    }
     if (snapshot?.month === 10 && snapshot?.year === 2026 && slot.toUpperCase() === "INTERNET") {
       return "Nov 25 Bill";
     }
@@ -188,7 +195,6 @@ export function RoutineBillsQuotaCard({
         setIsAddCategoryOpen(false);
         setNewCategoryLabel("");
         setNewCategoryTarget("");
-        startTransition(() => router.refresh());
       }
     } catch (e) {
       console.error("Failed to add routine category", e);
@@ -204,7 +210,6 @@ export function RoutineBillsQuotaCard({
         const res = await removeRoutineCategory(id);
         if (res.success && res.data) {
           setDynamicCategories(res.data);
-          startTransition(() => router.refresh());
         }
       } catch (e) {
         console.error("Failed to remove routine category", e);
@@ -228,38 +233,59 @@ export function RoutineBillsQuotaCard({
   const handleQuickSpend = async (
     categoryKey: string,
     categoryLabel: string,
-    spendAmount: number
+    spendAmount: number,
+    paymentMethod: "CASH" | "PAYLATER" = "CASH"
   ) => {
     if (isLocked || submittingCategory || spendAmount <= 0) return;
 
-    setSubmittingCategory(categoryKey);
+    const rounded = Math.round(spendAmount);
     setErrorMessage(null);
+    setActiveCustomCategory(null);
+    setCustomAmount("");
+
+    if (paymentMethod === "CASH") {
+      dispatchOptimisticRoutineSpend({
+        month,
+        year,
+        category: categoryKey,
+        label: categoryLabel,
+        amount: rounded,
+      });
+      setSuccessCategory(categoryKey);
+      setTimeout(() => setSuccessCategory(null), 1400);
+    } else {
+      setSubmittingCategory(categoryKey);
+    }
 
     try {
       const res = await createExpenseTransaction({
         month,
         year,
-        label: `${categoryLabel} Quota`,
-        amount: Math.round(spendAmount),
+        label:
+          paymentMethod === "PAYLATER"
+            ? `${categoryLabel} (PayLater Rollover)`
+            : `${categoryLabel} Quota`,
+        amount: rounded,
         date: new Date().toISOString(),
         fixedEssentialCategory: categoryKey as any,
+        paymentMethod,
+        paylaterTenor: paymentMethod === "PAYLATER" ? 1 : undefined,
       });
 
       if (!res.success) {
+        if (paymentMethod === "CASH") invalidateCache();
+        setSuccessCategory(null);
         setErrorMessage(res.error || "Failed to record transaction");
-        setSubmittingCategory(null);
         return;
       }
 
-      setSuccessCategory(categoryKey);
-      setActiveCustomCategory(null);
-      setCustomAmount("");
-      setTimeout(() => setSuccessCategory(null), 1800);
-
-      startTransition(() => {
-        router.refresh();
-      });
+      if (paymentMethod !== "CASH") {
+        setSuccessCategory(categoryKey);
+        setTimeout(() => setSuccessCategory(null), 1400);
+      }
     } catch (err: any) {
+      if (paymentMethod === "CASH") invalidateCache();
+      setSuccessCategory(null);
       setErrorMessage(err.message || "Failed to submit expense");
     } finally {
       setSubmittingCategory(null);
@@ -285,10 +311,10 @@ export function RoutineBillsQuotaCard({
         {/* Header — Plain-English Financial Terminology */}
         <div className="flex items-center justify-between gap-2 mb-2">
           <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
-            LIVING & ROUTINE BILLS
+            {t("overview.routineBills")}
           </span>
           <span className="text-[10px] font-mono text-accent tabular-nums font-medium">
-            Remaining Bills Quota: {formatIdr(totalRoutinePoolRemaining)}
+            {t("overview.remainingBillsQuota")}: {formatIdr(totalRoutinePoolRemaining)}
           </span>
         </div>
 
@@ -300,7 +326,7 @@ export function RoutineBillsQuotaCard({
             <PrivacyEyeButton size="sm" />
           </div>
           <span className="text-xs font-sans text-text-tertiary">
-            Total Monthly Budget
+            {t("overview.totalMonthlyBudget")}
           </span>
         </div>
 
@@ -313,24 +339,38 @@ export function RoutineBillsQuotaCard({
         {/* Categories Breakdown with 1-Click Quota Pills */}
         <div className="mt-4 pt-3 border-t border-border-subtle space-y-3.5">
           {/* Daily Food & Living Budget (Top Line Item) */}
-          <div className="p-2.5 rounded bg-surface-subtle border border-border-subtle flex items-center justify-between">
-            <div>
+          <div className="p-2.5 rounded bg-surface-subtle border border-border-subtle flex items-center justify-between gap-2">
+            <div className="min-w-0">
               <span className="text-[10px] text-text-tertiary uppercase font-semibold font-sans block">
-                Daily Food & Living Budget
+                {t("overview.dailyFoodLiving")}
               </span>
-              <span className="text-[10px] text-text-tertiary font-sans">
-                Monthly allowance
+              <span className="text-[10px] text-text-tertiary font-sans tabular-nums">
+                {snapshot &&
+                snapshot.dailyOperational > 0 &&
+                (snapshot.actualDailyOperational ?? snapshot.dailyOperational) <
+                  snapshot.dailyOperational
+                  ? `${t("overview.fundedOfTarget")}: ${formatIdr(
+                      snapshot.actualDailyOperational ?? 0
+                    )} / ${formatIdr(snapshot.dailyOperational)}`
+                  : "Monthly allowance"}
               </span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <span className="font-mono text-xs font-semibold tabular-nums text-text-primary inline-flex items-center gap-1">
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className="font-mono text-xs font-semibold tabular-nums text-text-primary inline-flex items-center gap-1.5">
                 {formatIdr(snapshot?.dailyOperational ?? 0)}
-                {(snapshot?.deficitUncovered ?? 0) > 0 && (
+                {snapshot &&
+                  snapshot.dailyOperational > 0 &&
+                  (snapshot.actualDailyOperational ?? snapshot.dailyOperational) <
+                    snapshot.dailyOperational && (
                   <span
-                    title={`Target ${formatIdr(snapshot?.dailyOperational ?? 0)} was unfunded due to uncovered deficit of ${formatIdr(snapshot?.deficitUncovered ?? 0)}`}
-                    className="text-[9px] font-mono px-1 py-0.2 rounded border border-[rgba(229,155,44,0.30)] text-caution bg-[rgba(229,155,44,0.08)] font-normal"
+                    title={`${t("overview.fundedOfTarget")}: ${formatIdr(
+                      snapshot.actualDailyOperational ?? 0
+                    )} / ${formatIdr(snapshot.dailyOperational)}`}
+                    className="whitespace-nowrap shrink-0 text-[9px] font-mono px-1.5 py-0.5 rounded border border-[rgba(229,155,44,0.30)] text-caution bg-[rgba(229,155,44,0.08)] font-normal"
                   >
-                    Unfunded
+                    {(snapshot.actualDailyOperational ?? 0) > 0
+                      ? t("overview.partiallyFunded")
+                      : t("overview.unfunded")}
                   </span>
                 )}
               </span>
@@ -466,34 +506,37 @@ export function RoutineBillsQuotaCard({
                   </div>
 
                   {/* Progress Bar */}
-                  <div className="mt-1.5 h-1.5 w-full rounded-full bg-surface-elevated overflow-hidden">
+                  <div className="mt-2 h-1 w-full rounded-full bg-surface-hover overflow-hidden">
                     <div
                       className={`h-full transition-all duration-300 ${
-                        isUnbudgeted || overage > 0 ? "bg-caution" : "bg-accent"
+                        isUnbudgeted || overage > 0 ? "bg-caution" : "bg-delta-positive"
                       }`}
                       style={{ width: `${utilPercent}%` }}
                     />
                   </div>
 
                   {/* Sub-label: Remaining Pool / Unbudgeted Spend Callout */}
-                  <div className="flex items-center justify-between text-[10px] font-mono mt-1 text-text-tertiary">
+                  <div className="flex items-center justify-between text-[11px] font-mono mt-1.5 text-text-tertiary">
                     {isUnbudgeted ? (
                       <span className="text-caution font-medium">
-                        Unbudgeted Spend: {formatIdr(spent)} / Budget Rp 0 (Covered from Surplus/Savings)
+                        Unbudgeted Spend: {formatIdr(spent)} / Budget Rp 0 (Covered from Surplus)
                       </span>
                     ) : (
                       <>
                         <span>
                           {remainingPool > 0 ? (
                             <span className="text-text-secondary">
-                              Remaining: <strong className="font-medium text-text-primary">{formatIdr(remainingPool)}</strong>
+                              Remaining:{" "}
+                              <strong className="font-medium text-text-primary tabular-nums">
+                                {formatIdr(remainingPool)}
+                              </strong>
                             </span>
                           ) : (
-                            <span className="text-caution">Remaining: Rp 0 (Quota used)</span>
+                            <span className="text-delta-positive">Settled in full</span>
                           )}
                         </span>
                         {overage > 0 && (
-                          <span className="text-caution">
+                          <span className="text-caution tabular-nums">
                             +{formatIdr(overage)} overage
                           </span>
                         )}
@@ -501,62 +544,63 @@ export function RoutineBillsQuotaCard({
                     )}
                   </div>
 
-                  {/* 1-Click Quota Presets */}
+                  {/* Clean Action Bar */}
                   {!isLocked && (
-                    <div className="mt-2 flex flex-wrap items-center gap-1 pt-1 border-t border-border-subtle/60">
-                      {PRESET_AMOUNTS.map((p) => (
+                    <div className="mt-2.5 flex flex-wrap items-center justify-between gap-1.5">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {remainingPool > 0 && (
+                          <>
+                            <button
+                              type="button"
+                              disabled={isSubmittingThis}
+                              onClick={() =>
+                                handleQuickSpend(cat.key, cat.label, remainingPool, "CASH")
+                              }
+                              className="px-2.5 py-1 rounded text-[11px] font-mono bg-delta-positive/10 border border-delta-positive/30 text-delta-positive hover:bg-delta-positive/15 transition-colors cursor-pointer disabled:opacity-50"
+                            >
+                              Pay Full · {formatIdr(remainingPool).replace("Rp ", "")}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={isSubmittingThis}
+                              onClick={() =>
+                                handleQuickSpend(cat.key, cat.label, remainingPool, "PAYLATER")
+                              }
+                              title="Move remaining quota onto the PayLater Debt Matrix without spending cash today"
+                              className="px-2 py-1 rounded text-[11px] font-sans bg-surface border border-border-default text-text-secondary hover:text-text-primary hover:bg-surface-hover transition-colors cursor-pointer disabled:opacity-50"
+                            >
+                              Roll to PayLater
+                            </button>
+                          </>
+                        )}
+
                         <button
-                          key={p.label}
                           type="button"
                           disabled={isSubmittingThis}
-                          onClick={() =>
-                            handleQuickSpend(cat.key, cat.label, p.value)
-                          }
-                          className="px-2 py-0.5 rounded text-[10px] font-mono bg-surface border border-border text-text-secondary hover:text-text-primary hover:border-text-secondary transition-colors cursor-pointer disabled:opacity-50"
+                          onClick={() => {
+                            if (isCustomOpen) {
+                              setActiveCustomCategory(null);
+                              setCustomAmount("");
+                            } else {
+                              setActiveCustomCategory(cat.key);
+                              setCustomAmount("");
+                            }
+                          }}
+                          className="px-2 py-1 rounded text-[11px] font-sans bg-surface border border-border-subtle text-text-tertiary hover:text-text-primary hover:border-border-default transition-colors cursor-pointer"
                         >
-                          +{p.label}
+                          {isCustomOpen ? "Close" : "Log Partial"}
                         </button>
-                      ))}
-
-                      {remainingPool > 0 && (
-                        <button
-                          type="button"
-                          disabled={isSubmittingThis}
-                          onClick={() =>
-                            handleQuickSpend(cat.key, cat.label, remainingPool)
-                          }
-                          className="px-2 py-0.5 rounded text-[10px] font-mono bg-surface border border-accent/40 text-accent hover:bg-accent/10 transition-colors cursor-pointer disabled:opacity-50"
-                        >
-                          Mark Full ({formatIdr(remainingPool).replace("Rp ", "")})
-                        </button>
-                      )}
-
-                      <button
-                        type="button"
-                        disabled={isSubmittingThis}
-                        onClick={() => {
-                          if (isCustomOpen) {
-                            setActiveCustomCategory(null);
-                            setCustomAmount("");
-                          } else {
-                            setActiveCustomCategory(cat.key);
-                            setCustomAmount("");
-                          }
-                        }}
-                        className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-surface border border-border text-text-tertiary hover:text-text-secondary transition-colors cursor-pointer"
-                      >
-                        {isCustomOpen ? "Cancel" : "Custom"}
-                      </button>
+                      </div>
 
                       {isSubmittingThis && (
-                        <span className="text-[10px] text-text-tertiary inline-flex items-center gap-1 ml-1 font-mono">
+                        <span className="text-[10px] text-text-tertiary inline-flex items-center gap-1 font-mono">
                           <Loader2 className="w-2.5 h-2.5 animate-spin" />
-                          Logging...
+                          Logging
                         </span>
                       )}
 
                       {isSuccessThis && (
-                        <span className="text-[10px] text-positive inline-flex items-center gap-1 ml-1 font-mono">
+                        <span className="text-[10px] text-delta-positive inline-flex items-center gap-1 font-mono">
                           <Check className="w-2.5 h-2.5" />
                           Logged
                         </span>
@@ -564,32 +608,49 @@ export function RoutineBillsQuotaCard({
                     </div>
                   )}
 
-                  {/* Inline Custom Input Drawer */}
+                  {/* Collapsible Partial Amount + Quick Preset Drawer */}
                   {isCustomOpen && (
-                    <div className="mt-2 flex items-center gap-1.5 pt-1">
-                      <input
-                        type="number"
-                        min={1000}
-                        step={1000}
-                        value={customAmount}
-                        onChange={(e) => setCustomAmount(e.target.value)}
-                        placeholder="Amount (IDR)..."
-                        className="w-28 px-2 py-1 rounded bg-surface border border-border font-mono text-xs text-text-primary focus:outline-none focus:border-text-secondary"
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            handleCustomSubmit(cat.key, cat.label);
-                          }
-                        }}
-                      />
-                      <button
-                        type="button"
-                        disabled={isSubmittingThis || !customAmount}
-                        onClick={() => handleCustomSubmit(cat.key, cat.label)}
-                        className="px-2.5 py-1 rounded text-xs font-medium bg-surface-elevated border border-border text-text-primary hover:border-text-secondary cursor-pointer disabled:opacity-40"
-                      >
-                        Log
-                      </button>
+                    <div className="mt-2 pt-2 border-t border-border-subtle space-y-2">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {PRESET_AMOUNTS.map((p) => (
+                          <button
+                            key={p.label}
+                            type="button"
+                            disabled={isSubmittingThis}
+                            onClick={() =>
+                              handleQuickSpend(cat.key, cat.label, p.value)
+                            }
+                            className="px-2 py-0.5 rounded text-[10px] font-mono bg-surface border border-border-default text-text-secondary hover:text-text-primary hover:bg-surface-hover transition-colors cursor-pointer disabled:opacity-50"
+                          >
+                            +{p.label}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="number"
+                          min={1000}
+                          step={1000}
+                          value={customAmount}
+                          onChange={(e) => setCustomAmount(e.target.value)}
+                          placeholder="Custom amount (IDR)"
+                          className="w-36 px-2 py-1 rounded bg-surface border border-border-default font-mono text-xs text-text-primary focus:outline-none focus:border-text-secondary"
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleCustomSubmit(cat.key, cat.label);
+                            }
+                          }}
+                        />
+                        <button
+                          type="button"
+                          disabled={isSubmittingThis || !customAmount}
+                          onClick={() => handleCustomSubmit(cat.key, cat.label)}
+                          className="px-2.5 py-1 rounded text-xs font-medium bg-surface-hover border border-border-default text-text-primary hover:border-border-strong cursor-pointer disabled:opacity-40"
+                        >
+                          Log Spend
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -665,68 +726,84 @@ export function RoutineBillsQuotaCard({
             </div>
           )}
 
-          {/* Zeroed / Prepaid Categories: Compact Muted Footer Line with + Log Spend */}
+          {/* Inactive Rp 0 Categories: Collapsed behind explicit + Enable / Adjust toggle */}
           {zeroCategories.length > 0 && (
-            <div className="pt-2.5 border-t border-border-subtle/60 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-[11px] font-sans text-text-tertiary">
-              <span className="text-text-tertiary">No Budget Set This Month (Rp 0):</span>
-              {zeroCategories.map((zc) => {
-                const isCustomThis = activeCustomCategory === zc.key;
-                return (
-                  <div
-                    key={zc.key}
-                    className="inline-flex items-center gap-1 bg-surface-subtle px-2 py-1 rounded border border-border-subtle text-[10px] font-mono text-text-secondary"
-                  >
-                    <span>{zc.label} (Rp 0)</span>
-                    {snapshot && (
-                      <EditableTarget
-                        snapshotId={snapshot.id}
-                        category={zc.key as any}
-                        categoryLabel={zc.label}
-                        currentValue={0}
-                        isLocked={isLocked}
-                        revisions={snapshot.budgetRevisions}
-                      />
-                    )}
-                    {!isLocked && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setActiveCustomCategory(isCustomThis ? null : zc.key)
-                        }
-                        className="inline-flex items-center gap-0.5 text-text-tertiary hover:text-text-primary ml-1 cursor-pointer"
-                        title={`Log spend for ${zc.label}`}
+            <div className="pt-2.5 border-t border-border-subtle/60 space-y-2">
+              <button
+                type="button"
+                onClick={() => setShowInactiveQuotas((prev) => !prev)}
+                className="inline-flex items-center gap-1.5 text-[11px] font-mono text-text-tertiary hover:text-text-primary transition-colors cursor-pointer"
+              >
+                <Plus className="w-3 h-3" />
+                <span>
+                  {showInactiveQuotas
+                    ? "Hide Inactive Routine Quotas"
+                    : `Enable / Adjust Routine Quota (${zeroCategories.length})`}
+                </span>
+              </button>
+
+              {showInactiveQuotas && (
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-[11px] font-sans text-text-tertiary">
+                  {zeroCategories.map((zc) => {
+                    const isCustomThis = activeCustomCategory === zc.key;
+                    return (
+                      <div
+                        key={zc.key}
+                        className="inline-flex items-center gap-1 bg-surface-subtle px-2 py-1 rounded border border-border-subtle text-[10px] font-mono text-text-secondary"
                       >
-                        <Plus className="w-3 h-3" />
-                        <span>Spend</span>
-                      </button>
-                    )}
-                    {isCustomThis && (
-                      <div className="inline-flex items-center gap-1 ml-1">
-                        <input
-                          type="number"
-                          placeholder="Rp..."
-                          value={customAmount}
-                          onChange={(e) => setCustomAmount(e.target.value)}
-                          className="w-16 px-1.5 py-0.5 rounded bg-surface border border-border text-[10px] font-mono text-text-primary focus:outline-none"
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              handleCustomSubmit(zc.key, zc.label);
+                        <span>{zc.label}</span>
+                        {snapshot && (
+                          <EditableTarget
+                            snapshotId={snapshot.id}
+                            category={zc.key as any}
+                            categoryLabel={zc.label}
+                            currentValue={0}
+                            isLocked={isLocked}
+                            revisions={snapshot.budgetRevisions}
+                          />
+                        )}
+                        {!isLocked && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setActiveCustomCategory(isCustomThis ? null : zc.key)
                             }
-                          }}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleCustomSubmit(zc.key, zc.label)}
-                          className="px-1.5 py-0.5 rounded bg-surface-elevated border border-border text-[10px] text-text-primary cursor-pointer"
-                        >
-                          Log
-                        </button>
+                            className="inline-flex items-center gap-0.5 text-text-tertiary hover:text-text-primary ml-1 cursor-pointer"
+                            title={`Log spend for ${zc.label}`}
+                          >
+                            <Plus className="w-3 h-3" />
+                            <span>Spend</span>
+                          </button>
+                        )}
+                        {isCustomThis && (
+                          <div className="inline-flex items-center gap-1 ml-1">
+                            <input
+                              type="number"
+                              placeholder="Rp..."
+                              value={customAmount}
+                              onChange={(e) => setCustomAmount(e.target.value)}
+                              className="w-16 px-1.5 py-0.5 rounded bg-surface border border-border text-[10px] font-mono text-text-primary focus:outline-none"
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  handleCustomSubmit(zc.key, zc.label);
+                                }
+                              }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleCustomSubmit(zc.key, zc.label)}
+                              className="px-1.5 py-0.5 rounded bg-surface-elevated border border-border text-[10px] text-text-primary cursor-pointer"
+                            >
+                              Log
+                            </button>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </div>

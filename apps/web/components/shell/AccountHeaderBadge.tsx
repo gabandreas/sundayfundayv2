@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { usePerspective } from "@/context/PerspectiveContext";
+import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 import {
   UserRole,
 } from "@/lib/api";
@@ -16,14 +17,21 @@ import {
   ChevronDown,
   User as UserIcon,
   Eye,
+  EyeOff,
+  Sliders,
 } from "lucide-react";
 
 function getRoleBadge(role?: UserRole) {
   switch (role) {
-    case "PLATFORM_OWNER":
+    case "SUPERADMIN":
       return {
-        label: "PLATFORM OWNER",
+        label: "SUPERADMIN",
         classes: "border-border-strong text-text-primary bg-surface-subtle",
+      };
+    case "USER":
+      return {
+        label: "PERSONAL ERP",
+        classes: "border-positive/30 text-positive bg-positive/10",
       };
     case "BESPOKE_CLIENT":
       return {
@@ -46,8 +54,10 @@ function getRoleBadge(role?: UserRole) {
 
 function getCompactRoleLabel(role?: UserRole) {
   switch (role) {
-    case "PLATFORM_OWNER":
-      return "Owner";
+    case "SUPERADMIN":
+      return "Admin";
+    case "USER":
+      return "Personal";
     case "BESPOKE_CLIENT":
       return "Bespoke";
     case "STANDARD_MEMBER":
@@ -60,8 +70,9 @@ function getCompactRoleLabel(role?: UserRole) {
 
 export function AccountHeaderBadge() {
   const router = useRouter();
-  const { user, logout, resetDemo } = useAuth();
-  const { lifeStagePreset, uiDensityMode, setUiDensityMode } = usePerspective();
+  const { user, logout, resetDemo, openProfileModal } = useAuth();
+  const { uiDensityMode, setUiDensityMode } = usePerspective();
+  const { isAmountsMasked, toggleMask } = usePrivacyMask();
   const [isOpen, setIsOpen] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -160,17 +171,17 @@ export function AccountHeaderBadge() {
               {cleanName}
             </div>
             <div className="text-[11px] font-sans text-text-tertiary truncate">
-              {user?.role === "PLATFORM_OWNER" ? "Personal Admin" : user?.email || "Signed in"}
+              {user?.email || (user?.role === "SUPERADMIN" ? "System Superadmin" : "Signed in")}
             </div>
             <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
               <span
                 className={`px-1.5 py-0.5 text-[9px] font-mono rounded border ${
-                  user?.role === "PLATFORM_OWNER"
+                  user?.role === "SUPERADMIN"
                     ? "border-border-strong text-text-primary bg-surface-subtle"
                     : roleMeta.classes
                 }`}
               >
-                {user?.role === "PLATFORM_OWNER" ? "Personal Admin" : roleMeta.label}
+                {user?.role === "SUPERADMIN" ? "SUPERADMIN" : roleMeta.label}
               </span>
               <span className="text-[10px] text-text-tertiary font-mono">
                 ID #{user?.id ?? 1}
@@ -180,8 +191,21 @@ export function AccountHeaderBadge() {
 
           {/* Menu Actions */}
           <div className="space-y-0.5">
-            {/* Platform Admin Console (Platform Owner only) */}
-            {user?.role === "PLATFORM_OWNER" && (
+            {/* Profile & Account Settings */}
+            <button
+              type="button"
+              onClick={() => {
+                setIsOpen(false);
+                openProfileModal();
+              }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-text-primary hover:bg-surface-subtle rounded transition-colors text-left"
+            >
+              <UserIcon className="w-3.5 h-3.5 text-text-secondary" />
+              <span>Profile &amp; Account Settings</span>
+            </button>
+
+            {/* Platform Admin Console (Superadmin only) */}
+            {user?.role === "SUPERADMIN" && (
               <Link
                 href="/admin"
                 onClick={() => setIsOpen(false)}
@@ -204,6 +228,27 @@ export function AccountHeaderBadge() {
             <button
               type="button"
               onClick={() => {
+                toggleMask();
+                setIsOpen(false);
+              }}
+              className="w-full flex items-center justify-between gap-2 px-3 py-2 text-xs text-text-primary hover:bg-surface-subtle rounded transition-colors text-left cursor-pointer"
+            >
+              <span className="flex items-center gap-2">
+                {isAmountsMasked ? (
+                  <Eye className="w-3.5 h-3.5 text-text-secondary" />
+                ) : (
+                  <EyeOff className="w-3.5 h-3.5 text-delta-positive" />
+                )}
+                <span>Privacy Stealth</span>
+              </span>
+              <span className="text-[10px] font-mono text-text-tertiary">
+                {isAmountsMasked ? "Masked" : "Visible"}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
                 const nextMode =
                   uiDensityMode === "COMMAND_COCKPIT"
                     ? "SIMPLE_CLARITY"
@@ -211,10 +256,10 @@ export function AccountHeaderBadge() {
                 setUiDensityMode(nextMode);
                 setIsOpen(false);
               }}
-              className="w-full flex items-center justify-between gap-2 px-3 py-2 text-xs text-text-primary hover:bg-surface-subtle rounded transition-colors text-left"
+              className="w-full flex items-center justify-between gap-2 px-3 py-2 text-xs text-text-primary hover:bg-surface-subtle rounded transition-colors text-left cursor-pointer"
             >
               <span className="flex items-center gap-2">
-                <Eye className="w-3.5 h-3.5 text-text-secondary" />
+                <Sliders className="w-3.5 h-3.5 text-text-secondary" />
                 <span>UI Density</span>
               </span>
               <span className="text-[10px] font-mono text-text-tertiary">

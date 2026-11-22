@@ -1,10 +1,9 @@
 import React from "react";
-import { fetchWishlistItems, fetchSnapshot } from "@/lib/api";
+import Link from "next/link";
+import { fetchWishlistItems, fetchSnapshot, MonthlySnapshot } from "@/lib/api";
 import { getDefaultPayrollPeriod } from "@/lib/utils";
-import { WishlistTabNav, WishlistTabType } from "@/components/wishlist/WishlistTabNav";
-import { WishlistSummaryMetrics } from "@/components/wishlist/WishlistSummaryMetrics";
-import { WishlistPlannerView } from "@/components/wishlist/WishlistPlannerView";
-import { WishlistVaultTable } from "@/components/wishlist/WishlistVaultTable";
+import { WishlistTabType } from "@/components/wishlist/WishlistTabNav";
+import { WishlistPageClient } from "@/components/wishlist/WishlistPageClient";
 
 interface WishlistPageProps {
   searchParams: Promise<{ month?: string; year?: string; tab?: string }>;
@@ -21,60 +20,35 @@ export default async function WishlistPage({ searchParams }: WishlistPageProps) 
     ? (params.tab as WishlistTabType)
     : "planner";
 
-  const [items] = await Promise.all([
+  const next1M = month === 12 ? 1 : month + 1;
+  const next1Y = month === 12 ? year + 1 : year;
+  const next2M = next1M === 12 ? 1 : next1M + 1;
+  const next2Y = next1M === 12 ? next1Y + 1 : next1Y;
+
+  const [items, snap0, snap1, snap2] = await Promise.all([
     fetchWishlistItems(),
     fetchSnapshot(month, year),
+    fetchSnapshot(next1M, next1Y),
+    fetchSnapshot(next2M, next2Y),
   ]);
+  const forwardSnapshots = [snap0, snap1, snap2].filter(
+    (s): s is MonthlySnapshot => s !== null && s !== undefined,
+  );
 
   return (
-    <div className="space-y-6 max-w-7xl">
-      {/* Header & Period Context */}
-      <div className="flex items-center justify-between pb-3 border-b border-border-subtle">
-        <div>
-          <h1 className="text-xl font-bold font-sans tracking-tight text-text-primary">
-            Wishlist Simulator & Capital Planning
-          </h1>
-          <p className="text-xs font-sans text-text-secondary mt-1">
-            Cash purchase feasibility, installment leverage stress-testing, and capital target catalog.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="text-xs font-sans text-text-tertiary">
-            Context Period: <span className="font-mono text-text-secondary">{month}/{year}</span>
-          </span>
-        </div>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between px-4 py-2 rounded border border-border bg-surface text-xs text-text-secondary">
+        <span>Wishlist planning is integrated into Credit &amp; Liabilities -&gt; Cutoff &amp; Affordability Simulator.</span>
+        <Link href={`/credit?sub=simulator&month=${month}&year=${year}`} className="font-mono text-text-primary hover:underline">
+          Open Credit Simulator
+        </Link>
       </div>
-
-      {/* Summary Metrics Banner */}
-      <WishlistSummaryMetrics items={items} />
-
-      {/* URL-driven Tab Navigation */}
-      <WishlistTabNav
-        currentTab={currentTab}
-        month={month}
-        year={year}
-        vaultCount={items.length}
+      <WishlistPageClient
+        initialMonth={month}
+        initialYear={year}
+        initialTab={currentTab}
+        initialData={{ items, forwardSnapshots }}
       />
-
-      {/* Tab Panels */}
-      <div className="animate-in fade-in duration-150">
-        {/* Tab 1: Simulator & Planner */}
-        {currentTab === "planner" && (
-          <section className="space-y-4">
-            <WishlistPlannerView
-              currentMonth={month}
-              currentYear={year}
-            />
-          </section>
-        )}
-
-        {/* Tab 2: Wishlist Vault */}
-        {currentTab === "vault" && (
-          <section className="space-y-4">
-            <WishlistVaultTable items={items} />
-          </section>
-        )}
-      </div>
     </div>
   );
 }

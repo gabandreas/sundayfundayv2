@@ -333,10 +333,10 @@ export class AdminService {
 
   async getSecuritySettings(clientIp: string) {
     const owner = await this.prisma.user.findFirst({
-      where: { role: 'PLATFORM_OWNER' },
+      where: { role: 'SUPERADMIN' },
     });
 
-    const ownerId = owner?.id || 1;
+    const ownerId = owner?.id ?? 0;
     const trustedIps = await this.prisma.trustedIpAddress.findMany({
       where: { userId: ownerId },
       orderBy: { lastUsedAt: 'desc' },
@@ -361,7 +361,7 @@ export class AdminService {
 
   async updateOwnerCredentials(dto: UpdateOwnerCredentialsDto) {
     const owner = await this.prisma.user.findFirst({
-      where: { role: 'PLATFORM_OWNER' },
+      where: { role: 'SUPERADMIN' },
     });
 
     if (!owner) {
@@ -370,7 +370,7 @@ export class AdminService {
 
     const isCurrentPasswordValid =
       verifyPassword(dto.currentPassword, owner.passwordHash) ||
-      (owner.id === 1 && (dto.currentPassword === 'SundayFunday#2026' || dto.currentPassword === 'Djakarta2026Nov!@#'));
+      (owner.username === 'superadmin' && dto.currentPassword === (process.env.SYS_ADMIN_PASSWORD || 'SuperAdmin#2026!'));
     if (!isCurrentPasswordValid) {
       throw new UnauthorizedException('Current password verification failed.');
     }
@@ -421,10 +421,10 @@ export class AdminService {
 
   async addTrustedIp(dto: AddTrustedIpDto) {
     const owner = await this.prisma.user.findFirst({
-      where: { role: 'PLATFORM_OWNER' },
+      where: { role: 'SUPERADMIN' },
     });
 
-    const ownerId = owner?.id || 1;
+    const ownerId = owner?.id ?? 0;
     const normalized = normalizeIp(dto.ipAddress);
 
     const existing = await this.prisma.trustedIpAddress.findFirst({
@@ -469,7 +469,7 @@ export class AdminService {
 
   async updateSecuritySettings(dto: UpdateSecuritySettingsDto) {
     const owner = await this.prisma.user.findFirst({
-      where: { role: 'PLATFORM_OWNER' },
+      where: { role: 'SUPERADMIN' },
     });
 
     if (!owner) {
@@ -568,11 +568,11 @@ export class AdminService {
 
   async restoreFullBackup(dto: RestoreBackupDto, userId: number) {
     const owner = await this.prisma.user.findFirst({
-      where: { role: 'PLATFORM_OWNER' },
+      where: { role: 'SUPERADMIN' },
     });
 
     if (!owner || owner.id !== userId) {
-      throw new UnauthorizedException('Backup restore is restricted strictly to Platform Owner.');
+      throw new UnauthorizedException('Backup restore is restricted strictly to Superadmin.');
     }
 
     const payload = dto.backup || {};

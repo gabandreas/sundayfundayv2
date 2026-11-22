@@ -1,19 +1,37 @@
 "use client";
 
-import React, { useTransition } from "react";
+import React from "react";
 import Link from "next/link";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import {
   FileSpreadsheet,
+  Mail,
   Printer,
   CheckCircle2,
   AlertTriangle,
   ArrowUpRight,
 } from "lucide-react";
-import { ExecutiveReportPayload, ReportScope } from "@/lib/api";
+import {
+  ComparativePeriodRow,
+  ExecutiveReportPayload,
+  ReportScope,
+  fetchExecutiveReport,
+  getCached,
+  setCached,
+  sendMonthlyStatementEmail,
+} from "@/lib/api";
 import { formatIDR, formatDate } from "@/lib/utils";
 import { MetricCard } from "@/components/primitives/MetricCard";
+import { BrandMark } from "@/components/primitives/BrandMark";
+import { AnalyticsGoTelemetryStrip } from "@/components/analytics/AnalyticsGoTelemetryStrip";
+import { ReportsAuditEmbed } from "@/components/reports/ReportsAuditEmbed";
 import { exportExecutiveReportToExcel } from "@/lib/exportReportsExcel";
+import { TranslationKey, useLanguage } from "@/context/LanguageContext";
+import { usePeriod } from "@/context/PeriodContext";
+import { handleTabListKeyDown, syncTabInUrl } from "@/lib/tabs";
+import {
+  DrillDownCategoryFilter,
+  ReportDrillDownDrawer,
+} from "@/components/reports/ReportDrillDownDrawer";
 
 export type ReportTab =
   | "statement"
@@ -27,12 +45,12 @@ interface ReportsClientViewProps {
   activeTab: ReportTab;
 }
 
-const TABS: Array<{ id: ReportTab; label: string }> = [
-  { id: "statement", label: "Monthly Money Cycle" },
-  { id: "comparative", label: "Month-to-Month Comparison" },
-  { id: "amortization", label: "Debt & Installment Payoff Schedule" },
-  { id: "dossier", label: "Budget Edits & Audit History" },
-  { id: "forecast", label: "Next 3 Months Forecast" },
+const TABS: Array<{ id: ReportTab; labelKey: TranslationKey; fallback: string }> = [
+  { id: "statement", labelKey: "reports.tab.cycle", fallback: "Monthly Money Cycle" },
+  { id: "comparative", labelKey: "reports.tab.audit", fallback: "Month-to-Month Comparison" },
+  { id: "amortization", labelKey: "credit.tab.contracts", fallback: "Debt & Installment Payoff Schedule" },
+  { id: "dossier", labelKey: "reports.tab.edits", fallback: "Budget Edits & Audit History" },
+  { id: "forecast", labelKey: "reports.tab.forecast", fallback: "Next 3 Months Forecast" },
 ];
 
 function formatSnapshotStatusLabel(status: string): string {
@@ -57,13 +75,129 @@ function formatPacingStatusLabel(status: string): string {
 }
 
 export function ReportsClientView({
-  report,
+  report: initialReport,
   activeTab,
 }: ReportsClientViewProps) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const [isPending, startTransition] = useTransition();
+  const { month: periodMonth, year: periodYear, revisionTick } = usePeriod();
+  const [report, setReport] = React.useState<ExecutiveReportPayload>(initialReport);
+  const [scope, setScope] = React.useState<ReportScope>(initialReport.scope);
+  const [isLoadingReport, setIsLoadingReport] = React.useState(false);
+  const reportRef = React.useRef<ExecutiveReportPayload>(initialReport);
+  reportRef.current = report;
+  const lastRevRef = React.useRef<number>(revisionTick);
+  const reqSeqRef = React.useRef<number>(0);
+
+  const [currentTab, setCurrentTab] = React.useState<ReportTab>(activeTab);
+  const [activeSubMode, setActiveSubMode] = React.useState<"executive" | "variance" | "audit" | "export">(
+    activeTab === "comparative"
+      ? "variance"
+      : activeTab === "dossier"
+        ? "audit"
+        : activeTab === "amortization"
+          ? "export"
+          : "executive",
+  );
+  const tabRefs = React.useRef<Array<HTMLButtonElement | null>>([]);
+  const [isExportingExcel, setIsExportingExcel] = React.useState(false);
+
+  React.useEffect(() => {
+    const applySub = (sub: string) => {
+      if (sub === "executive") {
+        setActiveSubMode("executive");
+        setCurrentTab("statement");
+      } else if (sub === "variance") {
+        setActiveSubMode("variance");
+        setCurrentTab("comparative");
+      } else if (sub === "audit") {
+        setActiveSubMode("audit");
+        setCurrentTab("dossier");
+      } else if (sub === "export") {
+        setActiveSubMode("export");
+      }
+    };
+    if (typeof window !== "undefined") {
+      const sp = new URLSearchParams(window.location.search);
+      const initialSub = sp.get("sub");
+      if (initialSub) applySub(initialSub);
+    }
+    const onSubEvent = (e: Event) => {
+      const detail = (e as CustomEvent<{ pathname?: string; sub?: string }>).detail;
+      if (!detail?.sub || (detail.pathname && detail.pathname !== "/reports")) return;
+      applySub(detail.sub);
+    };
+    window.addEventListener("erp:sub-change", onSubEvent);
+    return () => window.removeEventListener("erp:sub-change", onSubEvent);
+  }, []);
+  const [drillDownTarget, setDrillDownTarget] = React.useState<{
+    row: ComparativePeriodRow;
+    filter: DrillDownCategoryFilter;
+  } | null>(null);
+
+  React.useEffect(() => {
+    setCached(
+      `executiveReport:${initialReport.closingStatement.month}:${initialReport.closingStatement.year}:${initialReport.scope}`,
+      initialReport,
+    );
+  }, [initialReport]);
+
+  React.useEffect(() => {
+    const revChanged = revisionTick !== lastRevRef.current;
+    lastRevRef.current = revisionTick;
+
+    const targetM = periodMonth;
+    const targetY = periodYear;
+    const current = reportRef.current;
+
+    if (
+      !revChanged &&
+      current.closingStatement.month === targetM &&
+      current.closingStatement.year === targetY &&
+      current.scope === scope
+    ) {
+      return;
+    }
+
+    const cacheKey = `executiveReport:${targetM}:${targetY}:${scope}`;
+    if (!revChanged) {
+      const cached = getCached<ExecutiveReportPayload>(cacheKey);
+      if (cached) {
+        reqSeqRef.current += 1;
+        setReport(cached);
+        setIsLoadingReport(false);
+        return;
+      }
+    }
+
+    const seq = ++reqSeqRef.current;
+    setIsLoadingReport(true);
+    let cancelled = false;
+    void fetchExecutiveReport(targetM, targetY, scope)
+      .then((next) => {
+        if (cancelled || seq !== reqSeqRef.current) return;
+        if (next) {
+          setReport(next);
+        }
+      })
+      .finally(() => {
+        if (!cancelled && seq === reqSeqRef.current) {
+          setIsLoadingReport(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [periodMonth, periodYear, scope, revisionTick]);
+
+  React.useEffect(() => {
+    setCurrentTab(activeTab);
+  }, [activeTab]);
+  const [isSendingEmail, setIsSendingEmail] = React.useState(false);
+  const [emailFeedback, setEmailFeedback] = React.useState<{
+    ok: boolean;
+    message: string;
+  } | null>(null);
+  const { locale, t } = useLanguage();
 
   const cs = report.closingStatement;
   const p = cs.payroll;
@@ -73,35 +207,112 @@ export function ReportsClientView({
   const comp = report.comparativeStatement;
   const amort = report.amortizationSchedule;
   const dos = report.dossier;
-
-  const updateUrlParam = (updates: Record<string, string>) => {
-    const params = new URLSearchParams(searchParams.toString());
-    for (const [k, v] of Object.entries(updates)) {
-      params.set(k, v);
-    }
-    startTransition(() => {
-      router.push(`${pathname}?${params.toString()}`);
-    });
-  };
+  const horizon = report.horizonMetrics;
 
   const handleScopeChange = (nextScope: ReportScope) => {
-    if (nextScope === report.scope) return;
-    updateUrlParam({ scope: nextScope });
+    if (nextScope === scope) return;
+    setScope(nextScope);
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      params.set("scope", nextScope);
+      const nextUrl = `${window.location.pathname}?${params.toString()}`;
+      window.history.replaceState(window.history.state, "", nextUrl);
+    }
   };
 
   const handleTabChange = (nextTab: ReportTab) => {
-    if (nextTab === activeTab) return;
-    updateUrlParam({ tab: nextTab });
+    if (nextTab === currentTab) return;
+    setCurrentTab(nextTab);
+    syncTabInUrl(nextTab);
+  };
+
+  const totalInDenominator = Math.max(1, mc.kpis.totalMoneyIn);
+  const debtRatioPct = Math.min(100, Math.round((mc.kpis.totalDebtAndBillsPaid / totalInDenominator) * 1000) / 10);
+  const livingRatioPct = Math.min(100, Math.round((mc.kpis.livingAndRoutineSpend / totalInDenominator) * 1000) / 10);
+  const savedRatioPct = uw.isDeficit
+    ? 0
+    : Math.max(0, Math.round((mc.kpis.netSavedAndLeftover / totalInDenominator) * 1000) / 10);
+
+  const handleExportExcel = async () => {
+    setIsExportingExcel(true);
+    try {
+      await exportExecutiveReportToExcel(report, report.profileMode);
+    } finally {
+      setIsExportingExcel(false);
+    }
+  };
+
+  const handleSendStatementEmail = async () => {
+    if (isSendingEmail) return;
+    setIsSendingEmail(true);
+    setEmailFeedback(null);
+    try {
+      const apiLocale = (locale?.toUpperCase() || "EN") as "EN" | "ID" | "ZH";
+      const res = await sendMonthlyStatementEmail({
+        month: cs.month,
+        year: cs.year,
+        scope: report.scope,
+        locale: apiLocale,
+      });
+      if (!res.success || !res.data) {
+        const msgParts = [res.error || "Failed to dispatch executive statement email."];
+        if (res.errorCode) {
+          msgParts.push(`[${res.errorCode}] Check SMTP settings in Preferences -> Kill Switch & SMTP.`);
+        }
+        setEmailFeedback({
+          ok: false,
+          message: msgParts.join(" "),
+        });
+        return;
+      }
+      const d = res.data;
+      setEmailFeedback({
+        ok: true,
+        message:
+          d.status === "SENT"
+            ? `Statement (${d.attachmentNames[0] || ".xlsx"}) sent to ${d.recipientEmail}.`
+            : `Preview generated for ${d.recipientEmail} (SMTP password unconfigured; ${d.attachmentNames[0] || ".xlsx"} prepared: ${(d.attachmentSizesBytes[0] ?? 0).toLocaleString("en-US")} bytes).`,
+      });
+    } finally {
+      setIsSendingEmail(false);
+    }
   };
 
   return (
     <div className="space-y-6 pb-10 print:space-y-4 print:pb-0">
+      {/* Executive A4 Print Masthead (visible only when printing / saving PDF) */}
+      <div className="hidden print:flex items-end justify-between border-b-2 border-[#111827] pb-3 mb-2">
+        <div className="flex items-center gap-3">
+          <BrandMark size={24} className="shrink-0" />
+          <div>
+            <div className="text-[10px] font-mono uppercase tracking-widest text-[#4b5563]">
+              Sunday Funday · Personal Financial Statement
+            </div>
+            <h1 className="font-display text-2xl font-normal text-[#111827] leading-tight">
+              {cs.periodLabel} Executive Cashflow &amp; Ledger Statement
+            </h1>
+          </div>
+        </div>
+        <div className="text-right font-mono text-[10px] text-[#374151] space-y-0.5 tabular-nums">
+          <div>
+            Account: <span className="font-semibold">Gabriel · Personal Workspace</span>
+          </div>
+          <div>
+            Period Status: <span className="font-semibold">{formatSnapshotStatusLabel(cs.status)}</span>
+          </div>
+          <div>
+            Statement Scope: <span className="font-semibold">{report.scope === "locked" ? "Closed Periods" : `All Periods (${comp.periodCount})`}</span>
+          </div>
+        </div>
+      </div>
+
       {/* Top Header & Action Controls */}
-      <div className="flex items-start justify-between gap-6 border-b border-border pb-5 print:pb-3">
-        <div>
-          <div className="flex items-center gap-3">
-            <h2 className="text-xl font-semibold tracking-tight text-text-primary">
-              Monthly Money Cycle & Financial Statement
+      <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4 border-b border-border pb-5 print-hidden">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <BrandMark size={20} className="shrink-0" />
+            <h2 className="text-lg sm:text-xl font-semibold tracking-tight text-text-primary">
+              {t("reports.title")}
             </h2>
             <span
               className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono ${
@@ -116,84 +327,144 @@ export function ReportsClientView({
             </span>
           </div>
           <p className="text-xs text-text-secondary mt-1">
-            End-to-end breakdown of what came in, what went to debt and routine bills, what you spent day-to-day, and what you kept.
+            {t("reports.subtitle")}
           </p>
         </div>
 
-        {/* Controls: Scope Filter + Print / PDF + 5-Sheet Excel Export */}
-        <div className="flex items-center gap-2.5 print-hidden">
-          <div className="inline-flex items-center rounded bg-surface p-0.5 border border-border">
+        {/* Controls: Scope Filter + Print / PDF + Email Statement + 5-Sheet Excel Export */}
+        <div className="flex flex-col items-end gap-2 print-hidden shrink-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex items-center rounded bg-surface p-0.5 border border-border">
+              <button
+                type="button"
+                onClick={() => handleScopeChange("all")}
+                className={`px-2.5 py-1 text-xs font-medium rounded-sm transition-colors cursor-pointer ${
+                  scope === "all"
+                    ? "bg-surface-elevated text-text-primary shadow-xs"
+                    : "text-text-tertiary hover:text-text-secondary"
+                }`}
+              >
+                All Months ({comp.periodCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => handleScopeChange("locked")}
+                className={`px-2.5 py-1 text-xs font-medium rounded-sm transition-colors cursor-pointer ${
+                  scope === "locked"
+                    ? "bg-surface-elevated text-text-primary shadow-xs"
+                    : "text-text-tertiary hover:text-text-secondary"
+                }`}
+              >
+                Closed Months Only
+              </button>
+            </div>
+            {isLoadingReport && (
+              <span className="text-[11px] font-mono text-text-tertiary">
+                Updating...
+              </span>
+            )}
+
             <button
               type="button"
-              onClick={() => handleScopeChange("all")}
-              disabled={isPending}
-              className={`px-2.5 py-1 text-xs font-medium rounded-sm transition-colors cursor-pointer ${
-                report.scope === "all"
-                  ? "bg-surface-elevated text-text-primary shadow-xs"
-                  : "text-text-tertiary hover:text-text-secondary"
-              }`}
+              onClick={() => window.print()}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium bg-surface hover:bg-surface-elevated text-text-secondary hover:text-text-primary border border-border transition-colors cursor-pointer"
             >
-              All Months ({comp.periodCount})
+              <Printer className="w-3.5 h-3.5" />
+              {t("reports.printPdf")}
             </button>
+
             <button
               type="button"
-              onClick={() => handleScopeChange("locked")}
-              disabled={isPending}
-              className={`px-2.5 py-1 text-xs font-medium rounded-sm transition-colors cursor-pointer ${
-                report.scope === "locked"
-                  ? "bg-surface-elevated text-text-primary shadow-xs"
-                  : "text-text-tertiary hover:text-text-secondary"
-              }`}
+              onClick={handleSendStatementEmail}
+              disabled={isSendingEmail}
+              title="Send 4-sheet .xlsx statement to your profile email"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium bg-surface hover:bg-surface-elevated text-text-primary border border-border transition-colors cursor-pointer disabled:opacity-60"
             >
-              Closed Months Only
+              <Mail className="w-3.5 h-3.5" />
+              {isSendingEmail ? "Sending..." : "Email Statement (.xlsx)"}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleExportExcel}
+              disabled={isExportingExcel}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded text-xs font-medium bg-text-primary text-canvas hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-60"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              {isExportingExcel ? t("reports.exportingExcel") : t("reports.downloadExcel")}
             </button>
           </div>
-
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium bg-surface hover:bg-surface-elevated text-text-secondary hover:text-text-primary border border-border transition-colors cursor-pointer"
-          >
-            <Printer className="w-3.5 h-3.5" />
-            Print / Save as PDF
-          </button>
-
-          <button
-            type="button"
-            onClick={() => exportExecutiveReportToExcel(report, report.profileMode)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded text-xs font-medium bg-text-primary text-canvas hover:opacity-90 transition-opacity cursor-pointer"
-          >
-            <FileSpreadsheet className="w-3.5 h-3.5" />
-            Export 5-Sheet Workbook (.xlsx)
-          </button>
+          {emailFeedback && (
+            <div
+              className={`text-[11px] font-mono px-2.5 py-1 rounded border ${
+                emailFeedback.ok
+                  ? "border-delta-positive/40 bg-[rgba(16,183,141,0.08)] text-delta-positive"
+                  : "border-urgency/40 bg-[rgba(255,56,56,0.08)] text-urgency"
+              }`}
+            >
+              {emailFeedback.message}
+            </div>
+          )}
         </div>
       </div>
 
       {/* Top Summary Strip (4 Plain-Language KPI Cards — ONLY Card 4 uses Centerpiece Newsreader serif) */}
-      <div className="grid grid-cols-4 gap-4 print:grid-cols-4 print-avoid-break">
+      {activeSubMode === "export" && (
+        <div className="rounded-lg border border-delta-positive/40 bg-[rgba(16,183,141,0.06)] p-4 flex flex-wrap items-center justify-between gap-4 print-hidden">
+          <div>
+            <div className="text-xs font-semibold text-text-primary">
+              4-Sheet Executive Excel (.xlsx) &amp; Live Gmail Statement Dispatch
+            </div>
+            <div className="text-[11px] text-text-secondary mt-0.5">
+              Includes Executive Summary, Due-Date &amp; Settlement Schedule, Active Contracts Burn-Down, and Line-Item Audit Ledger with live SUM/IF formulas.
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleSendStatementEmail}
+              disabled={isSendingEmail}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium bg-surface hover:bg-surface-elevated text-text-primary border border-border cursor-pointer"
+            >
+              <Mail className="w-3.5 h-3.5" />
+              {isSendingEmail ? "Sending..." : "Email Statement (.xlsx)"}
+            </button>
+            <button
+              type="button"
+              onClick={handleExportExcel}
+              disabled={isExportingExcel}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded text-xs font-medium bg-text-primary text-canvas hover:opacity-90 cursor-pointer"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              {isExportingExcel ? t("reports.exportingExcel") : t("reports.downloadExcel")}
+            </button>
+          </div>
+        </div>
+      )}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 print:grid-cols-4 print-avoid-break">
         <MetricCard
-          label="Total Money In"
+          label={t("reports.kpi.moneyIn")}
           value={formatIDR(mc.kpis.totalMoneyIn)}
           isCenterpiece={false}
           footer={`Take-home pay ${formatIDR(mc.kpis.netPaycheck)}${mc.kpis.extraInflow > 0 ? ` + Extra ${formatIDR(mc.kpis.extraInflow)}` : " · No extra income"}`}
         />
 
         <MetricCard
-          label="Total Debt & Bills Paid"
+          label={t("reports.kpi.debtBills")}
           value={formatIDR(mc.kpis.totalDebtAndBillsPaid)}
           isCenterpiece={false}
           footer={`${mc.kpis.debtShareOfIncomePercent}% of Money In (PayLater, CC & Personal Debt)`}
         />
 
         <MetricCard
-          label="Living & Routine Spend"
+          label={t("reports.kpi.livingCash")}
           value={formatIDR(mc.kpis.livingAndRoutineSpend)}
           isCenterpiece={false}
           footer={`Routine bills ${formatIDR(uw.fixedEssentialsActual)} + Daily living ${formatIDR(uw.actualDailyOperational)}${uw.manualDeductions > 0 ? ` + Logged spend ${formatIDR(uw.manualDeductions)}` : ""}`}
         />
 
         <MetricCard
-          label={`Net Saved & Leftover (${cs.periodLabel})`}
+          label={`${t("reports.kpi.netSaved")} (${cs.periodLabel})`}
           value={
             uw.isDeficit
               ? `-${formatIDR(uw.deficitUncovered)}`
@@ -208,38 +479,145 @@ export function ReportsClientView({
         />
       </div>
 
+      {/* Paycheck Allocation Ratio Breakdown Strip */}
+      <div className="rounded-lg border border-border bg-surface p-3.5 sm:p-4 space-y-2.5 print-avoid-break">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+          <span className="font-medium text-text-primary">
+            {t("reports.allocationStrip")} ({cs.periodLabel})
+          </span>
+          <div className="flex flex-wrap items-center gap-3 text-[11px] font-mono tabular-nums text-text-secondary">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-xs bg-delta-negative" />
+              Debt {debtRatioPct}%
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-xs bg-caution" />
+              Living {livingRatioPct}%
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-xs bg-delta-positive" />
+              Saved {savedRatioPct}%
+            </span>
+          </div>
+        </div>
+        <div className="h-2.5 w-full rounded bg-surface-subtle overflow-hidden flex">
+          {debtRatioPct > 0 && (
+            <div
+              className="h-full bg-delta-negative"
+              style={{ width: `${debtRatioPct}%` }}
+              title={`Debt & Bills: ${debtRatioPct}%`}
+            />
+          )}
+          {livingRatioPct > 0 && (
+            <div
+              className="h-full bg-caution"
+              style={{ width: `${livingRatioPct}%` }}
+              title={`Living & Routine Bills: ${livingRatioPct}%`}
+            />
+          )}
+          {savedRatioPct > 0 && (
+            <div
+              className="h-full bg-delta-positive"
+              style={{ width: `${savedRatioPct}%` }}
+              title={`Net Saved: ${savedRatioPct}%`}
+            />
+          )}
+        </div>
+
+        {/* Executive Health Ratios & Burn-Down Velocity */}
+        {horizon && (
+          <div className="pt-2.5 border-t border-border-subtle grid grid-cols-2 lg:grid-cols-5 gap-3 text-xs font-mono tabular-nums">
+            <div>
+              <div className="text-[10px] uppercase text-text-tertiary">DSR Ratio</div>
+              <div className="font-semibold text-text-primary mt-0.5">
+                {horizon.dsrPercent}%
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] uppercase text-text-tertiary">Net Savings Rate</div>
+              <div className="font-semibold text-delta-positive mt-0.5">
+                {horizon.netSavingsRatePercent}%
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] uppercase text-text-tertiary">Debt Burn-Down</div>
+              <div className="font-semibold text-text-primary mt-0.5">
+                {formatIDR(horizon.debtBurnDownVelocityRp)}/mo
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] uppercase text-text-tertiary">Effective Living / Day</div>
+              <div className="font-semibold text-text-primary mt-0.5">
+                {formatIDR(horizon.effectiveDailyLivingRate)}
+              </div>
+            </div>
+            <div className="col-span-2 lg:col-span-1">
+              <div className="text-[10px] uppercase text-text-tertiary">Next Cashflow Unlock</div>
+              <div className="font-semibold text-delta-positive mt-0.5 truncate" title={horizon.nextMilestoneLabel}>
+                {horizon.nextMilestoneLabel}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Tab Navigation Bar */}
       <div className="flex items-center justify-between border-b border-border print-hidden">
-        <div className="flex items-center gap-6">
-          {TABS.map((t) => {
-            const active = activeTab === t.id;
+        <div
+          role="tablist"
+          aria-label="Executive report sections"
+          className="flex items-center gap-5 sm:gap-6 overflow-x-auto no-scrollbar whitespace-nowrap"
+        >
+          {TABS.map((tab, idx) => {
+            const active = currentTab === tab.id;
             return (
               <button
-                key={t.id}
+                key={tab.id}
+                ref={(el) => {
+                  tabRefs.current[idx] = el;
+                }}
+                id={`reports-tab-${tab.id}`}
+                role="tab"
                 type="button"
-                onClick={() => handleTabChange(t.id)}
-                className={`pb-3 text-xs font-medium transition-colors border-b-2 -mb-px cursor-pointer ${
+                aria-selected={active}
+                aria-controls={`reports-panel-${tab.id}`}
+                tabIndex={active ? 0 : -1}
+                onClick={() => handleTabChange(tab.id)}
+                onKeyDown={(e) =>
+                  handleTabListKeyDown(
+                    e,
+                    TABS.map((x) => x.id),
+                    idx,
+                    handleTabChange,
+                    tabRefs,
+                  )
+                }
+                className={`pb-3 text-xs font-medium transition-colors border-b-2 -mb-px cursor-pointer shrink-0 ${
                   active
-                    ? "border-text-primary text-text-primary"
+                    ? "border-accent text-text-primary"
                     : "border-transparent text-text-tertiary hover:text-text-secondary"
                 }`}
               >
-                {t.label}
+                {t(tab.labelKey, tab.fallback)}
               </button>
             );
           })}
         </div>
-        {isPending && (
-          <span className="text-[11px] font-mono text-text-tertiary pb-2">
-            Updating view...
-          </span>
-        )}
       </div>
 
+      <div className="relative">
       {/* =====================================================================
           TAB 1 (MAIN VIEW): MONTHLY MONEY CYCLE
          ===================================================================== */}
-      {activeTab === "statement" && (
+      <div
+        role="tabpanel"
+        id="reports-panel-statement"
+        aria-labelledby="reports-tab-statement"
+        data-active={currentTab === "statement" ? "true" : "false"}
+        aria-hidden={currentTab !== "statement"}
+        inert={currentTab !== "statement"}
+        className="tab-panel"
+      >
         <div className="space-y-6">
           {/* 2. "Where Your Money Went & Why This Month Changed" (Deterministic Driver & Spike Callout) */}
           <section className="bg-surface border border-border rounded-lg overflow-hidden print-avoid-break">
@@ -261,9 +639,9 @@ export function ReportsClientView({
               </span>
             </div>
 
-            <div className="p-5 grid grid-cols-12 gap-6 text-xs">
+            <div className="p-4 sm:p-5 grid grid-cols-1 lg:grid-cols-12 gap-6 text-xs">
               {/* Left: Biggest Cost Drivers */}
-              <div className="col-span-6 space-y-3 pr-2 border-r border-border-subtle">
+              <div className="col-span-1 lg:col-span-6 space-y-3 lg:pr-4 lg:border-r border-border-subtle">
                 <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
                   Biggest Cost Drivers in {cs.periodLabel}
                 </div>
@@ -298,7 +676,7 @@ export function ReportsClientView({
               </div>
 
               {/* Right: Month-over-Month Spikes & Mid-Month Budget Edits */}
-              <div className="col-span-6 space-y-3">
+              <div className="col-span-1 lg:col-span-6 space-y-3">
                 <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
                   What Changed vs.{" "}
                   {mc.driversAndSpikes.previousPeriodLabel ?? "Baseline Plan"}
@@ -369,7 +747,7 @@ export function ReportsClientView({
               </span>
             </div>
 
-            <div className="grid grid-cols-4 divide-x divide-border text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border text-xs">
               {/* Checklist 1 */}
               <div className="p-4 flex flex-col justify-between space-y-3">
                 <div className="space-y-1.5">
@@ -590,8 +968,8 @@ export function ReportsClientView({
               </span>
             </div>
 
-            <div className="grid grid-cols-12 divide-x divide-border text-xs">
-              <div className="col-span-7 divide-y divide-border-subtle">
+            <div className="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-border text-xs">
+              <div className="col-span-1 lg:col-span-7 divide-y divide-border-subtle">
                 <div className="px-5 py-2.5 flex items-center justify-between">
                   <span className="text-text-secondary">Base Salary</span>
                   <span className="font-mono text-text-primary">
@@ -648,7 +1026,7 @@ export function ReportsClientView({
                 </div>
               </div>
 
-              <div className="col-span-5 flex flex-col justify-between divide-y divide-border-subtle">
+              <div className="col-span-1 lg:col-span-5 flex flex-col justify-between divide-y divide-border-subtle">
                 <div className="p-5 space-y-2.5">
                   <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
                     Bonus, THR & Extra Income
@@ -708,7 +1086,7 @@ export function ReportsClientView({
             </div>
 
             {/* 4 Debt Buckets Summary Bar */}
-            <div className="grid grid-cols-4 divide-x divide-border-subtle border-b border-border bg-surface-subtle/30 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border-subtle border-b border-border bg-surface-subtle/30 text-xs">
               <div className="px-5 py-3">
                 <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
                   PayLater Statement (Due {mc.paydayChecklist.paylaterDueDay}th)
@@ -1129,8 +1507,8 @@ export function ReportsClientView({
               </span>
             </div>
 
-            <div className="p-5 grid grid-cols-12 gap-6 text-xs">
-              <div className="col-span-7 space-y-3 pr-2 border-r border-border-subtle">
+            <div className="p-4 sm:p-5 grid grid-cols-1 lg:grid-cols-12 gap-6 text-xs">
+              <div className="col-span-1 lg:col-span-7 space-y-3 lg:pr-4 lg:border-r border-border-subtle">
                 <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
                   Period Savings & Surplus Allocation
                 </div>
@@ -1195,7 +1573,7 @@ export function ReportsClientView({
                 </div>
               </div>
 
-              <div className="col-span-5 flex flex-col justify-between space-y-3">
+              <div className="col-span-1 lg:col-span-5 flex flex-col justify-between space-y-3">
                 <div className="space-y-2.5">
                   <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
                     Savings Vault Sub-Allocation (Cumulative Balance)
@@ -1234,12 +1612,20 @@ export function ReportsClientView({
             </div>
           </section>
         </div>
-      )}
+      </div>
 
       {/* =====================================================================
           TAB 2: MONTH-TO-MONTH COMPARISON
          ===================================================================== */}
-      {activeTab === "comparative" && (
+      <div
+        role="tabpanel"
+        id="reports-panel-comparative"
+        aria-labelledby="reports-tab-comparative"
+        data-active={currentTab === "comparative" ? "true" : "false"}
+        aria-hidden={currentTab !== "comparative"}
+        inert={currentTab !== "comparative"}
+        className="tab-panel"
+      >
         <div className="bg-surface border border-border rounded-lg overflow-hidden">
           <div className="px-5 py-3.5 border-b border-border flex items-center justify-between">
             <div>
@@ -1287,26 +1673,40 @@ export function ReportsClientView({
                   return (
                     <tr
                       key={`${row.month}-${row.year}`}
-                      className={
+                      onClick={() => setDrillDownTarget({ row, filter: "ALL" })}
+                      className={`cursor-pointer transition-colors ${
                         isSelected
                           ? "bg-surface-elevated/60"
-                          : "hover:bg-surface-subtle/30"
-                      }
+                          : "hover:bg-surface-subtle/50"
+                      }`}
+                      title="Click any period row or category cell to inspect itemized drill-down"
                     >
-                      <td className="py-2.5 px-4 font-mono font-medium text-text-primary">
+                      <td className="py-2.5 px-4 font-mono font-medium text-text-primary underline decoration-dotted underline-offset-4 whitespace-nowrap">
                         {row.periodLabel}
                       </td>
-                      <td className="py-2.5 px-3 text-text-secondary">
+                      <td className="py-2.5 px-3 text-text-secondary whitespace-nowrap">
                         {row.status === "LOCKED" ? "Closed" : "Draft"}
                       </td>
-                      <td className="py-2.5 px-4 text-right font-mono text-text-primary">
+                      <td
+                        className="py-2.5 px-4 text-right font-mono text-text-primary hover:underline whitespace-nowrap"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDrillDownTarget({ row, filter: "INCOME" });
+                        }}
+                      >
                         {formatIDR(row.finalTotalIncome)}
                       </td>
-                      <td className="py-2.5 px-4 text-right font-mono text-text-primary">
+                      <td
+                        className="py-2.5 px-4 text-right font-mono text-text-primary hover:underline whitespace-nowrap"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDrillDownTarget({ row, filter: "DEBT" });
+                        }}
+                      >
                         {formatIDR(row.creditBillsAmount)}
                       </td>
                       <td
-                        className={`py-2.5 px-3 text-right font-mono ${
+                        className={`py-2.5 px-3 text-right font-mono whitespace-nowrap ${
                           row.creditDebtRatioPercent > 35
                             ? "text-negative"
                             : row.creditDebtRatioPercent > 20
@@ -1316,17 +1716,37 @@ export function ReportsClientView({
                       >
                         {row.creditDebtRatioPercent}%
                       </td>
-                      <td className="py-2.5 px-4 text-right font-mono text-text-secondary">
+                      <td
+                        className="py-2.5 px-4 text-right font-mono text-text-secondary hover:underline whitespace-nowrap"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDrillDownTarget({ row, filter: "LIVING" });
+                        }}
+                      >
                         {formatIDR(row.routineAndDailyLivingAmount)}
                       </td>
-                      <td className="py-2.5 px-4 text-right font-mono text-positive">
+                      <td
+                        className="py-2.5 px-4 text-right font-mono text-positive hover:underline whitespace-nowrap"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDrillDownTarget({ row, filter: "SAVINGS" });
+                        }}
+                      >
                         {formatIDR(row.actualSavings)}
                       </td>
-                      <td className="py-2.5 px-4 text-right font-mono text-text-secondary">
+                      <td
+                        className="py-2.5 px-4 text-right font-mono text-text-secondary hover:underline whitespace-nowrap"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDrillDownTarget({ row, filter: "SELF_REWARD" });
+                        }}
+                      >
                         {formatIDR(row.selfReward)}
                       </td>
                       <td className="py-2.5 px-5 font-mono text-[11px] text-text-secondary">
-                        {row.changeVsLastMonthSummary}
+                        {horizon?.periodDrivers.find(
+                          (d) => d.month === row.month && d.year === row.year
+                        )?.narrativeDriver ?? row.changeVsLastMonthSummary}
                       </td>
                     </tr>
                   );
@@ -1368,14 +1788,24 @@ export function ReportsClientView({
             </table>
           </div>
         </div>
-      )}
+
+        <AnalyticsGoTelemetryStrip />
+      </div>
 
       {/* =====================================================================
           TAB 3: DEBT & INSTALLMENT PAYOFF SCHEDULE
          ===================================================================== */}
-      {activeTab === "amortization" && (
+      <div
+        role="tabpanel"
+        id="reports-panel-amortization"
+        aria-labelledby="reports-tab-amortization"
+        data-active={currentTab === "amortization" ? "true" : "false"}
+        aria-hidden={currentTab !== "amortization"}
+        inert={currentTab !== "amortization"}
+        className="tab-panel"
+      >
         <div className="space-y-5">
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-surface border border-border rounded-lg p-4">
               <div className="text-[10px] uppercase tracking-wider text-text-tertiary">
                 12-Month Forward Debt Total
@@ -1547,13 +1977,23 @@ export function ReportsClientView({
             </div>
           </div>
         </div>
-      )}
+      </div>
 
       {/* =====================================================================
           TAB 4: BUDGET EDITS & AUDIT HISTORY
          ===================================================================== */}
-      {activeTab === "dossier" && (
+      <div
+        role="tabpanel"
+        id="reports-panel-dossier"
+        aria-labelledby="reports-tab-dossier"
+        data-active={currentTab === "dossier" ? "true" : "false"}
+        aria-hidden={currentTab !== "dossier"}
+        inert={currentTab !== "dossier"}
+        className="tab-panel"
+      >
         <div className="space-y-6">
+          <ReportsAuditEmbed />
+
           {/* Chronological Mid-Month Budget Edits Log */}
           <div className="bg-surface border border-border rounded-lg overflow-hidden">
             <div className="px-5 py-3.5 border-b border-border flex items-center justify-between">
@@ -1723,12 +2163,21 @@ export function ReportsClientView({
             </div>
           )}
         </div>
-      )}
+      </div>
 
       {/* =====================================================================
           TAB 5: NEXT 3 MONTHS FORECAST
          ===================================================================== */}
-      {activeTab === "forecast" && report.liquidityForecast && (
+      <div
+        role="tabpanel"
+        id="reports-panel-forecast"
+        aria-labelledby="reports-tab-forecast"
+        data-active={currentTab === "forecast" ? "true" : "false"}
+        aria-hidden={currentTab !== "forecast"}
+        inert={currentTab !== "forecast"}
+        className="tab-panel"
+      >
+        {report.liquidityForecast && (
         <div className="space-y-6">
           <div
             className={`p-4 rounded-lg border flex items-start justify-between gap-4 ${
@@ -1788,7 +2237,7 @@ export function ReportsClientView({
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
             {report.liquidityForecast.months.map((m) => (
               <div
                 key={`${m.year}-${m.month}`}
@@ -1956,7 +2405,17 @@ export function ReportsClientView({
             ))}
           </div>
         </div>
-      )}
+        )}
+      </div>
+      </div>
+
+      <ReportDrillDownDrawer
+        isOpen={Boolean(drillDownTarget)}
+        onClose={() => setDrillDownTarget(null)}
+        periodRow={drillDownTarget?.row ?? null}
+        categoryFilter={drillDownTarget?.filter ?? "ALL"}
+        report={report}
+      />
     </div>
   );
 }

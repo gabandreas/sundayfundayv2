@@ -1,71 +1,97 @@
 "use client";
 
 import React, { Suspense } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu } from "lucide-react";
+import { BookOpen, Menu } from "lucide-react";
 import { MonthYearSwitcher } from "./MonthYearSwitcher";
 import { GlobalSearchModal } from "./GlobalSearchModal";
 import { AccountHeaderBadge } from "./AccountHeaderBadge";
+import { LanguageSwitcher } from "./LanguageSwitcher";
+import { BrandMark } from "@/components/primitives/BrandMark";
+import { TranslationKey, useLanguage } from "@/context/LanguageContext";
 
-const ROUTE_TITLES: Record<string, { title: string; category: string }> = {
-  "/": { title: "Overview", category: "Dashboard" },
-  "/payroll": { title: "Payroll & Income", category: "Engine" },
-  "/allocations": { title: "Waterfall Allocations", category: "Engine" },
-  "/credit": { title: "Liabilities & Credit", category: "Engine" },
-  "/savings": { title: "Savings & Reservoirs", category: "Engine" },
-  "/ledger": { title: "Transaction Ledger", category: "Engine" },
-  "/wishlist": { title: "Wishlist Simulator", category: "Decision" },
-  "/audit": { title: "Discipline Audit", category: "Audit" },
-  "/analytics": { title: "Analytics", category: "Audit" },
-  "/reports": { title: "Reports & Statements", category: "Audit" },
-  "/preferences": { title: "Preferences", category: "System" },
-  "/admin": { title: "Platform Admin Console", category: "System" },
-  "/admin/sql": { title: "Superadmin SQL Query Studio", category: "System" },
-  "/dev/components": { title: "Design System Primitives", category: "Spec" },
+const ROUTE_TITLE_KEYS: Record<string, { titleKey: TranslationKey; catKey: TranslationKey }> = {
+  "/": { titleKey: "nav.overview", catKey: "cat.dashboard" },
+  "/payday-wizard": { titleKey: "nav.paydayWizard", catKey: "cat.engine" },
+  "/calendar": { titleKey: "nav.cashRadar", catKey: "cat.engine" },
+  "/payroll": { titleKey: "nav.payroll", catKey: "cat.engine" },
+  "/allocations": { titleKey: "nav.allocations", catKey: "cat.engine" },
+  "/credit": { titleKey: "nav.credit", catKey: "cat.engine" },
+  "/savings": { titleKey: "nav.savings", catKey: "cat.engine" },
+  "/ledger": { titleKey: "nav.ledger", catKey: "cat.engine" },
+  "/marquee": { titleKey: "nav.marquee", catKey: "cat.decision" },
+  "/wishlist": { titleKey: "nav.wishlist", catKey: "cat.decision" },
+  "/audit": { titleKey: "nav.audit", catKey: "cat.audit" },
+  "/analytics": { titleKey: "nav.analytics", catKey: "cat.audit" },
+  "/reports": { titleKey: "nav.reports", catKey: "cat.audit" },
+  "/subscriptions": { titleKey: "nav.subscriptions", catKey: "cat.system" },
+  "/guide": { titleKey: "nav.guide", catKey: "cat.system" },
+  "/preferences": { titleKey: "nav.preferences", catKey: "cat.system" },
+  "/admin": { titleKey: "nav.admin", catKey: "cat.system" },
+  "/admin/sql": { titleKey: "header.adminSql", catKey: "cat.system" },
 };
 
 export function AppHeader({ onToggleMobileDrawer }: { onToggleMobileDrawer?: () => void }) {
   const pathname = usePathname();
+  const { t } = useLanguage();
 
-  const routeInfo = ROUTE_TITLES[pathname] || {
-    title: pathname.replace("/", ""),
-    category: "View",
-  };
+  const keys = ROUTE_TITLE_KEYS[pathname];
+  const category = keys ? t(keys.catKey) : t("cat.view");
+  const title = keys ? t(keys.titleKey) : pathname.replace("/", "");
 
   return (
-    <header className="h-14 border-b border-border bg-canvas/80 px-4 sm:px-6 lg:px-8 flex items-center justify-between shrink-0 select-none">
-      {/* Left Zone: Route breadcrumb + Mobile Drawer Trigger */}
-      <div className="flex items-center gap-2.5 text-xs font-sans min-w-[180px]">
+    <header className="print-hidden relative z-30 h-14 border-b border-border bg-canvas/95 px-3 sm:px-6 lg:px-8 flex items-center justify-between gap-2 shrink-0 select-none">
+      {/* Left Zone: Route breadcrumb + Mobile Drawer Trigger + Mobile BrandMark */}
+      <div className="flex items-center gap-2 text-xs font-sans min-w-0 lg:min-w-[180px]">
         {onToggleMobileDrawer && (
           <button
             type="button"
             onClick={onToggleMobileDrawer}
-            className="lg:hidden p-1.5 -ml-1.5 rounded text-text-secondary hover:text-text-primary hover:bg-surface transition-colors cursor-pointer"
-            title="Open navigation menu"
-            aria-label="Open navigation menu"
+            className="lg:hidden p-1.5 -ml-1 rounded text-text-secondary hover:text-text-primary hover:bg-surface transition-colors cursor-pointer shrink-0"
+            title={t("header.openMenu")}
+            aria-label={t("header.openMenu")}
           >
             <Menu className="w-5 h-5" />
           </button>
         )}
-        <span className="hidden sm:inline text-text-tertiary font-normal">
-          {routeInfo.category}
+        <span className="lg:hidden shrink-0 inline-flex items-center">
+          <BrandMark size={20} />
         </span>
-        <span className="hidden sm:inline text-border-strong select-none">/</span>
-        <h1 className="font-medium text-text-primary tracking-tight">
-          {routeInfo.title}
+        <span className="hidden sm:inline text-text-tertiary font-normal shrink-0">
+          {category}
+        </span>
+        <span className="hidden sm:inline text-border-strong select-none shrink-0">/</span>
+        <h1 className="font-medium text-text-primary tracking-tight truncate">
+          {title}
         </h1>
       </div>
 
       {/* Center Zone: Quick Global Search Input */}
-      <div className="flex-1 flex justify-center px-4">
+      <div className="hidden md:flex flex-1 justify-center px-2 lg:px-4 min-w-0">
         <GlobalSearchModal />
       </div>
 
-      {/* Right Zone: Period Capsule Navigator + Account Profile */}
-      <div className="flex items-center gap-3 justify-end min-w-[240px]">
+      {/* Right Zone: Language + Guide + Period Capsule Navigator + Account Profile */}
+      <div className="flex items-center gap-1.5 sm:gap-2.5 justify-end min-w-0 lg:min-w-[260px] shrink-0">
+        <div className="hidden sm:flex items-center gap-1.5">
+          <LanguageSwitcher compact />
+          <Link
+            href="/guide"
+            title={t("nav.guide")}
+            aria-label={t("nav.guide")}
+            className={`h-8 w-8 rounded border flex items-center justify-center transition-colors ${
+              pathname === "/guide"
+                ? "border-accent/50 bg-accent/[0.08] text-text-primary"
+                : "border-border bg-surface text-text-tertiary hover:text-text-primary hover:border-border-strong"
+            }`}
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+          </Link>
+        </div>
         <Suspense
           fallback={
-            <div className="h-8 w-28 sm:w-44 rounded-md bg-surface border border-border animate-pulse" />
+            <div className="h-8 w-24 sm:w-40 rounded-md bg-surface border border-border animate-pulse" />
           }
         >
           <MonthYearSwitcher />

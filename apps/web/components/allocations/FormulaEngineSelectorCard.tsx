@@ -90,7 +90,7 @@ export function FormulaEngineSelectorCard() {
     }
   }, [formulaEngineType, formulaParamsJson]);
 
-  const isOwnerProtected = user?.id === 1 && user?.role === "PLATFORM_OWNER";
+  const isOwnerProtected = user?.id === 1 && user?.blueprintType === "SUPERADMIN_BESPOKE";
 
   const handleApplyEngine = async () => {
     if (isOwnerProtected && selectedEngine !== "DEBT_FIRST_WATERFALL") {
@@ -152,7 +152,7 @@ export function FormulaEngineSelectorCard() {
               onClick={() => setSelectedEngine(eng.key)}
               className={`p-3.5 rounded border text-left transition-colors flex flex-col justify-between ${
                 isSelected
-                  ? "border-text-primary bg-surface-subtle"
+                  ? "border-accent/50 bg-accent/[0.06] ring-1 ring-accent/20"
                   : "border-border bg-surface hover:bg-surface-subtle/50"
               }`}
             >

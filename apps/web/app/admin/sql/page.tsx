@@ -133,7 +133,7 @@ export default function SqlStudioPage() {
   }, []);
 
   useEffect(() => {
-    if (user && user.role === "PLATFORM_OWNER" && user.id === 1) {
+    if (user && user.role === "SUPERADMIN") {
       loadTables();
     }
   }, [user, loadTables]);
@@ -301,15 +301,15 @@ export default function SqlStudioPage() {
   };
 
   // Access Guard
-  if (!authLoading && (!user || user.role !== "PLATFORM_OWNER" || user.id !== 1)) {
+  if (!authLoading && (!user || user.role !== "SUPERADMIN")) {
     return (
       <div className="min-h-screen bg-canvas flex flex-col items-center justify-center p-6 text-center select-none">
         <div className="w-full max-w-md p-8 rounded-xl border border-negative/30 bg-surface shadow-2xl space-y-4">
           <ShieldAlert className="w-12 h-12 text-negative mx-auto" />
           <h2 className="text-xl font-serif text-text-primary">Access Restricted</h2>
           <p className="text-xs text-text-secondary leading-relaxed">
-            The Superadmin SQL Query & E2E Data Studio is exclusively reserved for the Platform
-            Owner (ID: 1). Non-superadmin tenants cannot access this workspace.
+            The Superadmin SQL Query & E2E Data Studio is exclusively reserved for SUPERADMIN
+            accounts. Consumer and demo accounts cannot access this workspace.
           </p>
           <Link
             href="/"
