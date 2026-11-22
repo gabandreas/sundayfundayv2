@@ -617,7 +617,7 @@ async function runLayer2DemoSandboxFuzz(baseUrl: string): Promise<void> {
     );
   }
   const u1NovAfter = await apiReq(baseUrl, u1Session, 'GET', '/api/snapshots?month=11&year=2026');
-  assert.equal(Math.round(u1NovAfter.data.totalDeductions), 4187341, 'User #1 data altered after IDOR test!');
+  assert.equal(Math.round(u1NovAfter.data.totalDeductions), 4522976, 'User #1 data altered after IDOR test!');
 
   // 11. Regression test for POST /api/auth/reset-demo (must wipe LiabilityLineItems & restore full Rp 1,805,000+ baseline)
   const wipeProbe = await apiReq(baseUrl, guestSession, 'POST', '/api/credit/line-items', {
@@ -760,21 +760,31 @@ async function runLayer3User1ReadOnlyParity(baseUrl: string): Promise<void> {
       `${m}/${y} pacing budget (${p.totalOperationalBudget}) != snapshot.actualDailyOperational (${s.actualDailyOperational})`,
     );
     assert.equal(
-      Math.round(pay.finalTotalIncome + (s.bridgeInflowAmount ?? 0)),
+      Math.round(pay.finalTotalIncome),
       Math.round(s.finalTotalIncome),
       `${m}/${y} payroll income mismatch vs snapshot`,
     );
     assert.equal(intel.networth.monthlyRdpuYieldRp, 0, `${m}/${y} User #1 must have 0 Rp RDPU yield`);
 
     if (m === 11 && y === 2026) {
+      assert.equal(Math.round(s.finalTotalIncome), 5891000);
+      assert.equal(Math.round(s.totalDeductions), 4522976);
+      assert.equal(Math.round(s.actualDailyOperational), 1720316);
+      assert.equal(Math.round(s.deficitUncovered), 0);
+      assert.equal(Math.round(s.actualSavings), 6341);
+      assert.equal(Math.round(s.selfReward), 250000);
+      assert.equal(Math.round(p.remainingBudget), 300000);
+      assert.ok(p.safeToSpendToday > 0, `User #1 11/2026 safeToSpendToday must be > 0, got ${p.safeToSpendToday}`);
+    }
+    if (m === 12 && y === 2026) {
       assert.equal(Math.round(s.totalDeductions), 4187341);
       assert.equal(Math.round(s.actualDailyOperational), 1416659);
       assert.equal(Math.round(s.deficitUncovered), 83341);
       assert.equal(Math.round(s.actualSavings), 0);
-      assert.ok(p.safeToSpendToday > 0, `User #1 11/2026 safeToSpendToday must be > 0, got ${p.safeToSpendToday}`);
+      assert.ok(p.safeToSpendToday > 0, `User #1 12/2026 safeToSpendToday must be > 0, got ${p.safeToSpendToday}`);
       assert.ok(
         ['PRE_PAYDAY', 'ACTIVE', 'COMPLETED'].includes(p.cycleTemporalState),
-        `User #1 11/2026 must report valid cycleTemporalState, got ${p.cycleTemporalState}`,
+        `User #1 12/2026 must report valid cycleTemporalState, got ${p.cycleTemporalState}`,
       );
     }
   }
