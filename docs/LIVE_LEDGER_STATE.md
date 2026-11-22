@@ -1,6 +1,6 @@
 # Live Ledger State (`userId = 1` / Gabriel)
 
-Generated from Neon PostgreSQL Cloud at 2026-11-22T04:21:57.142Z.
+Generated from Neon PostgreSQL Cloud at 2026-11-22T05:41:04.922Z.
 Regenerate anytime via `npm run erp:report -- --write`.
 
 ## Global Configuration

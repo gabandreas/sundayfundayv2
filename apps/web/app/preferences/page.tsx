@@ -114,7 +114,7 @@ export default async function PreferencesPage({
           Modular ERP Configuration Studio
         </h1>
         <p className="text-xs font-sans text-text-tertiary mt-1">
-          Table-driven paycycle &amp; waterfall formulas, payment instrument cutoffs, asset reservoirs, routine rollover templates, sidebar shortcut builder, and SMTP guard.
+          Table-driven paycycle &amp; waterfall formulas, payment instrument cutoffs, cash accounts &amp; vaults, routine rollover templates, sidebar shortcut builder, and SMTP guard.
         </p>
       </div>
 

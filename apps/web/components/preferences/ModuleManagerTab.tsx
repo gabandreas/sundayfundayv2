@@ -113,7 +113,7 @@ export function ModuleManagerTab({ config }: ModuleManagerTabProps) {
               </span>
             </div>
             <p className="text-xs text-text-tertiary mt-1.5">
-              Full 3-column Overview dashboard, granular pacing telemetry, 12-month liability matrix, and modular bucket breakdowns.
+              Full Overview dashboard, daily safe-to-spend pacing, 12-month liability matrix, and modular bucket breakdowns.
             </p>
           </button>
 

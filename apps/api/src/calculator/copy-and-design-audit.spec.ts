@@ -45,6 +45,35 @@ describe('System-Wide Anti-AI-Slop Visual Design, Temporal Chart Axis & Human Co
     const debtTimeline = fs.readFileSync(debtTimelinePath, 'utf8');
     expect(debtTimeline).toContain('Active Installment Plans');
     expect(debtTimeline).not.toContain('Amortization & Payoff Progress Lanes');
+
+    const activeContractsHub = fs.readFileSync(
+      path.join(WEB_DIR, 'components', 'credit', 'contracts', 'ActiveContractsHub.tsx'),
+      'utf8',
+    );
+    expect(activeContractsHub).toContain('Active Installment Plans');
+
+    const webUserCopyFiles = [
+      ...collectFiles(path.join(WEB_DIR, 'app'), ['.tsx']),
+      ...collectFiles(path.join(WEB_DIR, 'components'), ['.tsx']),
+    ];
+    const jargonCopyPatterns = [
+      /\basset reservoirs\b/i,
+      /\bnet worth reservoirs\b/i,
+      /\bpacing telemetry\b/i,
+      /\bgovernance dossier\b/i,
+      /\bcontract amortization\b/i,
+      /\bAmortized periodic goals\b/i,
+    ];
+    for (const file of webUserCopyFiles) {
+      const content = fs.readFileSync(file, 'utf8');
+      const rel = path.relative(REPO_ROOT, file);
+      for (const rx of jargonCopyPatterns) {
+        expect({ file: rel, jargon: content.match(rx)?.[0] ?? null }).toEqual({
+          file: rel,
+          jargon: null,
+        });
+      }
+    }
   });
 
   it('bans robotic AI transition phrases, sycophantic filler, and decorative emojis across UI and Marquee source', () => {

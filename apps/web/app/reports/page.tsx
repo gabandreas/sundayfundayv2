@@ -58,7 +58,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
             Executive Financial Reports & Statements
           </h1>
           <p className="text-xs font-sans text-text-secondary mt-1">
-            Formal period closing statement, comparative variance matrix, 12-month debt schedule, and governance dossier.
+            Formal period closing statement, comparative variance matrix, 12-month debt schedule, and budget edit history.
           </p>
         </div>
         <div className="p-8 border border-border-subtle border-dashed rounded-lg text-center text-text-secondary text-sm">

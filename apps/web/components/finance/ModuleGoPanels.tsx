@@ -215,7 +215,7 @@ export function EnvelopesAndSinkingPanel({
           <div className="font-mono text-xl font-semibold text-text-primary mt-1 tabular-nums">
             {formatRupiah(env.totalSinkingMonthlyRp, isAmountsMasked)}/mo
           </div>
-          <div className="text-[11px] text-text-tertiary mt-1">Amortized periodic goals</div>
+          <div className="text-[11px] text-text-tertiary mt-1">Staged monthly targets</div>
         </div>
       </div>
 
@@ -569,7 +569,7 @@ export function BulkStatementReconcilerPanel({
   );
 }
 
-// 5. Net Worth & Asset Reservoirs Panel (/savings?sub=networth)
+// 5. Net Worth & Cash Vaults Panel (/savings?sub=networth)
 export function NetWorthReservoirsPanel({
   intel,
 }: {

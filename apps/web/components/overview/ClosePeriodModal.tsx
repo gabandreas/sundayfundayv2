@@ -309,7 +309,7 @@ export function ClosePeriodModal({
                     Close Financial Period: {month}/{year}
                   </h3>
                   <p className="text-xs font-sans text-text-tertiary mt-0.5">
-                    Irreversible snapshot finalization, contract amortization, and optional Vault transfer.
+                    Irreversible snapshot finalization, installment balance update, and optional Vault transfer.
                   </p>
                 </div>
               </div>

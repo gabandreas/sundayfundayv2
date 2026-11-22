@@ -185,7 +185,7 @@ export function SavingsClientView({
             {t("nav.savings")}
           </h1>
           <p className="text-xs font-sans text-text-secondary mt-1">
-            Multi-account net worth reservoirs, 12-month wealth &amp; runway forecaster, and P1 vault reconciliation.
+            Cash, debt, and P1 vault balances, 12-month wealth &amp; runway forecaster, and forward-borrow reconciliation.
           </p>
         </div>
         <div className="flex items-center gap-3">

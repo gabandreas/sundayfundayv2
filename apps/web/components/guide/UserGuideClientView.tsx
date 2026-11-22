@@ -157,7 +157,7 @@ const GUIDE_CONTENT: Record<LocaleCode, LocalizedGuideContent> = {
           },
           {
             heading: "Expandable Sub-Modules & 6-Part Preferences Studio",
-            body: "Dense modules (/payroll, /allocations, /credit, /savings, /reports, /preferences) organize workflows into instant <15ms sub-modules (?sub=), while Overview (/) stays one cohesive vertical dashboard. Configure paycycle formulas, payment instrument cutoffs, asset reservoirs, routine rollover templates, and custom sidebar shortcuts directly inside Preferences.",
+            body: "Dense modules (/payroll, /allocations, /credit, /savings, /reports, /preferences) organize workflows into instant <15ms sub-modules (?sub=), while Overview (/) stays one cohesive vertical dashboard. Configure paycycle formulas, payment instrument cutoffs, cash accounts & vaults, routine rollover templates, and custom sidebar shortcuts directly inside Preferences.",
           },
         ],
       },

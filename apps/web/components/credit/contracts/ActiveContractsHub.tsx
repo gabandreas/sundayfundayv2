@@ -453,7 +453,7 @@ export function ActiveContractsHub({
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-border bg-surface px-5 py-4">
         <div>
           <div className="text-[11px] font-mono uppercase tracking-wider text-text-tertiary">
-            Active Installment Contracts · {periodLabel}
+            Active Installment Plans · {periodLabel}
           </div>
           <h2 className="text-base font-semibold text-text-primary mt-0.5">
             {enrichedPlans.length} Active Multi-Month Obligations (Excludes 1/1 &amp; P1 Vault Refunds)
@@ -499,9 +499,9 @@ export function ActiveContractsHub({
         </div>
       )}
 
-      {/* TIER 2: 3 SUMMARY KPIs (Mercury serif display ONLY on centerpiece KPIs 1 & 3) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="rounded-lg border border-border bg-surface p-5 flex flex-col justify-between">
+      {/* TIER 2: ASYMMETRIC SUMMARY KPIs (Serif display strictly on centerpiece KPIs) */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+        <div className="md:col-span-5 rounded-lg border border-border bg-surface p-5 flex flex-col justify-between">
           <div className="text-[11px] font-mono uppercase tracking-wider text-text-tertiary">
             Total Remaining Principal
           </div>
@@ -509,11 +509,11 @@ export function ActiveContractsHub({
             {formatRp(totalRemainingPrincipal)}
           </div>
           <div className="text-xs text-text-tertiary mt-2">
-            Across {enrichedPlans.length} active multi-month contracts from {periodLabel} onward
+            Across {enrichedPlans.length} active multi-month plans from {periodLabel} onward
           </div>
         </div>
 
-        <div className="rounded-lg border border-border bg-surface p-5 flex flex-col justify-between">
+        <div className="md:col-span-3 rounded-lg border border-border bg-surface p-5 flex flex-col justify-between">
           <div className="text-[11px] font-mono uppercase tracking-wider text-text-tertiary">
             Monthly Installment Commitment
           </div>
@@ -521,11 +521,11 @@ export function ActiveContractsHub({
             {formatRp(activeMonthlyCommitment)}
           </div>
           <div className="text-xs text-text-tertiary mt-2">
-            Combined recurring installment slices in active contracts
+            Combined recurring installment slices in active plans
           </div>
         </div>
 
-        <div className="rounded-lg border border-border bg-surface p-5 flex flex-col justify-between">
+        <div className="md:col-span-4 rounded-lg border border-border bg-surface p-5 flex flex-col justify-between">
           <div className="text-[11px] font-mono uppercase tracking-wider text-text-tertiary">
             Debt Freedom Horizon
           </div>
@@ -792,11 +792,11 @@ export function ActiveContractsHub({
         )}
 
         {opt ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {opt.strategies.map((st) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-border-subtle border-y border-border-subtle py-3 gap-4">
+            {opt.strategies.map((st, idx) => (
               <div
                 key={st.strategy}
-                className="p-4 rounded border border-border-subtle bg-surface-subtle/40 space-y-2"
+                className={`space-y-2 ${idx > 0 ? "pt-3 md:pt-0 md:pl-4" : "md:pr-4"}`}
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-text-primary">{st.strategy}</span>
@@ -805,7 +805,7 @@ export function ActiveContractsHub({
                   </span>
                 </div>
                 <p className="text-[11px] text-text-tertiary leading-relaxed">{st.summary}</p>
-                <div className="pt-2 border-t border-border-subtle flex items-center justify-between text-xs font-mono">
+                <div className="pt-1.5 flex items-center justify-between text-xs font-mono">
                   <span className="text-text-secondary">Interest Saved:</span>
                   <span className="text-delta-positive font-semibold tabular-nums">
                     {formatRp(st.estimatedInterestSavedRp)} ({st.monthsShaved}m shaved)

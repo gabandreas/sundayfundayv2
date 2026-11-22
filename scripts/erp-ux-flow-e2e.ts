@@ -64,14 +64,19 @@ async function main() {
   try {
     const page = await browser.newPage();
 
-    // Seed User #1 read-only session token in localStorage & cookie before navigating
+    // Seed User #1 read-only session using exact AuthContext + middleware cookie & storage keys
     await page.goto(`${WEB_URL}/login`, { waitUntil: 'domcontentloaded', timeout: 45000 });
     await page.evaluate(
       (token, user) => {
-        localStorage.setItem('erp_token', token);
+        const serialized = JSON.stringify(user);
         localStorage.setItem('erp_auth_token', token);
-        localStorage.setItem('erp_user', JSON.stringify(user));
-        document.cookie = `erp_token=${token}; path=/; max-age=86400; SameSite=Lax`;
+        localStorage.setItem('erp_auth_user', serialized);
+        localStorage.setItem('erp_locale', 'en');
+        sessionStorage.setItem('erp_auth_token', token);
+        sessionStorage.setItem('erp_auth_user', serialized);
+        const secureFlag = window.location.protocol === 'https:' ? '; Secure' : '';
+        document.cookie = `erp_user_id=${user.id}; path=/; max-age=604800; SameSite=Lax${secureFlag}`;
+        document.cookie = `erp_auth_token=${encodeURIComponent(token)}; path=/; max-age=604800; SameSite=Lax${secureFlag}`;
       },
       u1.token,
       u1.user,
@@ -79,6 +84,15 @@ async function main() {
 
     // 2. Navigate to Overview (/) and verify Smart Default Active Period (11/2026), Savings & Vaults label, 27 NOV / 28 DEC pre-payday axis dates, and no Platform Admin link
     await page.goto(`${WEB_URL}/`, { waitUntil: 'networkidle2', timeout: 60000 });
+    assert.notEqual(
+      new URL(page.url()).pathname,
+      '/login',
+      'Authenticated User #1 must stay on Overview (/), not redirect to /login',
+    );
+    await page.waitForFunction(
+      () => document.body.innerText.includes('Savings & Vaults'),
+      { timeout: 15000 },
+    );
     const overviewText = await page.evaluate(() => document.body.innerText);
     assert.ok(
       !overviewText.includes('Platform Admin'),
@@ -92,14 +106,38 @@ async function main() {
       !overviewText.includes('Savings & Reservoirs'),
       'Sidebar must not contain "Savings & Reservoirs"',
     );
-    console.log('  PASS [1/6]: User #1 consumer role hides Platform Admin and displays humanized "Savings & Vaults" navigation.');
+    assert.ok(
+      overviewText.includes('27 NOV') && overviewText.includes('28 DEC'),
+      'Overview PRE_PAYDAY Daily Pacing chart must display cycle boundary dates "27 NOV" and "28 DEC"',
+    );
+    assert.ok(
+      !overviewText.includes('DAY 32'),
+      'Overview PRE_PAYDAY Daily Pacing chart must not show generic "DAY 32" axis label',
+    );
+    assert.ok(
+      !overviewText.includes('Burn-Rate Telemetry'),
+      'Overview must not contain robotic "Burn-Rate Telemetry" copy',
+    );
+    console.log(
+      '  PASS [1/6]: User #1 consumer role hides Platform Admin, renders "Savings & Vaults", and eliminates AI-slop labels.',
+    );
 
-    // 3. Verify Trilingual Switcher (EN / ID / ZH) produces zero raw translation keys
+    // 3. Verify Trilingual Switcher (EN / ID / ZH) renders localized human terms with zero raw translation keys
+    const expectedLocaleTerm: Record<'en' | 'id' | 'zh', string> = {
+      en: 'Savings & Vaults',
+      id: 'Tabungan & Brankas',
+      zh: '储蓄与金库',
+    };
     for (const loc of ['en', 'id', 'zh'] as const) {
       await page.evaluate((l) => {
         localStorage.setItem('erp_locale', l);
       }, loc);
       await page.reload({ waitUntil: 'networkidle2', timeout: 45000 });
+      await page.waitForFunction(
+        (expected) => document.body.innerText.includes(expected),
+        { timeout: 15000 },
+        expectedLocaleTerm[loc],
+      );
       const bodyText = await page.evaluate(() => document.body.innerText);
       assert.ok(
         !/\b(nav\.[a-zA-Z]+|sub\.[a-zA-Z.]+|overview\.[a-zA-Z.]+)\b/.test(bodyText),
@@ -107,29 +145,44 @@ async function main() {
       );
     }
     await page.evaluate(() => localStorage.setItem('erp_locale', 'en'));
-    console.log('  PASS [2/6]: Trilingual (EN / ID / ZH) DOM verification passed with 0 raw keys.');
+    console.log('  PASS [2/6]: Trilingual (EN / ID / ZH) DOM verification passed ("Savings & Vaults" / "Tabungan & Brankas" / "储蓄与金库").');
 
     // 4. Verify Consolidated Routes (/payday-wizard, /calendar, /credit?sub=contracts, /credit?sub=simulator, /marquee, /preferences?sub=ai)
     const routeChecks: Array<{ path: string; expectedSubstring: string }> = [
       { path: '/payday-wizard?month=11&year=2026', expectedSubstring: 'Paycycle Activation Checklist' },
       { path: '/calendar?month=11&year=2026', expectedSubstring: 'Lowest Cash Point' },
-      { path: '/credit?sub=contracts&month=11&year=2026', expectedSubstring: 'Total Remaining Principal' },
+      { path: '/credit?sub=contracts&month=11&year=2026', expectedSubstring: 'Active Installment Plans' },
       { path: '/credit?sub=simulator&month=11&year=2026', expectedSubstring: 'Wishlist' },
-      { path: '/marquee', expectedSubstring: 'Marquee AI' },
+      { path: '/marquee', expectedSubstring: 'DeepSeek' },
       { path: '/preferences?sub=ai', expectedSubstring: 'AES-256-GCM' },
     ];
 
     for (const rc of routeChecks) {
       await page.goto(`${WEB_URL}${rc.path}`, { waitUntil: 'networkidle2', timeout: 60000 });
-      const text = await page.evaluate(() => document.body.innerText);
+      assert.notEqual(
+        new URL(page.url()).pathname,
+        '/login',
+        `Route ${rc.path} unexpectedly redirected to /login`,
+      );
+      try {
+        await page.waitForFunction(
+          (substr) => document.body.innerText.toLowerCase().includes(substr.toLowerCase()),
+          { timeout: 15000 },
+          rc.expectedSubstring,
+        );
+      } catch (err) {
+        const snippet = await page.evaluate(() => document.body.innerText.slice(0, 600));
+        throw new Error(`Route ${rc.path} missing "${rc.expectedSubstring}". Rendered snippet: ${snippet}`);
+      }
+      const routeText = await page.evaluate(() => document.body.innerText.toLowerCase());
       assert.ok(
-        text.toLowerCase().includes(rc.expectedSubstring.toLowerCase()),
-        `Route ${rc.path} missing expected content "${rc.expectedSubstring}"`,
+        !routeText.includes('asset reservoirs') && !routeText.includes('net worth reservoirs'),
+        `Route ${rc.path} still contains banned "reservoirs" phrasing`,
       );
     }
     console.log('  PASS [3/6]: All new & consolidated routes render expected domain sections.');
 
-    // 5. Verify Floating Bottom-Right Marquee Launcher & Alt+M native top-layer <dialog> Marquee drawer
+    // 5. Verify Floating Bottom-Right Marquee Launcher & native top-layer <dialog> Marquee drawer + read-only context query
     const launcherExists = await page.evaluate(() => {
       const btn = document.querySelector('[data-testid="marquee-floating-launcher"]') as HTMLElement | null;
       if (!btn) return false;
@@ -149,11 +202,27 @@ async function main() {
       const dlg = document.querySelector('dialog.marquee-drawer') as HTMLDialogElement | null;
       return Boolean(dlg && dlg.open);
     });
-    assert.equal(dialogOpen, true, 'Floating launcher / Alt+M must open native <dialog class="marquee-drawer"> via showModal()');
-    console.log('  PASS [4/6]: Floating bottom-right Marquee launcher & native top-layer <dialog> drawer verified.');
+    assert.equal(dialogOpen, true, 'Floating launcher must open native <dialog class="marquee-drawer"> via showModal()');
+
+    // Run a read-only period variance query inside the live drawer to confirm end-to-end Marquee UX
+    await page.type('dialog.marquee-drawer input[type="text"]', 'Compare 11/2026 vs 12/2026 variance');
+    await page.click('dialog.marquee-drawer button[type="submit"]');
+    await page.waitForFunction(
+      () => {
+        const dlg = document.querySelector('dialog.marquee-drawer');
+        return Boolean(dlg && dlg.textContent && dlg.textContent.includes('explain_period_variance'));
+      },
+      { timeout: 15000 },
+    );
+    console.log('  PASS [4/6]: Floating bottom-right Marquee launcher, <dialog> drawer & live read-only variance query verified.');
 
     // 6. Verify /admin is restricted for consumer role USER
     await page.goto(`${WEB_URL}/admin`, { waitUntil: 'networkidle2', timeout: 45000 });
+    assert.notEqual(
+      new URL(page.url()).pathname,
+      '/login',
+      '/admin check must stay authenticated as consumer USER',
+    );
     const adminText = await page.evaluate(() => document.body.innerText);
     assert.ok(
       adminText.includes('Access Restricted') || adminText.includes('SUPERADMIN'),
