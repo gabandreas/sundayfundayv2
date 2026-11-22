@@ -82,7 +82,7 @@ export function SavingsBalanceCard({ vault }: SavingsBalanceCardProps) {
           <div>
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
-                TOTAL ACCUMULATED IN VAULT
+                LIQUID SAVINGS &amp; EMERGENCY FUND
               </span>
               <button
                 type="button"
@@ -106,8 +106,8 @@ export function SavingsBalanceCard({ vault }: SavingsBalanceCardProps) {
               </div>
               <p className="text-xs font-sans text-text-secondary mt-1.5">
                 {isStandard
-                  ? "Confirmed capital across Liquid Emergency Fund and Investment Portfolio."
-                  : "Confirmed vault capital across Liquid Cash and Money Market (RDPU)."}
+                  ? "Confirmed reserve across Liquid Emergency Cash and Investment Portfolio."
+                  : "Confirmed savings across Cash Reserve and Money Market (RDPU)."}
               </p>
             </div>
           </div>
@@ -212,7 +212,7 @@ export function SavingsBalanceCard({ vault }: SavingsBalanceCardProps) {
                 Sub-Allocation Instrument Rebalance
               </h4>
               <p className="text-[11px] text-text-secondary mt-0.5">
-                Atomically shift capital between Liquid Emergency Cash and Investment — RDPU without altering total Vault balance.
+                Atomically shift capital between Liquid Emergency Cash and Investment — RDPU without altering total savings reserve.
               </p>
             </div>
             <button

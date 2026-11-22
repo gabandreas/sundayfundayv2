@@ -862,7 +862,7 @@ export function ReportsClientView({
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
-                      3. Transfer to Savings Vault (P1)
+                      3. Transfer to Savings Reserve (P1)
                     </span>
                     <span
                       className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${

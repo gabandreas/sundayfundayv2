@@ -160,7 +160,7 @@ export function WishlistVaultTable({
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-border-subtle">
         <div>
           <h3 className="text-sm font-semibold font-sans text-text-primary tracking-tight">
-            Wishlist Vault
+            Saved Wishlist Goals
           </h3>
           <p className="text-xs font-sans text-text-tertiary mt-0.5">
             Catalogued capital targets, savings goals, and planned financing items.

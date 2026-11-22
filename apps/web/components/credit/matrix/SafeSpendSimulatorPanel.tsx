@@ -171,7 +171,12 @@ export function SafeSpendSimulatorPanel({
         purchaseDate: new Date(purchaseDate).toISOString(),
         autoRouteByCutoff: true,
         holdPastCutoff,
-        cutoffDay: instrument === "PAYLATER" ? 15 : 8,
+        cutoffDay: (() => {
+          if (instrument !== "PAYLATER") return 8;
+          const [py, pm] = (purchaseDate || "").split("-").map(Number);
+          const dim = py && pm ? new Date(Date.UTC(py, pm, 0)).getUTCDate() : 30;
+          return Math.max(1, dim - 15);
+        })(),
         dueDay: instrument === "PAYLATER" ? 25 : 8,
       });
       setIsCommitting(false);

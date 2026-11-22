@@ -309,7 +309,7 @@ export function ClosePeriodModal({
                     Close Financial Period: {month}/{year}
                   </h3>
                   <p className="text-xs font-sans text-text-tertiary mt-0.5">
-                    Irreversible snapshot finalization, installment balance update, and optional Vault transfer.
+                    Irreversible snapshot finalization, installment balance update, and optional savings transfer.
                   </p>
                 </div>
               </div>
@@ -336,12 +336,12 @@ export function ClosePeriodModal({
               </div>
             )}
 
-            {/* Step 4: Vault Auto-Suggest at Close Period */}
+            {/* Step 4: Savings Auto-Suggest at Close Period */}
             <div className="p-4 rounded border border-border-subtle bg-surface-subtle/40 space-y-3">
               <div className="flex items-center justify-between border-b border-border-subtle pb-2">
                 <div>
                   <div className="text-xs font-semibold font-sans text-text-primary">
-                    Savings Vault Transfer (Priority 1 Realization)
+                    Emergency Savings Transfer (Priority 1 Realization)
                   </div>
                   <div className="text-[11px] font-sans text-text-secondary">
                     Allocated P1 Savings:{" "}
@@ -355,19 +355,19 @@ export function ClosePeriodModal({
                 </div>
                 <span className="text-[11px] font-mono text-delta-positive font-semibold">
                   {parsedTopupPreview > 0
-                    ? `+${formatRupiah(parsedTopupPreview)} to Vault`
+                    ? `+${formatRupiah(parsedTopupPreview)} to Savings`
                     : "Skip Transfer (Rp 0)"}
                 </span>
               </div>
 
-              {/* Enhancement 2: Duplicate Period Transfer Warning */}
+              {/* Duplicate Period Transfer Warning */}
               {existingPeriodVaultDeposit > 0 && (
                 <div className="p-2.5 rounded erp-callout-caution text-[11px] font-sans text-caution">
                   <strong>Already Deposited:</strong>{" "}
                   <span className="font-mono">
                     {formatRupiah(existingPeriodVaultDeposit)}
                   </span>{" "}
-                  is already recorded in the Savings Vault for period {month}/{year}.
+                  is already recorded in your Savings Reserve for period {month}/{year}.
                   {remainingUntransferredP1 > 0
                     ? ` Remaining untransferred P1 savings: ${formatRupiah(remainingUntransferredP1)}.`
                     : " Defaulting suggested transfer to Rp 0 to prevent double-counting."}
@@ -438,7 +438,7 @@ export function ClosePeriodModal({
               <div className="grid grid-cols-12 gap-3 pt-1">
                 <div className="col-span-5">
                   <label className="block text-[10px] font-mono uppercase tracking-wider text-text-tertiary mb-1">
-                    VAULT DEPOSIT AMOUNT (IDR)
+                    SAVINGS DEPOSIT AMOUNT (IDR)
                   </label>
                   <input
                     type="number"
@@ -454,7 +454,7 @@ export function ClosePeriodModal({
                 </div>
                 <div className="col-span-7">
                   <label className="block text-[10px] font-mono uppercase tracking-wider text-text-tertiary mb-1">
-                    VAULT LEDGER DESCRIPTION
+                    SAVINGS LEDGER DESCRIPTION
                   </label>
                   <input
                     type="text"
@@ -467,7 +467,7 @@ export function ClosePeriodModal({
                 </div>
               </div>
               <div className="text-[10px] font-sans text-text-tertiary">
-                Period tag <span className="font-mono">({month}/{year})</span> is automatically preserved on the Vault entry for deterministic period attribution.
+                Period tag <span className="font-mono">({month}/{year})</span> is automatically preserved on the savings entry for deterministic period attribution.
               </div>
             </div>
 
@@ -488,7 +488,7 @@ export function ClosePeriodModal({
                 </li>
                 {parsedTopupPreview > 0 && (
                   <li>
-                    <strong className="text-text-primary">Vault Top-Up:</strong> Records a <span className="font-mono text-delta-positive font-semibold">+{formatRupiah(parsedTopupPreview)}</span> deposit in the Savings Vault attributed to <span className="font-mono">({month}/{year})</span>.
+                    <strong className="text-text-primary">Savings Deposit:</strong> Records a <span className="font-mono text-delta-positive font-semibold">+{formatRupiah(parsedTopupPreview)}</span> deposit in your Savings Reserve attributed to <span className="font-mono">({month}/{year})</span>.
                   </li>
                 )}
               </ul>

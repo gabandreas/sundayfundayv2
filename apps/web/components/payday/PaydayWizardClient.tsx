@@ -211,7 +211,7 @@ export function PaydayWizardClient({
       setP1ConfirmedLocal(true);
       setStatusMessage({
         ok: true,
-        text: `Confirmed ${formatRp(plannedP1Savings)} P1 vault transfer for ${periodLabel}.`,
+        text: `Confirmed ${formatRp(plannedP1Savings)} P1 savings deposit for ${periodLabel}.`,
       });
       refreshPeriod();
     } else {
@@ -484,7 +484,7 @@ export function PaydayWizardClient({
               <div>
                 <div className="text-[10px] font-mono uppercase text-text-tertiary">Step 4</div>
                 <h2 className="text-sm font-semibold text-text-primary">
-                  Activate Daily Living Pool &amp; Confirm P1 Vault Transfer
+                  Activate Daily Living Pool &amp; Confirm P1 Savings Deposit
                 </h2>
               </div>
             </div>
@@ -543,7 +543,7 @@ export function PaydayWizardClient({
                       ? "P1 Deposit Confirmed"
                       : busyAction === "confirm-p1"
                         ? "Confirming..."
-                        : "Confirm P1 Transfer to Vault"}
+                        : "Confirm P1 Savings Deposit"}
                   </button>
                 ) : (
                   <span className="text-[11px] font-mono text-text-tertiary">

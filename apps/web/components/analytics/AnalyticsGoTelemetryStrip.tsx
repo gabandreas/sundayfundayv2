@@ -32,7 +32,7 @@ export function AnalyticsGoTelemetryStrip() {
       <div className="flex items-center justify-between border-t border-border pt-5">
         <div>
           <h2 className="text-sm font-semibold font-sans text-text-primary">
-            Cash &amp; Debt Trajectory &amp; 12-Month Outlook ({intel.periodCode})
+            Cash &amp; Debt Position &amp; 12-Month Projection ({intel.periodCode})
           </h2>
           <p className="text-xs text-text-tertiary mt-0.5">
             Cash &amp; savings vs remaining debt principal ({formatRupiah(intel.networth.totalNetWorthRp)}) and 3-scenario wealth trajectory.

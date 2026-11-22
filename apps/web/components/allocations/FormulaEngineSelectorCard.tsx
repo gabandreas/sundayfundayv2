@@ -37,7 +37,7 @@ const FORMULA_ENGINES: Array<{
     title: "Retirement & Passive Drawdown",
     badge: "GOLDEN AGE",
     description:
-      "Combines monthly Pension/Passive Inflow with a planned Vault Drawdown, prioritizing Healthcare & Utility Envelopes.",
+      "Combines monthly Pension/Passive Inflow with a planned Reserve Drawdown, prioritizing Healthcare & Utility Envelopes.",
   },
 ];
 
@@ -255,7 +255,7 @@ export function FormulaEngineSelectorCard() {
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <label className="text-xs text-text-secondary">
-                Planned Monthly Vault Drawdown (IDR):
+                Planned Monthly Reserve Drawdown (IDR):
               </label>
               <input
                 type="number"

@@ -112,7 +112,7 @@ export function DebtFreedomTimeline({
         items.push({
           id: `pd-${li.id}`,
           title: li.title,
-          badge: li.category === "P1_VAULT_REFUND" ? "P1 Vault Refund · 1/1" : `${li.merchantOrPlatform || "Personal Debt"} · 1/1`,
+          badge: li.category === "P1_VAULT_REFUND" ? "P1 Repayment · 1/1" : `${li.merchantOrPlatform || "Personal Debt"} · 1/1`,
           amount: Math.round(li.monthlyAmount),
         });
       }
@@ -346,10 +346,10 @@ export function DebtFreedomTimeline({
           <div className="flex items-center justify-between gap-2">
             <div>
               <h3 className="text-sm font-semibold font-sans text-text-primary">
-                Single-Period Charges &amp; Vault Adjustments ({MONTH_SHORT[(currentMonth - 1) % 12]} &apos;{String(currentYear).slice(2)})
+                Single-Period Bills &amp; P1 Repayments ({MONTH_SHORT[(currentMonth - 1) % 12]} &apos;{String(currentYear).slice(2)})
               </h3>
               <p className="text-xs font-sans text-text-secondary mt-0.5">
-                One-time bills, recurring subscriptions, and period-scoped P1 vault refunds due strictly inside this cycle.
+                One-time charges, recurring subscriptions, and single-cycle P1 repayments due in this period.
               </p>
             </div>
             <span className="text-xs font-mono text-text-secondary tabular-nums whitespace-nowrap">

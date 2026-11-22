@@ -18,7 +18,7 @@ export function SavingsTransactionsTable({
   const [error, setError] = useState<string | null>(null);
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm("Are you sure you want to remove this vault transaction?")) {
+    if (!window.confirm("Remove this savings transaction record?")) {
       return;
     }
 
@@ -41,10 +41,10 @@ export function SavingsTransactionsTable({
       <div className="p-4 border-b border-border-subtle flex items-center justify-between">
         <div>
           <h3 className="text-sm font-semibold font-sans text-text-primary">
-            Vault Transaction History
+            Savings Deposit &amp; Withdrawal Log
           </h3>
           <p className="text-xs font-sans text-text-secondary mt-0.5">
-            Audit log of manual top-ups and emergency withdrawals.
+            Record of manual savings deposits, period confirmations, and emergency withdrawals.
           </p>
         </div>
         <span className="text-xs font-mono text-text-tertiary">
@@ -70,10 +70,10 @@ export function SavingsTransactionsTable({
         {transactions.length === 0 ? (
           <div className="py-16 px-6 text-center space-y-2">
             <div className="text-sm font-medium font-sans text-text-secondary">
-              No Vault Activity Recorded
+              No Savings Activity Recorded
             </div>
             <p className="text-xs font-sans text-text-tertiary max-w-md mx-auto leading-relaxed">
-              No manual deposits or emergency withdrawals have been logged yet. Use &ldquo;+ Log Transaction&rdquo; above to record initial liquid reserves or emergency fund adjustments.
+              No manual deposits or emergency withdrawals have been logged yet. Use &ldquo;+ Log Transaction&rdquo; above to record your current emergency fund or cash reserve adjustments.
             </p>
           </div>
         ) : (

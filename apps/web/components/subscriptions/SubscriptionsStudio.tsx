@@ -693,7 +693,7 @@ export function SubscriptionsStudio({
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-text-secondary">
-                  SPayLater Cutoff ({DOMAIN_CONSTANTS.SPAYLATER_CUTOFF_DAY}th)
+                  SPayLater Cutoff (M-15d: {Math.max(1, new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() + 1, 0)).getUTCDate() - 15)}th)
                 </span>
                 <span className="text-text-tertiary">
                   {spayCutoffCountdown.days === 0 ? "Today" : `${spayCutoffCountdown.days}d`} · Due{" "}

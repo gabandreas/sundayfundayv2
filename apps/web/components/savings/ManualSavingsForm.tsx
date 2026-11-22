@@ -118,14 +118,14 @@ export function ManualSavingsForm({
 
   return (
     <div className="rounded-lg border border-border bg-surface overflow-hidden">
-      {/* Enhancement 3: Retroactive Sweep Pre-fill Bar for Already-Locked Periods */}
+      {/* Retroactive Sweep Pre-fill Bar for Already-Locked Periods */}
       {untransferredLockedPeriods.length > 0 && (
         <div className="px-4 py-3 border-b border-border-subtle bg-surface-subtle/50 flex flex-wrap items-center justify-between gap-3">
           <div className="text-xs font-sans text-text-secondary">
             <strong className="text-text-primary font-semibold">
-              Unrealized Locked Period P1 Savings:
+              Unconfirmed Closed-Period P1 Savings:
             </strong>{" "}
-            Click a closed period below to pre-fill a Vault deposit (never auto-submitted).
+            Select a closed period to pre-fill a deposit record before confirming.
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {untransferredLockedPeriods.map((p) => (
@@ -149,10 +149,10 @@ export function ManualSavingsForm({
         <div className="p-4 flex items-center justify-between">
           <div>
             <h3 className="text-sm font-semibold font-sans text-text-primary">
-              Manual Vault Adjustment
+              Record Savings Deposit or Withdrawal
             </h3>
             <p className="text-xs font-sans text-text-secondary mt-0.5">
-              Record a manual liquid deposit or emergency withdrawal.
+              Log a manual deposit to or emergency withdrawal from your savings account.
             </p>
           </div>
           <button
@@ -168,10 +168,10 @@ export function ManualSavingsForm({
           <div className="flex items-center justify-between pb-3 border-b border-border-subtle">
             <div>
               <h3 className="text-sm font-semibold font-sans text-text-primary">
-                Record Vault Transaction
+                Record Savings Movement
               </h3>
               <p className="text-xs font-sans text-text-secondary mt-0.5">
-                Vault balances operate independently of monthly snapshot lock cycles.
+                Manual savings entries track actual cash/RDPU transfers independent of locked monthly budgets.
               </p>
             </div>
             <button
@@ -226,7 +226,7 @@ export function ManualSavingsForm({
 
             <div className="col-span-6">
               <label className="block text-[11px] font-mono uppercase tracking-wider text-text-tertiary mb-1.5">
-                VAULT SUB-ALLOCATION INSTRUMENT
+                SAVINGS ACCOUNT INSTRUMENT
               </label>
               <div className="grid grid-cols-2 gap-2">
                 <button

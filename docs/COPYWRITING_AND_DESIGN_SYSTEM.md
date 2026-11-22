@@ -10,7 +10,9 @@ Every headline, empty state, helper label, and Marquee AI response must follow s
 
 1. **Concrete Nouns & Active Verbs:** State who does what to which Rupiah balance. Replace vague abstractions (*"liquidity telemetry orchestration"*) with direct action (*"Your Nov 27 paycheck funds Rp 1.416.659 for daily living"*).
 2. **Everyday Human Words Over Stiff Jargon:** Use plain banking and household terms rather than academic or sci-fi metaphors:
-   - Say **"Savings & Vaults"** (`EN`), **"Tabungan & Brankas"** (`ID`), **"储蓄与金库"** (`ZH`) — never *"Savings & Reservoirs"*.
+   - Say **"Savings & Emergency Fund"** (`EN`), **"Tabungan & Dana Darurat"** (`ID`), **"储蓄与应急基金"** (`ZH`) — never *"Savings & Reservoirs"* or *"Savings & Vaults"*.
+   - Say **"Temporary Transfer P1"** / **"Savings Deposit"** — never *"Forward-Borrow"* or *"Vault Transfer"*.
+   - Say **"Manual Bill Total (Override)"** — never *"Lump-Sum Override"*.
    - Say **"Active Installment Plans"** (`EN`), **"Daftar Cicilan Aktif"** (`ID`), **"当前分期计划"** (`ZH`) — never *"Amortization & Payoff Progress Lanes"*.
    - Say **"Periodic Bill Set-Asides"** — never *"Sinking Fund Amortization"*.
    - Say **"Installment Progress"** — never *"Contract Amortization"*.
@@ -20,7 +22,7 @@ Every headline, empty state, helper label, and Marquee AI response must follow s
 5. **Zero Robotic Transitions:** Banned opening and connecting phrases across all languages:
    - `EN`: *"Furthermore"*, *"Moreover"*, *"In conclusion"*, *"It is worth noting"*, *"Delve"*, *"Tapestry"*, *"Testament"*.
    - `ID`: *"Oleh karena itu"*, *"Sebagai kesimpulan"*, *"Perlu dicatat bahwa"*, *"Selain itu dapat disimpulkan"*.
-6. **Trilingual (`EN` / `ID` / `ZH`) Parity:** Indonesian copy reads like natural Jakarta financial prose (*"Cicilan aktif"*, *"Tabungan & Brankas"*, *"Dana hidup harian"*), and Chinese copy uses natural mainland/Singapore financial terms (*"储蓄与金库"*, *"当前分期计划"*, *"今日安全支出"*).
+6. **Trilingual (`EN` / `ID` / `ZH`) Parity:** Indonesian copy reads like natural Jakarta financial prose (*"Cicilan aktif"*, *"Tabungan & Dana Darurat"*, *"Dana hidup harian"*), and Chinese copy uses natural mainland/Singapore financial terms (*"储蓄与应急基金"*, *"当前分期计划"*, *"今日安全支出"*).
 
 ---
 

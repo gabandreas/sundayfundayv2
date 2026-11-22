@@ -32,12 +32,12 @@ describe('System-Wide Anti-AI-Slop Visual Design, Temporal Chart Axis & Human Co
   const debtTimelinePath = path.join(WEB_DIR, 'components', 'credit', 'contracts', 'DebtFreedomTimeline.tsx');
   const overviewWidgetsPath = path.join(WEB_DIR, 'components', 'finance', 'OverviewGoWidgets.tsx');
 
-  it('purges "Reservoir/Reservoirs" and "Amortization & Payoff Progress Lanes" in favor of human everyday terms (EN/ID/ZH)', () => {
+  it('purges "Reservoir/Vault/Forward-Borrow/Outlook/Amortization" jargon in favor of clear everyday finance terms (EN/ID/ZH)', () => {
     const langCtx = fs.readFileSync(langCtxPath, 'utf8');
 
-    expect(langCtx).toContain('"nav.savings": "Savings & Vaults"');
-    expect(langCtx).toContain('"nav.savings": "Tabungan & Brankas"');
-    expect(langCtx).toContain('"nav.savings": "储蓄与金库"');
+    expect(langCtx).toContain('"nav.savings": "Savings & Emergency Fund"');
+    expect(langCtx).toContain('"nav.savings": "Tabungan & Dana Darurat"');
+    expect(langCtx).toContain('"nav.savings": "储蓄与应急基金"');
     expect(langCtx).not.toMatch(/Reservoirs?/);
     expect(langCtx).not.toMatch(/Burn-Rate Telemetry/);
     expect(langCtx).not.toMatch(/Sinking Fund Amortization/);
@@ -52,7 +52,8 @@ describe('System-Wide Anti-AI-Slop Visual Design, Temporal Chart Axis & Human Co
     );
     expect(activeContractsHub).toContain('Active Installment Plans');
 
-    const webUserCopyFiles = [
+    const uiAndI18nFiles = [
+      langCtxPath,
       ...collectFiles(path.join(WEB_DIR, 'app'), ['.tsx']),
       ...collectFiles(path.join(WEB_DIR, 'components'), ['.tsx']),
     ];
@@ -63,8 +64,22 @@ describe('System-Wide Anti-AI-Slop Visual Design, Temporal Chart Axis & Human Co
       /\bgovernance dossier\b/i,
       /\bcontract amortization\b/i,
       /\bAmortized periodic goals\b/i,
+      /Savings\s*(&|&amp;)\s*Vaults/i,
+      /Tabungan\s*&\s*Brankas/i,
+      /储蓄与金库/,
+      /Forward-Borrow|\bforward[\s-]borrow\b/i,
+      /\bP1\s+Vault\b/i,
+      /\bInternal\s+P1\s+Vault\b/i,
+      /\bWishlist\s+Vault\b/i,
+      /\bVault\s+(Transaction|Activity|History|Realization|Inflow|Balance|Drawdown)\b/i,
+      /\bDebt\s+Payoff\s+Outlook\b/i,
+      /\b12-Month\s+Debt-Free\s+Outlook\b/i,
+      /\bBalance\s+Outlook\b/i,
+      /\bBrankas\s+P1\b/i,
+      /\bPinjam\s+Muka\b/i,
+      /\bLump-Sum\s+Override\b/i,
     ];
-    for (const file of webUserCopyFiles) {
+    for (const file of uiAndI18nFiles) {
       const content = fs.readFileSync(file, 'utf8');
       const rel = path.relative(REPO_ROOT, file);
       for (const rx of jargonCopyPatterns) {
@@ -240,5 +255,24 @@ describe('System-Wide Anti-AI-Slop Visual Design, Temporal Chart Axis & Human Co
         });
       }
     }
+  });
+
+  it('renders MatrixCellDrawer add form immediately at top above lineItems and anchors /calendar grid from cycleStartIso with itemized subItems', () => {
+    const drawerPath = path.join(WEB_DIR, 'components', 'credit', 'matrix', 'MatrixCellDrawer.tsx');
+    const drawer = fs.readFileSync(drawerPath, 'utf8');
+    const formIdx = drawer.indexOf('{showAddForm &&');
+    const listIdx = drawer.indexOf('{lineItems.length === 0 ? (');
+    expect(formIdx).toBeGreaterThan(-1);
+    expect(listIdx).toBeGreaterThan(-1);
+    expect(formIdx).toBeLessThan(listIdx);
+    expect(drawer).not.toContain('`${DOMAIN_CONSTANTS.SPAYLATER_CUTOFF_DAY}th`');
+
+    const cal = fs.readFileSync(
+      path.join(WEB_DIR, 'components', 'calendar', 'CashRadarCalendarClient.tsx'),
+      'utf8',
+    );
+    expect(cal).toContain('cycleStartIso');
+    expect(cal).toContain('SPENDING');
+    expect(cal).toContain('subItems');
   });
 });

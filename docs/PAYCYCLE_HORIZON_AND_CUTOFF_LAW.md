@@ -13,8 +13,8 @@ Period `M/YYYY` in Sunday Funday ERP is named after the **consumption and bill-m
   2. Debt and bill maturities falling due directly in calendar month **`M`**:
      - `OCT '26` (`10/2026`, `28 Sep – 27 Oct 2026`): Pays October maturities (`11, 25 Oct`, Total Debt `Rp 4.082.655`).
      - `NOV '26` (`11/2026`, `28 Oct – 26 Nov 2026`, `ACTIVE` on 22 Nov 2026 at Day 26 of 30): Pays November maturities (`11, 25 Nov`, Total Debt `Rp 4.522.976`).
-     - `DEC '26` (`12/2026`, `27 Nov – 27 Dec 2026`, `PRE_PAYDAY` on 22 Nov 2026 at Day 0 of 31): Pays December maturities (`11, 17, 23, 24, 25 Dec`, Total Debt `Rp 4.187.341`).
-     - `JAN '27` (`01/2027`, `28 Dec 2026 – 26 Jan 2027`, funded by Dec 28 payday + Natal THR `Rp 9.840.917`): Pays January maturities (`11, 17, 23, 24, 25 Jan`, Total Debt `Rp 3.171.115`).
+     - `DEC '26` (`12/2026`, `27 Nov – 27 Dec 2026`, `PRE_PAYDAY` on 22 Nov 2026 at Day 0 of 31, funded by Nov 27 payday + Dec 18 Natal THR `Rp 3.833.425`, Total Net Income `Rp 9.737.425`): Pays December maturities (`11, 17, 23, 24, 25 Dec`, Total Debt `Rp 4.110.341`).
+     - `JAN '27` (`01/2027`, `28 Dec 2026 – 26 Jan 2027`, funded by Dec 28 payday `Rp 5.941.000`, THR `Rp 0`): Pays January maturities (`11, 17, 23, 24, 25 Jan`, Total Debt `Rp 3.171.115`).
      - `FEB '27` (`02/2027`, `27 Jan – 25 Feb 2027`, funded by Jan 27 payday): Pays February maturities (Total Debt `Rp 1.967.159`; `11.11` 3x plans and `SPinjam #2/#3` complete `3/3` final slices here).
      - `MAR '27` (`03/2027`, `26 Feb – 28 Mar 2027`, funded by Feb 26 clamped payday): Pays March maturities (Total Debt `Rp 835.996`; SPinjam = `Rp 0`).
      - `APR '27 – SEP '27` (`04/2027..09/2027`): Post-payday debt step-down (`Rp 697.726` in `04/2027` with `2027-04-09` H-1 Friday Permata due shift, then `Rp 293.044/mo` Mandiri KSM through final `48/48` slice in `09/2027`; daily food/living reset cleanly to `Rp 1.500.000/mo`).

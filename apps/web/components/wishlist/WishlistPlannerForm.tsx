@@ -439,12 +439,12 @@ export function WishlistPlannerForm({
             ) : saveSuccess ? (
               <>
                 <Check className="w-3.5 h-3.5 text-delta-positive" />
-                <span>Saved to Vault</span>
+                <span>Saved to Wishlist</span>
               </>
             ) : (
               <>
                 <BookmarkPlus className="w-3.5 h-3.5 text-text-tertiary" />
-                <span>Save to Vault</span>
+                <span>Save to Wishlist</span>
               </>
             )}
           </button>

@@ -140,7 +140,7 @@ export function LiabilityMatrixTable({
           title: li.title,
           sourceBadge:
             li.category === "P1_VAULT_REFUND"
-              ? "P1 Vault Refund · 1/1"
+              ? "P1 Repayment · 1/1"
               : `${li.merchantOrPlatform || "Personal Debt"} · 1/1`,
           dueLabel: li.dueDateIso ? `Due ${li.dueDateIso}` : `Due ${li.dueDay}th`,
           amount: Math.round(li.monthlyAmount),
@@ -675,16 +675,16 @@ export function LiabilityMatrixTable({
         )}
       </div>
 
-      {/* Period-Scoped Breakdown Section 2: Single-Period Charges & Vault Adjustments */}
+      {/* Period-Scoped Breakdown Section 2: Single-Period Charges & P1 Repayments */}
       {singlePeriodItems.length > 0 && (
         <div className="rounded-lg border border-border bg-surface overflow-hidden">
           <div className="px-4 py-3 border-b border-border-subtle flex flex-wrap items-center justify-between gap-2 bg-surface-subtle/40">
             <div>
               <h3 className="text-xs font-semibold font-sans text-text-primary">
-                Single-Period Charges & Vault Adjustments in {currentCol.label} ({singlePeriodItems.length})
+                Single-Period Bills &amp; P1 Repayments in {currentCol.label} ({singlePeriodItems.length})
               </h3>
               <p className="text-[11px] font-sans text-text-tertiary mt-0.5">
-                One-time charges, recurring subscriptions, and period-specific P1 vault refunds due strictly inside {currentCol.label}.
+                One-time charges, recurring subscriptions, and period-specific P1 repayments due strictly inside {currentCol.label}.
               </p>
             </div>
             <span className="text-[11px] font-mono tabular-nums text-text-secondary whitespace-nowrap">

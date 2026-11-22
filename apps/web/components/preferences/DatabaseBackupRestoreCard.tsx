@@ -102,7 +102,7 @@ export function DatabaseBackupRestoreCard() {
         res.data?.restoredCounts?.transactions ?? 0
       } ledger entries, and ${
         res.data?.restoredCounts?.savingsManualTransactions ?? 0
-      } vault records.`
+      } savings records.`
     );
     setConfirmPhrase("");
     setParsedBackup(null);
@@ -118,7 +118,7 @@ export function DatabaseBackupRestoreCard() {
             Full ERP JSON Snapshot Backup & Disaster Recovery
           </h2>
           <p className="text-xs font-sans text-text-secondary mt-1">
-            Export all 11 relational tables (Config, Snapshots, Ledger, Credit Cards, PayLater, Contracts, Savings Vault, Wishlist, Revisions, Audit Logs) into a portable JSON archive or restore atomically.
+            Export all 11 relational tables (Config, Snapshots, Ledger, Credit Cards, PayLater, Contracts, Savings Reserve, Wishlist, Revisions, Audit Logs) into a portable JSON archive or restore atomically.
           </p>
         </div>
 
@@ -250,7 +250,7 @@ export function DatabaseBackupRestoreCard() {
                   </strong>
                 </span>
                 <span>
-                  Vault Entries:{" "}
+                  Savings Entries:{" "}
                   <strong>
                     {parsedBackup.counts?.savingsManualTransactions ?? 0}
                   </strong>

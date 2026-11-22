@@ -23,6 +23,7 @@ import {
   WealthForecaster12MPanel,
 } from "@/components/finance/ModuleGoPanels";
 import { SavingsBalanceCard } from "@/components/savings/SavingsBalanceCard";
+import { SavingsMilestonesCard } from "@/components/savings/SavingsMilestonesCard";
 import { WealthTargetPlannerCard } from "@/components/savings/WealthTargetPlannerCard";
 import { SavingsAccumulationTable } from "@/components/savings/SavingsAccumulationTable";
 import { SavingsGoalsCard } from "@/components/savings/SavingsGoalsCard";
@@ -185,7 +186,7 @@ export function SavingsClientView({
             {t("nav.savings")}
           </h1>
           <p className="text-xs font-sans text-text-secondary mt-1">
-            Cash, debt, and P1 vault balances, 12-month wealth &amp; runway forecaster, and forward-borrow reconciliation.
+            Emergency cash balance, P1 savings transfers, cash-vs-debt position, and 12-month payoff projection.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -227,7 +228,7 @@ export function SavingsClientView({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="rounded-lg border border-border-default bg-surface p-3.5">
               <span className="text-[10px] font-sans font-semibold uppercase tracking-wider text-text-tertiary block">
-                Physical Vault Reserve
+                Emergency Fund Reserve
               </span>
               <span className="font-mono text-lg font-semibold text-text-primary tabular-nums mt-1 block">
                 {formatRupiah(activeVault.balance ?? 0)}
@@ -251,13 +252,13 @@ export function SavingsClientView({
 
             <div className="rounded-lg border border-border-default bg-surface p-3.5">
               <span className="text-[10px] font-sans font-semibold uppercase tracking-wider text-text-tertiary block">
-                Scheduled P1 Vault Refunds
+                Scheduled P1 Repayments
               </span>
               <span className="font-mono text-lg font-semibold text-caution tabular-nums mt-1 block">
                 {formatRupiah(scheduledP1RefundTotal)}
               </span>
               <span className="text-[11px] font-sans text-text-tertiary mt-0.5 block">
-                {p1RefundItems.filter((i) => !i.isSettled).length} forward-borrow repayment(s) due
+                {p1RefundItems.filter((i) => !i.isSettled).length} internal repayment(s) due
               </span>
             </div>
 
@@ -276,14 +277,14 @@ export function SavingsClientView({
 
           <SavingsBalanceCard vault={activeVault} />
 
-          {/* Actual Core Savings (P1) Closed-Cycles Vault Balance Override */}
+          {/* Actual Core Savings (P1) Closed-Cycles Balance Override */}
           <div className="rounded-lg border border-border-default bg-surface p-4 flex flex-wrap items-center justify-between gap-3">
             <div>
               <div className="text-xs font-semibold font-sans text-text-primary">
-                Actual Core Savings (P1) Closed-Cycles Vault Balance
+                Actual Core Savings (P1) Closed-Cycles Balance
               </div>
               <p className="text-[11px] font-sans text-text-tertiary mt-0.5">
-                Optional real-world override for your realized closed-cycle P1 bank vault balance (leave blank to derive strictly from verified vault transactions).
+                Optional real-world balance override for past closed cycles (leave blank to compute strictly from verified savings entries).
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2 shrink-0">
@@ -322,6 +323,13 @@ export function SavingsClientView({
             baselineMonth={month}
             baselineYear={year}
           />
+          {(activeVault.milestones?.length ?? 0) > 0 && (
+            <SavingsMilestonesCard
+              milestones={activeVault.milestones ?? []}
+              currentBalance={activeVault.balance ?? 0}
+              monthlyPace={avgMonthlySavings}
+            />
+          )}
           <SavingsAccumulationTable ledger={ledger} />
           <SavingsGoalsCard goals={goals} avgMonthlySavings={avgMonthlySavings} />
           <ManualSavingsForm

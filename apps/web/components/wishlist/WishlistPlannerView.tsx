@@ -137,11 +137,11 @@ export function WishlistPlannerView({
             <div className="flex flex-wrap items-center gap-3 shrink-0">
               {activeVaultItems.length > 0 && (
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[11px] font-mono text-text-tertiary">Vault Item:</span>
+                  <span className="text-[11px] font-mono text-text-tertiary">Saved Item:</span>
                   <select
                     value={selectedItemId}
                     onChange={(e) => handleSelectVaultItem(e.target.value)}
-                    aria-label="Load Wishlist Vault item"
+                    aria-label="Load Saved Wishlist item"
                     className="max-w-[180px] px-2.5 py-1.5 rounded bg-surface-subtle border border-border-default font-sans text-xs text-text-primary focus:outline-none focus:border-text-secondary cursor-pointer"
                   >
                     <option value="">Custom amount...</option>

@@ -102,7 +102,7 @@ export function WealthTargetPlannerCard({
       st = "FEASIBLE";
       badgeText = "Goal Reached (100% Funded)";
       expText = `Your ${
-        targetBase === "PLANNED_P1" ? "planned 2026 P1" : "confirmed vault"
+        targetBase === "PLANNED_P1" ? "planned 2026 P1" : "confirmed savings"
       } balance (${formatRupiah(currentBaseBalance)}) already meets or exceeds ${formatRupiah(
         targetBalance
       )}.`;
@@ -345,7 +345,7 @@ export function WealthTargetPlannerCard({
                   : "text-text-tertiary hover:text-text-secondary"
               }`}
             >
-              Vault ({formatRupiah(confirmedVaultBalance)})
+              Savings Balance ({formatRupiah(confirmedVaultBalance)})
             </button>
             <button
               type="button"
@@ -383,7 +383,7 @@ export function WealthTargetPlannerCard({
             {formatRupiah(currentBaseBalance)}
           </span>
           <span className="text-[10px] font-mono text-text-tertiary">
-            {targetBase === "CONFIRMED_VAULT" ? "Confirmed in Vault" : "Planned 2026 P1"}
+            {targetBase === "CONFIRMED_VAULT" ? "Confirmed Savings" : "Planned 2026 P1"}
           </span>
         </div>
 

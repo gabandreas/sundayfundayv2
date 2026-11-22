@@ -553,7 +553,7 @@ export function CreditCardTransactionsTable({
                                 className="px-2.5 py-1 rounded bg-surface border border-border text-xs font-sans text-text-primary"
                               >
                                 <option value="LUMP_SUM_CURRENT_PERIOD">
-                                  Materialize Lump-Sum ({formatRupiah(prog.remainingPrincipalIncludingTarget)}) in {currentMonth}/{currentYear}
+                                  Pay Remaining Balance ({formatRupiah(prog.remainingPrincipalIncludingTarget)}) in {currentMonth}/{currentYear}
                                 </option>
                                 <option value="MARK_SETTLED_ONLY">
                                   Mark Remaining Slices Settled Only (Rp 0 in {currentMonth}/{currentYear})

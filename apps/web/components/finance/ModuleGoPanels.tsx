@@ -569,7 +569,7 @@ export function BulkStatementReconcilerPanel({
   );
 }
 
-// 5. Net Worth & Cash Vaults Panel (/savings?sub=networth)
+// 5. Net Worth & Cash Position Panel (/savings?sub=networth)
 export function NetWorthReservoirsPanel({
   intel,
 }: {
@@ -651,7 +651,7 @@ export function NetWorthReservoirsPanel({
         </div>
 
         <div className="rounded-lg border border-border bg-surface p-5 space-y-3">
-          <h3 className="text-sm font-semibold text-text-primary">Cash &amp; Debt Balance Outlook</h3>
+          <h3 className="text-sm font-semibold text-text-primary">Cash &amp; Debt Trajectory</h3>
           <div className="overflow-x-auto max-h-72 overflow-y-auto">
             <table className="w-full text-xs text-left">
               <thead className="bg-surface-subtle text-[10px] font-mono uppercase text-text-tertiary border-b border-border">
@@ -743,7 +743,7 @@ export function WealthForecaster12MPanel({
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-delta-positive" />
-            <span>3-Scenario Deterministic &amp; Stress-Test Wealth Projection</span>
+            <span>3-Scenario Savings &amp; Stress-Test Trajectory</span>
           </h3>
           <span className="text-[11px] font-mono text-text-tertiary">
             Emergency Fund Target: {fc.emergencyFundCompletionDate}

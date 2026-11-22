@@ -41,7 +41,7 @@ export function CoreSavingsCard({ snapshot, isLocked }: CoreSavingsCardProps) {
   });
   const defaultRefund = futureMonths[1] ?? futureMonths[0];
   const [refundKey, setRefundKey] = useState(defaultRefund.key);
-  const [reason, setReason] = useState("Forward-borrowed for current priority purchase");
+  const [reason, setReason] = useState("Temporary transfer for urgent priority purchase");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -61,11 +61,11 @@ export function CoreSavingsCard({ snapshot, isLocked }: CoreSavingsCardProps) {
       destination,
       refundMonth: targetRefund.month,
       refundYear: targetRefund.year,
-      reason: reason.trim() || "P1 forward-borrow",
+      reason: reason.trim() || "P1 temporary transfer",
     });
     setIsSubmitting(false);
     if (!res.success) {
-      setErrorMsg(res.error || "Failed to forward-borrow P1 savings.");
+      setErrorMsg(res.error || "Failed to transfer from P1 savings.");
       return;
     }
     setIsBorrowModalOpen(false);
@@ -156,7 +156,7 @@ export function CoreSavingsCard({ snapshot, isLocked }: CoreSavingsCardProps) {
         </div>
       </div>
 
-      {/* P1 Forward-Borrow Modal */}
+      {/* Internal Temporary Transfer Modal */}
       {isBorrowModalOpen && snapshot && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
@@ -169,10 +169,10 @@ export function CoreSavingsCard({ snapshot, isLocked }: CoreSavingsCardProps) {
             <div className="px-5 py-4 border-b border-border bg-surface flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-semibold font-sans text-text-primary">
-                  Forward-Borrow from Core Savings (P1)
+                  Temporary Transfer from Core Savings (P1)
                 </h3>
                 <p className="text-xs font-sans text-text-secondary mt-0.5">
-                  Reallocates current P1 savings and schedules a mandatory P1 refund line item on the Debt Matrix.
+                  Moves P1 savings into this period and schedules an automatic repayment item in a future cycle.
                 </p>
               </div>
               <button

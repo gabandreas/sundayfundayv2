@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   X,
   ArrowLeft,
@@ -98,8 +98,15 @@ export function MatrixCellDrawer({
   const [cutoffPreview, setCutoffPreview] = useState<CutoffSimulateResponse | null>(null);
   const [notes, setNotes] = useState("");
 
-  // Drawer tab mode (Itemized Breakdown vs Lump-Sum Override)
+  // Drawer tab mode (Itemized Breakdown vs Manual Bill Total)
   const [drawerMode, setDrawerMode] = useState<"itemized" | "override">("itemized");
+
+  const dynamicSpayCutoff = useMemo(() => {
+    const parts = (purchaseDate || "").split("-").map(Number);
+    if (!parts[0] || !parts[1]) return 15;
+    const dim = new Date(Date.UTC(parts[0], parts[1], 0)).getUTCDate();
+    return Math.max(1, dim - 15);
+  }, [purchaseDate]);
 
   // Direct total override state
   const [overrideRaw, setOverrideRaw] = useState("");
@@ -596,6 +603,226 @@ export function MatrixCellDrawer({
                 )}
               </div>
 
+              {/* Add Item / Installment Wizard — rendered directly at top under button */}
+              {showAddForm && drawerMode === "itemized" && !isLocked && (
+                <form
+                  onSubmit={handleAddSubmit}
+                  className="p-4 rounded-lg border border-border bg-surface-subtle space-y-3"
+                >
+                  <div className="text-xs font-semibold font-sans text-text-primary">
+                    Add Item to {categoryTitle}
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-mono uppercase text-text-tertiary">
+                      Description
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      placeholder="e.g. 11.11 Electronics Order"
+                      className="w-full bg-canvas border border-border rounded px-2.5 py-1.5 text-xs font-sans text-text-primary focus:outline-none focus:border-text-secondary"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-mono uppercase text-text-tertiary">
+                        Platform / Lender
+                      </label>
+                      <input
+                        type="text"
+                        value={merchant}
+                        onChange={(e) => setMerchant(e.target.value)}
+                        placeholder={category === "PERSONAL_DEBT" ? "SPinjam" : "SPayLater"}
+                        className="w-full bg-canvas border border-border rounded px-2.5 py-1.5 text-xs font-sans text-text-primary focus:outline-none focus:border-text-secondary"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-mono uppercase text-text-tertiary">
+                        {amountMode === "PRINCIPAL_SPLIT"
+                          ? "Total Principal (Rp)"
+                          : "Monthly Slice (Rp)"}
+                      </label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        required
+                        value={totalAmountRaw}
+                        onChange={(e) => setTotalAmountRaw(formatCurrencyInput(e.target.value))}
+                        placeholder="0"
+                        className="w-full bg-canvas border border-border rounded px-2.5 py-1.5 text-xs font-mono tabular-nums text-text-primary focus:outline-none focus:border-text-secondary"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-1 p-0.5 rounded border border-border bg-canvas">
+                    <button
+                      type="button"
+                      onClick={() => setAmountMode("PRINCIPAL_SPLIT")}
+                      className={`py-1 rounded text-[10px] font-mono transition-colors ${
+                        amountMode === "PRINCIPAL_SPLIT"
+                          ? "bg-surface-active text-text-primary font-semibold"
+                          : "text-text-tertiary hover:text-text-primary"
+                      }`}
+                    >
+                      Split Total Equally
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAmountMode("FIXED_MONTHLY")}
+                      className={`py-1 rounded text-[10px] font-mono transition-colors ${
+                        amountMode === "FIXED_MONTHLY"
+                          ? "bg-surface-active text-text-primary font-semibold"
+                          : "text-text-tertiary hover:text-text-primary"
+                      }`}
+                    >
+                      Fixed Monthly Amt
+                    </button>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-mono uppercase text-text-tertiary">
+                      Installment Tenor
+                    </label>
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {[1, 3, 6, 12].map((tenorOpt) => (
+                        <button
+                          key={tenorOpt}
+                          type="button"
+                          onClick={() => setTenorMonths(tenorOpt)}
+                          className={`py-1.5 rounded border text-xs font-mono transition-colors ${
+                            tenorMonths === tenorOpt
+                              ? "bg-surface-active border-text-secondary text-text-primary font-semibold"
+                              : "bg-canvas border-border text-text-secondary hover:bg-surface-hover"
+                          }`}
+                        >
+                          {tenorOpt}x
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 pt-1">
+                    <label className="flex items-center gap-2 text-xs font-sans text-text-secondary cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={autoRouteByCutoff}
+                        onChange={(e) => setAutoRouteByCutoff(e.target.checked)}
+                        className="rounded border-border"
+                      />
+                      Auto-route start cycle from purchase date (M-15d: {dynamicSpayCutoff}th cutoff)
+                    </label>
+
+                    <div className="grid grid-cols-2 gap-2.5 pl-5">
+                      {autoRouteByCutoff && (
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-mono uppercase text-text-tertiary">
+                            Purchase / Disbursed Date
+                          </label>
+                          <input
+                            type="date"
+                            value={purchaseDate}
+                            onChange={(e) => setPurchaseDate(e.target.value)}
+                            className="w-full bg-canvas border border-border rounded px-2.5 py-1 text-xs font-mono text-text-primary"
+                          />
+                        </div>
+                      )}
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-mono uppercase text-text-tertiary">
+                          Due Day
+                        </label>
+                        <select
+                          value={customDueDay}
+                          onChange={(e) => setCustomDueDay(Number(e.target.value))}
+                          className="w-full bg-canvas border border-border rounded px-2 py-1 text-xs font-mono text-text-primary"
+                        >
+                          {(category === "PERSONAL_DEBT" ? [8, 17, 23, 24, 25] : [25, 11, 8]).map(
+                            (d) => (
+                              <option key={d} value={d}>
+                                {d}th of month
+                              </option>
+                            )
+                          )}
+                        </select>
+                      </div>
+                    </div>
+
+                    <label className="flex items-center gap-2 text-xs font-sans text-text-secondary cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={holdPastCutoff}
+                        onChange={(e) => setHoldPastCutoff(e.target.checked)}
+                        className="rounded border-border"
+                      />
+                      Hold order completion past {dynamicSpayCutoff}th cutoff (defer +1 cycle)
+                    </label>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-mono uppercase text-text-tertiary">
+                      Notes (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      placeholder="Optional reference"
+                      className="w-full bg-canvas border border-border rounded px-2.5 py-1.5 text-xs font-sans text-text-primary focus:outline-none focus:border-text-secondary"
+                    />
+                  </div>
+
+                  {firstSlicePreview > 0 && (
+                    <div className="p-2.5 rounded bg-canvas border border-border-subtle space-y-1.5 text-[11px] font-mono">
+                      <div className="flex items-center justify-between text-text-secondary">
+                        <span>
+                          Monthly slice ({tenorMonths}x {amountMode === "PRINCIPAL_SPLIT" ? "split" : "fixed"})
+                        </span>
+                        <span className="text-text-primary font-semibold tabular-nums">
+                          {formatRupiah(firstSlicePreview, false)} / mo
+                        </span>
+                      </div>
+                      {cutoffPreview && (
+                        <div className="pt-1 border-t border-border-subtle space-y-1 text-[10px]">
+                          <div className="flex items-center justify-between text-text-tertiary">
+                            <span>Routed Start · Due</span>
+                            <span className="text-delta-positive font-semibold">
+                              {cutoffPreview.startPeriodLabel} · Due {cutoffPreview.firstDueDateIso}
+                            </span>
+                          </div>
+                          {cutoffPreview.slices.length > 1 && (
+                            <div className="text-text-tertiary truncate">
+                              {cutoffPreview.slices
+                                .map((s) => `${s.periodLabel}: Rp ${s.amount.toLocaleString("id-ID")}`)
+                                .join(" → ")}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex justify-end gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setShowAddForm(false)}
+                      className="px-3 py-1.5 rounded border border-border text-xs font-sans text-text-secondary hover:bg-surface-hover"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isBusy}
+                      className="px-3.5 py-1.5 rounded bg-text-primary text-canvas text-xs font-sans font-semibold hover:opacity-90 disabled:opacity-50"
+                    >
+                      {busyAction === "add" ? "Saving..." : "Commit Item"}
+                    </button>
+                  </div>
+                </form>
+              )}
+
               {lineItems.length === 0 ? (
                 <div className="p-4 rounded border border-dashed border-border text-xs font-sans text-text-tertiary">
                   {cellAmount > 0
@@ -824,227 +1051,7 @@ export function MatrixCellDrawer({
             </div>
           )}
 
-          {/* Add Item / Installment Wizard */}
-          {showAddForm && category !== "CREDIT_CARD" && drawerMode === "itemized" && !isLocked && (
-            <form
-              onSubmit={handleAddSubmit}
-              className="p-4 rounded-lg border border-border bg-surface-subtle space-y-3"
-            >
-              <div className="text-xs font-semibold font-sans text-text-primary">
-                Add Item to {categoryTitle}
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-mono uppercase text-text-tertiary">
-                  Description
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g. 11.11 Electronics Order"
-                  className="w-full bg-canvas border border-border rounded px-2.5 py-1.5 text-xs font-sans text-text-primary focus:outline-none focus:border-text-secondary"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2.5">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-mono uppercase text-text-tertiary">
-                    Platform / Lender
-                  </label>
-                  <input
-                    type="text"
-                    value={merchant}
-                    onChange={(e) => setMerchant(e.target.value)}
-                    placeholder={category === "PERSONAL_DEBT" ? "SPinjam" : "SPayLater"}
-                    className="w-full bg-canvas border border-border rounded px-2.5 py-1.5 text-xs font-sans text-text-primary focus:outline-none focus:border-text-secondary"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-mono uppercase text-text-tertiary">
-                    {amountMode === "PRINCIPAL_SPLIT"
-                      ? "Total Principal (Rp)"
-                      : "Monthly Slice (Rp)"}
-                  </label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    required
-                    value={totalAmountRaw}
-                    onChange={(e) => setTotalAmountRaw(formatCurrencyInput(e.target.value))}
-                    placeholder="0"
-                    className="w-full bg-canvas border border-border rounded px-2.5 py-1.5 text-xs font-mono tabular-nums text-text-primary focus:outline-none focus:border-text-secondary"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-1 p-0.5 rounded border border-border bg-canvas">
-                <button
-                  type="button"
-                  onClick={() => setAmountMode("PRINCIPAL_SPLIT")}
-                  className={`py-1 rounded text-[10px] font-mono transition-colors ${
-                    amountMode === "PRINCIPAL_SPLIT"
-                      ? "bg-surface-active text-text-primary font-semibold"
-                      : "text-text-tertiary hover:text-text-primary"
-                  }`}
-                >
-                  Split Total Equally
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setAmountMode("FIXED_MONTHLY")}
-                  className={`py-1 rounded text-[10px] font-mono transition-colors ${
-                    amountMode === "FIXED_MONTHLY"
-                      ? "bg-surface-active text-text-primary font-semibold"
-                      : "text-text-tertiary hover:text-text-primary"
-                  }`}
-                >
-                  Fixed Monthly Amt
-                </button>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-mono uppercase text-text-tertiary">
-                  Installment Tenor
-                </label>
-                <div className="grid grid-cols-4 gap-1.5">
-                  {[1, 3, 6, 12].map((t) => (
-                    <button
-                      key={t}
-                      type="button"
-                      onClick={() => setTenorMonths(t)}
-                      className={`py-1.5 rounded border text-xs font-mono transition-colors ${
-                        tenorMonths === t
-                          ? "bg-surface-active border-text-secondary text-text-primary font-semibold"
-                          : "bg-canvas border-border text-text-secondary hover:bg-surface-hover"
-                      }`}
-                    >
-                      {t}x
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-2 pt-1">
-                <label className="flex items-center gap-2 text-xs font-sans text-text-secondary cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={autoRouteByCutoff}
-                    onChange={(e) => setAutoRouteByCutoff(e.target.checked)}
-                    className="rounded border-border"
-                  />
-                  Auto-route start cycle from purchase date ({DOMAIN_CONSTANTS.SPAYLATER_CUTOFF_DAY}th cutoff)
-                </label>
-
-                <div className="grid grid-cols-2 gap-2.5 pl-5">
-                  {autoRouteByCutoff && (
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-mono uppercase text-text-tertiary">
-                        Purchase / Disbursed Date
-                      </label>
-                      <input
-                        type="date"
-                        value={purchaseDate}
-                        onChange={(e) => setPurchaseDate(e.target.value)}
-                        className="w-full bg-canvas border border-border rounded px-2.5 py-1 text-xs font-mono text-text-primary"
-                      />
-                    </div>
-                  )}
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-mono uppercase text-text-tertiary">
-                      Due Day
-                    </label>
-                    <select
-                      value={customDueDay}
-                      onChange={(e) => setCustomDueDay(Number(e.target.value))}
-                      className="w-full bg-canvas border border-border rounded px-2 py-1 text-xs font-mono text-text-primary"
-                    >
-                      {(category === "PERSONAL_DEBT" ? [8, 17, 23, 24, 25] : [25, 11, 8]).map(
-                        (d) => (
-                          <option key={d} value={d}>
-                            {d}th of month
-                          </option>
-                        )
-                      )}
-                    </select>
-                  </div>
-                </div>
-
-                <label className="flex items-center gap-2 text-xs font-sans text-text-secondary cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={holdPastCutoff}
-                    onChange={(e) => setHoldPastCutoff(e.target.checked)}
-                    className="rounded border-border"
-                  />
-                  Hold order completion past {DOMAIN_CONSTANTS.SPAYLATER_CUTOFF_DAY}th cutoff (defer +1 cycle)
-                </label>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-mono uppercase text-text-tertiary">
-                  Notes (Optional)
-                </label>
-                <input
-                  type="text"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Optional reference"
-                  className="w-full bg-canvas border border-border rounded px-2.5 py-1.5 text-xs font-sans text-text-primary focus:outline-none focus:border-text-secondary"
-                />
-              </div>
-
-              {firstSlicePreview > 0 && (
-                <div className="p-2.5 rounded bg-canvas border border-border-subtle space-y-1.5 text-[11px] font-mono">
-                  <div className="flex items-center justify-between text-text-secondary">
-                    <span>
-                      Monthly slice ({tenorMonths}x {amountMode === "PRINCIPAL_SPLIT" ? "split" : "fixed"})
-                    </span>
-                    <span className="text-text-primary font-semibold tabular-nums">
-                      {formatRupiah(firstSlicePreview, false)} / mo
-                    </span>
-                  </div>
-                  {cutoffPreview && (
-                    <div className="pt-1 border-t border-border-subtle space-y-1 text-[10px]">
-                      <div className="flex items-center justify-between text-text-tertiary">
-                        <span>Routed Start · Due</span>
-                        <span className="text-delta-positive font-semibold">
-                          {cutoffPreview.startPeriodLabel} · Due {cutoffPreview.firstDueDateIso}
-                        </span>
-                      </div>
-                      {cutoffPreview.slices.length > 1 && (
-                        <div className="text-text-tertiary truncate">
-                          {cutoffPreview.slices
-                            .map((s) => `${s.periodLabel}: Rp ${s.amount.toLocaleString("id-ID")}`)
-                            .join(" → ")}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div className="flex justify-end gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => setShowAddForm(false)}
-                  className="px-3 py-1.5 rounded border border-border text-xs font-sans text-text-secondary hover:bg-surface-hover"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isBusy}
-                  className="px-3.5 py-1.5 rounded bg-text-primary text-canvas text-xs font-sans font-semibold hover:opacity-90 disabled:opacity-50"
-                >
-                  {busyAction === "add" ? "Saving..." : "Commit Item"}
-                </button>
-              </div>
-            </form>
-          )}
-
-          {/* Lump-Sum Override Mode */}
+          {/* Manual Bill Total Override Mode */}
           {category !== "CREDIT_CARD" && drawerMode === "override" && !isLocked && (
             <form
               onSubmit={handleOverrideSubmit}
@@ -1052,7 +1059,7 @@ export function MatrixCellDrawer({
             >
               <div>
                 <div className="text-xs font-semibold font-sans text-text-primary">
-                  Direct Cell Lump-Sum Override
+                  Manual Bill Total (Override)
                 </div>
                 <p className="text-[11px] font-sans text-text-tertiary mt-1">
                   Enter an exact statement total or a signed delta (e.g. <span className="font-mono">+92000</span> or <span className="font-mono">-50000</span>). Multi-month contracts remain preserved and unitemized balance reconciles automatically.

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   CheckCircle2,
   Circle,
@@ -92,6 +93,8 @@ export function ActiveContractsHub({
   onSelectSub,
   onMutated,
 }: ActiveContractsHubProps) {
+  const searchParams = useSearchParams();
+  const isSpinjamFocus = searchParams.get("focus") === "spinjam";
   const { isAmountsMasked } = usePrivacyMask();
   const formatRp = (val: number) => formatRupiah(val, isAmountsMasked);
 
@@ -441,11 +444,44 @@ export function ActiveContractsHub({
     },
   ];
   const groups = rawGroups.filter((g) => g.plans.length > 0);
+  const spinjamGroup = groups.find((g) => g.key === "PERSONAL_SPINJAM") ?? null;
+  const spinjamMonthlyTotal = spinjamGroup
+    ? spinjamGroup.plans.reduce((s, p) => s + p.monthlyInstallment, 0)
+    : 0;
+  const spinjamRemainingTotal = spinjamGroup
+    ? spinjamGroup.plans.reduce((s, p) => s + p.remainingPrincipal, 0)
+    : 0;
 
   const opt = customIntel?.debtopt ?? null;
 
   return (
     <div className="space-y-6 w-full max-w-full">
+      {isSpinjamFocus && spinjamGroup && (
+        <div className="rounded-lg erp-callout-caution px-5 py-4 space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="text-[11px] font-mono uppercase tracking-wider text-amber-300 font-semibold">
+                Focused View: SPinjam Priority Tracker
+              </div>
+              <h2 className="text-sm font-semibold text-text-primary mt-0.5">
+                {spinjamGroup.plans.length} active SPinjam obligations ({formatRp(spinjamMonthlyTotal)}/cycle in {periodLabel})
+              </h2>
+            </div>
+            <div className="text-right font-mono tabular-nums">
+              <div className="text-[10px] uppercase tracking-wider text-text-tertiary">
+                Remaining Principal
+              </div>
+              <div className="text-sm font-semibold text-text-primary">
+                {formatRp(spinjamRemainingTotal)}
+              </div>
+            </div>
+          </div>
+          <p className="text-xs text-text-secondary">
+            Due days fall on the 8th, 17th, 23rd, and 24th of each cycle. Clearing these first permanently unlocks compounding cashflow relief.
+          </p>
+        </div>
+      )}
+
       {/* TIER 1: GUIDED HEADER & NAVIGATION ACTIONS */}
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-border bg-surface px-5 py-4">
         <div>
@@ -453,10 +489,10 @@ export function ActiveContractsHub({
             Active Installment Plans · {periodLabel}
           </div>
           <h2 className="text-base font-semibold text-text-primary mt-0.5">
-            {enrichedPlans.length} Active Multi-Month Obligations (Excludes 1/1 &amp; P1 Vault Refunds)
+            {enrichedPlans.length} Active Multi-Month Obligations (Excludes 1/1 &amp; P1 Internal Refunds)
           </h2>
           <p className="text-xs text-text-secondary mt-0.5">
-            Track payoff timelines, mark current-cycle slices settled, and simulate extra lump-sum payoffs.
+            Track SPinjam (due 8th / 17th / 23rd / 24th), credit card, and PayLater payoff dates, settle slices, and simulate early payoffs.
           </p>
         </div>
 
@@ -745,7 +781,7 @@ export function ActiveContractsHub({
               Live Snowball vs Avalanche Prepayment Simulator
             </div>
             <h3 className="text-sm font-semibold text-text-primary mt-0.5">
-              Extra Lump-Sum Prepayment Impact
+              Extra One-Time Prepayment Impact
               {simulatedTargetTitle ? ` · Focused on "${simulatedTargetTitle}"` : ""}
             </h3>
             <p className="text-xs text-text-tertiary mt-0.5">

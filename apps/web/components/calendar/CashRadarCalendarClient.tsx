@@ -35,32 +35,35 @@ interface CashRadarCalendarClientProps {
   initialData: CashRadarCalendarData;
 }
 
-type EventFilterMode = "ALL" | "INFLOW" | "BILLS" | "CUTOFF";
+type EventFilterMode = "ALL" | "INFLOW" | "BILLS" | "CUTOFF" | "SPENDING";
 
 const COPY_BY_LOCALE = {
   en: {
     eyebrow: "CASH RADAR & BILLING SCHEDULE",
     title: "Daily Cashflow & Cutoff Radar",
     subtitle:
-      "Track payday credits, card and PayLater statement closings, individual due dates, and your projected running bank balance across each paycycle.",
+      "Track payday credits, THR payouts, card and PayLater statement closings, daily living spend, individual due dates, and your running bank balance across each paycycle.",
     paydayInflows: "Payday & Inflows",
     scheduledBills: "Scheduled Bills & Routine",
     lowestTrough: "Lowest Cash Point",
     cycleBuffer: "Projected Ending Buffer",
     balanceCurve: "Cycle Running Cash Trajectory",
     selectedDayInspector: "Day Breakdown",
-    noEventsDay: "No scheduled inflows, cutoffs, or bills on this date.",
+    noEventsDay: "No scheduled inflows, cutoffs, bills, or spending logged on this date.",
     openingCash: "Opening Cash",
     closingCash: "Closing Cash",
     inCycle: "In active paycycle",
     outsideCycle: "Outside active cycle",
     shiftedH1: "Shifted H-1 working day",
     finalSlice: "Final installment (clears next cycle)",
+    insidePoolNote: "Paid from allocated living/routine pool (not double-subtracted)",
+    paydayTag: "PAYDAY",
     filters: {
-      ALL: "All Events",
-      INFLOW: "Inflows",
+      ALL: "All Activity",
+      INFLOW: "Inflows & THR",
       BILLS: "Bills Due",
       CUTOFF: "Cutoffs",
+      SPENDING: "Daily Spend",
     },
     weekdays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
     loading: "Loading period schedule...",
@@ -71,25 +74,28 @@ const COPY_BY_LOCALE = {
     eyebrow: "RADAR KAS & JADWAL TAGIHAN",
     title: "Radar Arus Kas & Tanggal Cutoff",
     subtitle:
-      "Pantau tanggal gajian, tanggal tutup buku kartu kredit dan PayLater, jatuh tempo per kontrak, serta proyeksi saldo harian dalam satu siklus.",
+      "Pantau tanggal gajian, pencairan THR, tanggal tutup buku kartu kredit dan PayLater, pengeluaran harian, jatuh tempo kontrak, serta saldo berjalan dalam satu siklus.",
     paydayInflows: "Masuk Gajian & Inflow",
     scheduledBills: "Tagihan & Rutin Terjadwal",
     lowestTrough: "Titik Saldo Terendah",
     cycleBuffer: "Sisa Buffer Akhir Siklus",
     balanceCurve: "Proyeksi Kurva Saldo Siklus",
     selectedDayInspector: "Rincian Tanggal",
-    noEventsDay: "Tidak ada inflow, cutoff, atau tagihan jatuh tempo pada tanggal ini.",
+    noEventsDay: "Tidak ada inflow, cutoff, tagihan, atau catatan belanja pada tanggal ini.",
     openingCash: "Saldo Awal",
     closingCash: "Saldo Akhir",
     inCycle: "Dalam siklus aktif",
     outsideCycle: "Di luar siklus aktif",
     shiftedH1: "Dimajukan H-1 hari kerja",
     finalSlice: "Cicilan terakhir (lunas siklus depan)",
+    insidePoolNote: "Dari pos anggaran harian/rutin (tidak mengurangi saldo dua kali)",
+    paydayTag: "GAJIAN",
     filters: {
-      ALL: "Semua",
-      INFLOW: "Pemasukan",
+      ALL: "Semua Aktivitas",
+      INFLOW: "Gajian & THR",
       BILLS: "Jatuh Tempo",
       CUTOFF: "Cutoff",
+      SPENDING: "Belanja Harian",
     },
     weekdays: ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"],
     loading: "Memuat jadwal periode...",
@@ -100,25 +106,28 @@ const COPY_BY_LOCALE = {
     eyebrow: "现金流雷达与账单日程",
     title: "每日现金流与结账日雷达",
     subtitle:
-      "按发薪周期追踪薪资入账、信用卡与分期结账日、逐笔到期扣款以及每日银行余额最低点。",
+      "按发薪周期完整追踪薪资与津贴入账、信用卡与分期结账日、日常消费记录、逐笔到期扣款及每日银行余额走势。",
     paydayInflows: "发薪与入账总额",
     scheduledBills: "计划账单与固定支出",
     lowestTrough: "周期最低现金点",
     cycleBuffer: "期末预计结余",
     balanceCurve: "周期每日余额走势",
     selectedDayInspector: "当日明细",
-    noEventsDay: "当日无入账、结账截止或到期账单。",
+    noEventsDay: "当日无入账、结账截止、到期账单或消费记录。",
     openingCash: "期初余额",
     closingCash: "日终余额",
     inCycle: "属于当前周期",
     outsideCycle: "周期外日期",
     shiftedH1: "提前至前1个工作日",
     finalSlice: "最后一期（下月清零）",
+    insidePoolNote: "由已分配生活/固定预算池支出（不重复扣减银行余额）",
+    paydayTag: "发薪",
     filters: {
-      ALL: "全部",
-      INFLOW: "入账",
+      ALL: "全部记录",
+      INFLOW: "入账与津贴",
       BILLS: "到期账单",
       CUTOFF: "结账日",
+      SPENDING: "日常消费",
     },
     weekdays: ["周一", "周二", "周三", "周四", "周五", "周六", "周日"],
     loading: "正在加载周期日程...",
@@ -173,6 +182,12 @@ function eventCategoryTone(cat: string): {
         dot: "bg-negative",
         badgeText: "PAYLATER",
       };
+    case "EXTRA_INCOME":
+      return {
+        pill: "bg-positive/10 text-positive border border-positive/25",
+        dot: "bg-positive",
+        badgeText: "EXTRA",
+      };
     case "PERSONAL_DEBT":
     case "P1_VAULT_REFUND":
       return {
@@ -184,7 +199,19 @@ function eventCategoryTone(cat: string): {
       return {
         pill: "bg-positive/10 text-positive border border-positive/20",
         dot: "bg-positive",
-        badgeText: "VAULT",
+        badgeText: "SAVINGS",
+      };
+    case "LIVING_SPEND":
+      return {
+        pill: "bg-surface-subtle text-text-secondary border border-border-subtle",
+        dot: "bg-text-tertiary",
+        badgeText: "LIVING",
+      };
+    case "DIRECT_DEDUCTION":
+      return {
+        pill: "bg-negative/10 text-negative border border-negative/20",
+        dot: "bg-negative",
+        badgeText: "OUTFLOW",
       };
     default:
       return {
@@ -239,8 +266,16 @@ export function CashRadarCalendarClient({
   const matchesFilter = useCallback(
     (ev: CashRadarEventDto) => {
       if (filterMode === "ALL") return true;
-      if (filterMode === "INFLOW") return ev.category === "INFLOW";
+      if (filterMode === "INFLOW") return ev.category === "INFLOW" || ev.category === "EXTRA_INCOME";
       if (filterMode === "CUTOFF") return ev.category === "CUTOFF";
+      if (filterMode === "SPENDING") {
+        return (
+          ev.category === "LIVING_SPEND" ||
+          ev.category === "DIRECT_DEDUCTION" ||
+          ev.category === "LIVING" ||
+          ev.category === "ROUTINE"
+        );
+      }
       return (
         ev.category === "PAYLATER" ||
         ev.category === "CREDIT_CARD" ||
@@ -252,12 +287,32 @@ export function CashRadarCalendarClient({
     [filterMode]
   );
 
-  // Build calendar cells for selected (month, year) + any leading/trailing days needed for a clean Mon-Sun grid
+  // Anchor grid from Monday on/before cycleStartIso (or 1st of month) through Sunday on/after cycleEndIso (or month end)
   const calendarWeeks = useMemo(() => {
     const firstOfMonth = new Date(Date.UTC(year, month - 1, 1));
     const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
-    // Convert Sunday=0..Saturday=6 into Monday=0..Sunday=6
-    const startOffset = (firstOfMonth.getUTCDay() + 6) % 7;
+    const lastOfMonth = new Date(Date.UTC(year, month - 1, daysInMonth));
+
+    const parseIso = (iso?: string): Date | null => {
+      if (!iso || iso.length < 10) return null;
+      const [y0, m0, d0] = iso.slice(0, 10).split("-").map(Number);
+      if (!y0 || !m0 || !d0) return null;
+      return new Date(Date.UTC(y0, m0 - 1, d0));
+    };
+
+    const cycStart = parseIso(radar?.cycleStartIso);
+    const cycEnd = parseIso(radar?.cycleEndIso);
+
+    const anchorMin =
+      cycStart && cycStart.getTime() < firstOfMonth.getTime() ? cycStart : firstOfMonth;
+    const anchorMax =
+      cycEnd && cycEnd.getTime() > lastOfMonth.getTime() ? cycEnd : lastOfMonth;
+
+    // Roll back to Monday (Mon=0..Sun=6) and forward to Sunday
+    const startOffset = (anchorMin.getUTCDay() + 6) % 7;
+    const gridStartDt = new Date(anchorMin.getTime() - startOffset * 86400000);
+    const endOffset = 6 - ((anchorMax.getUTCDay() + 6) % 7);
+    const gridEndDt = new Date(anchorMax.getTime() + endOffset * 86400000);
 
     const pointMap = new Map<string, CashRadarDayPointDto>(
       (radar?.dailySeries ?? []).map((pt) => [pt.dateIso, pt])
@@ -266,40 +321,21 @@ export function CashRadarCalendarClient({
     const cells: Array<{
       dateIso: string;
       dayNumber: number;
+      monthLabel: string;
       inCalendarMonth: boolean;
       point?: CashRadarDayPointDto;
     }> = [];
 
-    // Pre-fill leading days from previous month (using actual Radar data if cycle started in M-1!)
-    for (let i = startOffset; i > 0; i--) {
-      const dt = new Date(Date.UTC(year, month - 1, 1 - i));
+    for (let ts = gridStartDt.getTime(); ts <= gridEndDt.getTime(); ts += 86400000) {
+      const dt = new Date(ts);
       const iso = dt.toISOString().slice(0, 10);
+      const cellMonth = dt.getUTCMonth() + 1;
+      const cellYear = dt.getUTCFullYear();
       cells.push({
         dateIso: iso,
         dayNumber: dt.getUTCDate(),
-        inCalendarMonth: false,
-        point: pointMap.get(iso),
-      });
-    }
-
-    for (let d = 1; d <= daysInMonth; d++) {
-      const iso = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-      cells.push({
-        dateIso: iso,
-        dayNumber: d,
-        inCalendarMonth: true,
-        point: pointMap.get(iso),
-      });
-    }
-
-    while (cells.length % 7 !== 0) {
-      const tailOffset = cells.length - startOffset - daysInMonth + 1;
-      const dt = new Date(Date.UTC(year, month, tailOffset));
-      const iso = dt.toISOString().slice(0, 10);
-      cells.push({
-        dateIso: iso,
-        dayNumber: dt.getUTCDate(),
-        inCalendarMonth: false,
+        monthLabel: MONTHS_SHORT[(cellMonth - 1) % 12],
+        inCalendarMonth: cellMonth === month && cellYear === year,
         point: pointMap.get(iso),
       });
     }
@@ -413,8 +449,8 @@ export function CashRadarCalendarClient({
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="inline-flex items-center rounded border border-border bg-surface p-0.5">
-            {(["ALL", "INFLOW", "BILLS", "CUTOFF"] as EventFilterMode[]).map((mode) => (
+          <div className="inline-flex items-center rounded border border-border bg-surface p-0.5 flex-wrap">
+            {(["ALL", "INFLOW", "BILLS", "CUTOFF", "SPENDING"] as EventFilterMode[]).map((mode) => (
               <button
                 key={mode}
                 type="button"
@@ -656,12 +692,19 @@ export function CashRadarCalendarClient({
                               className={`text-xs font-mono tabular-nums ${
                                 pt?.isToday
                                   ? "px-1.5 py-0.5 rounded-sm bg-accent/15 text-accent font-semibold"
-                                  : cell.inCalendarMonth
-                                    ? "text-text-primary font-medium"
-                                    : "text-text-tertiary"
+                                  : cell.dateIso === radar?.cycleStartIso
+                                    ? "px-1 py-0.5 rounded-sm bg-positive/15 text-positive font-semibold"
+                                    : cell.inCalendarMonth
+                                      ? "text-text-primary font-medium"
+                                      : inCycle
+                                        ? "text-text-secondary font-medium"
+                                        : "text-text-tertiary"
                               }`}
                             >
                               {cell.dayNumber}
+                              {(!cell.inCalendarMonth || cell.dayNumber === 1 || cell.dateIso === radar?.cycleStartIso) && (
+                                <span className="ml-1 text-[9px] uppercase opacity-80">{cell.monthLabel}</span>
+                              )}
                             </span>
 
                             {inCycle && (
@@ -689,9 +732,13 @@ export function CashRadarCalendarClient({
                                   <span className="truncate">
                                     {ev.category === "CUTOFF"
                                       ? "Cutoff"
-                                      : ev.category === "INFLOW"
-                                        ? "Payday"
-                                        : ev.label.split("—")[0].trim()}
+                                      : ev.id === "inflow-thr"
+                                        ? "THR"
+                                        : ev.category === "INFLOW"
+                                          ? "Payday"
+                                          : ev.category === "EXTRA_INCOME"
+                                            ? ev.label
+                                            : ev.label.split("—")[0].trim()}
                                   </span>
                                   {ev.signedAmountRp !== 0 && (
                                     <span className="shrink-0">
@@ -849,6 +896,32 @@ export function CashRadarCalendarClient({
 
                     {ev.notes && (
                       <p className="text-[11px] text-text-secondary leading-relaxed">{ev.notes}</p>
+                    )}
+
+                    {ev.insideAllocatedPool && (
+                      <div className="text-[10px] font-mono text-text-tertiary pt-0.5">
+                        {t.insidePoolNote}
+                      </div>
+                    )}
+
+                    {Array.isArray(ev.subItems) && ev.subItems.length > 0 && (
+                      <div className="pt-2 mt-1.5 border-t border-border-subtle space-y-1">
+                        {ev.subItems.map((sub, sIdx) => (
+                          <div key={sIdx} className="flex items-center justify-between gap-2 text-[11px]">
+                            <span className="text-text-secondary truncate">
+                              {sub.title}
+                              {sub.sliceLabel && sub.sliceLabel !== "1/1" ? (
+                                <span className="ml-1 text-[10px] font-mono text-text-tertiary">
+                                  ({sub.sliceLabel})
+                                </span>
+                              ) : null}
+                            </span>
+                            <span className="font-mono text-text-primary tabular-nums shrink-0">
+                              {maskRp(sub.amountRp)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
                 );

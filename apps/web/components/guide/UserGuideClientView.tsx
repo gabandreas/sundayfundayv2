@@ -130,12 +130,12 @@ const GUIDE_CONTENT: Record<LocaleCode, LocalizedGuideContent> = {
         targetLabel: "Open Reports",
         blocks: [
           {
-            heading: "Priority 1 Emergency Borrow & Refund",
-            body: "Drawing cash from active Core Savings via Borrow P1 reduces current P1 immediately and writes an explicit P1_VAULT_REFUND item into next cycle's Personal & Informal Debt so the vault restores automatically on payday.",
+            heading: "Priority 1 Temporary Transfer & Repayment",
+            body: "Drawing cash from active Core Savings reduces current P1 immediately and writes an explicit P1 repayment item into your chosen future Personal & Informal Debt period so your savings restore on payday.",
           },
           {
-            heading: "Wishlist Feasibility Comparator",
-            body: "Test any Vault item or custom amount side-by-side across Path A (Cash from P2 Surplus), Path B (SPayLater 1x/3x/6x), and Path C (Credit Card 3x/6x/12x) using your chosen before/after cutoff timing to preview resulting Debt-to-Income Ratio.",
+            heading: "Wishlist Affordability Comparator",
+            body: "Test any saved Wishlist item or custom amount side-by-side across Path A (Cash from P2 Surplus), Path B (SPayLater 1x/3x/6x), and Path C (Credit Card 3x/6x/12x) using your chosen before/after cutoff timing to preview resulting Debt-to-Income Ratio.",
           },
           {
             heading: "4-Sheet Excel & A4 PDF Statements",
@@ -157,7 +157,7 @@ const GUIDE_CONTENT: Record<LocaleCode, LocalizedGuideContent> = {
           },
           {
             heading: "Expandable Sub-Modules & 6-Part Preferences Studio",
-            body: "Dense modules (/payroll, /allocations, /credit, /savings, /reports, /preferences) organize workflows into instant <15ms sub-modules (?sub=), while Overview (/) stays one cohesive vertical dashboard. Configure paycycle formulas, payment instrument cutoffs, cash accounts & vaults, routine rollover templates, and custom sidebar shortcuts directly inside Preferences.",
+            body: "Dense modules (/payroll, /allocations, /credit, /savings, /reports, /preferences) organize workflows into instant <15ms sub-modules (?sub=), while Overview (/) stays one cohesive vertical dashboard. Configure paycycle formulas, payment instrument cutoffs, cash accounts & savings, routine rollover templates, and custom sidebar shortcuts directly inside Preferences.",
           },
         ],
       },
@@ -175,7 +175,7 @@ const GUIDE_CONTENT: Record<LocaleCode, LocalizedGuideContent> = {
           },
           {
             heading: "Payday & Closing Wizard (/payday-wizard) & Cash Radar (/calendar)",
-            body: "Run the 4-step payday checklist each month to confirm working days, lock the prior cycle, settle 11th/25th due bills, and confirm P1 vault deposits. Open Cash Radar & Calendar to inspect your deterministic Lowest Cash Point trough date before next payday.",
+            body: "Run the 4-step payday checklist each month to confirm working days, lock the prior cycle, settle 11th/25th due bills, and confirm P1 savings deposits. Open Cash Radar & Calendar to inspect your deterministic Lowest Cash Point trough date before next payday.",
           },
           {
             heading: "Marquee 3-Tier AI Co-Pilot (Alt+M) & Headless Webhook",
@@ -305,8 +305,8 @@ const GUIDE_CONTENT: Record<LocaleCode, LocalizedGuideContent> = {
         targetLabel: "Buka Laporan",
         blocks: [
           {
-            heading: "Pinjam & Pengembalian P1 (Vault Refund)",
-            body: "Fitur Borrow P1 mengurangi tabungan P1 periode ini dan otomatis menanam kewajiban P1_VAULT_REFUND di Utang Pribadi periode berikutnya agar tabungan pulih saat gajian.",
+            heading: "Pinjam & Pengembalian P1 (Repayment P1)",
+            body: "Fitur Pinjam Sementara P1 mengurangi tabungan P1 periode ini dan otomatis menanam kewajiban pengembalian di Utang Pribadi periode berikutnya agar tabungan pulih saat gajian.",
           },
           {
             heading: "Komparator Kelayakan Wishlist",
@@ -481,7 +481,7 @@ const GUIDE_CONTENT: Record<LocaleCode, LocalizedGuideContent> = {
         blocks: [
           {
             heading: "P1 核心储蓄借支与自动回补",
-            body: "通过 Borrow P1 拆借资金会扣减本期储蓄，同时在下期个人借款中登记一笔 P1_VAULT_REFUND 返还义务。",
+            body: "通过 Borrow P1 拆借资金会扣减本期储蓄，同时在下期个人借款中登记一笔 P1 应还回补义务。",
           },
           {
             heading: "心愿单可行性三方案对比",

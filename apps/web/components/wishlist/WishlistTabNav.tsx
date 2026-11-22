@@ -19,7 +19,7 @@ export function WishlistTabNav({
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const tabs: Array<{ id: WishlistTabType; label: string; count?: number }> = [
     { id: "planner", label: "Simulator & Planner" },
-    { id: "vault", label: "Wishlist Vault", count: vaultCount },
+    { id: "vault", label: "Saved Wishlist", count: vaultCount },
   ];
 
   return (

@@ -65,7 +65,7 @@ export function CreditWishlistEmbed({ month, year }: CreditWishlistEmbedProps) {
     <div className="space-y-4 pt-2 border-t border-border">
       <div>
         <h3 className="text-sm font-semibold text-text-primary">
-          Planned Purchase &amp; Wishlist Affordability Vault
+          Planned Purchase &amp; Installment Affordability
         </h3>
         <p className="text-xs text-text-tertiary mt-0.5">
           Compare cash purchases vs multi-month installments against forward net cashflow and work-hour cost.

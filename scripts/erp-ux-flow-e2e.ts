@@ -82,7 +82,7 @@ async function main() {
       u1.user,
     );
 
-    // 2. Navigate to Overview (/) and verify Smart Default Active Period (11/2026 ACTIVE: 28 OCT – 26 NOV), Spending & Trend Review in Sidebar, Savings & Vaults label, and no Platform Admin or Marquee Sidebar link
+    // 2. Navigate to Overview (/) and verify Smart Default Active Period (11/2026 ACTIVE: 28 OCT – 26 NOV), Spending & Trend Review in Sidebar, Savings & Emergency Fund label, and no Platform Admin or Marquee Sidebar link
     await page.goto(`${WEB_URL}/`, { waitUntil: 'networkidle2', timeout: 60000 });
     assert.notEqual(
       new URL(page.url()).pathname,
@@ -90,7 +90,7 @@ async function main() {
       'Authenticated User #1 must stay on Overview (/), not redirect to /login',
     );
     await page.waitForFunction(
-      () => document.body.innerText.includes('Savings & Vaults'),
+      () => document.body.innerText.includes('Savings & Emergency Fund'),
       { timeout: 15000 },
     );
     const overviewText = await page.evaluate(() => document.body.innerText);
@@ -99,8 +99,8 @@ async function main() {
       'Sidebar must NOT display Platform Admin for consumer role USER (User #1)',
     );
     assert.ok(
-      overviewText.includes('Savings & Vaults'),
-      'Sidebar must render humanized "Savings & Vaults" label instead of "Savings & Reservoirs"',
+      overviewText.includes('Savings & Emergency Fund'),
+      'Sidebar must render humanized "Savings & Emergency Fund" label instead of "Savings & Reservoirs" or "Savings & Vaults"',
     );
     assert.ok(
       overviewText.includes('Spending & Trend Review'),
@@ -139,14 +139,14 @@ async function main() {
       'Overview PRE_PAYDAY Daily Pacing chart must not show generic "DAY 32" axis label',
     );
     console.log(
-      '  PASS [1/6]: User #1 consumer role hides Platform Admin, renders "Savings & Vaults" & "Spending & Trend Review", verifies 11/2026 ACTIVE (28 OCT–26 NOV) & 12/2026 PRE_PAYDAY (27 NOV–27 DEC), and eliminates AI-slop labels.',
+      '  PASS [1/6]: User #1 consumer role hides Platform Admin, renders "Savings & Emergency Fund" & "Spending & Trend Review", verifies 11/2026 ACTIVE (28 OCT–26 NOV) & 12/2026 PRE_PAYDAY (27 NOV–27 DEC), and eliminates AI-slop labels.',
     );
 
     // 3. Verify Trilingual Switcher (EN / ID / ZH) renders localized human terms with zero raw translation keys
     const expectedLocaleTerm: Record<'en' | 'id' | 'zh', string> = {
-      en: 'Savings & Vaults',
-      id: 'Tabungan & Brankas',
-      zh: '储蓄与金库',
+      en: 'Savings & Emergency Fund',
+      id: 'Tabungan & Dana Darurat',
+      zh: '储蓄与应急基金',
     };
     for (const loc of ['en', 'id', 'zh'] as const) {
       await page.evaluate((l) => {
@@ -165,7 +165,7 @@ async function main() {
       );
     }
     await page.evaluate(() => localStorage.setItem('erp_locale', 'en'));
-    console.log('  PASS [2/6]: Trilingual (EN / ID / ZH) DOM verification passed ("Savings & Vaults" / "Tabungan & Brankas" / "储蓄与金库").');
+    console.log('  PASS [2/6]: Trilingual (EN / ID / ZH) DOM verification passed ("Savings & Emergency Fund" / "Tabungan & Dana Darurat" / "储蓄与应急基金").');
 
     // 4. Verify Consolidated Routes (/payday-wizard, /calendar, /credit?sub=contracts, /credit?sub=simulator, /analytics, /marquee, /preferences?sub=ai)
     const routeChecks: Array<{ path: string; expectedSubstring: string }> = [

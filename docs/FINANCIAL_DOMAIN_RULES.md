@@ -8,8 +8,8 @@ Authoritative accounting and cutoff specifications for Sunday Funday ERP.
 - Consequently, period `M` cashflow pays bills falling due directly in calendar month **`M`** (`maturityMonth === periodMonth`, `dueMonth === periodMonth`):
   - `OCT '26` (`10/2026`, `28 Sep - 27 Oct 2026`): Pays October due dates (`11, 25 Oct`).
   - `NOV '26` (`11/2026`, `28 Oct - 26 Nov 2026`, `ACTIVE` on 22 Nov 2026 at Day 26 of 30): Pays November due dates (`11, 25 Nov`).
-  - `DEC '26` (`12/2026`, `27 Nov - 27 Dec 2026`, `PRE_PAYDAY` on 22 Nov 2026 at Day 0 of 31): Pays December due dates (`11, 17, 23, 24, 25 Dec`).
-  - `JAN '27` (`01/2027`, `28 Dec 2026 - 26 Jan 2027`, funded by Dec 28 payday + Natal THR): Pays January due dates (`11, 17, 23, 24, 25 Jan`).
+  - `DEC '26` (`12/2026`, `27 Nov - 27 Dec 2026`, `PRE_PAYDAY` on 22 Nov 2026 at Day 0 of 31, funded by Nov 27 payday + Dec 18 Natal THR `264/365` * `5,300,000` = `Rp 3.833.425`): Pays December due dates (`11, 17, 23, 24, 25 Dec`).
+  - `JAN '27` (`01/2027`, `28 Dec 2026 - 26 Jan 2027`, funded by Dec 28 payday `Rp 5.941.000`, THR `Rp 0`): Pays January due dates (`11, 17, 23, 24, 25 Jan`).
   - `FEB '27 – SEP '27` (`02/2027..09/2027`): Post-2026 horizon with `Rp 1.500.000/mo` baseline daily ops; `FEB '27` retires `11.11` & `SPinjam #2/#3` (`3/3`), `04/2027` shifts Sunday Apr 11 Permata CC due date H-1 to `2027-04-09`, and `09/2027` retires `48/48` Mandiri KSM (`Rp 293.044`).
 
 ## 2. Cutoff Routing Rules
@@ -45,7 +45,7 @@ Authoritative accounting and cutoff specifications for Sunday Funday ERP.
 - `MonthlyBulkBill.paylaterAmount` MUST always equal the sum of `LiabilityLineItem` rows with `category = PAYLATER` for `(userId, month, year)`.
 - `MonthlyBulkBill.personalDebtAmount` MUST always equal the sum of `LiabilityLineItem` rows with `category IN ('PERSONAL_DEBT', 'P1_VAULT_REFUND')` for `(userId, month, year)`.
 - Matrix `contractRows` / `activeInstallmentPlans` (`isIncludedInMatrixRows: true`) contain **strictly multi-month installment plans (`totalTenor > 1` and `category != 'P1_VAULT_REFUND'`)** with `M+1` true final maturity dates, never added a second time into `totalsPerMonth` or `MonthlySnapshot.totalDeductions`.
-- Single-period charges (`1/1`, including `Hoodie P1 Vault Forward-Borrow Refund (Rp 250.000)` strictly in `01/2027` and `Billiard, Beer & Indomaret (Rp 170.000)` strictly in `12/2026`, plus recurring CC items) are scoped exclusively to their exact billing period and never appear in expired or future cycles.
+- Single-period charges (`1/1`, including `Hoodie Temporary Transfer P1 Refund (Rp 250.000)` strictly in `01/2027` and `Billiard, Beer & Indomaret (Rp 170.000)` strictly in `12/2026`, plus recurring CC items) are scoped exclusively to their exact billing period and never appear in expired or future cycles.
 - Net Worth Debt Principal sums **Current Cycle External Debt Due** (excluding internal `P1_VAULT_REFUND`) plus **Future Unpaid Multi-Month Installment Principal** (excluding future unincurred recurring CC subscriptions and internal vault refunds).
 
 ## 5. Ledger Epoch Isolation & P1 Vault Truth

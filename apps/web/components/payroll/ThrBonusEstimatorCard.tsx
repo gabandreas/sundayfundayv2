@@ -29,15 +29,21 @@ export function ThrBonusEstimatorCard({
 }: ThrBonusEstimatorCardProps) {
   const { isAmountsMasked } = usePrivacyMask();
   const adjustedBase = Math.max(0, baseSalary + currentSalaryAdjustment);
+  const joinDateIso = "2026-04-06";
+  const exactDays2026 = 264;
+  const completedMonths2026 = 8;
   const derivedDefaultTenure =
     currentThrAmount > 0 && adjustedBase > 0
       ? Math.round((currentThrAmount / adjustedBase) * 12 * 100) / 100
       : currentMonth === 12
-        ? 8.83
+        ? Math.round((exactDays2026 / 365) * 12 * 100) / 100
         : 12;
 
   const [simulatedDays, setSimulatedDays] = useState<number>(
     currentWorkingDays > 0 ? currentWorkingDays : 21
+  );
+  const [thrMethod, setThrMethod] = useState<"SUNFISH_DAYS" | "PERMENAKER_FLOOR" | "CUSTOM">(
+    currentMonth === 12 ? "SUNFISH_DAYS" : "CUSTOM"
   );
   const [tenureMonths, setTenureMonths] = useState<number>(derivedDefaultTenure);
   const [bonusFactorMonths, setBonusFactorMonths] = useState<number>(0);
@@ -45,20 +51,79 @@ export function ThrBonusEstimatorCard({
   const bpjsDeduction = Math.round(adjustedBase * 0.03);
   const netBase = adjustedBase - bpjsDeduction + laptopAllowance;
   const attendanceTotal = simulatedDays * dailyAllowance;
-  const proratedThr = Math.round(adjustedBase * (Math.min(12, Math.max(0, tenureMonths)) / 12));
+  const sunfishExactThr = Math.round((exactDays2026 / 365) * adjustedBase);
+  const permenakerFloorThr = Math.round((completedMonths2026 / 12) * adjustedBase);
+  const aprilProofBase = Math.round((25 / 30) * adjustedBase);
+  const proratedThr =
+    thrMethod === "SUNFISH_DAYS"
+      ? sunfishExactThr
+      : thrMethod === "PERMENAKER_FLOOR"
+        ? permenakerFloorThr
+        : Math.round(adjustedBase * (Math.min(12, Math.max(0, tenureMonths)) / 12));
   const projectedBonus = Math.round(adjustedBase * Math.max(0, bonusFactorMonths));
   const projectedNetSalary = Math.max(0, netBase + attendanceTotal - currentCafeteriaDeduction);
   const projectedTakeHome = projectedNetSalary + proratedThr + projectedBonus + currentExtraIncome;
 
   return (
     <div className="bg-surface border border-border-default rounded-lg p-5 space-y-4">
-      <div className="pb-2.5 border-b border-border-subtle">
-        <h3 className="text-sm font-semibold font-sans text-text-primary tracking-tight">
-          THR, Bonus & Attendance Sensitivity Estimator
-        </h3>
-        <p className="text-xs font-sans text-text-tertiary mt-0.5">
-          Non-destructive simulator for attendance-day variances and prorated holiday allowance (THR).
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3 pb-2.5 border-b border-border-subtle">
+        <div>
+          <h3 className="text-sm font-semibold font-sans text-text-primary tracking-tight">
+            THR (Gross Base Only), Bonus &amp; Attendance Simulator
+          </h3>
+          <p className="text-xs font-sans text-text-tertiary mt-0.5">
+            THR prorates strictly on Gross Base Salary ({formatRupiah(adjustedBase, isAmountsMasked)}) excluding Laptop Allowance, paid max H-7 (~Dec 18 into Dec cycle).
+          </p>
+        </div>
+        <div className="inline-flex items-center rounded border border-border bg-canvas p-0.5 text-[10px] font-mono">
+          <button
+            type="button"
+            onClick={() => setThrMethod("SUNFISH_DAYS")}
+            className={`px-2 py-1 rounded-sm cursor-pointer ${
+              thrMethod === "SUNFISH_DAYS"
+                ? "bg-surface-active text-text-primary font-semibold"
+                : "text-text-tertiary hover:text-text-secondary"
+            }`}
+          >
+            264/365 Days
+          </button>
+          <button
+            type="button"
+            onClick={() => setThrMethod("PERMENAKER_FLOOR")}
+            className={`px-2 py-1 rounded-sm cursor-pointer ${
+              thrMethod === "PERMENAKER_FLOOR"
+                ? "bg-surface-active text-text-primary font-semibold"
+                : "text-text-tertiary hover:text-text-secondary"
+            }`}
+          >
+            8/12 Mo Floor
+          </button>
+          <button
+            type="button"
+            onClick={() => setThrMethod("CUSTOM")}
+            className={`px-2 py-1 rounded-sm cursor-pointer ${
+              thrMethod === "CUSTOM"
+                ? "bg-surface-active text-text-primary font-semibold"
+                : "text-text-tertiary hover:text-text-secondary"
+            }`}
+          >
+            Custom
+          </button>
+        </div>
+      </div>
+
+      {/* SunFish Payslip Proration Proof Strip */}
+      <div className="px-3 py-2 rounded bg-canvas border border-border-subtle flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono text-text-secondary">
+        <span>
+          Join {joinDateIso} · April 2026 Proof (25/30d):{" "}
+          <strong className="text-text-primary tabular-nums">{formatRupiah(aprilProofBase, isAmountsMasked)}</strong>
+        </span>
+        <span>
+          Dec 25 Exact (264/365):{" "}
+          <strong className="text-delta-positive tabular-nums">{formatRupiah(sunfishExactThr, isAmountsMasked)}</strong>{" "}
+          · Statutory Floor (8/12):{" "}
+          <strong className="text-text-primary tabular-nums">{formatRupiah(permenakerFloorThr, isAmountsMasked)}</strong>
+        </span>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

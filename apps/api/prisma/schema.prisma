@@ -94,6 +94,13 @@ enum BudgetRevisionCategory {
   CUSTOM_BUCKET
 }
 
+enum LiabilityCategory {
+  PAYLATER
+  PERSONAL_DEBT
+  CREDIT_CARD
+  P1_VAULT_REFUND
+}
+
 // ─────────────────────────────────────────────
 // 0. User & TrustedIpAddress — Multi-Tenant & Security
 // ─────────────────────────────────────────────
@@ -114,6 +121,8 @@ model User {
   ipWhitelistEnforced Boolean  @default(false)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
+
+  liabilityLineItems  LiabilityLineItem[]
 
   @@unique([accountName, username])
 }
@@ -230,6 +239,11 @@ model MonthlySnapshot {
   isPayoutDateConfirmed  Boolean         @default(false)
   frozenRulesJson        Json?
   bucketRealizationsJson Json?
+  isManualOverride       Boolean         @default(false)
+  lockedP1               Float?
+  lockedP2               Float?
+  bridgeInflowAmount     Float           @default(0)
+  oneOffBillsJson        Json?
   createdAt              DateTime        @default(now())
   updatedAt              DateTime        @updatedAt
 
@@ -354,6 +368,35 @@ model MonthlyBulkBill {
   @@unique([userId, month, year])
   @@index([userId])
   @@index([userId, year, month])
+}
+
+// ─────────────────────────────────────────────
+// 7b. LiabilityLineItem — Itemized Matrix Sub-Ledger
+// ─────────────────────────────────────────────
+
+model LiabilityLineItem {
+  id                 Int               @id @default(autoincrement())
+  userId             Int               @default(1)
+  user               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  month              Int
+  year               Int
+  category           LiabilityCategory @default(PAYLATER)
+  title              String
+  merchantOrPlatform String            @default("SPayLater")
+  principalAmount    Float             @default(0)
+  monthlyAmount      Float
+  tenorMonths        Int               @default(1)
+  installmentIndex   Int               @default(1)
+  cutoffDay          Int               @default(15)
+  dueDay             Int               @default(25)
+  isSettled          Boolean           @default(false)
+  parentContractId   String?
+  notes              String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  @@index([userId, year, month])
+  @@index([parentContractId])
 }
 
 // ─────────────────────────────────────────────

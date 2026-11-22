@@ -519,7 +519,7 @@ export function OnboardingWizardModal() {
                     PERCENTAGE_SPLIT (50/30/20 Proportional)
                   </option>
                   <option value="RETIREMENT_DRAWDOWN">
-                    RETIREMENT_DRAWDOWN (Pension + Vault Drawdown)
+                    RETIREMENT_DRAWDOWN (Pension + Reserve Drawdown)
                   </option>
                 </select>
               </div>

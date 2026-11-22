@@ -109,13 +109,13 @@ export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps
           footer={`Credit & liability burden: ${kpis.overallCreditDebtRatioPercent.toFixed(1)}% of income`}
         />
 
-        {/* Card 4: Cumulative Vault Inflow (Tabular Mono) */}
+        {/* Card 4: Cumulative Savings Deposited (Tabular Mono) */}
         <MetricCard
-          label="Cumulative Vault Inflow"
+          label="Cumulative Savings Deposited"
           amount={kpis.cumulativeVaultInflow}
           value={formatRp(kpis.cumulativeVaultInflow)}
           isCenterpiece={false}
-          footer={`Vault realization: ${kpis.vaultRealizationRatePercent.toFixed(1)}% of P1 (${formatRp(
+          footer={`Realized deposits: ${kpis.vaultRealizationRatePercent.toFixed(1)}% of P1 (${formatRp(
             kpis.untransferredPlannedSavings
           )} pending transfer)`}
         />

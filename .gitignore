@@ -56,7 +56,9 @@ chrome_profile*
 
 # Media & Temporary Verification Screenshots
 *.png
+!apps/web/public/brand-mark.png
 *.jpg
 *.jpeg
 *.webp
 scratch/
+apps/go-engine/bin/

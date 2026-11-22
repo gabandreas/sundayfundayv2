@@ -1056,7 +1056,7 @@ export function AssetAccountsTableCard({ initialConfig }: { initialConfig?: Modu
                 ...prev,
                 {
                   id: `acc_${Date.now()}`,
-                  name: "New Vault Account",
+                  name: "New Savings Account",
                   institution: "Bank / Fund",
                   accountType: "MONEY_MARKET_RDPU",
                   balanceRp: 0,
@@ -1089,10 +1089,10 @@ export function AssetAccountsTableCard({ initialConfig }: { initialConfig?: Modu
       <div className="rounded border border-border-subtle bg-surface-subtle/40 p-3.5 flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="text-xs font-medium text-text-primary font-sans">
-            Actual Core Savings (P1) Closed-Cycles Vault Balance Override (Rp)
+            Actual Core Savings (P1) Closed-Cycles Balance Override (Rp)
           </div>
           <p className="text-[11px] text-text-tertiary mt-0.5">
-            Set an exact realized balance for closed P1 cycles or leave blank to compute directly from verified P1 vault transactions.
+            Set an exact realized balance for closed P1 cycles or leave blank to compute directly from verified P1 savings records.
           </p>
         </div>
         <input
@@ -1112,7 +1112,7 @@ export function AssetAccountsTableCard({ initialConfig }: { initialConfig?: Modu
             External Asset Portfolio is currently OFF (Ledger-Truth Mode)
           </div>
           <p className="text-text-tertiary">
-            Cash &amp; Savings balances derive exclusively from your verified monthly Core Savings (P1) ledger deposits and actual Wallet Check-In cash balances. Turn on &quot;Enable External Asset Portfolio&quot; above if you want to track off-ledger RDPU, time deposits, gold, stocks, or crypto vaults.
+            Cash &amp; Savings balances derive exclusively from your verified monthly Core Savings (P1) ledger deposits and actual Wallet Check-In cash balances. Turn on &quot;Enable External Asset Portfolio&quot; above if you want to track off-ledger RDPU, time deposits, gold, stocks, or crypto holdings.
           </p>
         </div>
       ) : (
@@ -1173,7 +1173,7 @@ export function AssetAccountsTableCard({ initialConfig }: { initialConfig?: Modu
                       <option value="STOCKS">Stocks / Equities</option>
                       <option value="CRYPTO">Crypto Assets</option>
                       <option value="CASH_WALLET">Daily Cash Wallet</option>
-                      <option value="SAVINGS_VAULT">Custom Vault</option>
+                      <option value="SAVINGS_VAULT">Custom Savings Account</option>
                     </select>
                   </td>
                   <td className="px-2.5 py-2">
@@ -1410,7 +1410,7 @@ const MANAGED_SIDEBAR_ROUTES = [
   { href: "/payroll", defaultLabel: "Payroll & Income" },
   { href: "/allocations", defaultLabel: "Allocations" },
   { href: "/credit", defaultLabel: "Credit & Liabilities" },
-  { href: "/savings", defaultLabel: "Savings & Vaults" },
+  { href: "/savings", defaultLabel: "Savings & Emergency Fund" },
   { href: "/ledger", defaultLabel: "Transaction Ledger" },
   { href: "/wishlist", defaultLabel: "Wishlist Simulator" },
   { href: "/audit", defaultLabel: "Discipline Audit" },
@@ -1429,7 +1429,7 @@ const SHORTCUT_DESTINATION_CATALOG: Array<{ group: string; items: Array<{ href: 
       { href: "/payroll", label: "Payroll & Income (/payroll)" },
       { href: "/allocations", label: "Allocations (/allocations)" },
       { href: "/credit", label: "Credit & Liabilities (/credit)" },
-      { href: "/savings", label: "Savings & Vaults (/savings)" },
+      { href: "/savings", label: "Savings & Emergency Fund (/savings)" },
       { href: "/ledger", label: "Transaction Ledger (/ledger)" },
       { href: "/wishlist", label: "Wishlist Simulator (/wishlist)" },
       { href: "/audit", label: "Discipline Audit (/audit)" },
@@ -1453,9 +1453,9 @@ const SHORTCUT_DESTINATION_CATALOG: Array<{ group: string; items: Array<{ href: 
       { href: "/credit?sub=contracts", label: "Installments & Payoff (/credit?sub=contracts)" },
       { href: "/credit?sub=simulator", label: "Billing Cutoff Advisor (/credit?sub=simulator)" },
       { href: "/credit?sub=reconciler", label: "Bulk Statement Reconciler (/credit?sub=reconciler)" },
-      { href: "/savings?sub=vault", label: "Core Savings Vault & Goals (/savings?sub=vault)" },
-      { href: "/savings?sub=networth", label: "Cash vs Debt Ledger (/savings?sub=networth)" },
-      { href: "/savings?sub=forecaster", label: "12-Month Debt-Free Outlook (/savings?sub=forecaster)" },
+      { href: "/savings?sub=vault", label: "Core Savings & Emergency Fund (/savings?sub=vault)" },
+      { href: "/savings?sub=networth", label: "Cash vs Debt Position (/savings?sub=networth)" },
+      { href: "/savings?sub=forecaster", label: "12-Month Payoff Projection (/savings?sub=forecaster)" },
       { href: "/reports?sub=executive", label: "Executive Summary (/reports?sub=executive)" },
       { href: "/reports?sub=variance", label: "Variance & Drift (/reports?sub=variance)" },
       { href: "/reports?sub=export", label: "4-Sheet Export (/reports?sub=export)" },

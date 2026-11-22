@@ -6560,6 +6560,12 @@ export async function rotateMarqueeWebhookToken(): Promise<{
   }
 }
 
+export interface CashRadarSubItemDto {
+  title: string;
+  amountRp: number;
+  sliceLabel: string;
+}
+
 export interface CashRadarEventDto {
   id: string;
   dateIso: string;
@@ -6571,6 +6577,8 @@ export interface CashRadarEventDto {
   sliceLabel: string;
   isFinalSlice: boolean;
   notes: string;
+  insideAllocatedPool?: boolean;
+  subItems?: CashRadarSubItemDto[];
 }
 
 export interface CashRadarDayPointDto {

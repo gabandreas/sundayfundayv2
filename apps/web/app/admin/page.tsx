@@ -1100,7 +1100,7 @@ export default function AdminConsolePage() {
                   <h3>Export Database Backup</h3>
                 </div>
                 <p className="text-xs text-text-secondary mt-1">
-                  Download a complete, portable JSON snapshot of all 15 relational tables (Users, Snapshots, Credit Cards, Contracts, Transactions, Savings Vault, Goals & Settings).
+                  Download a complete, portable JSON snapshot of all 15 relational tables (Users, Snapshots, Credit Cards, Contracts, Transactions, Savings Reserve, Goals & Settings).
                 </p>
               </div>
 

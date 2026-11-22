@@ -56,10 +56,10 @@ export function SavingsAccumulationTable({
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-sm font-semibold uppercase tracking-wider text-text-primary">
-            Monthly Savings Accumulation Ledger
+            Monthly Savings Transfer Tracker
           </h2>
           <p className="text-xs text-text-secondary mt-0.5">
-            Snapshot-to-Vault reconciliation tracking Priority 1 (P1) salary allocations vs confirmed vault deposits.
+            Tracks Priority 1 (P1) salary savings allocations vs confirmed actual bank/RDPU deposits.
           </p>
         </div>
         <span className="text-xs font-mono text-text-tertiary">
@@ -75,7 +75,7 @@ export function SavingsAccumulationTable({
               <th className="py-2.5 px-3">Status</th>
               <th className="py-2.5 px-3 text-right">Monthly Target</th>
               <th className="py-2.5 px-3 text-right text-text-primary">Funded from Salary (P1)</th>
-              <th className="py-2.5 px-3 text-right">Deposited to Vault</th>
+              <th className="py-2.5 px-3 text-right">Confirmed Deposited</th>
               <th className="py-2.5 px-3 text-right">Pending Transfer</th>
               <th className="py-2.5 px-3 text-center">Reconciliation Action</th>
             </tr>
@@ -161,7 +161,7 @@ export function SavingsAccumulationTable({
           <div className="w-full max-w-md rounded-lg border border-border bg-surface p-5 space-y-4 shadow-xl">
             <div className="flex items-center justify-between pb-2 border-b border-border-subtle">
               <h3 className="text-sm font-semibold text-text-primary">
-                Confirm Vault Deposit for {activeDepositPeriod.month}/{activeDepositPeriod.year}
+                Confirm Savings Deposit for {activeDepositPeriod.month}/{activeDepositPeriod.year}
               </h3>
               <button
                 type="button"
@@ -174,7 +174,7 @@ export function SavingsAccumulationTable({
 
             <p className="text-xs text-text-secondary leading-relaxed">
               Deposit <strong className="text-text-primary font-mono">{formatRupiah(activeDepositPeriod.pendingAmount)}</strong> funded
-              from Salary (P1) into your savings vault. This will bridge the snapshot to the vault and mark this period as fully transferred.
+              from Salary (P1) into your emergency savings reserve and mark this period transferred.
             </p>
 
             <form onSubmit={handleConfirmDeposit} className="space-y-3">
