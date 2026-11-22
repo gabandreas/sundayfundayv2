@@ -5,6 +5,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"time"
 
 	"sundayfunday.erp/go-engine/internal/format"
 )
@@ -183,6 +184,26 @@ func round1Decimal(v float64) float64 {
 	return math.Round(v*10) / 10
 }
 
+func isIndonesianHolidayIso(iso string) bool {
+	return iso == "2026-12-25" || iso == "2027-01-01"
+}
+
+func resolvePreviousBusinessDayIso(y, m, d int) (string, bool) {
+	dt := time.Date(y, time.Month(m), d, 0, 0, 0, 0, time.UTC)
+	iso := dt.Format("2006-01-02")
+	isNonWorking := dt.Weekday() == time.Saturday || dt.Weekday() == time.Sunday || isIndonesianHolidayIso(iso)
+	if !isNonWorking {
+		return iso, false
+	}
+	for {
+		dt = dt.AddDate(0, 0, -1)
+		candIso := dt.Format("2006-01-02")
+		if dt.Weekday() != time.Saturday && dt.Weekday() != time.Sunday && !isIndonesianHolidayIso(candIso) {
+			return candIso, true
+		}
+	}
+}
+
 func SimulateCutoff(req CutoffRequest) CutoffResult {
 	tenor := req.TenorMonths
 	if tenor < 1 {
@@ -223,21 +244,22 @@ func SimulateCutoff(req CutoffRequest) CutoffResult {
 
 	switch inst {
 	case InstrumentCreditCard:
-		cutoffDay = 20
+		// Bank Permata Credit Card: statement closes every 25th, due 11th of following month
+		cutoffDay = 25
 		dueDay = 11
 		if req.DueDayOverride >= 1 && req.DueDayOverride <= 31 {
 			dueDay = req.DueDayOverride
 		}
-		// Days 1-20 of month M bill 11th of Month M+1 (Period M+1).
-		// Days 21-31 cross cutoff and bill 11th of Month M+2 (Period M+2).
-		if pD > 20 {
+		// 26th of M-1 through 25th of M -> due 11th of Month M+1 (Period M+1).
+		// Day >= 26 of Month M crosses cutoff and bills 11th of Month M+2 (Period M+2).
+		if pD > cutoffDay {
 			crossedCutoff = true
 			startPeriodM, startPeriodY = AddMonths(pM, pY, 2)
-			daysUntilCutoff = (daysInMonth(pM, pY) - pD) + 20
+			daysUntilCutoff = (daysInMonth(pM, pY) - pD) + cutoffDay
 		} else {
 			crossedCutoff = false
 			startPeriodM, startPeriodY = AddMonths(pM, pY, 1)
-			daysUntilCutoff = 20 - pD
+			daysUntilCutoff = cutoffDay - pD
 		}
 	case InstrumentSPinjam, InstrumentPersonalDebt:
 		cutoffDay = pD
@@ -256,21 +278,24 @@ func SimulateCutoff(req CutoffRequest) CutoffResult {
 		startPeriodM, startPeriodY = pM, pY
 		daysUntilCutoff = 0
 	default: // SPAYLATER
-		cutoffDay = 15
+		// Dynamic book-closing cutoff: daysInMonth(M) - 15 (15th on 30d, 16th on 31d, 13th/14th on Feb)
+		cutoffDay = daysInMonth(pM, pY) - 15
 		dueDay = 25
 		if req.DueDayOverride >= 1 && req.DueDayOverride <= 31 {
 			dueDay = req.DueDayOverride
 		}
-		// Days 1-14 of Month M bill 25th of Month M (Period M).
-		// Days 15-31 of Month M cross cutoff and bill 25th of Month M+1 (Period M+1).
-		if pD >= 15 {
+		// Day <= cutoffDay -> due 25th of Month M+1 (Period M+1).
+		// Day > cutoffDay crosses cutoff and bills 25th of Month M+2 (Period M+2).
+		if pD > cutoffDay {
 			crossedCutoff = true
-			startPeriodM, startPeriodY = AddMonths(pM, pY, 1)
-			daysUntilCutoff = (daysInMonth(pM, pY) - pD) + 15
+			startPeriodM, startPeriodY = AddMonths(pM, pY, 2)
+			nextM, nextY := AddMonths(pM, pY, 1)
+			nextCutoff := daysInMonth(nextM, nextY) - 15
+			daysUntilCutoff = (daysInMonth(pM, pY) - pD) + nextCutoff
 		} else {
 			crossedCutoff = false
-			startPeriodM, startPeriodY = pM, pY
-			daysUntilCutoff = 15 - pD
+			startPeriodM, startPeriodY = AddMonths(pM, pY, 1)
+			daysUntilCutoff = cutoffDay - pD
 		}
 	}
 
@@ -359,6 +384,11 @@ func SimulateCutoff(req CutoffRequest) CutoffResult {
 		} else if crossedCutoff {
 			verdict = "SAFE"
 			advice = fmt.Sprintf("Post-%dth cutoff purchase: bills in %s (due %s).", cutoffDay, firstSliceInfo.PeriodLabel, firstSliceInfo.DueDateIso)
+		}
+		if inst == InstrumentCreditCard {
+			if earlyIso, shiftedEarly := resolvePreviousBusinessDayIso(firstSliceInfo.DueYear, firstSliceInfo.DueMonth, firstSliceInfo.DueDay); shiftedEarly {
+				advice = fmt.Sprintf("%s Pay H-1 business day earlier by %s (due %s falls on a weekend/holiday) to keep 0%% interest.", advice, earlyIso, firstSliceInfo.DueDateIso)
+			}
 		}
 	}
 

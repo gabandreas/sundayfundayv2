@@ -429,14 +429,14 @@ export function ActiveContractsHub({
     },
     {
       key: "CREDIT_CARD",
-      title: "2. Credit Card Installments",
-      subtitle: "Recurring multi-month credit card charges due on the 11th (cutoff 20th).",
+      title: "2. Bank Permata Credit Card Installments",
+      subtitle: "Multi-month card charges due on the 11th (statement closes 25th; pay H-1 working day if weekend/holiday).",
       plans: enrichedPlans.filter((p) => p.group === "CREDIT_CARD"),
     },
     {
       key: "PAYLATER",
-      title: "3. PayLater Multi-Month Plans",
-      subtitle: "Scheduled multi-cycle SPayLater obligations due on the 25th (cutoff 15th).",
+      title: "3. SPayLater Multi-Month Plans",
+      subtitle: "Scheduled multi-cycle SPayLater obligations due on the 25th (dynamic M-15d cutoff: 15th/16th).",
       plans: enrichedPlans.filter((p) => p.group === "PAYLATER"),
     },
   ];

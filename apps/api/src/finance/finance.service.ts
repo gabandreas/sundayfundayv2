@@ -85,7 +85,6 @@ export class FinanceService {
           purchaseDate: dto.date,
           holdPastCutoff: Boolean(dto.holdPastCutoff),
           autoRouteByCutoff: true,
-          cutoffDay: 15,
           dueDay: 25,
           notes: dto.fixedEssentialCategory
             ? `Routine category (${dto.fixedEssentialCategory}) paid via PayLater`
@@ -310,7 +309,6 @@ export class FinanceService {
             startYear: existing.snapshot.year,
             purchaseDate: updatedDate.toISOString(),
             autoRouteByCutoff: true,
-            cutoffDay: 15,
             dueDay: 25,
             notes: `Converted from cash transaction #${id}`,
           },

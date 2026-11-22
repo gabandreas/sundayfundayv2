@@ -290,6 +290,33 @@ function round1(v: number): number {
   return Math.round(v * 10) / 10;
 }
 
+function isIndonesianHolidayIsoTs(iso: string): boolean {
+  return iso === '2026-12-25' || iso === '2027-01-01';
+}
+
+export function resolvePreviousBusinessDayIsoTs(
+  y: number,
+  m: number,
+  d: number,
+): { earlyIso: string; shifted: boolean } {
+  let dt = new Date(Date.UTC(y, m - 1, d));
+  const fmt = (val: Date) =>
+    `${String(val.getUTCFullYear()).padStart(4, '0')}-${String(val.getUTCMonth() + 1).padStart(2, '0')}-${String(val.getUTCDate()).padStart(2, '0')}`;
+  const iso = fmt(dt);
+  const dow = dt.getUTCDay();
+  if (dow !== 0 && dow !== 6 && !isIndonesianHolidayIsoTs(iso)) {
+    return { earlyIso: iso, shifted: false };
+  }
+  while (true) {
+    dt = new Date(dt.getTime() - 86400000);
+    const candIso = fmt(dt);
+    const candDow = dt.getUTCDay();
+    if (candDow !== 0 && candDow !== 6 && !isIndonesianHolidayIsoTs(candIso)) {
+      return { earlyIso: candIso, shifted: true };
+    }
+  }
+}
+
 export function simulateCutoffTs(req: CutoffSimulateRequest): CutoffSimulateResult {
   const tenor = Math.max(1, Math.min(60, Math.round(req.tenorMonths || 1)));
   const inst: HybridInstrument = req.instrument || 'SPAYLATER';
@@ -310,7 +337,7 @@ export function simulateCutoffTs(req: CutoffSimulateRequest): CutoffSimulateResu
   const pM = parsed.ok ? parsed.month : 11;
   const pD = parsed.ok ? parsed.day : 18;
 
-  let cutoffDay = 15;
+  let cutoffDay = daysInMonthUtc(pM, pY) - 15;
   let dueDay = 25;
   let crossedCutoff = false;
   let startPeriodM = pM;
@@ -318,23 +345,23 @@ export function simulateCutoffTs(req: CutoffSimulateRequest): CutoffSimulateResu
   let daysUntilCutoff = 0;
 
   if (inst === 'CREDIT_CARD') {
-    cutoffDay = 20;
+    cutoffDay = 25;
     dueDay =
       req.dueDayOverride && req.dueDayOverride >= 1 && req.dueDayOverride <= 31
         ? req.dueDayOverride
         : 11;
-    if (pD > 20) {
+    if (pD > cutoffDay) {
       crossedCutoff = true;
       const shifted = addHybridMonths(pM, pY, 2);
       startPeriodM = shifted.month;
       startPeriodY = shifted.year;
-      daysUntilCutoff = daysInMonthUtc(pM, pY) - pD + 20;
+      daysUntilCutoff = daysInMonthUtc(pM, pY) - pD + cutoffDay;
     } else {
       crossedCutoff = false;
       const shifted = addHybridMonths(pM, pY, 1);
       startPeriodM = shifted.month;
       startPeriodY = shifted.year;
-      daysUntilCutoff = 20 - pD;
+      daysUntilCutoff = cutoffDay - pD;
     }
   } else if (inst === 'SPINJAM' || inst === 'PERSONAL_DEBT') {
     cutoffDay = pD;
@@ -355,22 +382,25 @@ export function simulateCutoffTs(req: CutoffSimulateRequest): CutoffSimulateResu
     startPeriodY = pY;
     daysUntilCutoff = 0;
   } else {
-    cutoffDay = 15;
+    cutoffDay = daysInMonthUtc(pM, pY) - 15;
     dueDay =
       req.dueDayOverride && req.dueDayOverride >= 1 && req.dueDayOverride <= 31
         ? req.dueDayOverride
         : 25;
-    if (pD >= 15) {
+    if (pD > cutoffDay) {
       crossedCutoff = true;
+      const shifted = addHybridMonths(pM, pY, 2);
+      startPeriodM = shifted.month;
+      startPeriodY = shifted.year;
+      const nextM = addHybridMonths(pM, pY, 1);
+      const nextCutoff = daysInMonthUtc(nextM.month, nextM.year) - 15;
+      daysUntilCutoff = daysInMonthUtc(pM, pY) - pD + nextCutoff;
+    } else {
+      crossedCutoff = false;
       const shifted = addHybridMonths(pM, pY, 1);
       startPeriodM = shifted.month;
       startPeriodY = shifted.year;
-      daysUntilCutoff = daysInMonthUtc(pM, pY) - pD + 15;
-    } else {
-      crossedCutoff = false;
-      startPeriodM = pM;
-      startPeriodY = pY;
-      daysUntilCutoff = 15 - pD;
+      daysUntilCutoff = cutoffDay - pD;
     }
   }
 
@@ -469,6 +499,16 @@ export function simulateCutoffTs(req: CutoffSimulateRequest): CutoffSimulateResu
     } else if (crossedCutoff) {
       verdict = 'SAFE';
       advice = `Post-${cutoffDay}th cutoff purchase: bills in ${firstSliceInfo.periodLabel} (due ${firstSliceInfo.dueDateIso}).`;
+    }
+    if (inst === 'CREDIT_CARD') {
+      const early = resolvePreviousBusinessDayIsoTs(
+        firstSliceInfo.dueYear,
+        firstSliceInfo.dueMonth,
+        firstSliceInfo.dueDay,
+      );
+      if (early.shifted) {
+        advice = `${advice} Pay H-1 business day earlier by ${early.earlyIso} (due ${firstSliceInfo.dueDateIso} falls on a weekend/holiday) to keep 0% interest.`;
+      }
     }
   }
 

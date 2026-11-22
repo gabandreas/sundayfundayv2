@@ -26,47 +26,77 @@ describe('Hybrid Engine (Go <-> TypeScript Parity & Financial Precision)', () =>
     expect(slices.reduce((a, b) => a + b, 0)).toBe(92000);
   });
 
-  it('routes SPayLater 15th cutoff and Credit Card 20th cutoff identically to domain rules (consumption/maturity month = Period M)', () => {
-    const spBefore = simulateCutoffTs({
+  it('routes SPayLater dynamic daysInMonth(M)-15 cutoff (due 25th) and Bank Permata Credit Card 25th cutoff (due 11th + H-1 weekend advisory) identically to domain rules', () => {
+    // 1. SPayLater in 30-day Nov (30 - 15 = 15th cutoff): Nov 15 -> 12/2026 (due 2026-12-25); Nov 16 -> 01/2027 (due 2027-01-25)
+    const spNov15 = simulateCutoffTs({
       instrument: 'SPAYLATER',
       principalAmount: 75000,
       tenorMonths: 1,
-      purchaseDate: '2026-11-14',
+      purchaseDate: '2026-11-15',
     });
-    expect(spBefore.crossedCutoff).toBe(false);
-    expect(spBefore.startPeriodMonth).toBe(11);
-    expect(spBefore.firstDueDateIso).toBe('2026-11-25');
+    expect(spNov15.crossedCutoff).toBe(false);
+    expect(spNov15.cutoffDay).toBe(15);
+    expect(spNov15.startPeriodMonth).toBe(12);
+    expect(spNov15.firstDueDateIso).toBe('2026-12-25');
 
-    const spAfter = simulateCutoffTs({
+    const spNov16 = simulateCutoffTs({
       instrument: 'SPAYLATER',
       principalAmount: 34200,
       tenorMonths: 1,
       purchaseDate: '2026-11-16',
     });
-    expect(spAfter.crossedCutoff).toBe(true);
-    expect(spAfter.startPeriodMonth).toBe(12);
-    expect(spAfter.firstDueDateIso).toBe('2026-12-25');
+    expect(spNov16.crossedCutoff).toBe(true);
+    expect(spNov16.cutoffDay).toBe(15);
+    expect(spNov16.startPeriodMonth).toBe(1);
+    expect(spNov16.startPeriodYear).toBe(2027);
+    expect(spNov16.firstDueDateIso).toBe('2027-01-25');
 
-    const ccBefore = simulateCutoffTs({
+    // 2. SPayLater in 31-day Oct (31 - 15 = 16th cutoff): Oct 16 -> 11/2026; Oct 17 -> 12/2026
+    const spOct16 = simulateCutoffTs({
+      instrument: 'SPAYLATER',
+      principalAmount: 100000,
+      tenorMonths: 1,
+      purchaseDate: '2026-10-16',
+    });
+    expect(spOct16.crossedCutoff).toBe(false);
+    expect(spOct16.cutoffDay).toBe(16);
+    expect(spOct16.startPeriodMonth).toBe(11);
+    expect(spOct16.firstDueDateIso).toBe('2026-11-25');
+
+    // 3. Bank Permata CC (25th cutoff -> 11th due): Nov 25 -> 12/2026 (due 2026-12-11); Nov 26 -> 01/2027 (due 2027-01-11)
+    const ccNov25 = simulateCutoffTs({
       instrument: 'CREDIT_CARD',
       principalAmount: 77000,
       tenorMonths: 1,
-      purchaseDate: '2026-11-15',
+      purchaseDate: '2026-11-25',
     });
-    expect(ccBefore.crossedCutoff).toBe(false);
-    expect(ccBefore.startPeriodMonth).toBe(12);
-    expect(ccBefore.firstDueDateIso).toBe('2026-12-11');
+    expect(ccNov25.crossedCutoff).toBe(false);
+    expect(ccNov25.cutoffDay).toBe(25);
+    expect(ccNov25.dueDay).toBe(11);
+    expect(ccNov25.startPeriodMonth).toBe(12);
+    expect(ccNov25.firstDueDateIso).toBe('2026-12-11');
 
-    const ccAfter = simulateCutoffTs({
+    const ccNov26 = simulateCutoffTs({
       instrument: 'CREDIT_CARD',
       principalAmount: 350000,
       tenorMonths: 1,
-      purchaseDate: '2026-11-21',
+      purchaseDate: '2026-11-26',
     });
-    expect(ccAfter.crossedCutoff).toBe(true);
-    expect(ccAfter.startPeriodMonth).toBe(1);
-    expect(ccAfter.startPeriodYear).toBe(2027);
-    expect(ccAfter.firstDueDateIso).toBe('2027-01-11');
+    expect(ccNov26.crossedCutoff).toBe(true);
+    expect(ccNov26.cutoffDay).toBe(25);
+    expect(ccNov26.startPeriodMonth).toBe(1);
+    expect(ccNov26.startPeriodYear).toBe(2027);
+    expect(ccNov26.firstDueDateIso).toBe('2027-01-11');
+
+    // 4. Weekend 11th due date triggers H-1 working-day early-payment advisory (2027-04-11 Sunday -> 2027-04-09 Friday)
+    const ccWeekendDue = simulateCutoffTs({
+      instrument: 'CREDIT_CARD',
+      principalAmount: 250000,
+      tenorMonths: 1,
+      purchaseDate: '2027-03-10',
+    });
+    expect(ccWeekendDue.firstDueDateIso).toBe('2027-04-11');
+    expect(ccWeekendDue.advice).toContain('2027-04-09');
   });
 
   it('executes Go binary parity check for core simulation commands when binary exists', async () => {
@@ -358,7 +388,7 @@ describe('Hybrid Engine (Go <-> TypeScript Parity & Financial Precision)', () =>
       lockedPeriodCodes: ['10/2026'],
       earliestOpenMonth: 11,
       earliestOpenYear: 2026,
-      rawText: '2026-10-12 | Kopi Fore | 38000 | SPayLater\n2026-10-18 | Warung Nasi | 45000 | Cash',
+      rawText: '2026-09-12 | Kopi Fore | 38000 | SPayLater\n2026-10-18 | Warung Nasi | 45000 | Cash',
     };
     const { engineSource: lrcSrc, ...lrcGo } = await bridge.parseStatementBatch(lockRcReq);
     expect(lrcSrc).toBe('GO_BINARY');

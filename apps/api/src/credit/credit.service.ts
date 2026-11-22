@@ -257,7 +257,7 @@ export class CreditService {
     const config =
       (await this.prisma.globalConfig.findFirst({ where: { userId } })) ||
       (await this.prisma.globalConfig.findFirst({ where: { userId: 1 } }));
-    const statementDay = config?.creditStatementDay ?? 20;
+    const statementDay = config?.creditStatementDay ?? 25;
 
     const { billingMonth, billingYear } = this.calculateBillingCycle(
       dto.transactionDate,
@@ -1334,7 +1334,7 @@ export class CreditService {
         select: { email: true },
       }),
     ]);
-    const statementDay = config?.creditStatementDay ?? 20;
+    const statementDay = config?.creditStatementDay ?? 25;
 
     const promoEndDate = new Date(dto.promoEndDate);
     const now = new Date();

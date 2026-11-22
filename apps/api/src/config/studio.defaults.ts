@@ -247,16 +247,16 @@ export function buildDefaultStudioConfig(
       },
       {
         id: 'inst_permata_cc',
-        name: isSandbox ? 'Corporate Platinum Visa' : 'Permata Credit Card',
+        name: isSandbox ? 'Corporate Platinum Visa' : 'Bank Permata Credit Card',
         type: 'CREDIT_CARD',
-        cutoffDay: legacyConfig?.creditStatementDay ?? 20,
+        cutoffDay: legacyConfig?.creditStatementDay ?? 25,
         dueDay: legacyConfig?.creditDueDay ?? 11,
         dueRule: 'FIXED_DAY',
         monthlyInterestPct: 1.75,
         adminFeePct: 0,
         creditLimitRp: isSandbox ? 15_000_000 : (legacyConfig?.creditLimit ?? 7_000_000),
         utilizationWarnPct: 40,
-        lateFeeRule: '1% up to Rp 100.000 cap',
+        lateFeeRule: '1% up to Rp 100.000 cap (0% if paid in full by 11th; H-1 working day if weekend/holiday)',
         active: true,
       },
       {
@@ -436,7 +436,11 @@ export function resolveStudioConfig(
         : defaults.paycycleFormulaConfig.sinkingFunds,
     },
     instrumentsTable: Array.isArray(raw?.instrumentsTable) && raw.instrumentsTable.length > 0
-      ? raw.instrumentsTable
+      ? raw.instrumentsTable.map((row: InstrumentConfigRow) =>
+          row && row.type === 'CREDIT_CARD' && row.cutoffDay === 20
+            ? { ...row, cutoffDay: 25 }
+            : row,
+        )
       : defaults.instrumentsTable,
     assetAccountsTable: cleanedAccounts,
     routineTemplatesTable:

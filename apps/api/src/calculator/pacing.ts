@@ -3,9 +3,14 @@ export const DEFAULT_PAYOUT_DAY = 25;
 export const PAYDAY_CYCLE_START_DAY = 27;
 export const SPAYLATER_CUTOFF_DAY = 15;
 export const SPAYLATER_DUE_DAY = 25;
-export const CC_CUTOFF_DAY = 20;
+export const CC_CUTOFF_DAY = 25;
 export const CC_DUE_DAY = 11;
 export const PERSONAL_DEBT_DUE_DAY = 8;
+
+export function getSpaylaterCutoffDay(month: number, year: number): number {
+  const daysInM = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return Math.max(1, daysInM - 15);
+}
 export const DEFAULT_WEEKEND_MULTIPLIER = 1.5;
 export const LAUNCH_YEAR = 2026;
 export const LAUNCH_MONTH = 7;

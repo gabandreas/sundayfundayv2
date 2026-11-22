@@ -890,7 +890,7 @@ export class CreditSelectors {
         source: 'CC_TRANSACTION',
         category: 'CREDIT_CARD',
         title: card.label,
-        merchantOrPlatform: 'BCA Credit Card',
+        merchantOrPlatform: 'Bank Permata Credit Card',
         principalAmount: Math.round(card.totalAmount ?? card.amount),
         monthlyInstallment: Math.round(
           card.monthlyAmount ?? card.amount / Math.max(1, card.tenor || 1),

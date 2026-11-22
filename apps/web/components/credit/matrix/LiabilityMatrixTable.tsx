@@ -8,7 +8,7 @@ import {
   CreditLimitCalculationResult,
   accelerateBridgeLoan,
 } from "@/lib/api";
-import { DOMAIN_CONSTANTS, formatRupiah, getJakartaDateParts } from "@/lib/utils";
+import { DOMAIN_CONSTANTS, formatRupiah, getJakartaDateParts, getSpaylaterCutoffDay } from "@/lib/utils";
 import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { MatrixCellDrawer } from "./MatrixCellDrawer";
@@ -169,12 +169,17 @@ export function LiabilityMatrixTable({
     return items;
   }, [matrix, currentKey]);
 
+  const activeSpaylaterCutoffDay = useMemo(
+    () => getSpaylaterCutoffDay(currentMonth, currentYear),
+    [currentMonth, currentYear]
+  );
+
   const cutoffCountdown = useMemo(
     () => ({
-      paylaterDays: daysUntilDayOfMonth(DOMAIN_CONSTANTS.SPAYLATER_CUTOFF_DAY),
+      paylaterDays: daysUntilDayOfMonth(activeSpaylaterCutoffDay),
       ccDays: daysUntilDayOfMonth(DOMAIN_CONSTANTS.CC_CUTOFF_DAY),
     }),
-    []
+    [activeSpaylaterCutoffDay]
   );
 
   // 12-month average for purposeful intensity emphasis on the Total row
@@ -277,7 +282,7 @@ export function LiabilityMatrixTable({
               {t("credit.matrix.subtitle")}
             </p>
             <div className="mt-1.5 text-[10px] font-mono text-text-tertiary tabular-nums">
-              Next Due: {DOMAIN_CONSTANTS.SPAYLATER_DUE_DAY}th (PayLater) · {DOMAIN_CONSTANTS.CC_DUE_DAY}th (CC) | Cutoffs: SPayLater {DOMAIN_CONSTANTS.SPAYLATER_CUTOFF_DAY}th ({cutoffCountdown.paylaterDays}d) · CC {DOMAIN_CONSTANTS.CC_CUTOFF_DAY}th ({cutoffCountdown.ccDays}d)
+              Next Due: {DOMAIN_CONSTANTS.SPAYLATER_DUE_DAY}th (SPayLater) · {DOMAIN_CONSTANTS.CC_DUE_DAY}th (Permata CC) | Cutoffs: SPayLater {activeSpaylaterCutoffDay}th / M-15d ({cutoffCountdown.paylaterDays}d) · Permata CC {DOMAIN_CONSTANTS.CC_CUTOFF_DAY}th ({cutoffCountdown.ccDays}d)
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 shrink-0">

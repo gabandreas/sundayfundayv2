@@ -55,13 +55,18 @@ export const DOMAIN_CONSTANTS = {
   PAYDAY_CYCLE_START_DAY: 27,
   SPAYLATER_CUTOFF_DAY: 15,
   SPAYLATER_DUE_DAY: 25,
-  CC_CUTOFF_DAY: 20,
+  CC_CUTOFF_DAY: 25,
   CC_DUE_DAY: 11,
   PERSONAL_DEBT_DUE_DAY: 8,
   LAUNCH_YEAR: 2026,
   LAUNCH_MONTH: 7,
   NOTIFICATION_EMAIL: "sundayfundayerp@gmail.com",
 } as const;
+
+export function getSpaylaterCutoffDay(month: number, year: number): number {
+  const daysInM = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return Math.max(1, daysInM - 15);
+}
 
 const JAKARTA_DATE_FORMATTER = new Intl.DateTimeFormat("en-CA", {
   timeZone: DOMAIN_CONSTANTS.ASIA_JAKARTA_TZ,

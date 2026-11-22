@@ -299,8 +299,8 @@ func ComputePaycycleHorizon(req HorizonRequest) HorizonResult {
 		nextPayday = expNext
 	}
 
-	livingStart := payday.AddDate(0, 0, 1)
-	livingEnd := nextPayday
+	livingStart := payday
+	livingEnd := nextPayday.AddDate(0, 0, -1)
 	totalDays := int(nextPayday.Sub(payday).Hours() / 24)
 	if totalDays < 1 {
 		totalDays = 1
@@ -329,19 +329,6 @@ func ComputePaycycleHorizon(req HorizonRequest) HorizonResult {
 	} else {
 		temporalState = "ACTIVE"
 		daysUntilStart = 0
-		if refDate.Before(livingStart) {
-			elapsedDays = 0
-			remDays = totalDays
-		} else {
-			elapsedDays = int(refDate.Sub(livingStart).Hours()/24) + 1
-			if elapsedDays > totalDays {
-				elapsedDays = totalDays
-			}
-			remDays = totalDays - elapsedDays
-			if remDays < 0 {
-				remDays = 0
-			}
-		}
 		currentDayIndex = int(refDate.Sub(payday).Hours()/24) + 1
 		if currentDayIndex < 1 {
 			currentDayIndex = 1
@@ -349,12 +336,20 @@ func ComputePaycycleHorizon(req HorizonRequest) HorizonResult {
 		if currentDayIndex > totalDays {
 			currentDayIndex = totalDays
 		}
+		elapsedDays = currentDayIndex - 1
+		if elapsedDays < 0 {
+			elapsedDays = 0
+		}
+		remDays = totalDays - elapsedDays
+		if remDays < 0 {
+			remDays = 0
+		}
 	}
 
-	// Count remaining weekdays/weekends from effective cursor day through livingEnd
+	// Count remaining weekdays/weekends from effective cursor day through livingEnd inclusive
 	cursorStart := livingStart
 	if !refDate.Before(livingStart) && !refDate.After(livingEnd) {
-		cursorStart = refDate.AddDate(0, 0, 1)
+		cursorStart = refDate
 	}
 	remWeekdays := 0
 	remWeekends := 0
@@ -520,15 +515,17 @@ func RouteTransactionToPaycycle(req RouteTxRequest) RouteTxResult {
 	if cutoffDay == 0 && dueDay == 0 {
 		switch instUpper {
 		case "PAYLATER", "SPAYLATER":
-			cutoffDay = 15
+			cutoffDay = daysInMonth(m, y) - 15
 			dueDay = 25
 		case "CREDIT_CARD", "CC":
-			cutoffDay = 20
+			cutoffDay = 25
 			dueDay = 11
 		case "CASH_LOAN", "SPINJAM":
 			dueRule = "DISBURSEMENT_DAY"
 			dueDay = day
 		}
+	} else if (instUpper == "PAYLATER" || instUpper == "SPAYLATER") && cutoffDay == 15 {
+		cutoffDay = daysInMonth(m, y) - 15
 	}
 
 	if instUpper == "CASH" {
@@ -572,8 +569,7 @@ func RouteTransactionToPaycycle(req RouteTxRequest) RouteTxResult {
 	}
 
 	if instUpper == "CREDIT_CARD" || instUpper == "CC" {
-		// <= cutoff (20th): due 11th of M+1 -> Period M+1
-		// > cutoff (21st+): due 11th of M+2 -> Period M+2
+		// Bank Permata CC: <= cutoff (25th) -> due 11th of M+1 (Period M+1); > cutoff (26th+) -> due 11th of M+2 (Period M+2)
 		crossed := day > cutoffDay
 		offset := 1
 		if crossed {
@@ -593,14 +589,15 @@ func RouteTransactionToPaycycle(req RouteTxRequest) RouteTxResult {
 		}
 	}
 
-	// Default PAYLATER (15th cutoff, 25th due):
-	// Before 15th (days 1..14) -> due 25th of M -> Period M!
-	// On/after 15th (days 15..31) -> due 25th of M+1 -> Period M+1!
-	crossed := day >= cutoffDay
-	targetM, targetY := m, y
+	// Default PAYLATER (dynamic daysInMonth(M)-15 cutoff, 25th due):
+	// day <= cutoffDay -> due 25th of M+1 -> Period M+1
+	// day > cutoffDay -> due 25th of M+2 -> Period M+2
+	crossed := day > cutoffDay
+	offset := 1
 	if crossed {
-		targetM, targetY = addMonths(m, y, 1)
+		offset = 2
 	}
+	targetM, targetY := addMonths(m, y, offset)
 	_ = strconv.Itoa(targetM)
 	return RouteTxResult{
 		TargetPeriodMonth: targetM,

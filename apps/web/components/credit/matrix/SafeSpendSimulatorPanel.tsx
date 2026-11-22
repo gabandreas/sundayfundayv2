@@ -214,7 +214,7 @@ export function SafeSpendSimulatorPanel({
             Can I Afford This? · Pre-Purchase Cutoff Simulator
           </h3>
           <p className="text-xs font-sans text-text-secondary mt-0.5">
-            Simulates SPayLater 15th &amp; Credit Card 20th cutoffs, DSR impact, and optimal buy timing before committing.
+            Simulates SPayLater dynamic M-15d cutoff (due 25th) and Bank Permata Credit Card 25th cutoff (due 11th), DSR impact, and optimal buy timing before checkout.
           </p>
         </div>
         <button

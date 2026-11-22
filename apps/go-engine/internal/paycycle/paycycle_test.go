@@ -49,31 +49,49 @@ func TestComputePaycycleHorizonWeighted(t *testing.T) {
 }
 
 func TestRouteTransactionToPaycycleCutoffs(t *testing.T) {
-	// SPayLater Nov 14 -> matures Nov 25 -> Period 11/2026 (Nov 2026)
+	// SPayLater Nov 15 (30-day Nov -> cutoff = 15th, day <= 15) -> matures Dec 25 -> Period 12/2026 (Dec 2026)
 	plBefore := RouteTransactionToPaycycle(RouteTxRequest{
-		TxDateIso:      "2026-11-14",
-		InstrumentType: "PAYLATER",
-	})
-	if plBefore.TargetPeriodCode != "11/2026" || plBefore.CrossedCutoff || plBefore.MaturityMonth != 11 {
-		t.Fatalf("expected 11/2026 pre-cutoff for Nov 14, got %+v", plBefore)
-	}
-
-	// SPayLater Nov 15 -> matures Dec 25 -> Period 12/2026 (Dec 2026)
-	plAfter := RouteTransactionToPaycycle(RouteTxRequest{
 		TxDateIso:      "2026-11-15",
 		InstrumentType: "PAYLATER",
 	})
-	if plAfter.TargetPeriodCode != "12/2026" || !plAfter.CrossedCutoff || plAfter.MaturityMonth != 12 {
-		t.Fatalf("expected 12/2026 post-cutoff for Nov 15, got %+v", plAfter)
+	if plBefore.TargetPeriodCode != "12/2026" || plBefore.CrossedCutoff || plBefore.CutoffDay != 15 || plBefore.DueDay != 25 || plBefore.MaturityMonth != 12 {
+		t.Fatalf("expected 12/2026 pre-cutoff for Nov 15 SPayLater, got %+v", plBefore)
 	}
 
-	// CC Nov 21 -> crossed 20th cutoff -> matures Jan 11 -> Period 01/2027 (Jan 2027)
-	ccAfter := RouteTransactionToPaycycle(RouteTxRequest{
-		TxDateIso:      "2026-11-21",
+	// SPayLater Nov 16 (day > 15th cutoff) -> matures Jan 25 -> Period 01/2027 (Jan 2027)
+	plAfter := RouteTransactionToPaycycle(RouteTxRequest{
+		TxDateIso:      "2026-11-16",
+		InstrumentType: "PAYLATER",
+	})
+	if plAfter.TargetPeriodCode != "01/2027" || !plAfter.CrossedCutoff || plAfter.CutoffDay != 15 || plAfter.MaturityMonth != 1 || plAfter.MaturityYear != 2027 {
+		t.Fatalf("expected 01/2027 post-cutoff for Nov 16 SPayLater, got %+v", plAfter)
+	}
+
+	// SPayLater Dec 16 (31-day Dec -> cutoff = 16th, day <= 16) -> matures Jan 25 -> Period 01/2027
+	plDec16 := RouteTransactionToPaycycle(RouteTxRequest{
+		TxDateIso:      "2026-12-16",
+		InstrumentType: "PAYLATER",
+	})
+	if plDec16.TargetPeriodCode != "01/2027" || plDec16.CrossedCutoff || plDec16.CutoffDay != 16 {
+		t.Fatalf("expected 01/2027 pre-cutoff (16th) for Dec 16 SPayLater, got %+v", plDec16)
+	}
+
+	// Bank Permata CC Nov 25 (cutoff = 25th, day <= 25) -> matures Dec 11 -> Period 12/2026
+	ccBefore := RouteTransactionToPaycycle(RouteTxRequest{
+		TxDateIso:      "2026-11-25",
 		InstrumentType: "CREDIT_CARD",
 	})
-	if ccAfter.TargetPeriodCode != "01/2027" || !ccAfter.CrossedCutoff || ccAfter.MaturityMonth != 1 || ccAfter.MaturityYear != 2027 {
-		t.Fatalf("expected 01/2027 post-cutoff for Nov 21 CC, got %+v", ccAfter)
+	if ccBefore.TargetPeriodCode != "12/2026" || ccBefore.CrossedCutoff || ccBefore.CutoffDay != 25 || ccBefore.DueDay != 11 {
+		t.Fatalf("expected 12/2026 pre-cutoff for Nov 25 Permata CC, got %+v", ccBefore)
+	}
+
+	// Bank Permata CC Nov 26 (day > 25th cutoff) -> matures Jan 11 -> Period 01/2027 (Jan 2027)
+	ccAfter := RouteTransactionToPaycycle(RouteTxRequest{
+		TxDateIso:      "2026-11-26",
+		InstrumentType: "CREDIT_CARD",
+	})
+	if ccAfter.TargetPeriodCode != "01/2027" || !ccAfter.CrossedCutoff || ccAfter.CutoffDay != 25 || ccAfter.MaturityMonth != 1 || ccAfter.MaturityYear != 2027 {
+		t.Fatalf("expected 01/2027 post-cutoff for Nov 26 Permata CC, got %+v", ccAfter)
 	}
 
 	// Cash Nov 18 (< 27th payday) -> Period 11/2026 (28 Oct - 26 Nov)
@@ -106,7 +124,7 @@ func TestTwoStageCorporatePaycycleNov2026(t *testing.T) {
 	if res.PaydayIso != "2026-11-27" {
 		t.Fatalf("expected Nov 27 payday (+2 working days) for 12/2026, got %s", res.PaydayIso)
 	}
-	// Period 11/2026 (Nov 2026 — ACTIVE on Nov 22): funded by Oct 2026 payroll (Oct 25 Sun -> Fri Oct 23 -> explicit override Oct 28 -> Next Payday Nov 27)
+	// Period 11/2026 (Nov 2026 — ACTIVE on Nov 22): funded by Oct 2026 payroll (Oct 25 Sun -> Fri Oct 23 -> explicit override Oct 28 -> Next Payday Nov 27, LivingEnd Nov 26)
 	nov := ComputePaycycleHorizon(HorizonRequest{
 		Month:                11,
 		Year:                 2026,
@@ -115,16 +133,21 @@ func TestTwoStageCorporatePaycycleNov2026(t *testing.T) {
 		ReviewLagWorkingDays: 2,
 		ExplicitStartIso:     "2026-10-28",
 		OverrideNote:         "Corporate Oct Adjustment",
+		WeekendMultiplier:    1.5,
+		RemainingBudgetRp:    300000,
 		ReferenceDateIso:     "2026-11-22",
 	})
 	if nov.PayslipDropIso != "2026-10-23" {
 		t.Fatalf("expected Oct 23 Friday shift for Sun Oct 25 payslip funding 11/2026, got %s", nov.PayslipDropIso)
 	}
-	if nov.PaydayIso != "2026-10-28" || !nov.OverrideApplied || nov.NextPaydayIso != "2026-11-27" {
-		t.Fatalf("expected explicit Oct 28 -> Nov 27 for 11/2026, got %+v", nov)
+	if nov.PaydayIso != "2026-10-28" || !nov.OverrideApplied || nov.NextPaydayIso != "2026-11-27" || nov.LivingEndIso != "2026-11-26" {
+		t.Fatalf("expected explicit Oct 28 -> LivingEnd Nov 26 (NextPayday Nov 27) for 11/2026, got %+v", nov)
 	}
 	if nov.CycleTemporalState != "ACTIVE" || nov.CurrentDayIndex != 26 || nov.TotalCycleDays != 30 || nov.RemainingDays != 5 {
 		t.Fatalf("expected 11/2026 ACTIVE Day 26 of 30 (5 days remaining) on Nov 22, got %+v", nov)
+	}
+	if nov.RemainingWeekdays != 4 || nov.RemainingWeekends != 1 || nov.WeekdaySafeRateRp != 54545 || nov.WeekendSafeRateRp != 81818 {
+		t.Fatalf("expected 4 weekdays + 1 weekend (54545 weekday / 81818 weekend), got %+v", nov)
 	}
 }
 

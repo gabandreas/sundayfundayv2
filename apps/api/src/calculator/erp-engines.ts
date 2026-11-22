@@ -292,8 +292,8 @@ export function computePaycycleHorizonTs(req: PaycycleHorizonRequest): PaycycleH
     nextPayday = expNext;
   }
 
-  const livingStart = new Date(payday.getTime() + 86400000);
-  const livingEnd = nextPayday;
+  const livingStart = payday;
+  const livingEnd = new Date(nextPayday.getTime() - 86400000);
   const totalDays = Math.max(1, Math.trunc((nextPayday.getTime() - payday.getTime()) / 86400000));
 
   const parsedRef = parseIsoUtc(req.referenceDateIso);
@@ -322,25 +322,17 @@ export function computePaycycleHorizonTs(req: PaycycleHorizonRequest): PaycycleH
   } else {
     cycleTemporalState = 'ACTIVE';
     daysUntilCycleStart = 0;
-    if (refDate.getTime() < livingStart.getTime()) {
-      elapsedDays = 0;
-      remDays = totalDays;
-    } else {
-      elapsedDays = Math.min(
-        totalDays,
-        Math.trunc((refDate.getTime() - livingStart.getTime()) / 86400000) + 1,
-      );
-      remDays = Math.max(0, totalDays - elapsedDays);
-    }
     currentDayIndex = Math.min(
       totalDays,
       Math.max(1, Math.trunc((refDate.getTime() - payday.getTime()) / 86400000) + 1),
     );
+    elapsedDays = Math.max(0, currentDayIndex - 1);
+    remDays = Math.max(0, totalDays - elapsedDays);
   }
 
   const cursorStart =
     refDate.getTime() >= livingStart.getTime() && refDate.getTime() <= livingEnd.getTime()
-      ? new Date(refDate.getTime() + 86400000)
+      ? refDate
       : livingStart;
 
   let remWeekdays = 0;
@@ -468,15 +460,17 @@ export function routeTransactionToPaycycleTs(req: RouteTxRequest): RouteTxResult
   }
   if (cutoffDay === 0 && dueDay === 0) {
     if (instUpper === 'PAYLATER' || instUpper === 'SPAYLATER') {
-      cutoffDay = 15;
+      cutoffDay = daysInMonthUtc(m, y) - 15;
       dueDay = 25;
     } else if (instUpper === 'CREDIT_CARD' || instUpper === 'CC') {
-      cutoffDay = 20;
+      cutoffDay = 25;
       dueDay = 11;
     } else if (instUpper === 'CASH_LOAN' || instUpper === 'SPINJAM') {
       dueRule = 'DISBURSEMENT_DAY';
       dueDay = day;
     }
+  } else if ((instUpper === 'PAYLATER' || instUpper === 'SPAYLATER') && cutoffDay === 15) {
+    cutoffDay = daysInMonthUtc(m, y) - 15;
   }
 
   if (instUpper === 'CASH') {
@@ -526,8 +520,8 @@ export function routeTransactionToPaycycleTs(req: RouteTxRequest): RouteTxResult
     };
   }
 
-  const crossed = day >= cutoffDay;
-  const target = crossed ? addHybridMonths(m, y, 1) : { month: m, year: y };
+  const crossed = day > cutoffDay;
+  const target = addHybridMonths(m, y, crossed ? 2 : 1);
   return {
     targetPeriodMonth: target.month,
     targetPeriodYear: target.year,
