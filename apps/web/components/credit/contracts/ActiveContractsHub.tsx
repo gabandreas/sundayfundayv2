@@ -626,12 +626,12 @@ export function ActiveContractsHub({
                   return (
                     <div
                       key={plan.id}
-                      className={`rounded-lg border p-4 space-y-3 transition-opacity ${
+                      className={`rounded-lg p-4 space-y-3 transition-opacity ${
                         isHighlighted
-                          ? "border-delta-positive bg-[rgba(16,183,141,0.06)]"
+                          ? "erp-callout-positive"
                           : plan.isSpinjamPriority
-                            ? "border-caution/50 bg-surface"
-                            : "border-border bg-surface"
+                            ? "erp-callout-caution"
+                            : "border border-border bg-surface"
                       } ${isDimmed ? "opacity-45" : "opacity-100"}`}
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -779,7 +779,7 @@ export function ActiveContractsHub({
         </div>
 
         {hasSpinjamActive && (
-          <div className="flex items-start gap-2.5 rounded border border-caution/40 bg-[rgba(245,158,11,0.06)] px-3.5 py-2.5 text-xs text-text-secondary">
+          <div className="flex items-start gap-2.5 rounded erp-callout-caution px-3.5 py-2.5 text-xs text-text-secondary">
             <AlertTriangle className="w-4 h-4 text-caution shrink-0 mt-0.5" />
             <div>
               <span className="font-semibold text-text-primary">SPinjam High-Interest Priority Note:</span>{" "}

@@ -303,7 +303,7 @@ export function OnboardingWizardModal() {
                             {preset.formulaEngineType}
                           </span>
                           {preset.uiDensityMode === "SIMPLE_CLARITY" && (
-                            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded border border-amber-500/30 text-amber-400">
+                            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-surface-subtle border border-border text-caution">
                               SIMPLE CLARITY UI
                             </span>
                           )}

@@ -23,8 +23,8 @@ export interface MetricCardProps {
 
 const statusBorderStyles: Record<"default" | "caution" | "urgency", string> = {
   default: "border-border hover:border-border-strong",
-  caution: "border-[rgba(229,155,44,0.35)] bg-[rgba(229,155,44,0.03)]",
-  urgency: "border-[rgba(255,56,56,0.45)] bg-[rgba(255,56,56,0.04)]",
+  caution: "erp-callout-caution",
+  urgency: "erp-callout-urgency",
 };
 
 export function MetricCard({

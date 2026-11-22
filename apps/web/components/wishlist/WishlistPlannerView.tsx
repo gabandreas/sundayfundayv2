@@ -103,7 +103,7 @@ export function WishlistPlannerView({
   const paylaterP1Erosion = Math.max(0, paylaterMonthly - targetP2);
   const paylaterResultingP1 = Math.max(0, targetP1 - paylaterP1Erosion);
 
-  // Credit Card (11th due, 20th cutoff)
+  // Permata Credit Card (25th cutoff -> 11th due)
   const ccMonthly = Math.round(quickPrice / ccTenor);
   const ccDebtRatio =
     targetIncome > 0
@@ -130,7 +130,7 @@ export function WishlistPlannerView({
                 Purchase Feasibility Comparator
               </h3>
               <p className="text-xs font-sans text-text-tertiary mt-0.5">
-                Compare upfront P2 cash against SPayLater (15th cutoff) and Credit Card (20th cutoff) across forward periods.
+                Compare upfront P2 cash against SPayLater (daysInMonth-15 cutoff) and Bank Permata CC (25th cutoff) across forward periods.
               </p>
             </div>
 
@@ -183,7 +183,7 @@ export function WishlistPlannerView({
                       : "text-text-tertiary hover:text-text-secondary"
                   }`}
                 >
-                  &le;15th / &le;20th
+                  &le;15th/16th · &le;25th
                 </button>
                 <button
                   type="button"
@@ -194,7 +194,7 @@ export function WishlistPlannerView({
                       : "text-text-tertiary hover:text-text-secondary"
                   }`}
                 >
-                  &gt;15th / &gt;20th
+                  &gt;15th/16th · &gt;25th
                 </button>
               </div>
             </div>
@@ -360,8 +360,8 @@ export function WishlistPlannerView({
                 Cutoff Advisor:{" "}
                 <span className="text-delta-positive">
                   {purchaseTiming === "BEFORE_CUTOFF"
-                    ? `On/Before Cutoff (<=15th SPayLater / <=20th CC) -> Bills in ${formatSnapLabel(activeSnap, currentMonth, currentYear)}`
-                    : `After Cutoff (>15th SPayLater / >20th CC) -> Deferred 1 cycle to ${formatSnapLabel(nextSnap, currentMonth, currentYear)}`}
+                    ? `On/Before Cutoff (<=15th/16th SPayLater · <=25th Permata CC) -> Bills in ${formatSnapLabel(activeSnap, currentMonth, currentYear)}`
+                    : `After Cutoff (>15th/16th SPayLater · >25th Permata CC) -> Deferred 1 cycle to ${formatSnapLabel(nextSnap, currentMonth, currentYear)}`}
                 </span>
               </span>
               <span>

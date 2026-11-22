@@ -865,16 +865,16 @@ export function ReportsClientView({
                       3. Transfer to Savings Vault (P1)
                     </span>
                     <span
-                      className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${
+                      className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
                         mc.paydayChecklist.step3TransferToSavingsVault
                           .transferStatus === "TRANSFERRED"
-                          ? "border-emerald-500/30 text-positive bg-emerald-500/10"
+                          ? "erp-callout-positive text-positive"
                           : mc.paydayChecklist.step3TransferToSavingsVault
                               .transferStatus === "PENDING" ||
                             mc.paydayChecklist.step3TransferToSavingsVault
                               .transferStatus === "PARTIAL"
-                          ? "border-amber-500/30 text-caution bg-amber-500/10"
-                          : "border-border text-text-tertiary"
+                          ? "erp-callout-caution text-caution"
+                          : "border border-border text-text-tertiary"
                       }`}
                     >
                       {

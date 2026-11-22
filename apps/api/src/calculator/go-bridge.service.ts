@@ -4,6 +4,8 @@ import { existsSync } from 'fs';
 import { join } from 'path';
 import { promisify } from 'util';
 import {
+  CashRadarRequest,
+  CashRadarResult,
   CutoffSimulateRequest,
   CutoffSimulateResult,
   ExecutiveHorizonRequest,
@@ -12,6 +14,7 @@ import {
   TimelineSimulateResult,
   WalletGuardRequest,
   WalletGuardResult,
+  buildCashRadarTs,
   buildExecutiveHorizonTs,
   evaluateWalletGuardTs,
   simulateCutoffTs,
@@ -128,6 +131,10 @@ export class GoBridgeService {
 
   simulateTimeline(req: TimelineSimulateRequest): Promise<WithEngineMeta<TimelineSimulateResult>> {
     return this.runCommand('timeline-simulate', req, simulateTimelineTs);
+  }
+
+  buildCashRadar(req: CashRadarRequest): Promise<WithEngineMeta<CashRadarResult>> {
+    return this.runCommand('cash-radar', req, buildCashRadarTs);
   }
 
   evaluateWalletGuard(req: WalletGuardRequest): Promise<WithEngineMeta<WalletGuardResult>> {

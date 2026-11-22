@@ -4,6 +4,7 @@ import { SnapshotsSelectors } from '../snapshots/snapshots.selectors';
 import { CreditSelectors } from '../credit/credit.selectors';
 import { GoBridgeService, WithEngineMeta } from '../calculator/go-bridge.service';
 import {
+  CashRadarResult,
   CutoffSimulateResult,
   ExecutiveHorizonResult,
   TimelineSimulateResult,
@@ -851,6 +852,128 @@ export class FinanceSelectors {
         coreSavingsTarget,
       },
     };
+  }
+
+  async getCashRadarProjection(
+    month: number,
+    year: number,
+    userId: number = 1,
+    referenceDate?: Date,
+  ): Promise<WithEngineMeta<CashRadarResult>> {
+    const nextP = addHybridMonths(month, year, 1);
+    const [config, curSnap, nextSnap, matrix] = await Promise.all([
+      (async () =>
+        (await this.prisma.globalConfig.findFirst({ where: { userId } })) ||
+        (await this.prisma.globalConfig.findFirst({ where: { userId: 1 } })))(),
+      this.snapshotsSelectors.getOrCreateDraftSnapshot(month, year, userId),
+      this.snapshotsSelectors.getOrCreateDraftSnapshot(nextP.month, nextP.year, userId),
+      this.creditSelectors
+        ? this.creditSelectors.getLiabilityMatrix(month, year, 3, userId)
+        : Promise.resolve(null),
+    ]);
+
+    const studioConfig = resolveStudioConfig(userId, config?.formulaParamsJson, config);
+    const pcCfg = studioConfig.paycycleFormulaConfig;
+    const curPeriodKey = `${String(month).padStart(2, '0')}/${year}`;
+    const nextPeriodKey = `${String(nextP.month).padStart(2, '0')}/${nextP.year}`;
+    const curOverride = pcCfg.periodOverrides?.[curPeriodKey];
+    const nextOverride = pcCfg.periodOverrides?.[nextPeriodKey];
+    const isCurConfirmed =
+      Boolean(curSnap.isPayoutDateConfirmed) ||
+      (year === 2026 && month >= 11) ||
+      (year === 2027 && month === 1);
+    const isNextConfirmed =
+      Boolean(nextSnap.isPayoutDateConfirmed) ||
+      (nextP.year === 2026 && nextP.month >= 11) ||
+      (nextP.year === 2027 && nextP.month === 1);
+
+    const radarHorizon = computePaycycleHorizonTs({
+      month,
+      year,
+      anchorDay: pcCfg.paydayAnchorDay ?? 27,
+      payslipAnchorDay: pcCfg.payslipAnchorDay,
+      payslipShiftRule: pcCfg.payslipShiftRule,
+      reviewLagWorkingDays: pcCfg.reviewLagWorkingDays,
+      holidaysIso: pcCfg.holidayDatesIso,
+      explicitPayslipIso: curOverride?.payslipDateIso,
+      shiftWeekendToFriday: pcCfg.shiftWeekendToFriday,
+      explicitStartIso:
+        curOverride?.paydayDateIso ||
+        (isCurConfirmed && curSnap.payrollPayoutDate
+          ? new Date(curSnap.payrollPayoutDate).toISOString().slice(0, 10)
+          : undefined),
+      explicitNextPaydayIso:
+        nextOverride?.paydayDateIso ||
+        (isNextConfirmed && nextSnap.payrollPayoutDate
+          ? new Date(nextSnap.payrollPayoutDate).toISOString().slice(0, 10)
+          : undefined),
+      weekendMultiplier: pcCfg.weekendWeightMultiplier,
+      remainingBudgetRp: 0,
+    });
+
+    const curKey = `${year}-${month}`;
+    const curThrRaw = Math.max(0, Math.round(curSnap.thrAmount ?? 0));
+    const paycheckAmountRp =
+      curThrRaw > 0
+        ? Math.max(0, Math.round((curSnap.finalTotalIncome ?? 0) - curThrRaw))
+        : Math.round(curSnap.finalTotalIncome ?? 0);
+    const thrDateIso = curThrRaw > 0 ? radarHorizon.paydayIso : '';
+
+    const paylaterDueRp = Math.round(matrix?.payLaterRow.cells[curKey]?.amount ?? 0);
+    const creditCardDueRp = Math.round(matrix?.creditCardRow.cells[curKey]?.amount ?? 0);
+    const routineBillsPoolRp = Math.round(
+      (curSnap.transport ?? 0) +
+        (curSnap.internet ?? 0) +
+        (curSnap.vape ?? 0) +
+        (curSnap.haircut ?? 0),
+    );
+    const dailyLivingPoolRp = Math.round(
+      curSnap.actualDailyOperational ?? curSnap.dailyOperational ?? 0,
+    );
+    const coreSavingsTargetRp = Math.round(curSnap.actualSavings ?? 0);
+
+    const personalDebtItemsRaw = matrix?.personalDebtRow?.cells?.[curKey]?.items ?? [];
+    const dueDaysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    const personalDebtItems = personalDebtItemsRaw
+      .filter((item: any) => Math.round(item.monthlyAmount ?? 0) > 0)
+      .map((item: any) => {
+        const d = Math.min(Math.max(1, Number(item.dueDay || 8)), dueDaysInMonth);
+        const tenor = Math.max(1, Number(item.tenorMonths ?? 1));
+        const idx = Math.max(1, Number(item.installmentIndex ?? 1));
+        return {
+          dateIso: `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`,
+          title: String(item.title || 'Personal Debt Installment'),
+          category: String(item.category || 'PERSONAL_DEBT'),
+          amountRp: Math.round(item.monthlyAmount ?? 0),
+          dueDay: d,
+          sliceLabel: tenor > 1 ? `${idx}/${tenor}` : '',
+          isFinalSlice: tenor > 1 && idx === tenor,
+        };
+      });
+
+    const refIso = referenceDate
+      ? normalizeDate(referenceDate)
+      : normalizeDate(new Date());
+    const refIsoStr = `${refIso.year}-${String(refIso.month).padStart(2, '0')}-${String(refIso.day).padStart(2, '0')}`;
+
+    return this.goBridge.buildCashRadar({
+      periodMonth: month,
+      periodYear: year,
+      paydayDateIso: radarHorizon.paydayIso,
+      livingEndDateIso: radarHorizon.livingEndIso,
+      nextPaydayIso: radarHorizon.nextPaydayIso,
+      paycheckAmountRp,
+      thrDateIso,
+      thrAmountRp: curThrRaw,
+      dailyLivingPoolRp,
+      routineBillsPoolRp,
+      coreSavingsTargetRp,
+      paylaterDueRp,
+      creditCardDueRp,
+      personalDebtItems,
+      holidaysIso: pcCfg.holidayDatesIso ?? [],
+      referenceDateIso: refIsoStr,
+    });
   }
 
   async getContractsBurndown(

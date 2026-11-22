@@ -144,7 +144,7 @@ function LoginForm() {
 
       {/* Session Expired Alert */}
       {isExpired && !errorMessage && (
-        <div className="mb-5 p-3 rounded-md border border-amber-500/30 bg-amber-500/10 flex items-start gap-2.5 text-xs text-amber-300">
+        <div className="mb-5 p-3 rounded-md erp-callout-caution flex items-start gap-2.5 text-xs text-caution">
           <Clock className="w-4 h-4 shrink-0 mt-0.5" />
           <div className="leading-relaxed">
             {t("auth.sessionExpired")}

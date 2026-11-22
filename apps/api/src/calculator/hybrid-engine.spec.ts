@@ -17,6 +17,7 @@ import {
   runForecastTs,
   simulateCutoffTs,
   simulateTimelineTs,
+  buildCashRadarTs,
 } from './hybrid-engine';
 
 describe('Hybrid Engine (Go <-> TypeScript Parity & Financial Precision)', () => {
@@ -472,5 +473,33 @@ describe('Hybrid Engine (Go <-> TypeScript Parity & Financial Precision)', () =>
       }
       prevEndIso = h.livingEndIso;
     }
+  });
+
+  it('maintains 100% Go <-> TS parity on Cash Radar Projection across cutoff rules, H-1 CC shifts, and troughs', async () => {
+    const bridge = new GoBridgeService();
+    const radarReq = {
+      periodMonth: 4,
+      periodYear: 2027,
+      paydayDateIso: '2027-03-29',
+      livingEndDateIso: '2027-04-26',
+      nextPaydayIso: '2027-04-27',
+      paycheckAmountRp: 5766000,
+      thrAmountRp: 0,
+      dailyLivingPoolRp: 1500000,
+      routineBillsPoolRp: 535000,
+      coreSavingsTargetRp: 1000000,
+      paylaterDueRp: 88182,
+      creditCardDueRp: 609544,
+      personalDebtItems: [],
+      holidaysIso: ['2026-12-25', '2027-01-01'],
+      referenceDateIso: '2027-04-01',
+    };
+    const { engineSource, ...goRadar } = await bridge.buildCashRadar(radarReq);
+    expect(engineSource).toBe('GO_BINARY');
+    expect(goRadar).toEqual(buildCashRadarTs(radarReq));
+    const ccEv = goRadar.events.find((e) => e.category === 'CREDIT_CARD');
+    expect(ccEv?.dateIso).toBe('2027-04-09');
+    expect(ccEv?.isBusinessDayShifted).toBe(true);
+    expect(ccEv?.nominalDateIso).toBe('2027-04-11');
   });
 });

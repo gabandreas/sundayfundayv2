@@ -1,10 +1,5 @@
 import React from "react";
-import {
-  fetchDefaultActivePeriod,
-  fetchLiabilityMatrix,
-  fetchPacing,
-  fetchSnapshot,
-} from "@/lib/api";
+import { fetchCashRadar, fetchDefaultActivePeriod } from "@/lib/api";
 import { getDefaultPayrollPeriod } from "@/lib/utils";
 import { CashRadarCalendarClient } from "@/components/calendar/CashRadarCalendarClient";
 
@@ -24,17 +19,13 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
     ? parseInt(params.year, 10)
     : smartDefault?.year ?? fallbackPeriod.year;
 
-  const [snapshot, pacing, matrix] = await Promise.all([
-    fetchSnapshot(month, year),
-    fetchPacing(month, year),
-    fetchLiabilityMatrix(month, year, 6),
-  ]);
+  const radar = await fetchCashRadar(month, year);
 
   return (
     <CashRadarCalendarClient
       initialMonth={month}
       initialYear={year}
-      initialData={{ snapshot, pacing, matrix }}
+      initialData={{ radar }}
     />
   );
 }

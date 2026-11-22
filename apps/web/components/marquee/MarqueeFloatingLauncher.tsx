@@ -28,7 +28,7 @@ export function MarqueeFloatingLauncher({
       title="Marquee Financial Co-Pilot (Alt+M)"
       className={`fixed bottom-5 right-5 z-40 print-hidden inline-flex items-center justify-center w-11 h-11 rounded-full border shadow-xl transition-colors cursor-pointer ${
         isOpen
-          ? "bg-text-primary text-canvas border-text-primary"
+          ? "bg-text-primary text-canvas border-border-strong"
           : "bg-surface hover:bg-surface-hover text-text-primary border-border-strong"
       }`}
     >

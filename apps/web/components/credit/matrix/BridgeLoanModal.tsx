@@ -133,7 +133,7 @@ export function BridgeLoanModal({
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           {errorMsg && (
-            <div className="p-2.5 rounded border border-urgency/50 bg-[rgba(255,56,56,0.08)] text-xs font-sans text-urgency">
+            <div className="p-2.5 rounded erp-callout-urgency text-xs font-sans text-urgency">
               {errorMsg}
             </div>
           )}

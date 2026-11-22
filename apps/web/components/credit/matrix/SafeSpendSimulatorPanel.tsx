@@ -201,10 +201,10 @@ export function SafeSpendSimulatorPanel({
 
   const verdictStyle =
     cutoffAdvice?.verdict === "OVER_LIMIT"
-      ? "border-urgency/50 bg-urgency/10 text-urgency"
+      ? "erp-callout-urgency text-urgency"
       : cutoffAdvice?.verdict === "WAIT_PAST_CUTOFF" || cutoffAdvice?.verdict === "CAUTION"
-        ? "border-caution/50 bg-caution/10 text-caution"
-        : "border-delta-positive/40 bg-[rgba(16,183,141,0.08)] text-delta-positive";
+        ? "erp-callout-caution text-caution"
+        : "erp-callout-positive text-delta-positive";
 
   return (
     <div className="rounded-lg border border-border bg-surface p-5 space-y-4">

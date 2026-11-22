@@ -6559,3 +6559,73 @@ export async function rotateMarqueeWebhookToken(): Promise<{
     return null;
   }
 }
+
+export interface CashRadarEventDto {
+  id: string;
+  dateIso: string;
+  nominalDateIso: string;
+  isBusinessDayShifted: boolean;
+  label: string;
+  category: string;
+  signedAmountRp: number;
+  sliceLabel: string;
+  isFinalSlice: boolean;
+  notes: string;
+}
+
+export interface CashRadarDayPointDto {
+  dateIso: string;
+  dayOfMonth: number;
+  inActiveCycle: boolean;
+  isToday: boolean;
+  isWeekend: boolean;
+  openingBalanceRp: number;
+  inflowsRp: number;
+  outflowsRp: number;
+  closingBalanceRp: number;
+  events: CashRadarEventDto[];
+}
+
+export interface CashRadarResponse {
+  periodMonth: number;
+  periodYear: number;
+  cycleStartIso: string;
+  cycleEndIso: string;
+  nextPaydayIso: string;
+  paydayInflowsRp: number;
+  totalScheduledBillsRp: number;
+  endingCashBufferRp: number;
+  lowestCashPoint: {
+    dateIso: string;
+    balanceRp: number;
+    contextLabel: string;
+    isTightOrDeficit: boolean;
+  };
+  events: CashRadarEventDto[];
+  dailySeries: CashRadarDayPointDto[];
+  engineSource?: string;
+}
+
+export async function fetchCashRadar(
+  month: number,
+  year: number
+): Promise<CashRadarResponse | null> {
+  const key = `cash_radar:${year}-${month}`;
+  if (typeof window !== "undefined") {
+    const hit = getCached<CashRadarResponse>(key);
+    if (hit) return hit;
+  }
+  try {
+    const res = await fetch(
+      `${API_URL}/api/finance/cash-radar?month=${month}&year=${year}`,
+      { headers: await getAuthHeaders(), cache: "no-store" }
+    );
+    const parsed = await handleResponse<CashRadarResponse | null>(res, null);
+    if (parsed && typeof window !== "undefined") {
+      setCached(key, parsed);
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}

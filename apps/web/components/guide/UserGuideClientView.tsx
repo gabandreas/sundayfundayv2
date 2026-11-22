@@ -101,14 +101,14 @@ const GUIDE_CONTENT: Record<LocaleCode, LocalizedGuideContent> = {
       {
         id: "liabilities-cutoffs",
         code: "03",
-        title: "Liabilities, 15th/20th Cutoffs & Bridge Loans",
+        title: "Liabilities, Statement Cutoffs & Bridge Loans",
         summary: "Billing statement cutoff dates, dual-mode debt matrix editing, and liquidity bridge loans.",
         targetHref: "/credit",
         targetLabel: "Open Credit & Matrix",
         blocks: [
           {
-            heading: "SPayLater (15th Cutoff) & Credit Card (20th Cutoff)",
-            body: "SPayLater orders settled on day <= 15 hit that purchase month's statement (due 25th); orders > 15th or toggled Hold Past Cutoff roll into purchaseMonth + 1. Credit Card charges follow a 20th cutoff (due 11th).",
+            heading: "SPayLater (M-15d Cutoff) & Permata Credit Card (25th Cutoff)",
+            body: "SPayLater closes dynamically on daysInMonth(M) - 15 (15th in 30d months, 16th in 31d months, due 25th of M+1 or M+2). Bank Permata Credit Card closes every 25th (due 11th of following month, with automatic H-1 business-day shift if weekend/holiday).",
           },
           {
             heading: "Dual-Mode Debt Matrix",
@@ -200,7 +200,7 @@ const GUIDE_CONTENT: Record<LocaleCode, LocalizedGuideContent> = {
         cadence: "WEEKLY",
         title: "Weekly Cutoff & Ledger Audit",
         items: [
-          { id: "w1", text: "Inspect upcoming 15th (SPayLater) or 20th (Credit Card) cutoff transactions." },
+          { id: "w1", text: "Inspect upcoming SPayLater (15th/16th) or Permata Credit Card (25th) cutoff transactions." },
           { id: "w2", text: "Review Transaction Ledger entries and remove any accidental test/duplicate entries." },
           { id: "w3", text: "Check Active Contracts & MatrixCellDrawer totals in Credit & Liabilities." },
         ],

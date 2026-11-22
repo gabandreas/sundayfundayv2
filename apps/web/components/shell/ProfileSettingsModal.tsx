@@ -175,7 +175,7 @@ export function ProfileSettingsModal() {
         </div>
 
         {user?.role === "DEMO_SANDBOX" && (
-          <div className="px-3 py-2 rounded border border-caution/30 bg-[rgba(229,155,44,0.08)] text-[11px] text-caution">
+          <div className="px-3 py-2 rounded erp-callout-caution text-[11px] text-caution">
             Demo Sandbox account: profile edits take effect immediately for testing and revert to demo@sundayfunday.id on Demo Reset.
           </div>
         )}

@@ -52,6 +52,10 @@ func main() {
 		var req timeline.TimelineSimulateRequest
 		mustUnmarshal(raw, &req, cmd)
 		out = timeline.SimulateTimeline(req)
+	case "cash-radar":
+		var req timeline.CashRadarRequest
+		mustUnmarshal(raw, &req, cmd)
+		out = timeline.BuildCashRadar(req)
 	case "wallet-guard":
 		var req timeline.WalletGuardRequest
 		mustUnmarshal(raw, &req, cmd)

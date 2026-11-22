@@ -411,10 +411,10 @@ export function RoutineBillsQuotaCard({
               return (
                 <div
                   key={cat.key}
-                  className={`p-2.5 rounded border transition-colors ${
+                  className={`p-2.5 rounded transition-colors ${
                     isUnbudgeted
-                      ? "bg-[rgba(229,155,44,0.06)] border-[rgba(229,155,44,0.3)]"
-                      : "bg-surface-subtle/50 border-border-subtle"
+                      ? "erp-callout-caution"
+                      : "border bg-surface-subtle/50 border-border-subtle"
                   }`}
                 >
                   {/* Category Top Info */}

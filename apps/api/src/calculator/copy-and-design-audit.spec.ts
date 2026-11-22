@@ -198,4 +198,47 @@ describe('System-Wide Anti-AI-Slop Visual Design, Temporal Chart Axis & Human Co
     expect(workspace).not.toContain('zero-latency Tier 1 NLU fallback');
     expect(workspace).not.toContain('<kbd');
   });
+
+  it('enforces unified highlight/border utilities in globals.css, eliminates loud yellow/white wireframe borders, and wires /calendar to fetchCashRadar', () => {
+    const globalsCss = fs.readFileSync(path.join(WEB_DIR, 'app', 'globals.css'), 'utf8');
+    expect(globalsCss).toContain('.erp-surface-selected');
+    expect(globalsCss).toContain('.erp-callout-caution');
+    expect(globalsCss).toContain('.erp-callout-urgency');
+    expect(globalsCss).toContain('.erp-callout-positive');
+
+    const calendarClient = fs.readFileSync(
+      path.join(WEB_DIR, 'components', 'calendar', 'CashRadarCalendarClient.tsx'),
+      'utf8',
+    );
+    expect(calendarClient).toContain('fetchCashRadar');
+    expect(calendarClient).toContain('lowestCashPoint');
+    expect(calendarClient).not.toContain('border-text-primary');
+
+    const uiFiles = [
+      ...collectFiles(path.join(WEB_DIR, 'components'), ['.tsx']),
+      ...collectFiles(path.join(WEB_DIR, 'app'), ['.tsx']),
+    ];
+    const bannedBorderPatterns = [
+      /\bborder-text-primary\b/,
+      /\bborder-amber-\d+\/\d+\b/,
+      /\bbg-amber-\d+\/\d+\b/,
+      /\bborder-caution\/[45]0\b/,
+      /\bborder-urgency\/[56]0\b/,
+      /bg-\[rgba\(245,158,11/,
+      /\bCredit Card \(20th Cutoff\)/,
+      /\bPermata CC \(20th Cutoff\)/,
+      /\bBank CC 20th\/11th/,
+      /<=20th CC/,
+    ];
+    for (const file of uiFiles) {
+      const content = fs.readFileSync(file, 'utf8');
+      const rel = path.relative(REPO_ROOT, file);
+      for (const rx of bannedBorderPatterns) {
+        expect({ file: rel, badBorder: content.match(rx)?.[0] ?? null }).toEqual({
+          file: rel,
+          badBorder: null,
+        });
+      }
+    }
+  });
 });

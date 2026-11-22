@@ -199,7 +199,7 @@ export function InlineBulkBillCell({
           </div>
         )}
         {errorMessage && (
-          <div className="mt-1 p-1 bg-surface border border-urgency/50 rounded shadow-md text-[9px] font-sans text-urgency text-left">
+          <div className="mt-1 p-1 bg-surface erp-callout-urgency rounded shadow-md text-[9px] font-sans text-urgency text-left">
             {errorMessage}
           </div>
         )}
@@ -287,7 +287,7 @@ export function InlineBulkBillCell({
       )}
 
       {errorMessage && (
-        <div className="mt-0.5 p-1 bg-surface border border-urgency/50 rounded text-[9px] font-sans text-urgency text-left">
+        <div className="mt-0.5 p-1 bg-surface erp-callout-urgency rounded text-[9px] font-sans text-urgency text-left">
           {errorMessage}
         </div>
       )}

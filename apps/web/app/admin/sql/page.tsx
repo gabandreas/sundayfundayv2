@@ -524,10 +524,10 @@ export default function SqlStudioPage() {
                     <button
                       type="button"
                       onClick={() => setExecutionMode("READ_ONLY")}
-                      className={`px-2 py-0.5 rounded text-[11px] font-mono border transition-colors cursor-pointer ${
+                      className={`px-2 py-0.5 rounded text-[11px] font-mono transition-colors cursor-pointer ${
                         executionMode === "READ_ONLY"
-                          ? "bg-emerald-950/60 border-emerald-500/40 text-emerald-300 font-medium"
-                          : "border-border text-text-tertiary hover:text-text-secondary"
+                          ? "erp-callout-positive text-positive font-medium"
+                          : "border border-border text-text-tertiary hover:text-text-secondary"
                       }`}
                       title="Read-Only Safe: Mutating queries are rejected by PostgreSQL"
                     >
@@ -536,10 +536,10 @@ export default function SqlStudioPage() {
                     <button
                       type="button"
                       onClick={() => setExecutionMode("DRY_RUN_ROLLBACK")}
-                      className={`px-2 py-0.5 rounded text-[11px] font-mono border transition-colors cursor-pointer ${
+                      className={`px-2 py-0.5 rounded text-[11px] font-mono transition-colors cursor-pointer ${
                         executionMode === "DRY_RUN_ROLLBACK"
-                          ? "bg-amber-950/60 border-amber-500/40 text-amber-300 font-medium"
-                          : "border-border text-text-tertiary hover:text-text-secondary"
+                          ? "erp-callout-caution text-caution font-medium"
+                          : "border border-border text-text-tertiary hover:text-text-secondary"
                       }`}
                       title="Dry-Run (Rollback): Runs query and automatically rolls back changes"
                     >
@@ -641,10 +641,10 @@ export default function SqlStudioPage() {
                       <span
                         className={`px-1.5 py-0.2 rounded text-[10px] uppercase font-mono ${
                           queryResult.mode === "READ_ONLY"
-                            ? "bg-emerald-950/60 text-emerald-400 border border-emerald-500/30"
+                            ? "erp-callout-positive text-positive"
                             : queryResult.mode === "DRY_RUN_ROLLBACK"
-                            ? "bg-amber-950/60 text-amber-400 border border-amber-500/30"
-                            : "bg-rose-950/60 text-rose-400 border border-rose-500/30"
+                            ? "erp-callout-caution text-caution"
+                            : "erp-callout-urgency text-urgency"
                         }`}
                       >
                         {queryResult.mode}

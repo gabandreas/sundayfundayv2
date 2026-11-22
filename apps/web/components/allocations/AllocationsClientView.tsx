@@ -503,7 +503,7 @@ export function AllocationsClientView({
               Payday Convention: Period M funds obligations falling due inside M+1 (e.g., 10/2026 funds Nov bills).
             </span>
             <span className="font-mono text-[10px]">
-              Cutoffs: SPayLater 15th/25th · Bank CC 20th/11th · SPinjam 8th
+              Cutoffs: SPayLater (M-15d)/25th · Permata CC 25th/11th · SPinjam 8th
             </span>
           </div>
         </div>

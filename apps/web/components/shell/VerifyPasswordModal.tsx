@@ -68,9 +68,9 @@ export function VerifyPasswordModal() {
 
         {/* General Sandbox Demo Helper Note */}
         {isDemoUser && (
-          <div className="p-2.5 rounded border border-amber-500/30 bg-amber-500/10 text-xs text-amber-300 font-mono leading-relaxed">
+          <div className="p-2.5 rounded erp-callout-caution text-xs text-caution font-mono leading-relaxed">
             <span className="font-semibold">Sandbox Demo Password:</span>{" "}
-            <code className="text-amber-200 bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-400/20">
+            <code className="text-text-primary bg-surface px-1.5 py-0.5 rounded border border-border-subtle">
               Sandbox2026!
             </code>
           </div>

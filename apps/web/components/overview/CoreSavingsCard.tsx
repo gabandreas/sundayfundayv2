@@ -187,7 +187,7 @@ export function CoreSavingsCard({ snapshot, isLocked }: CoreSavingsCardProps) {
 
             <form onSubmit={handleBorrowSubmit} className="p-5 space-y-3.5">
               {errorMsg && (
-                <div className="p-2 rounded border border-urgency/50 bg-[rgba(255,56,56,0.08)] text-xs text-urgency">
+                <div className="p-2 rounded erp-callout-urgency text-xs text-urgency">
                   {errorMsg}
                 </div>
               )}

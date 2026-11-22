@@ -157,10 +157,10 @@ export function MarqueeAiSettingsPanel() {
               key={opt.key}
               type="button"
               onClick={() => setProvider(opt.key)}
-              className={`text-left rounded border p-3.5 cursor-pointer transition-colors ${
+              className={`text-left rounded p-3.5 cursor-pointer transition-colors ${
                 provider === opt.key
-                  ? "border-text-primary bg-surface-subtle"
-                  : "border-border-subtle bg-canvas/50 hover:border-border-strong"
+                  ? "erp-surface-selected"
+                  : "border border-border-subtle bg-canvas/50 hover:border-border-strong"
               }`}
             >
               <div className="font-semibold text-text-primary">{opt.title}</div>
@@ -324,7 +324,7 @@ export function MarqueeAiSettingsPanel() {
         </div>
 
         {rawTokenOnce && (
-          <div className="rounded border border-caution/50 bg-[rgba(245,158,11,0.08)] p-3 space-y-2 text-xs">
+          <div className="rounded erp-callout-caution p-3 space-y-2 text-xs">
             <div className="font-mono text-caution font-semibold">
               Copy this token now (displayed once only):
             </div>

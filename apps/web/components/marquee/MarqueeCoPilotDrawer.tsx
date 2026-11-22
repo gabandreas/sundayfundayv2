@@ -233,12 +233,12 @@ export function MarqueeCoPilotDrawer({ isOpen, onClose }: MarqueeCoPilotDrawerPr
                 key={rem.id}
                 type="button"
                 onClick={() => void handleSubmit(rem.prompt)}
-                className={`text-left px-2 py-1 rounded border text-[11px] font-sans transition-colors cursor-pointer ${
+                className={`text-left px-2 py-1 rounded text-[11px] font-sans transition-colors cursor-pointer ${
                   rem.tone === "caution"
-                    ? "border-caution/30 bg-caution/10 text-caution hover:border-caution/50"
+                    ? "erp-callout-caution text-caution"
                     : rem.tone === "positive"
-                      ? "border-delta-positive/30 bg-delta-positive/10 text-delta-positive hover:border-delta-positive/50"
-                      : "border-border bg-surface text-text-secondary hover:text-text-primary"
+                      ? "erp-callout-positive text-delta-positive"
+                      : "border border-border bg-surface text-text-secondary hover:text-text-primary"
                 }`}
               >
                 {rem.text}

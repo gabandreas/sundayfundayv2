@@ -619,10 +619,10 @@ export function CashReconciliationModal({
                     return (
                       <div
                         key={idx}
-                        className={`p-3 rounded border flex items-start gap-2.5 text-xs ${
+                        className={`p-3 rounded flex items-start gap-2.5 text-xs ${
                           isDeficitWarning
-                            ? "bg-red-500/10 border-red-500/30 text-negative"
-                            : "bg-amber-500/10 border-amber-500/30 text-caution"
+                            ? "erp-callout-urgency text-negative"
+                            : "erp-callout-caution text-caution"
                         }`}
                       >
                         <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />

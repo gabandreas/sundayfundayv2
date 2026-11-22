@@ -453,8 +453,8 @@ export function BulkStatementReconcilerPanel({
             className="bg-canvas border border-border rounded px-2.5 py-1.5 text-xs text-text-secondary"
           >
             <option value="CASH">Default: Cash / BCA QRIS</option>
-            <option value="PAYLATER">Default: SPayLater (15th Cutoff)</option>
-            <option value="CREDIT_CARD">Default: Permata CC (20th Cutoff)</option>
+            <option value="PAYLATER">Default: SPayLater (M-15d Cutoff)</option>
+            <option value="CREDIT_CARD">Default: Permata CC (25th Cutoff)</option>
           </select>
           <button
             type="button"

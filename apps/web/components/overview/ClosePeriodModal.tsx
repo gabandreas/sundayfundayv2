@@ -362,7 +362,7 @@ export function ClosePeriodModal({
 
               {/* Enhancement 2: Duplicate Period Transfer Warning */}
               {existingPeriodVaultDeposit > 0 && (
-                <div className="p-2.5 rounded border border-[rgba(229,155,44,0.30)] bg-[rgba(229,155,44,0.08)] text-[11px] font-sans text-caution">
+                <div className="p-2.5 rounded erp-callout-caution text-[11px] font-sans text-caution">
                   <strong>Already Deposited:</strong>{" "}
                   <span className="font-mono">
                     {formatRupiah(existingPeriodVaultDeposit)}

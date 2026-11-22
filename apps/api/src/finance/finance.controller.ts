@@ -212,6 +212,19 @@ export class FinanceController {
     return this.financeSelectors.simulateCutoffForUser(dto, userId);
   }
 
+  @Get('cash-radar')
+  async getCashRadar(
+    @Query('month') monthStr?: string,
+    @Query('year') yearStr?: string,
+    @Req() req?: any,
+  ) {
+    const def = getPayrollPeriodForDate();
+    const month = monthStr ? parseInt(monthStr, 10) : def.month;
+    const year = yearStr ? parseInt(yearStr, 10) : def.year;
+    const userId = getUserIdOrThrow(req);
+    return this.financeSelectors.getCashRadarProjection(month, year, userId);
+  }
+
   @Post('timeline-simulate')
   async simulateTimeline(@Body() dto: SimulateTimelineDto, @Req() req?: any) {
     const userId = getUserIdOrThrow(req);

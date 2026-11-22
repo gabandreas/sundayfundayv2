@@ -102,7 +102,7 @@ export function ConvertToContractModal({
         </div>
 
         {/* Informational Warning Box */}
-        <div className="p-3 rounded bg-[rgba(229,155,44,0.06)] border border-[rgba(229,155,44,0.25)] text-xs font-sans text-text-secondary leading-relaxed">
+        <div className="p-3 rounded erp-callout-caution text-xs font-sans text-text-secondary leading-relaxed">
           This action will create an active <span className="font-semibold text-text-primary">CreditContract</span> and permanently lock this wishlist item as <span className="font-semibold text-text-primary">PURCHASED</span>. The resulting installment will enter all rolling liability schedules and monthly budget deductions.
         </div>
 

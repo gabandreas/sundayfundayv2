@@ -296,8 +296,8 @@ export function RecordExpenseCard({
                       onChange={(e) => setHoldPastCutoff(e.target.checked)}
                     />
                     {paymentMethod === "PAYLATER"
-                      ? "Post-15th cutoff (bill next cycle)"
-                      : "Post-20th cutoff (bill next statement)"}
+                      ? "Post-(M-15d) cutoff (bill M+2)"
+                      : "Post-25th Permata cutoff (bill M+2)"}
                   </label>
                 </div>
               )}

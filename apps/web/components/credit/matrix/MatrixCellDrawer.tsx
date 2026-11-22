@@ -511,7 +511,7 @@ export function MatrixCellDrawer({
         {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           {errorMsg && (
-            <div className="p-2.5 rounded border border-urgency/50 bg-[rgba(255,56,56,0.08)] text-xs font-sans text-urgency">
+            <div className="p-2.5 rounded erp-callout-urgency text-xs font-sans text-urgency">
               {errorMsg}
             </div>
           )}
@@ -726,7 +726,7 @@ export function MatrixCellDrawer({
                                 type="button"
                                 disabled={isBusy}
                                 onClick={() => handleDelete(item.id)}
-                                className="inline-flex items-center gap-1 px-2 py-1 rounded border border-border-subtle hover:border-urgency/50 text-[10px] font-mono text-text-tertiary hover:text-urgency disabled:opacity-40"
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded border border-border-subtle hover:border-border-strong text-[10px] font-mono text-text-tertiary hover:text-urgency disabled:opacity-40"
                                 title="Delete line item"
                               >
                                 <Trash2 className="w-2.5 h-2.5" />

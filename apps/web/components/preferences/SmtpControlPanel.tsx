@@ -368,12 +368,12 @@ export function SmtpControlPanel({
                 SMTP &amp; Email Delivery Control Panel
               </h2>
               <span
-                className={`px-2 py-0.5 rounded text-[11px] font-mono border ${
+                className={`px-2 py-0.5 rounded text-[11px] font-mono ${
                   isLiveVerified
-                    ? "border-delta-positive/30 bg-[rgba(16,183,141,0.10)] text-delta-positive"
+                    ? "erp-callout-positive text-delta-positive"
                     : isAuthError
-                      ? "border-urgency/40 bg-[rgba(255,56,56,0.10)] text-urgency"
-                      : "border-caution/30 bg-[rgba(229,155,44,0.10)] text-caution"
+                      ? "erp-callout-urgency text-urgency"
+                      : "erp-callout-caution text-caution"
                 }`}
               >
                 {isLiveVerified

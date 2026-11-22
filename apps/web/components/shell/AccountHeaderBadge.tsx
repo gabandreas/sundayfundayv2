@@ -47,7 +47,7 @@ function getRoleBadge(role?: UserRole) {
     default:
       return {
         label: "DEMO SANDBOX",
-        classes: "border-amber-500/30 text-amber-400 bg-amber-500/10",
+        classes: "erp-callout-caution text-caution",
       };
   }
 }
@@ -130,7 +130,7 @@ export function AccountHeaderBadge() {
             onClick={handleResetDemo}
             disabled={isResetting}
             title="Reset demo sandbox to original sample values"
-            className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono rounded border border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 transition-all active:scale-[0.98] disabled:opacity-50"
+            className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono rounded erp-callout-caution text-caution hover:bg-surface-hover transition-all active:scale-[0.98] disabled:opacity-50"
           >
             <RotateCcw
               className={`w-3 h-3 ${isResetting ? "animate-spin" : ""}`}

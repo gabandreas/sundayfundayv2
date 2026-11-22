@@ -181,6 +181,82 @@ export interface HorizonContractSummaryInput {
   payoffDateLabel: string;
 }
 
+export interface CashRadarItemInput {
+  dateIso: string;
+  title: string;
+  category: string;
+  amountRp: number;
+  dueDay: number;
+  sliceLabel?: string;
+  isFinalSlice?: boolean;
+}
+
+export interface CashRadarRequest {
+  periodMonth: number;
+  periodYear: number;
+  paydayDateIso: string;
+  livingEndDateIso: string;
+  nextPaydayIso: string;
+  paycheckAmountRp: number;
+  thrDateIso?: string;
+  thrAmountRp?: number;
+  dailyLivingPoolRp: number;
+  routineBillsPoolRp: number;
+  coreSavingsTargetRp: number;
+  paylaterDueRp: number;
+  creditCardDueRp: number;
+  personalDebtItems?: CashRadarItemInput[];
+  holidaysIso?: string[];
+  referenceDateIso?: string;
+}
+
+export interface CashRadarEvent {
+  id: string;
+  dateIso: string;
+  nominalDateIso: string;
+  isBusinessDayShifted: boolean;
+  label: string;
+  category: string;
+  signedAmountRp: number;
+  sliceLabel: string;
+  isFinalSlice: boolean;
+  notes: string;
+}
+
+export interface CashRadarDayPoint {
+  dateIso: string;
+  dayOfMonth: number;
+  inActiveCycle: boolean;
+  isToday: boolean;
+  isWeekend: boolean;
+  openingBalanceRp: number;
+  inflowsRp: number;
+  outflowsRp: number;
+  closingBalanceRp: number;
+  events: CashRadarEvent[];
+}
+
+export interface CashRadarTrough {
+  dateIso: string;
+  balanceRp: number;
+  contextLabel: string;
+  isTightOrDeficit: boolean;
+}
+
+export interface CashRadarResult {
+  periodMonth: number;
+  periodYear: number;
+  cycleStartIso: string;
+  cycleEndIso: string;
+  nextPaydayIso: string;
+  paydayInflowsRp: number;
+  totalScheduledBillsRp: number;
+  endingCashBufferRp: number;
+  lowestCashPoint: CashRadarTrough;
+  events: CashRadarEvent[];
+  dailySeries: CashRadarDayPoint[];
+}
+
 export interface ExecutiveHorizonRequest {
   selectedMonth: number;
   selectedYear: number;
@@ -298,20 +374,25 @@ export function resolvePreviousBusinessDayIsoTs(
   y: number,
   m: number,
   d: number,
+  customHolidays?: Set<string>,
 ): { earlyIso: string; shifted: boolean } {
-  let dt = new Date(Date.UTC(y, m - 1, d));
+  const maxD = daysInMonthUtc(m, y);
+  const clampedD = Math.min(Math.max(1, d), maxD);
+  let dt = new Date(Date.UTC(y, m - 1, clampedD));
   const fmt = (val: Date) =>
     `${String(val.getUTCFullYear()).padStart(4, '0')}-${String(val.getUTCMonth() + 1).padStart(2, '0')}-${String(val.getUTCDate()).padStart(2, '0')}`;
+  const isHol = (isoStr: string) =>
+    Boolean(customHolidays?.has(isoStr)) || isIndonesianHolidayIsoTs(isoStr);
   const iso = fmt(dt);
   const dow = dt.getUTCDay();
-  if (dow !== 0 && dow !== 6 && !isIndonesianHolidayIsoTs(iso)) {
+  if (dow !== 0 && dow !== 6 && !isHol(iso)) {
     return { earlyIso: iso, shifted: false };
   }
   while (true) {
     dt = new Date(dt.getTime() - 86400000);
     const candIso = fmt(dt);
     const candDow = dt.getUTCDay();
-    if (candDow !== 0 && candDow !== 6 && !isIndonesianHolidayIsoTs(candIso)) {
+    if (candDow !== 0 && candDow !== 6 && !isHol(candIso)) {
       return { earlyIso: candIso, shifted: true };
     }
   }
@@ -891,6 +972,310 @@ export function buildExecutiveHorizonTs(req: ExecutiveHorizonRequest): Executive
     nextMilestoneLabel,
     freedUpMilestones: ordered,
     periodDrivers,
+  };
+}
+
+export function buildCashRadarTs(req: CashRadarRequest): CashRadarResult {
+  const m = req.periodMonth >= 1 && req.periodMonth <= 12 ? req.periodMonth : 11;
+  const y = req.periodYear >= 2020 ? req.periodYear : 2026;
+  const holidays = new Set<string>(
+    (req.holidaysIso ?? []).map((h) => String(h).trim().slice(0, 10)).filter((h) => h.length === 10),
+  );
+
+  const fmtUtc = (dt: Date) =>
+    `${String(dt.getUTCFullYear()).padStart(4, '0')}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`;
+  const parseRadarDate = (raw?: string): Date | null => {
+    const p = parseDateParts(raw);
+    if (!p.ok) return null;
+    return new Date(Date.UTC(p.year, p.month - 1, p.day));
+  };
+
+  const monthFirst = new Date(Date.UTC(y, m - 1, 1));
+  const monthLast = new Date(Date.UTC(y, m - 1, daysInMonthUtc(m, y)));
+  const cycleStart = parseRadarDate(req.paydayDateIso) ?? monthFirst;
+  const parsedEnd = parseRadarDate(req.livingEndDateIso);
+  const cycleEnd = parsedEnd && parsedEnd.getTime() >= cycleStart.getTime() ? parsedEnd : monthLast;
+
+  const cycleStartIso = fmtUtc(cycleStart);
+  const cycleEndIso = fmtUtc(cycleEnd);
+  const gridStart = cycleStart.getTime() < monthFirst.getTime() ? cycleStart : monthFirst;
+  const gridEnd = cycleEnd.getTime() > monthLast.getTime() ? cycleEnd : monthLast;
+  const gridStartIso = fmtUtc(gridStart);
+  const gridEndIso = fmtUtc(gridEnd);
+
+  const refIso = (req.referenceDateIso ?? '').trim().slice(0, 10);
+  const events: CashRadarEvent[] = [];
+
+  if (req.paycheckAmountRp > 0) {
+    events.push({
+      id: 'inflow-payday',
+      dateIso: cycleStartIso,
+      nominalDateIso: '',
+      isBusinessDayShifted: false,
+      label: 'Cycle Funded · Net Payroll',
+      category: 'INFLOW',
+      signedAmountRp: Math.round(req.paycheckAmountRp),
+      sliceLabel: '',
+      isFinalSlice: false,
+      notes: 'Corporate payday credit',
+    });
+  }
+  if (req.routineBillsPoolRp > 0) {
+    events.push({
+      id: 'routine-bills',
+      dateIso: cycleStartIso,
+      nominalDateIso: '',
+      isBusinessDayShifted: false,
+      label: 'Routine Bills Reserve',
+      category: 'ROUTINE',
+      signedAmountRp: -Math.round(req.routineBillsPoolRp),
+      sliceLabel: '',
+      isFinalSlice: false,
+      notes: 'Transport, internet & routine essentials',
+    });
+  }
+  if (req.dailyLivingPoolRp > 0) {
+    events.push({
+      id: 'living-pool',
+      dateIso: cycleStartIso,
+      nominalDateIso: '',
+      isBusinessDayShifted: false,
+      label: 'Daily Living Cash Pool',
+      category: 'LIVING',
+      signedAmountRp: -Math.round(req.dailyLivingPoolRp),
+      sliceLabel: '',
+      isFinalSlice: false,
+      notes: 'Dedicated day-by-day living runway',
+    });
+  }
+  const thrAmt = Math.round(req.thrAmountRp ?? 0);
+  const thrRaw = (req.thrDateIso ?? '').trim();
+  if (thrAmt > 0 && thrRaw.length >= 10) {
+    events.push({
+      id: 'inflow-thr',
+      dateIso: thrRaw.slice(0, 10),
+      nominalDateIso: '',
+      isBusinessDayShifted: false,
+      label: 'December Natal THR Inflow',
+      category: 'INFLOW',
+      signedAmountRp: thrAmt,
+      sliceLabel: '',
+      isFinalSlice: false,
+      notes: 'Pro-rated statutory allowance',
+    });
+  }
+
+  let cm = gridStart.getUTCMonth() + 1;
+  let cy = gridStart.getUTCFullYear();
+  const endYm = gridEnd.getUTCFullYear() * 12 + gridEnd.getUTCMonth();
+  while (cy * 12 + (cm - 1) <= endYm) {
+    const dim = daysInMonthUtc(cm, cy);
+    const spayCutoffDay = dim - 15;
+    const spayCutIso = `${String(cy).padStart(4, '0')}-${String(cm).padStart(2, '0')}-${String(spayCutoffDay).padStart(2, '0')}`;
+    if (spayCutIso >= gridStartIso && spayCutIso <= gridEndIso) {
+      events.push({
+        id: `cutoff-spay-${String(cy).padStart(4, '0')}-${String(cm).padStart(2, '0')}`,
+        dateIso: spayCutIso,
+        nominalDateIso: '',
+        isBusinessDayShifted: false,
+        label: `SPayLater Statement Cutoff (${spayCutoffDay}th of ${dim}d mo)`,
+        category: 'CUTOFF',
+        signedAmountRp: 0,
+        sliceLabel: '',
+        isFinalSlice: false,
+        notes: 'Charges after today defer to M+2 (due 25th)',
+      });
+    }
+    const ccCutIso = `${String(cy).padStart(4, '0')}-${String(cm).padStart(2, '0')}-25`;
+    if (ccCutIso >= gridStartIso && ccCutIso <= gridEndIso) {
+      events.push({
+        id: `cutoff-permata-${String(cy).padStart(4, '0')}-${String(cm).padStart(2, '0')}`,
+        dateIso: ccCutIso,
+        nominalDateIso: '',
+        isBusinessDayShifted: false,
+        label: 'Bank Permata CC Statement Closing (25th)',
+        category: 'CUTOFF',
+        signedAmountRp: 0,
+        sliceLabel: '',
+        isFinalSlice: false,
+        notes: 'Swipes from 26th onward bill due 11th of M+2',
+      });
+    }
+    const nxt = addHybridMonths(cm, cy, 1);
+    cm = nxt.month;
+    cy = nxt.year;
+  }
+
+  let totalPersonalDebtRp = 0;
+  (req.personalDebtItems ?? []).forEach((item, idx) => {
+    const amt = Math.round(item.amountRp ?? 0);
+    if (amt <= 0) return;
+    totalPersonalDebtRp += amt;
+    const cat = item.category || 'PERSONAL_DEBT';
+    const rawDate = (item.dateIso ?? '').trim();
+    let dIso = '';
+    if (rawDate.length >= 10) {
+      dIso = rawDate.slice(0, 10);
+    } else {
+      const clampedD = Math.min(Math.max(1, item.dueDay || 8), daysInMonthUtc(m, y));
+      dIso = `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}-${String(clampedD).padStart(2, '0')}`;
+    }
+    events.push({
+      id: `pd-${idx + 1}-${dIso}`,
+      dateIso: dIso,
+      nominalDateIso: '',
+      isBusinessDayShifted: false,
+      label: item.title,
+      category: cat,
+      signedAmountRp: -amt,
+      sliceLabel: item.sliceLabel ?? '',
+      isFinalSlice: Boolean(item.isFinalSlice),
+      notes: item.isFinalSlice
+        ? 'Final installment — monthly commitment clears after payment'
+        : 'Scheduled installment payment',
+    });
+  });
+
+  if (req.creditCardDueRp > 0) {
+    const nominalCcIso = `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}-11`;
+    const ccShift = resolvePreviousBusinessDayIsoTs(y, m, 11, holidays);
+    events.push({
+      id: 'bill-permata-cc',
+      dateIso: ccShift.earlyIso,
+      nominalDateIso: ccShift.shifted ? nominalCcIso : '',
+      isBusinessDayShifted: ccShift.shifted,
+      label: 'Bank Permata Credit Card Due (11th)',
+      category: 'CREDIT_CARD',
+      signedAmountRp: -Math.round(req.creditCardDueRp),
+      sliceLabel: '',
+      isFinalSlice: false,
+      notes: ccShift.shifted
+        ? `Nominal due ${nominalCcIso} falls on weekend/holiday — settle H-1 working day early by ${ccShift.earlyIso}`
+        : 'Bank Permata full statement settlement (0% retail interest)',
+    });
+  }
+
+  if (req.paylaterDueRp > 0) {
+    events.push({
+      id: 'bill-spaylater',
+      dateIso: `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}-25`,
+      nominalDateIso: '',
+      isBusinessDayShifted: false,
+      label: 'SPayLater Monthly Due (25th)',
+      category: 'PAYLATER',
+      signedAmountRp: -Math.round(req.paylaterDueRp),
+      sliceLabel: '',
+      isFinalSlice: false,
+      notes: 'Consolidated Shopee SPayLater cycle due',
+    });
+  }
+
+  if (req.coreSavingsTargetRp > 0) {
+    const saveIso = thrAmt > 0 && thrRaw.length >= 10 ? thrRaw.slice(0, 10) : cycleEndIso;
+    events.push({
+      id: 'savings-p1',
+      dateIso: saveIso,
+      nominalDateIso: '',
+      isBusinessDayShifted: false,
+      label: 'Priority 1 Core Savings Sweep',
+      category: 'SAVINGS',
+      signedAmountRp: -Math.round(req.coreSavingsTargetRp),
+      sliceLabel: '',
+      isFinalSlice: false,
+      notes: 'Protected P1 Vault transfer',
+    });
+  }
+
+  events.sort((a, b) => {
+    if (a.dateIso !== b.dateIso) return a.dateIso < b.dateIso ? -1 : 1;
+    if (a.signedAmountRp !== b.signedAmountRp) return b.signedAmountRp - a.signedAmountRp;
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  });
+
+  const eventsByDate = new Map<string, CashRadarEvent[]>();
+  for (const ev of events) {
+    const list = eventsByDate.get(ev.dateIso) ?? [];
+    list.push(ev);
+    eventsByDate.set(ev.dateIso, list);
+  }
+
+  const dailySeries: CashRadarDayPoint[] = [];
+  let running = 0;
+  let minBal = Number.MAX_SAFE_INTEGER;
+  let minDate = cycleStartIso;
+  let minCtx = 'Payday Start';
+
+  for (let ts = gridStart.getTime(); ts <= gridEnd.getTime(); ts += 86400000) {
+    const dt = new Date(ts);
+    const dIso = fmtUtc(dt);
+    const inCycle = dIso >= cycleStartIso && dIso <= cycleEndIso;
+    const dow = dt.getUTCDay();
+    const isWknd = dow === 0 || dow === 6;
+
+    const opening = running;
+    const dayEvents = eventsByDate.get(dIso) ?? [];
+    let inflows = 0;
+    let outflows = 0;
+    for (const ev of dayEvents) {
+      if (ev.signedAmountRp > 0) inflows += ev.signedAmountRp;
+      else if (ev.signedAmountRp < 0) outflows += -ev.signedAmountRp;
+      running += ev.signedAmountRp;
+    }
+    const closing = running;
+
+    if ((inCycle || dIso >= cycleStartIso) && closing < minBal) {
+      minBal = closing;
+      minDate = dIso;
+      minCtx = dayEvents.length > 0 ? dayEvents[dayEvents.length - 1].label : 'Post-Outflow Trough';
+    }
+
+    dailySeries.push({
+      dateIso: dIso,
+      dayOfMonth: dt.getUTCDate(),
+      inActiveCycle: inCycle,
+      isToday: refIso !== '' && dIso === refIso,
+      isWeekend: isWknd,
+      openingBalanceRp: opening,
+      inflowsRp: inflows,
+      outflowsRp: outflows,
+      closingBalanceRp: closing,
+      events: dayEvents,
+    });
+  }
+
+  if (minBal === Number.MAX_SAFE_INTEGER) {
+    minBal = running;
+  }
+
+  const paydayInflows = Math.round(req.paycheckAmountRp) + thrAmt;
+  const totalScheduledBills =
+    totalPersonalDebtRp +
+    Math.round(req.creditCardDueRp) +
+    Math.round(req.paylaterDueRp) +
+    Math.round(req.routineBillsPoolRp);
+  const endingBuffer =
+    paydayInflows -
+    totalScheduledBills -
+    Math.round(req.dailyLivingPoolRp) -
+    Math.round(req.coreSavingsTargetRp);
+
+  return {
+    periodMonth: m,
+    periodYear: y,
+    cycleStartIso,
+    cycleEndIso,
+    nextPaydayIso: req.nextPaydayIso,
+    paydayInflowsRp: paydayInflows,
+    totalScheduledBillsRp: totalScheduledBills,
+    endingCashBufferRp: endingBuffer,
+    lowestCashPoint: {
+      dateIso: minDate,
+      balanceRp: minBal,
+      contextLabel: minCtx,
+      isTightOrDeficit: minBal <= 0,
+    },
+    events,
+    dailySeries,
   };
 }
 
