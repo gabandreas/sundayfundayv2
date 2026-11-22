@@ -379,50 +379,48 @@ export function AdaptiveDailyPacingCard({
 
         {/* Centerpiece Number (Newsreader Serif Display Signature) */}
         <div className="mt-2">
-          <div className="flex items-start justify-between gap-3">
-            <div className="whitespace-nowrap inline-flex items-baseline gap-2 min-w-0">
-              <div className="font-serif text-[42px] leading-tight font-normal tracking-tight text-text-primary tabular-nums whitespace-nowrap">
-                {isPrePayday
-                  ? formatIdr(pacing?.totalOperationalBudget ?? totalOperationalBudget)
-                  : isCompletedCycle
-                  ? formatIdr(remainingBudget)
-                  : formatIdr(displaySafeToday)}
-              </div>
-              <PrivacyEyeButton size="sm" />
+          <div className="whitespace-nowrap inline-flex items-baseline gap-2">
+            <div className="font-serif text-[42px] leading-tight font-normal tracking-tight text-text-primary tabular-nums whitespace-nowrap">
+              {isPrePayday
+                ? formatIdr(pacing?.totalOperationalBudget ?? totalOperationalBudget)
+                : isCompletedCycle
+                ? formatIdr(remainingBudget)
+                : formatIdr(displaySafeToday)}
             </div>
-
-            <div className="text-right text-xs font-sans text-text-tertiary shrink-0 pt-1.5">
-              <div className="whitespace-nowrap">
-                {isPrePayday ? (
-                  <span>
-                    <span className="font-mono text-text-primary tabular-nums font-semibold">
-                      Day 0
-                    </span>{" "}
-                    of {pacing?.daysInCycle ?? 31} · {t("overview.prePaydayPlan")}
-                  </span>
-                ) : isCompletedCycle ? (
-                  <span>
-                    <span className="font-mono text-text-primary tabular-nums font-semibold">
-                      {pacing?.daysInCycle ?? 30}
-                    </span>{" "}
-                    / {pacing?.daysInCycle ?? 30} days
-                  </span>
-                ) : (
-                  <span>
-                    <span className="font-mono text-text-primary tabular-nums font-semibold">
-                      {pacing?.daysRemaining ?? 30}
-                    </span>{" "}
-                    {t("overview.daysLeft")}
-                  </span>
-                )}
-              </div>
-              <div className="text-[11px] font-mono tabular-nums text-text-tertiary mt-0.5 whitespace-nowrap">
-                {pacing?.cycleDateLabel || "Payday to Payday"}
-              </div>
-            </div>
+            <PrivacyEyeButton size="sm" />
           </div>
 
-          <div className="text-xs font-sans text-text-tertiary mt-1">
+          <div className="mt-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 text-xs font-sans text-text-tertiary">
+            <span>
+              {isPrePayday ? (
+                <span>
+                  <span className="font-mono text-text-primary tabular-nums font-semibold">
+                    Day 0
+                  </span>{" "}
+                  of {pacing?.daysInCycle ?? 31} · {t("overview.prePaydayPlan")}
+                </span>
+              ) : isCompletedCycle ? (
+                <span>
+                  <span className="font-mono text-text-primary tabular-nums font-semibold">
+                    {pacing?.daysInCycle ?? 30}
+                  </span>{" "}
+                  / {pacing?.daysInCycle ?? 30} days
+                </span>
+              ) : (
+                <span>
+                  <span className="font-mono text-text-primary tabular-nums font-semibold">
+                    {pacing?.daysRemaining ?? 30}
+                  </span>{" "}
+                  {t("overview.daysLeft")}
+                </span>
+              )}
+            </span>
+            <span className="text-[11px] font-mono tabular-nums text-text-tertiary whitespace-nowrap">
+              {pacing?.cycleDateLabel || "Payday to Payday"}
+            </span>
+          </div>
+
+          <div className="text-xs font-sans text-text-tertiary mt-1.5">
             {isPrePayday ? (
               <span>
                 {formatIdr(pacing?.totalDailySpent ?? 0)} spent · Starts{" "}
@@ -625,9 +623,7 @@ export function AdaptiveDailyPacingCard({
               value={bankBalanceInput}
               onChange={(e) => setBankBalanceInput(formatCurrencyInput(e.target.value))}
               placeholder={
-                includesRoutineBills
-                  ? `Bank (Rp ${expectedTotalBankBalance.toLocaleString("id-ID")})`
-                  : `Cash (Rp ${remainingBudget.toLocaleString("id-ID")})`
+                includesRoutineBills ? "Actual bank balance" : "Actual cash"
               }
               className={`w-full px-2.5 py-1.5 rounded bg-surface-subtle border font-mono text-xs text-text-primary placeholder:text-text-tertiary focus:outline-none disabled:opacity-50 ${
                 isSpike
