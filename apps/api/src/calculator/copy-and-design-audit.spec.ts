@@ -155,4 +155,30 @@ describe('System-Wide Anti-AI-Slop Visual Design, Temporal Chart Axis & Human Co
     expect(pacingCard).toContain('cycleEndDate={pacing?.cycleEndDate}');
     expect(overviewWidgets).toContain('PRE_PAYDAY');
   });
+
+  it('enforces single icon-only bottom-right Marquee floating launcher, removes header Alt+M pill, and replaces Sidebar Marquee slot with Spending & Trend Review (/analytics)', () => {
+    const sidebarPath = path.join(WEB_DIR, 'components', 'shell', 'Sidebar.tsx');
+    const headerPath = path.join(WEB_DIR, 'components', 'shell', 'AppHeader.tsx');
+    const launcherPath = path.join(WEB_DIR, 'components', 'marquee', 'MarqueeFloatingLauncher.tsx');
+
+    const sidebar = fs.readFileSync(sidebarPath, 'utf8');
+    const header = fs.readFileSync(headerPath, 'utf8');
+    const launcher = fs.readFileSync(launcherPath, 'utf8');
+    const langCtx = fs.readFileSync(langCtxPath, 'utf8');
+
+    expect(sidebar).not.toContain('href: "/marquee"');
+    expect(sidebar).toContain('href: "/analytics"');
+    expect(sidebar).toContain('labelKey: "nav.analytics"');
+
+    expect(header).not.toContain('erp:marquee-toggle');
+    expect(header).not.toContain('Open Marquee AI Co-Pilot');
+
+    expect(launcher).toContain('rounded-full');
+    expect(launcher).toContain('w-11 h-11');
+    expect(launcher).not.toContain('<kbd');
+
+    expect(langCtx).toContain('"nav.analytics": "Spending & Trend Review"');
+    expect(langCtx).toContain('"nav.analytics": "Tinjauan Belanja & Tren"');
+    expect(langCtx).toContain('"nav.analytics": "支出与趋势复盘"');
+  });
 });

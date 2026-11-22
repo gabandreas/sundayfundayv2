@@ -2,7 +2,7 @@ import { UnauthorizedException } from '@nestjs/common';
 import { parseMarqueeIntent } from './marquee-nlu';
 import { MarqueeToolsService } from './marquee-tools.service';
 import { MarqueeService } from './marquee.service';
-import { MarqueeLlmService } from './marquee-llm.service';
+import { MarqueeLlmService, stripReasoningBlocks } from './marquee-llm.service';
 import { MarqueeContextHydrator } from './marquee-context.service';
 import { hashSecretToken } from '../common/crypto.util';
 
@@ -343,6 +343,40 @@ describe('Marquee NLU, 8 Deterministic Tools & Webhook Token Auth', () => {
         expect(ocRes?.usedProvider).toBe('OPENCODE');
         expect(ocRes?.tool).toBe('optimize_payday_thr_split');
         expect(ocRes?.args.bonusRp).toBe(3500000);
+
+        // Verify <think>...</think> stripping, 400 tool-less retry, and 401 sk-... DeepSeek bridge
+        const stripped = stripReasoningBlocks('<think>Calculating daily burn</think>You have Rp 300.000 left for 5 days.');
+        expect(stripped.cleanText).toBe('You have Rp 300.000 left for 5 days.');
+        expect(stripped.reasoning).toBe('Calculating daily burn');
+
+        global.fetch = jest
+          .fn()
+          .mockResolvedValueOnce({ ok: false, status: 400 })
+          .mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({
+              choices: [
+                {
+                  message: {
+                    content: '<think>Check pacing</think>You have Rp 300.000 left across 5 days.',
+                  },
+                },
+              ],
+            }),
+          }) as any;
+
+        const retryRes = await llm.resolveWithProvider({
+          provider: 'OPENCODE',
+          opencodeApiKey: 'oc-zen-key',
+          opencodeBaseUrl: 'https://opencode.ai/zen/v1',
+          opencodeModel: 'deepseek-v4.1-flash-free',
+          message: 'safe to spend today?',
+          systemContextPrompt: 'ACTIVE PERIOD: 11/2026 ACTIVE',
+          tier1Fallback: parseMarqueeIntent('safe to spend today?'),
+        });
+        expect(retryRes?.usedProvider).toBe('OPENCODE');
+        expect(retryRes?.assistantPrefix).toBe('You have Rp 300.000 left across 5 days.');
+        expect(retryRes?.reasoning).toBe('Check pacing');
       } finally {
         global.fetch = origFetch;
       }
@@ -435,11 +469,13 @@ describe('Marquee NLU, 8 Deterministic Tools & Webhook Token Auth', () => {
       expect(ctx.activePeriod.periodTag).toBe('11/2026');
       expect(ctx.activePeriod.cycleTemporalState).toBe('PRE_PAYDAY');
       expect(ctx.dueDayCalendar.canonicalDueDays).toEqual([8, 11, 17, 23, 24, 25]);
-      expect(ctx.payoffMilestones.map((m) => m.periodLabel)).toEqual(["JAN '27", "FEB '27", "SEP '27"]);
+      expect(ctx.payoffMilestones.map((m) => m.periodLabel)).toEqual(["JAN '27", "FEB '27", "MAR '27", "SEP '27"]);
+      expect(ctx.proactiveReminders.length).toBeGreaterThan(0);
       expect(ctx.uiContext.activeRoute).toBe('/credit');
       expect(ctx.uiContext.activeSubTab).toBe('contracts');
       expect(ctx.systemPrompt).toContain('Rp 5.904.000');
       expect(ctx.systemPrompt).toContain('Rp 83.341');
+      expect(ctx.systemPrompt).toContain('/analytics');
       expect(mockPrisma.monthlySnapshot.findMany).toHaveBeenCalledWith(
         expect.objectContaining({ where: expect.objectContaining({ userId: 1 }) }),
       );
