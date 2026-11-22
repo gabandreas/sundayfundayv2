@@ -18,6 +18,7 @@ import {
 import {
   MarqueeContextHydrator,
   MarqueeFinancialContext,
+  MarqueeProactiveReminder,
 } from './marquee-context.service';
 
 export interface StoredMarqueeConfig {
@@ -80,6 +81,9 @@ export interface MarqueeChatResponse extends MarqueeToolResult {
     | 'CONFIRMED_EXECUTION';
   model: string;
   locale: 'en' | 'id' | 'zh';
+  assistantPrefix?: string;
+  reasoning?: string;
+  proactiveReminders?: MarqueeProactiveReminder[];
   hydratedContext?: {
     periodTag: string;
     cycleTemporalState: 'PRE_PAYDAY' | 'ACTIVE' | 'COMPLETED';
@@ -119,8 +123,8 @@ export class MarqueeService {
       deepseekModel: stored.deepseekModel ?? 'deepseek-chat',
       hasOpencodeKey: Boolean(stored.opencodeApiKeyEnc),
       opencodeKeyPreview: stored.opencodeKeyPreview ?? '',
-      opencodeBaseUrl: stored.opencodeBaseUrl || 'https://api.opencode.ai/v1',
-      opencodeModel: stored.opencodeModel || 'opencode-chat',
+      opencodeBaseUrl: stored.opencodeBaseUrl || 'https://opencode.ai/zen/v1',
+      opencodeModel: stored.opencodeModel || 'deepseek-v4.1-flash-free',
       hasWebhookToken: Boolean(stored.webhookTokenHash),
       webhookTokenPreview: stored.webhookTokenPreview ?? '',
       webhookEnabled: stored.webhookEnabled ?? true,
@@ -374,6 +378,8 @@ export class MarqueeService {
     };
     let tierUsed: MarqueeChatResponse['tierUsed'] = 'TIER1_NLU';
     let model = 'tier1-deterministic-nlu';
+    let assistantPrefix: string | undefined;
+    let reasoning: string | undefined;
 
     const hasAnyKey = Boolean(
       geminiApiKey || groqApiKey || deepseekApiKey || opencodeApiKey,
@@ -387,8 +393,8 @@ export class MarqueeService {
         deepseekApiKey,
         deepseekModel: stored.deepseekModel ?? 'deepseek-chat',
         opencodeApiKey,
-        opencodeBaseUrl: stored.opencodeBaseUrl || 'https://api.opencode.ai/v1',
-        opencodeModel: stored.opencodeModel || 'opencode-chat',
+        opencodeBaseUrl: stored.opencodeBaseUrl || 'https://opencode.ai/zen/v1',
+        opencodeModel: stored.opencodeModel || 'deepseek-v4.1-flash-free',
         systemContextPrompt: hydrated?.systemPrompt,
         message,
         tier1Fallback: parsedTier1,
@@ -398,6 +404,8 @@ export class MarqueeService {
         selectedTool = resolved.tool;
         selectedArgs = { ...selectedArgs, ...resolved.args };
         model = resolved.model;
+        assistantPrefix = resolved.assistantPrefix;
+        reasoning = resolved.reasoning;
         if (resolved.usedProvider === 'DEEPSEEK') tierUsed = 'TIER2_DEEPSEEK';
         else if (resolved.usedProvider === 'OPENCODE') tierUsed = 'TIER2_OPENCODE';
         else if (resolved.usedProvider === 'GEMINI') tierUsed = 'TIER2_GEMINI';
@@ -417,6 +425,9 @@ export class MarqueeService {
       tierUsed,
       model,
       locale,
+      ...(assistantPrefix ? { assistantPrefix } : {}),
+      ...(reasoning ? { reasoning } : {}),
+      ...(hydrated?.proactiveReminders ? { proactiveReminders: hydrated.proactiveReminders } : {}),
       hydratedContext: hydrated
         ? {
             periodTag: hydrated.activePeriod.periodTag,

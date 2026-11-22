@@ -124,9 +124,10 @@ const PRIMARY_ROUTES: RouteItem[] = [
 
 const ANALYSIS_ROUTES: RouteItem[] = [
   {
-    labelKey: "nav.marquee",
-    href: "/marquee",
-    icon: MarqueeMark as unknown as typeof LayoutDashboard,
+    labelKey: "nav.analytics",
+    href: "/analytics",
+    icon: BarChart3,
+    moduleKey: "analytics",
   },
   {
     labelKey: "nav.reports",

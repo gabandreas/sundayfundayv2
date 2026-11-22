@@ -15,6 +15,28 @@ export interface LlmIntentResolution {
   tool: MarqueeToolName;
   args: Record<string, any>;
   assistantPrefix?: string;
+  reasoning?: string;
+}
+
+export function stripReasoningBlocks(rawText?: string | null): {
+  cleanText: string;
+  reasoning?: string;
+} {
+  if (!rawText || typeof rawText !== 'string') {
+    return { cleanText: '' };
+  }
+  const reasonParts: string[] = [];
+  const cleaned = rawText
+    .replace(/<think>([\s\S]*?)<\/think>/gi, (_match, inner) => {
+      const trimmed = String(inner ?? '').trim();
+      if (trimmed) reasonParts.push(trimmed);
+      return '';
+    })
+    .trim();
+  return {
+    cleanText: cleaned,
+    ...(reasonParts.length > 0 ? { reasoning: reasonParts.join('\n\n') } : {}),
+  };
 }
 
 export const MARQUEE_TOOL_DEFS = [
@@ -229,6 +251,7 @@ export class MarqueeLlmService {
             model: deepseekModel || 'deepseek-chat',
             message,
             systemContextPrompt,
+            tier1Fallback,
           });
         } catch (err: any) {
           this.logger.warn(`DeepSeek Tier-2 fallback: ${err?.message || err}`);
@@ -236,15 +259,16 @@ export class MarqueeLlmService {
       }
 
       if (target === 'OPENCODE' && opencodeApiKey) {
-        const cleanBase = String(opencodeBaseUrl || 'https://api.opencode.ai/v1').replace(/\/+$/, '');
+        const cleanBase = String(opencodeBaseUrl || 'https://opencode.ai/zen/v1').replace(/\/+$/, '');
         try {
           return await this.callOpenAiCompatible({
             usedProvider: 'OPENCODE',
             endpointUrl: `${cleanBase}/chat/completions`,
             apiKey: opencodeApiKey,
-            model: opencodeModel || 'opencode-chat',
+            model: opencodeModel || 'deepseek-v4.1-flash-free',
             message,
             systemContextPrompt,
+            tier1Fallback,
           });
         } catch (err: any) {
           this.logger.warn(`OpenCode Tier-2 fallback: ${err?.message || err}`);
@@ -268,6 +292,7 @@ export class MarqueeLlmService {
             model: 'llama-3.3-70b-versatile',
             message,
             systemContextPrompt,
+            tier1Fallback,
           });
         } catch (err: any) {
           this.logger.warn(`Groq Tier-2 fallback: ${err?.message || err}`);
@@ -354,45 +379,90 @@ export class MarqueeLlmService {
     model: string;
     message: string;
     systemContextPrompt?: string;
+    tier1Fallback?: MarqueeParsedIntent;
   }): Promise<LlmIntentResolution | null> {
-    const { usedProvider, endpointUrl, apiKey, model, message, systemContextPrompt } = params;
+    const {
+      usedProvider,
+      endpointUrl,
+      apiKey,
+      model,
+      message,
+      systemContextPrompt,
+      tier1Fallback,
+    } = params;
     const sys =
       systemContextPrompt ||
       'You are Marquee, a deterministic Indonesian personal finance ERP co-pilot. Pick one financial tool and extract structured IDR parameters.';
 
-    const res = await fetch(endpointUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        temperature: 0,
-        messages: [
-          {
-            role: 'system',
-            content: sys,
-          },
-          { role: 'user', content: message },
-        ],
-        tools: MARQUEE_TOOL_DEFS.map((t) => ({
-          type: 'function',
-          function: {
-            name: t.name,
-            description: t.description,
-            parameters: t.parameters,
-          },
-        })),
-        tool_choice: 'auto',
-      }),
-    });
+    const executeRequest = async (url: string, targetModel: string, includeTools: boolean) =>
+      fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: targetModel,
+          temperature: 0,
+          messages: [
+            {
+              role: 'system',
+              content: sys,
+            },
+            { role: 'user', content: message },
+          ],
+          ...(includeTools
+            ? {
+                tools: MARQUEE_TOOL_DEFS.map((t) => ({
+                  type: 'function',
+                  function: {
+                    name: t.name,
+                    description: t.description,
+                    parameters: t.parameters,
+                  },
+                })),
+                tool_choice: 'auto',
+              }
+            : {}),
+        }),
+      });
+
+    let effectiveModel = model;
+    let res = await executeRequest(endpointUrl, effectiveModel, true);
+
+    // If proxy endpoint rejects tools parameter (400/422), retry without tools
+    if (!res.ok && (res.status === 400 || res.status === 422)) {
+      res = await executeRequest(endpointUrl, effectiveModel, false);
+    }
+
+    // If OPENCODE endpoint returns 401/403/404 with a native DeepSeek sk-... key, bridge to api.deepseek.com
+    if (
+      !res.ok &&
+      usedProvider === 'OPENCODE' &&
+      (res.status === 401 || res.status === 403 || res.status === 404) &&
+      apiKey.startsWith('sk-') &&
+      !endpointUrl.includes('api.deepseek.com')
+    ) {
+      effectiveModel = 'deepseek-chat';
+      res = await executeRequest('https://api.deepseek.com/v1/chat/completions', effectiveModel, true);
+      if (!res.ok && (res.status === 400 || res.status === 422)) {
+        res = await executeRequest('https://api.deepseek.com/v1/chat/completions', effectiveModel, false);
+      }
+    }
 
     if (!res.ok) {
       throw new Error(`${usedProvider} HTTP ${res.status}`);
     }
     const payload: any = await res.json();
     const msg = payload?.choices?.[0]?.message;
+    const stripped = stripReasoningBlocks(msg?.content);
+    const externalReasoning =
+      typeof msg?.reasoning_content === 'string' && msg.reasoning_content.trim()
+        ? msg.reasoning_content.trim()
+        : undefined;
+    const reasoning = stripped.reasoning || externalReasoning;
+    const assistantPrefix = stripped.cleanText ? stripped.cleanText : undefined;
+
     const call = msg?.tool_calls?.[0]?.function;
     if (call?.name && MARQUEE_TOOL_DEFS.some((t) => t.name === call.name)) {
       let parsedArgs: Record<string, any> = {};
@@ -401,16 +471,30 @@ export class MarqueeLlmService {
       } catch {
         parsedArgs = {};
       }
-      const assistantPrefix =
-        typeof msg?.content === 'string' && msg.content.trim().length > 0
-          ? msg.content.trim()
-          : undefined;
       return {
         usedProvider,
-        model,
+        model: effectiveModel,
         tool: call.name as MarqueeToolName,
         args: parsedArgs,
         assistantPrefix,
+        ...(reasoning ? { reasoning } : {}),
+      };
+    }
+
+    if (assistantPrefix && tier1Fallback) {
+      return {
+        usedProvider,
+        model: effectiveModel,
+        tool: tier1Fallback.tool,
+        args: {
+          title: tier1Fallback.title,
+          amountRp: tier1Fallback.amountRp,
+          instrument: tier1Fallback.instrument,
+          tenorMonths: tier1Fallback.tenorMonths,
+          expression: tier1Fallback.expression,
+        },
+        assistantPrefix,
+        ...(reasoning ? { reasoning } : {}),
       };
     }
 

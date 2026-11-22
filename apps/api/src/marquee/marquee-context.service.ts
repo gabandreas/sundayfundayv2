@@ -11,6 +11,13 @@ export interface MarqueePayoffMilestone {
   event: string;
 }
 
+export interface MarqueeProactiveReminder {
+  id: string;
+  tone: 'default' | 'caution' | 'positive';
+  text: string;
+  prompt: string;
+}
+
 export interface MarqueeHydratedSnapshotSummary {
   periodTag: string;
   month: number;
@@ -69,6 +76,7 @@ export interface MarqueeFinancialContext {
     activeSubTab: string | null;
     locale: 'en' | 'id' | 'zh';
   };
+  proactiveReminders: MarqueeProactiveReminder[];
   systemPrompt: string;
 }
 
@@ -202,13 +210,19 @@ export class MarqueeContextHydrator {
         periodLabel: "JAN '27",
         month: 1,
         year: 2027,
-        event: '11.11 Promo Checkout (3x) and 11.11 Early Settlement Batch (3x) complete final 3/3 installment.',
+        event: 'SPinjam Oct 23 & Oct 24 loans complete final 3/3 installment (+Rp 147.960/mo freed) and Natal THR arrives.',
       },
       {
         periodLabel: "FEB '27",
         month: 2,
         year: 2027,
-        event: 'SPinjam personal loan installments reach Rp 0 (full SPinjam freedom).',
+        event: '11.11 Promo Checkout (3x) and Nov 08 / Nov 17 SPinjam loans complete final 3/3 installment (+Rp 522.010/mo freed).',
+      },
+      {
+        periodLabel: "MAR '27",
+        month: 3,
+        year: 2027,
+        event: 'SPinjam personal loan obligations reach Rp 0 (full SPinjam freedom) and Anthropic Claude 6/6 finishes.',
       },
       {
         periodLabel: "SEP '27",
@@ -226,6 +240,45 @@ export class MarqueeContextHydrator {
     const activeSubTab = options?.activeSubTab ?? null;
     const locale = options?.locale ?? 'en';
 
+    const remainingCashRp = Math.round(
+      Number(p.remainingBudget ?? activeSnap?.actualDailyOperational ?? 0),
+    );
+    const daysLeft = Math.round(Number(p.daysRemaining ?? 0));
+    const daysToStart = Math.round(Number(p.daysUntilCycleStart ?? 0));
+    const shortfallRp = Math.round(Number(activeSnap?.deficitUncovered ?? 0));
+    const unsettledItemsCount = activeCycleItems.filter((i) => !i.isSettled).length;
+
+    const proactiveReminders: MarqueeProactiveReminder[] = [];
+    if (state === 'PRE_PAYDAY') {
+      proactiveReminders.push({
+        id: 'pre-payday-countdown',
+        tone: shortfallRp > 0 ? 'caution' : 'default',
+        text: `${periodTag} starts in ${daysToStart}d · Living pool ${formatRp(activeSnap?.actualDailyOperational ?? remainingCashRp)}${shortfallRp > 0 ? ` (${formatRp(shortfallRp)} shortfall)` : ''}`,
+        prompt: `How is my ${periodTag} paycycle looking?`,
+      });
+    } else if (state === 'ACTIVE') {
+      proactiveReminders.push({
+        id: 'active-paycycle-runway',
+        tone: daysLeft <= 7 ? 'caution' : 'positive',
+        text: `${daysLeft}d until next payday · ${formatRp(remainingCashRp)} living cash left (${formatRp(p.safeToSpendToday ?? 0)}/day)`,
+        prompt: 'Safe to spend today?',
+      });
+    }
+    if (unsettledItemsCount > 0) {
+      proactiveReminders.push({
+        id: 'upcoming-due-dates',
+        tone: 'default',
+        text: `${unsettledItemsCount} unpaid obligations in ${periodTag} (due 8th, 11th, 17th, 23rd-25th)`,
+        prompt: 'Upcoming bills due this cycle',
+      });
+    }
+    proactiveReminders.push({
+      id: 'cutoff-check',
+      tone: 'default',
+      text: 'SPayLater 15th & Card 20th cutoffs active — test any purchase before checkout',
+      prompt: 'Can I afford 350k on SPayLater?',
+    });
+
     const snapshotLines = multiCycleSnapshots
       .slice(0, 6)
       .map(
@@ -237,14 +290,27 @@ export class MarqueeContextHydrator {
     const systemPrompt = [
       `You are Marquee, the financial co-pilot inside Sunday Funday ERP for user #${userId}.`,
       `Write like a sharp human financial advisor obeying 6 strict rules:`,
-      `1. Use concrete nouns and active verbs.`,
-      `2. Cite exact Rupiah figures and calendar dates from the ledger context below.`,
-      `3. Use everyday human words (say "Vault" and "Installment Plan", never stiff banking jargon).`,
-      `4. Never use robotic academic transition openers or concluding summaries.`,
-      `5. Never use sycophantic praise, exclamation-mark filler, or emojis.`,
-      `6. Keep sentences direct and rhythmic.`,
+      `1. Eliminate AI writing patterns (no repetitive sentence templates, filler, or predictable transitions).`,
+      `2. Natural conversational flow (speak like a smart friend looking at the same ledger; vary sentence length).`,
+      `3. First-hand practitioner perspective (cite exact Rupiah figures, due dates, and cutoffs from the ledger below).`,
+      `4. Convincing & practical detail (concrete numbers and realistic trade-offs, never promotional fluff).`,
+      `5. Strong personality & clear conviction (direct point of view, zero corporate or flat robot tone).`,
+      `6. Human thinking process (weigh real trade-offs, dilemmas, and observations naturally).`,
+      ``,
+      `ERP MODULE & ROUTE MAP (for guiding the user across the app):`,
+      `- Overview (/): Daily safe-to-spend, 10-second wallet reconciliation, routine bills pool, quick expense logger.`,
+      `- Payday Activation (/payday-wizard): 4-step payday checklist (confirm income, lock bill holds, fund living pool, sweep P1).`,
+      `- Cash & Bill Radar (/calendar): Day-by-day running cash timeline and lowest-cash bridge point before THR or payday.`,
+      `- Payroll & Cashflow (/payroll): Corporate payslip rules (25th cutoff + H+2 transfer), workday calculator, life-energy hourly wage.`,
+      `- Budget & Envelopes (/allocations): Priority waterfall (Debt -> Routine -> Proportional Living Cash -> P1 -> P2) & mid-month revisions.`,
+      `- Credit & Debt Matrix (/credit): 12-month debt matrix (?sub=matrix), active installment plans & Snowball/Avalanche optimizer (?sub=contracts), purchase cutoff simulator (?sub=simulator), statement reconciler (?sub=reconciler).`,
+      `- Savings & Vaults (/savings): P1 Core Vault (?sub=vault), net worth breakdown (?sub=networth), 12-month wealth forecaster (?sub=forecaster).`,
+      `- Spending & Trend Review (/analytics): Multi-period cashflow trends, category allocation breakdown, daily burn pace & anomaly check.`,
+      `- Reports & Statements (/reports): Executive horizon (?sub=executive), variance diff (?sub=variance), discipline scorecard (?sub=audit), XLSX/PDF export (?sub=export).`,
+      `- Subscriptions (/subscriptions) & Preferences (/preferences): Recurring kill-switches, formula studio, instruments, and AI settings.`,
       ``,
       `ACTIVE UI CONTEXT: route=${activeRoute}${activeSubTab ? `?sub=${activeSubTab}` : ''}, locale=${locale}`,
+      `CONSUMPTION & BILL-MATURITY MONTH CONVENTION: Period M is funded by Payday(M-1), runs from Payday(M-1) through Day before Payday(M), and pays all Month M bill maturities.`,
       `ACTIVE PAYCYCLE: ${periodTag} (${state}) · Window: ${p.cycleDateLabel ?? periodTag} · Days until start: ${p.daysUntilCycleStart ?? 0}`,
       `PAYDAY RULE: 25th attendance & payslip cutoff + H+2 working days bank transfer.`,
       `DUE-DAY CALENDAR: Canonical due days are 8th, 11th (Credit Card), 17th, 23rd, 24th, and 25th (SPayLater). Cutoffs: SPayLater 15th, Credit Card 20th.`,
@@ -252,7 +318,7 @@ export class MarqueeContextHydrator {
         ? `ACTIVE SNAPSHOT (${periodTag}): Income ${formatRp(activeSnap.finalTotalIncome)}, Debt ${formatRp(activeSnap.totalDeductions)}, Funded Living Pool ${formatRp(activeSnap.actualDailyOperational)}, Shortfall ${formatRp(activeSnap.deficitUncovered)}, P1 ${formatRp(activeSnap.actualSavings)}, P2 ${formatRp(activeSnap.selfReward)}.`
         : `ACTIVE SNAPSHOT (${periodTag}): Projected daily rate ${formatRp(p.baselineDailyRate ?? 0)}/day, remaining living cash ${formatRp(p.remainingBudget ?? 0)}.`,
       `MULTI-CYCLE HORIZON:\n${snapshotLines || '- No snapshots loaded'}`,
-      `PAYOFF MILESTONES: JAN '27 (11.11 3x plans retire), FEB '27 (SPinjam debt freedom), SEP '27 (final 12x card installment matures).`,
+      `PAYOFF MILESTONES: JAN '27 (Oct SPinjam 3/3 retires +Rp 147.960/mo), FEB '27 (11.11 3x & Nov SPinjam 3/3 retire +Rp 522.010/mo), MAR '27 (SPinjam = Rp 0), SEP '27 (final 12x card installment matures).`,
     ].join('\n');
 
     return {
@@ -290,6 +356,7 @@ export class MarqueeContextHydrator {
         activeSubTab,
         locale,
       },
+      proactiveReminders,
       systemPrompt,
     };
   }

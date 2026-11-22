@@ -200,6 +200,53 @@ export function MarqueeCoPilotDrawer({ isOpen, onClose }: MarqueeCoPilotDrawerPr
 
       {/* Body */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-surface">
+        {/* Proactive Paycycle Digest Strip */}
+        <div className="rounded border border-border-subtle bg-canvas/80 px-3 py-2 space-y-1.5">
+          <div className="flex items-center justify-between text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+            <span>Paycycle Digest · {periodTag}</span>
+            <span>Alt+M</span>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {(
+              messages[messages.length - 1]?.response?.proactiveReminders ?? [
+                {
+                  id: "digest-pace",
+                  tone: "positive" as const,
+                  text: `Check ${periodTag} daily safe-to-spend & remaining living cash`,
+                  prompt: "Safe to spend today?",
+                },
+                {
+                  id: "digest-due",
+                  tone: "default" as const,
+                  text: "Review upcoming due dates (8th, 11th, 17th, 23rd-25th)",
+                  prompt: "Upcoming bills due this cycle",
+                },
+                {
+                  id: "digest-variance",
+                  tone: "caution" as const,
+                  text: "Compare 11/2026 vs 12/2026 cycle variance",
+                  prompt: "Compare 11/2026 vs 12/2026 variance",
+                },
+              ]
+            ).map((rem) => (
+              <button
+                key={rem.id}
+                type="button"
+                onClick={() => void handleSubmit(rem.prompt)}
+                className={`text-left px-2 py-1 rounded border text-[11px] font-sans transition-colors cursor-pointer ${
+                  rem.tone === "caution"
+                    ? "border-caution/30 bg-caution/10 text-caution hover:border-caution/50"
+                    : rem.tone === "positive"
+                      ? "border-delta-positive/30 bg-delta-positive/10 text-delta-positive hover:border-delta-positive/50"
+                      : "border-border bg-surface text-text-secondary hover:text-text-primary"
+                }`}
+              >
+                {rem.text}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {messages.length === 0 ? (
           <div className="space-y-3">
             <div className="border-b border-border-subtle pb-3 text-xs text-text-secondary space-y-1">

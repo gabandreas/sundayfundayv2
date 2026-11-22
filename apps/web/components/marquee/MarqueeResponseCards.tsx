@@ -19,7 +19,23 @@ export function MarqueeResponseCards({
 }: MarqueeResponseCardsProps) {
   return (
     <div className="space-y-3">
+      {response.assistantPrefix &&
+        response.assistantPrefix.trim() !== response.summary.trim() && (
+          <div className="text-xs text-text-primary leading-relaxed whitespace-pre-line">
+            {response.assistantPrefix}
+          </div>
+        )}
+
       <div className="text-xs text-text-primary leading-relaxed">{response.summary}</div>
+
+      {response.reasoning && (
+        <details className="rounded border border-border-subtle bg-canvas/50 px-2.5 py-1.5 text-[11px] text-text-tertiary">
+          <summary className="cursor-pointer font-mono text-[10px] text-text-secondary select-none">
+            Reasoning notes
+          </summary>
+          <p className="mt-1.5 whitespace-pre-line leading-relaxed">{response.reasoning}</p>
+        </details>
+      )}
 
       {response.cards && response.cards.length > 0 && (
         <div className="grid grid-cols-2 gap-2">

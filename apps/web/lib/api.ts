@@ -6428,6 +6428,13 @@ export interface MarqueePendingAction {
   };
 }
 
+export interface MarqueeProactiveReminder {
+  id: string;
+  tone: "default" | "caution" | "positive";
+  text: string;
+  prompt: string;
+}
+
 export interface MarqueeChatResponse {
   ok: boolean;
   tool: string;
@@ -6443,6 +6450,9 @@ export interface MarqueeChatResponse {
     | "CONFIRMED_EXECUTION";
   model: string;
   locale: "en" | "id" | "zh";
+  assistantPrefix?: string;
+  reasoning?: string;
+  proactiveReminders?: MarqueeProactiveReminder[];
   hydratedContext?: {
     periodTag: string;
     cycleTemporalState: "PRE_PAYDAY" | "ACTIVE" | "COMPLETED";

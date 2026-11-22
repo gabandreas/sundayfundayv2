@@ -217,10 +217,7 @@ export function ActiveContractsHub({
             category: p.category,
             principalAmount: p.principalAmount,
             monthlyInstallment: activeSliceAmount,
-            remainingPrincipal:
-              p.remainingPrincipal > 0
-                ? Math.round(p.remainingPrincipal)
-                : Math.round(activeSliceAmount * remainingMonths),
+            remainingPrincipal: Math.round(activeSliceAmount * remainingMonths),
             remainingMonths,
             totalTenor: p.totalTenor,
             paidMonths,

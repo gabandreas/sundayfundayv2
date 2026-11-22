@@ -6,16 +6,18 @@ import { MarqueeMark } from "@/components/primitives/MarqueeMark";
 interface MarqueeFloatingLauncherProps {
   isOpen: boolean;
   onToggle: () => void;
+  hasReminder?: boolean;
 }
 
 /**
- * Floating bottom-right launcher for the Marquee AI Co-Pilot drawer.
+ * Icon-only floating bottom-right launcher for the Marquee Financial Co-Pilot drawer.
  * Features the bespoke geometric <MarqueeMark /> vector emblem, clean dark-slate border contrast,
- * and zero pulsing/bouncing animations.
+ * native hover tooltip ("Marquee Financial Co-Pilot (Alt+M)"), and a subtle static indicator dot.
  */
 export function MarqueeFloatingLauncher({
   isOpen,
   onToggle,
+  hasReminder = true,
 }: MarqueeFloatingLauncherProps) {
   return (
     <button
@@ -24,29 +26,23 @@ export function MarqueeFloatingLauncher({
       onClick={onToggle}
       aria-label="Toggle Marquee Financial Co-Pilot (Alt+M)"
       title="Marquee Financial Co-Pilot (Alt+M)"
-      className={`fixed bottom-5 right-5 z-40 print-hidden inline-flex items-center gap-2.5 h-10 px-3.5 rounded-md border shadow-xl transition-colors cursor-pointer ${
+      className={`fixed bottom-5 right-5 z-40 print-hidden inline-flex items-center justify-center w-11 h-11 rounded-full border shadow-xl transition-colors cursor-pointer ${
         isOpen
           ? "bg-text-primary text-canvas border-text-primary"
           : "bg-surface hover:bg-surface-hover text-text-primary border-border-strong"
       }`}
     >
       <MarqueeMark
-        className={`w-4 h-4 shrink-0 ${
+        className={`w-5 h-5 shrink-0 ${
           isOpen ? "text-canvas" : "text-delta-positive"
         }`}
       />
-      <span className="text-xs font-sans font-medium tracking-tight">
-        Marquee
-      </span>
-      <kbd
-        className={`hidden sm:inline-block px-1.5 py-0.5 rounded text-[10px] font-mono border ${
-          isOpen
-            ? "border-canvas/30 text-canvas/90"
-            : "border-border text-text-tertiary bg-canvas"
-        }`}
-      >
-        Alt+M
-      </kbd>
+      {!isOpen && hasReminder && (
+        <span
+          aria-hidden="true"
+          className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-delta-positive border border-canvas"
+        />
+      )}
     </button>
   );
 }
