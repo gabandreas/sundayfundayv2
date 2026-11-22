@@ -5863,6 +5863,8 @@ export interface PaycycleHorizonEngineResult {
   weekendSafeRateRp: number;
   flatDailyRateRp: number;
   weekendMultiplier: number;
+  cycleTemporalState?: "PRE_PAYDAY" | "ACTIVE" | "COMPLETED";
+  daysUntilCycleStart?: number;
 }
 
 export interface NetWorthTrajectoryPoint {

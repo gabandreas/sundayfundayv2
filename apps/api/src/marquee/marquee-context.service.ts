@@ -141,7 +141,7 @@ export class MarqueeContextHydrator {
       this.prisma.transaction
         ? this.prisma.transaction
             .findMany({
-              where: { userId, month, year },
+              where: { snapshot: { userId, month, year } },
               orderBy: { id: 'desc' },
               take: 8,
             })
