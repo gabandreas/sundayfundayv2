@@ -13,9 +13,9 @@ Sunday Funday ERP is a deterministic, single-user desktop personal finance ERP e
 
 ## 2. Core Financial Domain Invariants
 
-1. **Payday-to-Payday Consumption Horizon (`Cycle -> Due Horizon`):**
-   - Period `M/YYYY` starts on period `M`'s actual `payrollPayoutDate` (~25th–28th of Month `M`) and ends the day before period `M+1`'s `payrollPayoutDate`.
-   - Period `M` cashflow funds all credit and debt obligations whose due dates fall inside Month `M+1` (`Credit Card` due 11th, `SPayLater` & `Personal Debt` due 25th).
+1. **Consumption & Bill-Maturity Month Convention (`Payday(M-1) -> Day before Payday(M) = Period M`):**
+   - Period `M/YYYY` is funded by `Payday(M-1)` (~25th–28th of Month `M-1`) and runs through the day before `Payday(M)`.
+   - Period `M` cashflow funds all living operational expenses across `[Payday(M-1), Payday(M)-1]` and all credit and debt obligations whose due dates fall directly inside Month `M` (`SPayLater` due 8th, `SPinjam` due 11th/17th/23rd/24th/25th, `Credit Card` & `Mandiri KSM` due 25th).
 2. **Upfront Ringfencing & 2-Priority Waterfall:**
    - **Upfront Essentials:** Materialized debt (`PayLater + Credit Card + Personal Debt`), fixed routine quotas (`Transport`, `Internet`, `Vape`, `Haircut`), and `Daily Operational Living` are ringfenced upfront.
    - **Budget Shortfall:** When upfront essentials exceed `finalTotalIncome`, `actualDailyOperational` is clamped to remaining positive cashflow and the exact deficit is recorded in `deficitUncovered` (`P1 = Rp 0`, `P2 = Rp 0`).
@@ -41,7 +41,8 @@ Sunday Funday ERP is a deterministic, single-user desktop personal finance ERP e
 | **Allocations** | `/allocations` | Interactive Waterfall & Living Quota Planner, Envelope Rollover (`SWEEP_TO_P1` vs `ROLLOVER_NEXT_MONTH`) & Sinking Fund amortization, and append-only Budget Revisions Log. |
 | **Credit & Liabilities** | `/credit` | `?sub=matrix` (12-Month Rolling Debt Matrix), `?sub=contracts` (5-tier `ActiveContractsHub` with SPinjam-first priority & Snowball vs Avalanche optimizer), `?sub=simulator` (Cutoff Advisor + embedded Wishlist Affordability Vault), `?sub=reconciler` (Bulk Statement Parser). |
 | **Savings & Vaults** | `/savings` | Cash vs Debt Net Worth comparison, 12-Month 3-Scenario Wealth Forecaster, and P1 Vault & Forward-Borrow Ledger. |
-| **Marquee AI** | `/marquee` + `Alt+M` + Floating Launcher | 3-tier deterministic, context-hydrated Financial AI Co-Pilot & Quick-Capture (`Tier 1` trilingual NLU, `Tier 2` BYOK DeepSeek V3/R1, OpenCode, `gemini-3.8-flash`, or Groq `llama-3.3-70b-versatile`, `Tier 3` `X-Marquee-Token` webhook). |
+| **Spending & Trend Review** | `/analytics` | Multi-period spending structure, category trend velocity, and cycle-over-cycle consumption review (`AUDIT & DECISION` Sidebar slot). |
+| **Marquee AI Co-Pilot** | Icon-Only Bottom-Right Launcher + `Alt+M` + `/marquee` | 3-tier deterministic, context-hydrated Financial AI Co-Pilot & Quick-Capture (`Tier 1` trilingual NLU, `Tier 2` BYOK OpenCode Zen `deepseek-v4.1-flash-free`, DeepSeek V3/R1, `gemini-3.8-flash`, or Groq `llama-3.3-70b-versatile`, `Tier 3` `X-Marquee-Token` webhook). |
 | **Reports & Statements** | `/reports` | `?sub=executive` (Closing Statement), `?sub=variance` (MoM Variance + Go Telemetry Strip), `?sub=audit` (Discipline Scorecard + Mid-Month Edits Log), `?sub=export` (4-Sheet `.xlsx` & SMTP Gmail dispatch). |
 | **Subscriptions** | `/subscriptions` | Recurring card charges, promo-expiry kill-switch alerts, and cancellation tracking. |
 | **Preferences** | `/preferences` | Formula DSL Studio, Instruments & Cutoffs, Asset Accounts, Routine Templates, Navigation Builder, SMTP & Security Guard, and `?sub=ai` (Marquee BYOK AES-256-GCM & Webhook Token Manager). |

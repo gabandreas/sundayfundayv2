@@ -9,12 +9,14 @@ Marquee is Sunday Funday ERP's 3-tier deterministic, context-hydrated financial 
 Large language models must **never** invent Rupiah balances, Debt Service Ratios (DSR), cutoff dates, or waterfall allocations in free text. On every turn:
 1. **`MarqueeContextHydrator` (`apps/api/src/marquee/marquee-context.service.ts`)** hydrates the authenticated user's live, `userId`-isolated state:
    - Active paycycle & temporal state (`PRE_PAYDAY` / `ACTIVE` / `COMPLETED`, days until payday, two-stage payday law: `25th attendance & payslip cutoff + H+2 working days transfer`),
-   - Multi-cycle snapshots (`10/2026..03/2027` income, total debt, funded living pool, uncovered shortfall, P1 Core Vault, P2 buffer),
-   - Due-day calendar (`[8, 11, 17, 23, 24, 25]` and cutoff rules: SPayLater `15th -> 25th`, Credit Card `20th -> 11th`),
-   - Installment payoff milestones (`JAN '27` 11.11 3x plans retire, `FEB '27` SPinjam reaches `Rp 0`, `SEP '27` final 12x card installment matures),
+   - Multi-cycle snapshots (`10/2026..03/2027` income, total debt, funded living pool, uncovered shortfall, P1 Core Vault, P2 buffer under the Consumption & Bill-Maturity Month convention where period `M` covers `Payday(M-1)` through `Day before Payday(M)` and pays Month `M` bills),
+   - Due-day calendar (`[8, 11, 17, 23, 24, 25]` and cutoff rules: SPayLater `24th -> 8th`, Credit Card `27th -> 25th`),
+   - Installment payoff milestones (`JAN '27` SPinjam #1 retires, `FEB '27` 11.11 3x plans and SPinjam #2/#3 finish, `MAR '27` SPinjam reaches `Rp 0`, `SEP '27` final 12x card & 48/48 Mandiri KSM installments mature),
+   - Proactive reminders (`proactiveReminders`: upcoming SPayLater 24th cutoff, CC 27th cutoff, Nov 27 payday transition, and daily safe-to-spend allowance),
    - Active UI route & sub-tab context (`activeRoute`, `activeSubTab`, `locale`).
-2. User intent is resolved either by **Tier 1** (deterministic in-process trilingual NLU in `<5ms`) or **Tier 2** (encrypted BYOK tool-calling via **DeepSeek** `deepseek-chat` / `deepseek-reasoner`, **OpenCode** `opencode-chat`, **Google Gemini** `gemini-3.8-flash` via `@google/genai`, or **Groq** `llama-3.3-70b-versatile`).
-3. The resolved intent executes one of **8 canonical deterministic tools** in `MarqueeToolsService`, returning exact figures and human-written explanations obeying the 6 Human Writing Laws.
+2. User intent is resolved either by **Tier 1** (deterministic in-process trilingual NLU in `<5ms`) or **Tier 2** (encrypted BYOK tool-calling via **OpenCode Zen** `https://opencode.ai/zen/v1` / `deepseek-v4.1-flash-free`, **DeepSeek** `deepseek-chat` / `deepseek-reasoner`, **Google Gemini** `gemini-3.8-flash` via `@google/genai`, or **Groq** `llama-3.3-70b-versatile`).
+3. Reasoning blocks (`<think>...</think>`) emitted by reasoning models are automatically stripped from the visible answer via `stripReasoningBlocks` and rendered inside a collapsible `<details>` block (`Show reasoning notes`), while HTTP `400`/`422` tool-Unsupported endpoints automatically retry in JSON-intent mode and `sk-...` keys automatically bridge to DeepSeek API on `401`.
+4. The resolved intent executes one of **8 canonical deterministic tools** in `MarqueeToolsService`, returning exact figures and human-written explanations obeying the 6 Human Writing Laws.
 
 ---
 
@@ -54,8 +56,8 @@ Configured per user at `/preferences?sub=ai` (or via environment variables `DEEP
 
 ---
 
-## 4. UI Surface & Floating Bottom-Right Launcher
+## 4. UI Surface & Icon-Only Floating Bottom-Right Launcher
 
-- **Floating Launcher ([`MarqueeFloatingLauncher.tsx`](file:///d:/Projects/Project%20Hijack/mondaymondayv2/apps/web/components/marquee/MarqueeFloatingLauncher.tsx)):** Mounted globally at `fixed bottom-5 right-5 z-40 print-hidden` (`data-testid="marquee-floating-launcher"`), rendering the bespoke `<MarqueeMark />` vector SVG emblem and `Alt+M` badge with zero pulsing or bouncing animations.
-- **Top-Layer Drawer ([`MarqueeCoPilotDrawer.tsx`](file:///d:/Projects/Project%20Hijack/mondaymondayv2/apps/web/components/marquee/MarqueeCoPilotDrawer.tsx)):** Native `<dialog class="marquee-drawer">` opened via `showModal()`, passing active route and sub-tab context (`pathname`, `searchParams.get("sub")`) on every query.
+- **Icon-Only Floating Launcher ([`MarqueeFloatingLauncher.tsx`](file:///d:/Projects/Project%20Hijack/mondaymondayv2/apps/web/components/marquee/MarqueeFloatingLauncher.tsx)):** Mounted globally at `fixed bottom-5 right-5 z-40 print-hidden` (`data-testid="marquee-floating-launcher"`), rendering a compact `44x44px` (`w-11 h-11 rounded-full`) button containing only the bespoke `<MarqueeMark />` vector SVG emblem and a subtle status indicator dot, with native hover tooltip `title="Marquee Financial Co-Pilot (Alt+M)"`. Redundant Sidebar and Header Marquee launcher buttons are removed; the Sidebar `AUDIT & DECISION` slot now opens **Spending & Trend Review** (`/analytics`).
+- **Top-Layer Drawer ([`MarqueeCoPilotDrawer.tsx`](file:///d:/Projects/Project%20Hijack/mondaymondayv2/apps/web/components/marquee/MarqueeCoPilotDrawer.tsx)):** Native `<dialog class="marquee-drawer">` opened via `showModal()`, rendering a **Proactive Paycycle Digest** strip (`proactiveReminders`) at the top and passing active route and sub-tab context (`pathname`, `searchParams.get("sub")`) on every query.
 - **Full Workstation ([`MarqueeWorkspaceClient.tsx`](file:///d:/Projects/Project%20Hijack/mondaymondayv2/apps/web/components/marquee/MarqueeWorkspaceClient.tsx)):** Asymmetric 12-column (`8 / 4`) layout pairing the conversation canvas with a live Hydrated Domain Context rail.

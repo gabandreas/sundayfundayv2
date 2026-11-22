@@ -82,7 +82,7 @@ async function main() {
       u1.user,
     );
 
-    // 2. Navigate to Overview (/) and verify Smart Default Active Period (11/2026), Savings & Vaults label, 27 NOV / 28 DEC pre-payday axis dates, and no Platform Admin link
+    // 2. Navigate to Overview (/) and verify Smart Default Active Period (11/2026 ACTIVE: 28 OCT – 26 NOV), Spending & Trend Review in Sidebar, Savings & Vaults label, and no Platform Admin or Marquee Sidebar link
     await page.goto(`${WEB_URL}/`, { waitUntil: 'networkidle2', timeout: 60000 });
     assert.notEqual(
       new URL(page.url()).pathname,
@@ -103,23 +103,43 @@ async function main() {
       'Sidebar must render humanized "Savings & Vaults" label instead of "Savings & Reservoirs"',
     );
     assert.ok(
+      overviewText.includes('Spending & Trend Review'),
+      'Sidebar AUDIT & DECISION section must render "Spending & Trend Review" (/analytics)',
+    );
+    assert.ok(
+      !overviewText.includes('Marquee AI'),
+      'Sidebar must not list a redundant "Marquee AI" entry',
+    );
+    assert.ok(
       !overviewText.includes('Savings & Reservoirs'),
       'Sidebar must not contain "Savings & Reservoirs"',
     );
     assert.ok(
-      overviewText.includes('27 NOV') && overviewText.includes('28 DEC'),
-      'Overview PRE_PAYDAY Daily Pacing chart must display cycle boundary dates "27 NOV" and "28 DEC"',
-    );
-    assert.ok(
-      !overviewText.includes('DAY 32'),
-      'Overview PRE_PAYDAY Daily Pacing chart must not show generic "DAY 32" axis label',
+      overviewText.includes('28 OCT') && overviewText.includes('26 NOV'),
+      'Overview ACTIVE 11/2026 Daily Pacing chart must display cycle boundary dates "28 OCT" and "26 NOV"',
     );
     assert.ok(
       !overviewText.includes('Burn-Rate Telemetry'),
       'Overview must not contain robotic "Burn-Rate Telemetry" copy',
     );
+
+    // Also verify 12/2026 PRE_PAYDAY cycle boundary dates ("27 NOV" and "27 DEC")
+    await page.goto(`${WEB_URL}/?month=12&year=2026`, { waitUntil: 'networkidle2', timeout: 60000 });
+    await page.waitForFunction(
+      () => document.body.innerText.includes('27 NOV'),
+      { timeout: 15000 },
+    );
+    const decOverviewText = await page.evaluate(() => document.body.innerText);
+    assert.ok(
+      decOverviewText.includes('27 NOV') && decOverviewText.includes('27 DEC'),
+      'Overview PRE_PAYDAY 12/2026 Daily Pacing chart must display cycle boundary dates "27 NOV" and "27 DEC"',
+    );
+    assert.ok(
+      !decOverviewText.includes('DAY 32'),
+      'Overview PRE_PAYDAY Daily Pacing chart must not show generic "DAY 32" axis label',
+    );
     console.log(
-      '  PASS [1/6]: User #1 consumer role hides Platform Admin, renders "Savings & Vaults", and eliminates AI-slop labels.',
+      '  PASS [1/6]: User #1 consumer role hides Platform Admin, renders "Savings & Vaults" & "Spending & Trend Review", verifies 11/2026 ACTIVE (28 OCT–26 NOV) & 12/2026 PRE_PAYDAY (27 NOV–27 DEC), and eliminates AI-slop labels.',
     );
 
     // 3. Verify Trilingual Switcher (EN / ID / ZH) renders localized human terms with zero raw translation keys
@@ -147,12 +167,13 @@ async function main() {
     await page.evaluate(() => localStorage.setItem('erp_locale', 'en'));
     console.log('  PASS [2/6]: Trilingual (EN / ID / ZH) DOM verification passed ("Savings & Vaults" / "Tabungan & Brankas" / "储蓄与金库").');
 
-    // 4. Verify Consolidated Routes (/payday-wizard, /calendar, /credit?sub=contracts, /credit?sub=simulator, /marquee, /preferences?sub=ai)
+    // 4. Verify Consolidated Routes (/payday-wizard, /calendar, /credit?sub=contracts, /credit?sub=simulator, /analytics, /marquee, /preferences?sub=ai)
     const routeChecks: Array<{ path: string; expectedSubstring: string }> = [
       { path: '/payday-wizard?month=11&year=2026', expectedSubstring: 'Paycycle Activation Checklist' },
       { path: '/calendar?month=11&year=2026', expectedSubstring: 'Lowest Cash Point' },
       { path: '/credit?sub=contracts&month=11&year=2026', expectedSubstring: 'Active Installment Plans' },
       { path: '/credit?sub=simulator&month=11&year=2026', expectedSubstring: 'Wishlist' },
+      { path: '/analytics', expectedSubstring: 'Spending' },
       { path: '/marquee', expectedSubstring: 'DeepSeek' },
       { path: '/preferences?sub=ai', expectedSubstring: 'AES-256-GCM' },
     ];
@@ -182,17 +203,25 @@ async function main() {
     }
     console.log('  PASS [3/6]: All new & consolidated routes render expected domain sections.');
 
-    // 5. Verify Floating Bottom-Right Marquee Launcher & native top-layer <dialog> Marquee drawer + read-only context query
-    const launcherExists = await page.evaluate(() => {
+    // 5. Verify Icon-Only Floating Bottom-Right Marquee Launcher & native top-layer <dialog> Marquee drawer + read-only context query
+    const launcherValid = await page.evaluate(() => {
       const btn = document.querySelector('[data-testid="marquee-floating-launcher"]') as HTMLElement | null;
       if (!btn) return false;
       const svg = btn.querySelector('svg');
-      return Boolean(svg && btn.className.includes('fixed') && btn.className.includes('bottom-5'));
+      const title = btn.getAttribute('title') ?? '';
+      return Boolean(
+        svg &&
+          btn.innerText.trim() === '' &&
+          title.includes('Alt+M') &&
+          btn.className.includes('fixed') &&
+          btn.className.includes('bottom-5') &&
+          btn.className.includes('rounded-full'),
+      );
     });
     assert.equal(
-      launcherExists,
+      launcherValid,
       true,
-      'Floating bottom-right Marquee launcher ([data-testid="marquee-floating-launcher"]) with custom SVG emblem must be mounted',
+      'Icon-only floating bottom-right Marquee launcher ([data-testid="marquee-floating-launcher"]) with custom SVG emblem and Alt+M hover title must be mounted',
     );
 
     await page.click('[data-testid="marquee-floating-launcher"]');

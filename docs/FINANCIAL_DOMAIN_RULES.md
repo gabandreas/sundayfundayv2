@@ -2,24 +2,25 @@
 
 Authoritative accounting and cutoff specifications for Sunday Funday ERP.
 
-## 1. Payday-to-Bill Cycle Convention
+## 1. Consumption & Bill-Maturity Month Convention (`Period M`)
 
-- Period `M/YYYY` (e.g., `11/2026` / `NOV '26`) is funded by the late-`M` paycheck (`~27 Nov`) and spans until the day before period `M+1`'s `payrollPayoutDate` (`~27 Dec`).
-- Consequently, period `M` cashflow pays bills falling due in **`M + 1`**:
-  - `OCT '26` (`28 Oct - 26 Nov 2026`): Pays November due dates (`11 Nov` CC, `25 Nov` PayLater).
-  - `NOV '26` (`27 Nov - 27 Dec 2026`): Pays December due dates (`8 Dec` SPinjam, `11 Dec` CC, `25 Dec` PayLater).
-  - `DEC '26` (`28 Dec - 26 Jan 2027`): Pays January due dates (`11 Jan` CC, `25 Jan` PayLater).
+- Period `M/YYYY` (e.g., `11/2026` / `NOV '26`) is funded by the late-`M-1` paycheck (`Payday(M-1)`, e.g., `28 Oct` for `11/2026`) and spans until the day before period `M+1`'s `payrollPayoutDate` (`Day before Payday(M)`, e.g., `26 Nov` for `11/2026`).
+- Consequently, period `M` cashflow pays bills falling due directly in calendar month **`M`** (`maturityMonth === periodMonth`, `dueMonth === periodMonth`):
+  - `OCT '26` (`10/2026`, `28 Sep - 27 Oct 2026`): Pays October due dates (`8, 11, 25 Oct`).
+  - `NOV '26` (`11/2026`, `28 Oct - 26 Nov 2026`, `ACTIVE` on 22 Nov 2026 at Day 26 of 30): Pays November due dates (`8, 11, 25 Nov`).
+  - `DEC '26` (`12/2026`, `27 Nov - 27 Dec 2026`, `PRE_PAYDAY` on 22 Nov 2026 at Day 0 of 31): Pays December due dates (`8, 11, 17, 23, 24, 25 Dec`).
+  - `JAN '27` (`01/2027`, `28 Dec 2026 - 26 Jan 2027`, funded by Dec 28 payday + Natal THR): Pays January due dates (`8, 11, 17, 23, 24, 25 Jan`).
 
 ## 2. Cutoff Routing Rules
 
-- **SPayLater (Due 25th, Cutoff 15th):**
-  - Order completed on `day <= 15` (and `holdPastCutoff = false`) bills in the **current purchase month** (due 25th of the following calendar month -> ERP period = `purchaseMonth`).
-  - Order completed on `day > 15` OR held past cutoff (`holdPastCutoff = true`) defers to **`purchaseMonth + 1`**.
+- **SPayLater (Due 8th, Cutoff 24th):**
+  - Order completed on `day <= cutoff` (and `holdPastCutoff = false`) bills in the **next billing period `purchaseMonth + 1`** (due in `purchaseMonth + 1`).
+  - Order completed on `day > cutoff` OR held past cutoff (`holdPastCutoff = true`) defers to **`purchaseMonth + 2`**.
   - Splitting a partial payment in `MatrixCellDrawer` cleanly divides a single `LiabilityLineItem` across the cutoff boundary.
-- **Credit Card (Due 11th, Cutoff 20th):**
-  - Transactions dated `<= 20th` land on that billing month; transactions `> 20th` roll into the next billing cycle.
+- **Credit Card (Due 25th, Cutoff 27th):**
+  - Transactions dated `<= cutoff` land in billing period `purchaseMonth + 1`; transactions `> cutoff` roll into `purchaseMonth + 2`.
 - **Personal & Informal Debt (`SPinjam`, Peer, P1 Vault Refunds):**
-  - Scheduled explicitly per repayment due cycle. Early full payoff (`accelerateBridgeLoan`) consolidates all remaining unsettled slices of a `parentContractId` into a chosen target month and triggers recalculation.
+  - Scheduled explicitly per repayment due cycle (`M`). Early full payoff (`accelerateBridgeLoan`) consolidates all remaining unsettled slices of a `parentContractId` into a chosen target month and triggers recalculation.
 
 ## 3. Two-Priority Waterfall, Proportional Living Cash Law & Override Locks
 
@@ -42,7 +43,7 @@ Authoritative accounting and cutoff specifications for Sunday Funday ERP.
 - `MonthlyBulkBill.paylaterAmount` MUST always equal the sum of `LiabilityLineItem` rows with `category = PAYLATER` for `(userId, month, year)`.
 - `MonthlyBulkBill.personalDebtAmount` MUST always equal the sum of `LiabilityLineItem` rows with `category IN ('PERSONAL_DEBT', 'P1_VAULT_REFUND')` for `(userId, month, year)`.
 - Matrix `contractRows` / `activeInstallmentPlans` (`isIncludedInMatrixRows: true`) contain **strictly multi-month installment plans (`totalTenor > 1` and `category != 'P1_VAULT_REFUND'`)** with `M+1` true final maturity dates, never added a second time into `totalsPerMonth` or `MonthlySnapshot.totalDeductions`.
-- Single-period charges (`1/1`, including `Hoodie P1 Vault Forward-Borrow Refund (Rp 250.000)` strictly in `12/2026` and recurring CC items) are scoped exclusively to their exact billing period and never appear in expired or future cycles.
+- Single-period charges (`1/1`, including `Hoodie P1 Vault Forward-Borrow Refund (Rp 250.000)` strictly in `01/2027` and `Billiard, Beer & Indomaret (Rp 170.000)` strictly in `12/2026`, plus recurring CC items) are scoped exclusively to their exact billing period and never appear in expired or future cycles.
 - Net Worth Debt Principal sums **Current Cycle External Debt Due** (excluding internal `P1_VAULT_REFUND`) plus **Future Unpaid Multi-Month Installment Principal** (excluding future unincurred recurring CC subscriptions and internal vault refunds).
 
 ## 5. Ledger Epoch Isolation & P1 Vault Truth

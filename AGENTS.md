@@ -156,8 +156,8 @@ Read `.agent/skills/test-driven-development/SKILL.md` and `docs/TDD_AND_ERROR_CA
 
 ## AI Context & CLI Operations Index
 
-- Read `CLAUDE.md`, `docs/FINANCIAL_DOMAIN_RULES.md`, `docs/PAYCYCLE_HORIZON_AND_CUTOFF_LAW.md`, `docs/GO_ENGINE_ARCHITECTURE.md`, `docs/FORMULA_DSL_AND_RESERVED_WORDS.md`, `docs/MODULAR_PREFERENCES_AND_NAVIGATION.md`, `docs/SUBMODULE_UX_AND_COPY_STANDARDS.md`, and `docs/AI_CONTEXT_MAP.md` before modifying financial logic, navigation, or liabilities.
-- Read `docs/LIVE_LEDGER_STATE.md` (or run `npm run erp:report -- --write`) instead of running ad-hoc database queries to inspect `userId = 1` live balances.
+- Read `CLAUDE.md`, `docs/USER1_GOLDEN_LEDGER_LOCK.md`, `docs/FINANCIAL_DOMAIN_RULES.md`, `docs/PAYCYCLE_HORIZON_AND_CUTOFF_LAW.md`, `docs/COPYWRITING_AND_DESIGN_SYSTEM.md`, `docs/MARQUEE_AI_COPILOT.md`, `docs/GO_ENGINE_ARCHITECTURE.md`, `docs/FORMULA_DSL_AND_RESERVED_WORDS.md`, `docs/MODULAR_PREFERENCES_AND_NAVIGATION.md`, `docs/SUBMODULE_UX_AND_COPY_STANDARDS.md`, and `docs/AI_CONTEXT_MAP.md` before modifying financial logic, navigation, or liabilities.
+- Read `docs/USER1_GOLDEN_LEDGER_LOCK.md` and `docs/LIVE_LEDGER_STATE.md` (or run `npm run erp:report -- --write`) instead of running ad-hoc database queries to inspect `userId = 1` live balances.
 - Standard CLI tooling (`scripts/erp-cli.ts`):
   - `npm run erp:go:test` / `npm run erp:go:build` — Run Go engine tests and rebuild native Go engine binaries (`apps/go-engine/bin/`).
   - `npm run erp:report [-- --write]` — Output verified Neon Cloud state (`userId = 1`).
