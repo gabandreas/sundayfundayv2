@@ -260,7 +260,7 @@ export class MarqueeContextHydrator {
       proactiveReminders.push({
         id: 'active-paycycle-runway',
         tone: daysLeft <= 7 ? 'caution' : 'positive',
-        text: `${daysLeft}d until next payday · ${formatRp(remainingCashRp)} living cash left (${formatRp(p.safeToSpendToday ?? 0)}/day)`,
+        text: `${daysLeft}d until next payday · ${formatRp(remainingCashRp)} living cash left (${formatRp(p.weightedSafeToSpendToday ?? p.safeToSpendToday ?? 0)} today)`,
         prompt: 'Safe to spend today?',
       });
     }
@@ -275,7 +275,7 @@ export class MarqueeContextHydrator {
     proactiveReminders.push({
       id: 'cutoff-check',
       tone: 'default',
-      text: 'SPayLater 15th & Card 20th cutoffs active — test any purchase before checkout',
+      text: 'SPayLater (daysInMonth - 15) & Permata CC (25th closing -> 11th due) cutoffs active',
       prompt: 'Can I afford 350k on SPayLater?',
     });
 
@@ -311,9 +311,9 @@ export class MarqueeContextHydrator {
       ``,
       `ACTIVE UI CONTEXT: route=${activeRoute}${activeSubTab ? `?sub=${activeSubTab}` : ''}, locale=${locale}`,
       `CONSUMPTION & BILL-MATURITY MONTH CONVENTION: Period M is funded by Payday(M-1), runs from Payday(M-1) through Day before Payday(M), and pays all Month M bill maturities.`,
-      `ACTIVE PAYCYCLE: ${periodTag} (${state}) · Window: ${p.cycleDateLabel ?? periodTag} · Days until start: ${p.daysUntilCycleStart ?? 0}`,
-      `PAYDAY RULE: 25th attendance & payslip cutoff + H+2 working days bank transfer.`,
-      `DUE-DAY CALENDAR: Canonical due days are 8th, 11th (Credit Card), 17th, 23rd, 24th, and 25th (SPayLater). Cutoffs: SPayLater 15th, Credit Card 20th.`,
+      `ACTIVE PAYCYCLE: ${periodTag} (${state}) · Day ${p.currentDayIndex ?? 0} of ${p.daysInCycle ?? 30} (${p.daysRemaining ?? 0} days remaining) · Window: ${p.cycleDateLabel ?? periodTag} · Days until start: ${p.daysUntilCycleStart ?? 0} · Weighted Safe-to-Spend Today: ${formatRp(p.weightedSafeToSpendToday ?? p.safeToSpendToday ?? 0)} (Weekday ${formatRp(p.weekdaySafeRate ?? p.safeToSpendToday ?? 0)}/day, Weekend ${formatRp(p.weekendSafeRate ?? p.safeToSpendToday ?? 0)}/day)`,
+      `PAYDAY RULE: 25th attendance & payslip cutoff + H+2 working days bank transfer (same-month clamped).`,
+      `DUE-DAY & CUTOFF LAW: Canonical due days are 8th, 11th (Bank Permata CC), 17th, 23rd, 24th, and 25th (SPayLater). SPayLater cutoff = daysInMonth(M) - 15 (15th in 30d months, 16th in 31d months; day <= cutoff due 25th M+1, day > cutoff due 25th M+2). Bank Permata Credit Card closes every 25th -> due every 11th of following month (day <= 25th M due 11th M+1, day >= 26th M due 11th M+2), with H-1 business-day early-payment advisory if the 11th falls on a weekend or holiday.`,
       activeSnap
         ? `ACTIVE SNAPSHOT (${periodTag}): Income ${formatRp(activeSnap.finalTotalIncome)}, Debt ${formatRp(activeSnap.totalDeductions)}, Funded Living Pool ${formatRp(activeSnap.actualDailyOperational)}, Shortfall ${formatRp(activeSnap.deficitUncovered)}, P1 ${formatRp(activeSnap.actualSavings)}, P2 ${formatRp(activeSnap.selfReward)}.`
         : `ACTIVE SNAPSHOT (${periodTag}): Projected daily rate ${formatRp(p.baselineDailyRate ?? 0)}/day, remaining living cash ${formatRp(p.remainingBudget ?? 0)}.`,
@@ -333,7 +333,9 @@ export class MarqueeContextHydrator {
         cycleEndDate: p.cycleEndDate ?? null,
         cycleDateLabel: String(p.cycleDateLabel ?? periodTag),
         baselineDailyRate: Math.round(Number(p.baselineDailyRate ?? 0)),
-        safeToSpendToday: Math.round(Number(p.safeToSpendToday ?? 0)),
+        safeToSpendToday: Math.round(
+          Number(p.weightedSafeToSpendToday ?? p.safeToSpendToday ?? 0),
+        ),
         remainingLivingCash: Math.round(
           Number(p.remainingBudget ?? activeSnap?.actualDailyOperational ?? 0),
         ),
@@ -342,7 +344,8 @@ export class MarqueeContextHydrator {
       multiCycleSnapshots,
       dueDayCalendar: {
         canonicalDueDays: [8, 11, 17, 23, 24, 25],
-        cutoffRules: 'SPayLater 15th cutoff (due 25th next month) · Credit Card 20th cutoff (due 11th next month)',
+        cutoffRules:
+          'SPayLater daysInMonth - 15 cutoff (due 25th) · Bank Permata CC 25th closing cutoff (due 11th next month + H-1 business day advisory)',
         activeCycleItems,
       },
       payoffMilestones,

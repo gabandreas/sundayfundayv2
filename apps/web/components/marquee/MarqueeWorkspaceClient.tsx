@@ -123,14 +123,10 @@ export function MarqueeWorkspaceClient() {
             <span>Context-Hydrated Financial Co-Pilot · {periodTag}</span>
           </div>
           <h1 className="text-xl font-semibold tracking-tight text-text-primary mt-0.5">
-            Marquee AI &amp; Quick-Capture Workstation
+            Marquee Financial Co-Pilot
           </h1>
           <p className="text-xs text-text-secondary mt-1">
-            Full ledger context hydration with DeepSeek, OpenCode, Gemini 3.8 Flash, Groq Llama 3.3 70B, and zero-latency Tier 1 NLU fallback. Press{" "}
-            <kbd className="px-1.5 py-0.5 rounded border border-border bg-surface font-mono text-[10px]">
-              Alt+M
-            </kbd>{" "}
-            or use the bottom-right launcher on any screen.
+            Ask questions about your active paycycle, test purchase cutoffs, compare monthly shifts, or log spending in plain English, Bahasa Indonesia, or 中文.
           </p>
         </div>
 
@@ -139,7 +135,7 @@ export function MarqueeWorkspaceClient() {
           className="inline-flex items-center gap-1.5 px-3 py-2 rounded border border-border bg-surface hover:bg-surface-hover text-xs font-medium text-text-primary"
         >
           <Settings2 className="w-3.5 h-3.5" />
-          <span>Configure DeepSeek / OpenCode / BYOK Keys</span>
+          <span>AI Provider Settings</span>
         </Link>
       </div>
 
@@ -182,17 +178,17 @@ export function MarqueeWorkspaceClient() {
                 turns.map((turn) => (
                   <div
                     key={turn.id}
-                    className={`rounded border px-4 py-3 space-y-2 ${
+                    className={`rounded-md px-4 py-3 space-y-2 ${
                       turn.role === "user"
-                        ? "border-border-strong bg-canvas ml-10"
-                        : "border-border-subtle bg-surface-subtle/50 mr-6"
+                        ? "border border-border bg-surface ml-10"
+                        : "border border-border-subtle/80 bg-surface-subtle/40 mr-6"
                     }`}
                   >
-                    <div className="flex items-center justify-between text-[10px] font-mono text-text-tertiary">
+                    <div className="flex items-center justify-between text-[10px] font-medium text-text-tertiary">
                       <span>{turn.role === "user" ? "You" : "Marquee"}</span>
-                      {turn.response && (
-                        <span>
-                          {turn.response.tierUsed} · {turn.response.model} · {turn.response.tool}
+                      {turn.response?.hydratedContext?.periodTag && (
+                        <span className="font-mono text-[10px] text-text-tertiary/80">
+                          {turn.response.hydratedContext.periodTag}
                         </span>
                       )}
                     </div>
@@ -265,7 +261,7 @@ export function MarqueeWorkspaceClient() {
                 Due Days: 8th · 11th (Card) · 17th · 23rd · 24th · 25th (PayLater)
               </div>
               <div className="text-[11px] text-text-tertiary">
-                Cutoffs: SPayLater 15th · Credit Card 20th
+                Cutoffs: SPayLater M-15d (15th/16th) · Permata CC 25th
               </div>
             </div>
 
@@ -282,24 +278,24 @@ export function MarqueeWorkspaceClient() {
 
             <div className="pt-2.5 space-y-1">
               <div className="text-[10px] font-mono uppercase text-text-tertiary">
-                8 Deterministic Co-Pilot Tools
+                Built-In Ledger Capabilities
               </div>
               <div className="flex flex-wrap gap-1 pt-1">
                 {[
-                  "get_paycycle_pulse",
-                  "simulate_purchase_cutoff",
-                  "optimize_payday_thr_split",
-                  "analyze_debt_burndown",
-                  "evaluate_custom_formula",
-                  "prepare_quick_transaction",
-                  "prepare_wallet_checkin",
-                  "explain_period_variance",
-                ].map((toolName) => (
+                  "Daily Safe-to-Spend",
+                  "Cutoff Simulation",
+                  "THR & Payday Split",
+                  "Debt Payoff Planner",
+                  "Custom Formulas",
+                  "Expense Staging",
+                  "Wallet Check-In",
+                  "Period Comparison",
+                ].map((cap) => (
                   <span
-                    key={toolName}
-                    className="px-1.5 py-0.5 rounded border border-border-subtle bg-canvas font-mono text-[10px] text-text-secondary"
+                    key={cap}
+                    className="px-1.5 py-0.5 rounded border border-border-subtle bg-canvas text-[10px] text-text-secondary"
                   >
-                    {toolName}
+                    {cap}
                   </span>
                 ))}
               </div>

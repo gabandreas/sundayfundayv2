@@ -130,14 +130,22 @@ export class MarqueeToolsService {
         const remainingCash = Math.round(
           pacing.remainingBudget ?? snapshot.actualDailyOperational ?? 0,
         );
-        const safeToday = Math.round(pacing.safeToSpendToday ?? 0);
+        const safeToday = Math.round(
+          pacing.weightedSafeToSpendToday ?? pacing.safeToSpendToday ?? 0,
+        );
+        const weekdayRate = Math.round(pacing.weekdaySafeRate ?? safeToday);
+        const weekendRate = Math.round(pacing.weekendSafeRate ?? safeToday);
         const deficit = Math.round(snapshot.deficitUncovered ?? 0);
+        const pacingBreakdown =
+          weekdayRate !== weekendRate
+            ? ` (weekday ${formatRp(weekdayRate)}/day · weekend ${formatRp(weekendRate)}/day)`
+            : '';
         const summary =
           state === 'PRE_PAYDAY'
             ? `Cycle ${periodTag} starts in ${pacing.daysUntilCycleStart ?? 0} days (${pacing.cycleDateLabel}). Your funded living pool is ${formatRp(remainingCash)} at a ${formatRp(pacing.baselineDailyRate)}/day baseline${deficit > 0 ? `, with a ${formatRp(deficit)} budget shortfall against the Rp 1.500.000 target` : ''}.`
             : state === 'COMPLETED'
               ? `Cycle ${periodTag} (${pacing.cycleDateLabel}) has closed with ${formatRp(remainingCash)} remaining in the living pool.`
-              : `Cycle ${periodTag} is live. You can spend ${formatRp(safeToday)} today (${pacing.pacingStatus}) with ${formatRp(remainingCash)} left in your living pool.`;
+              : `Cycle ${periodTag} is active. Safe to spend today is ${formatRp(safeToday)}${pacingBreakdown}, with ${formatRp(remainingCash)} remaining in your living pool.`;
 
         return {
           ok: true,
@@ -282,6 +290,11 @@ export class MarqueeToolsService {
             : instrument === 'CASH'
               ? 'CASH'
               : 'SPAYLATER';
+        const requestedDate =
+          typeof args.purchaseDate === 'string' &&
+          /^\d{4}-\d{2}-\d{2}$/.test(args.purchaseDate.trim())
+            ? args.purchaseDate.trim()
+            : todayIso;
         const sim = await this.financeSelectors.simulateCutoffForUser(
           {
             title,
@@ -289,16 +302,23 @@ export class MarqueeToolsService {
             amountMode: 'PRINCIPAL_SPLIT',
             principalAmount: amountRp,
             tenorMonths,
-            purchaseDate: todayIso,
+            purchaseDate: requestedDate,
           },
           ctx.userId,
         );
+        const simSummary =
+          amountRp > 0
+            ? `Checking "${title}" (${formatRp(amountRp)} on ${simInstrument}, ${tenorMonths}x on ${requestedDate}): bills first in ${sim.startPeriodLabel} (due ${sim.firstDueDateIso}). Verdict is ${sim.verdict} with post-purchase DSR at ${sim.dsrAfterPercent}%.`
+            : `${simInstrument} cutoff simulation for ${requestedDate}: closes ${sim.cutoffDay}th, bills first in ${sim.startPeriodLabel} (due ${sim.firstDueDateIso}).`;
         return {
           ok: true,
           tool,
-          summary: `Checking "${title}" (${formatRp(amountRp)} on ${simInstrument}, ${tenorMonths}x): bills first in ${sim.startPeriodLabel} (due ${sim.firstDueDateIso}). Verdict is ${sim.verdict} with post-purchase DSR at ${sim.dsrAfterPercent}%.`,
+          summary: simSummary,
           cards: [
-            { label: 'Target Purchase', value: `${title} (${formatRp(amountRp)})` },
+            {
+              label: 'Target Purchase',
+              value: amountRp > 0 ? `${title} (${formatRp(amountRp)})` : `${simInstrument} · ${requestedDate}`,
+            },
             { label: 'First Billed Cycle', value: sim.startPeriodLabel },
             { label: 'First Due Date', value: sim.firstDueDateIso },
             {

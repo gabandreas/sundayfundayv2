@@ -16,7 +16,7 @@ export function MarqueeAiSettingsPanel() {
   const [geminiKey, setGeminiKey] = useState("");
   const [groqKey, setGroqKey] = useState("");
   const [deepseekKey, setDeepseekKey] = useState("");
-  const [deepseekModel, setDeepseekModel] = useState<"deepseek-chat" | "deepseek-reasoner">("deepseek-chat");
+  const [deepseekModel, setDeepseekModel] = useState<"deepseek-chat" | "deepseek-flash" | "deepseek-reasoner">("deepseek-flash");
   const [opencodeKey, setOpencodeKey] = useState("");
   const [opencodeBaseUrl, setOpencodeBaseUrl] = useState("https://api.opencode.ai/v1");
   const [opencodeModel, setOpencodeModel] = useState("opencode-chat");
@@ -124,7 +124,7 @@ export function MarqueeAiSettingsPanel() {
               {
                 key: "DEEPSEEK",
                 title: "Tier 2 · DeepSeek (V3 / R1)",
-                desc: "Native DeepSeek tool calling (deepseek-chat or deepseek-reasoner) with full ledger hydration.",
+                desc: "Native DeepSeek tool calling (deepseek-flash, deepseek-chat, or deepseek-reasoner) with full ledger hydration.",
               },
               {
                 key: "OPENCODE",
@@ -189,11 +189,14 @@ export function MarqueeAiSettingsPanel() {
                 aria-label="DeepSeek Model"
                 value={deepseekModel}
                 onChange={(e) =>
-                  setDeepseekModel(e.target.value as "deepseek-chat" | "deepseek-reasoner")
+                  setDeepseekModel(
+                    e.target.value as "deepseek-chat" | "deepseek-flash" | "deepseek-reasoner"
+                  )
                 }
                 className="bg-canvas border border-border rounded px-2 py-1 font-mono text-[11px] text-text-primary"
               >
-                <option value="deepseek-chat">deepseek-chat (DeepSeek-V3)</option>
+                <option value="deepseek-flash">deepseek-flash (DeepSeek-V4.1-Flash)</option>
+                <option value="deepseek-chat">deepseek-chat (DeepSeek-V4.1 Alias)</option>
                 <option value="deepseek-reasoner">deepseek-reasoner (DeepSeek-R1)</option>
               </select>
             </div>

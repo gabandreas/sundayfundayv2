@@ -251,10 +251,10 @@ export function MarqueeCoPilotDrawer({ isOpen, onClose }: MarqueeCoPilotDrawerPr
           <div className="space-y-3">
             <div className="border-b border-border-subtle pb-3 text-xs text-text-secondary space-y-1">
               <div className="font-semibold text-text-primary">
-                Grounded in your live {periodTag} ledger (EN / ID / ZH)
+                Live ledger assistant for {periodTag} (EN / ID / ZH)
               </div>
               <p className="text-[11px] text-text-tertiary leading-relaxed">
-                Check daily pacing, test SPayLater 15th / Card 20th cutoffs, plan your THR split, compare period variance, or stage expenses in Rupiah shorthand (&quot;log kopi 35k&quot;, &quot;catat spaylater 900rb 3x&quot;).
+                Check today&apos;s safe-to-spend, test SPayLater (daysInMonth-15) or Permata CC (25th) cutoffs, plan THR splits, compare periods, or stage expenses in Rupiah shorthand (&quot;log kopi 35k&quot;, &quot;catat spaylater 900rb 3x&quot;).
               </p>
             </div>
 
@@ -280,17 +280,17 @@ export function MarqueeCoPilotDrawer({ isOpen, onClose }: MarqueeCoPilotDrawerPr
           messages.map((item) => (
             <div
               key={item.id}
-              className={`rounded border px-3 py-2.5 space-y-2 ${
+              className={`rounded-md px-3.5 py-2.5 space-y-2 ${
                 item.role === "user"
-                  ? "border-border-strong bg-canvas ml-6"
-                  : "border-border-subtle bg-surface-subtle/50 mr-2"
+                  ? "border border-border bg-surface ml-8"
+                  : "border border-border-subtle/80 bg-surface-subtle/40 mr-2"
               }`}
             >
-              <div className="flex items-center justify-between text-[10px] font-mono text-text-tertiary">
+              <div className="flex items-center justify-between text-[10px] font-medium text-text-tertiary">
                 <span>{item.role === "user" ? "You" : "Marquee"}</span>
-                {item.response && (
-                  <span>
-                    {item.response.tierUsed} · {item.response.tool}
+                {item.response?.hydratedContext?.periodTag && (
+                  <span className="font-mono text-[10px] text-text-tertiary/80">
+                    {item.response.hydratedContext.periodTag}
                   </span>
                 )}
               </div>

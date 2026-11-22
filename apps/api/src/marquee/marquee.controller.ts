@@ -40,7 +40,7 @@ export class MarqueeController {
       geminiApiKey?: string | null;
       groqApiKey?: string | null;
       deepseekApiKey?: string | null;
-      deepseekModel?: 'deepseek-chat' | 'deepseek-reasoner';
+      deepseekModel?: 'deepseek-chat' | 'deepseek-flash' | 'deepseek-reasoner';
       opencodeApiKey?: string | null;
       opencodeBaseUrl?: string | null;
       opencodeModel?: string | null;

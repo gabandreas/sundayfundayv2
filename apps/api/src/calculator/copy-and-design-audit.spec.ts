@@ -181,4 +181,21 @@ describe('System-Wide Anti-AI-Slop Visual Design, Temporal Chart Axis & Human Co
     expect(langCtx).toContain('"nav.analytics": "Tinjauan Belanja & Tren"');
     expect(langCtx).toContain('"nav.analytics": "支出与趋势复盘"');
   });
+
+  it('removes developer tier/tool telemetry labels and Alt+M clutter from Marquee Drawer and Workspace UI', () => {
+    const drawer = fs.readFileSync(
+      path.join(WEB_DIR, 'components', 'marquee', 'MarqueeCoPilotDrawer.tsx'),
+      'utf8',
+    );
+    const workspace = fs.readFileSync(
+      path.join(WEB_DIR, 'components', 'marquee', 'MarqueeWorkspaceClient.tsx'),
+      'utf8',
+    );
+
+    expect(drawer).not.toContain('m.tierUsed');
+    expect(drawer).not.toContain('TIER1_NLU');
+    expect(drawer).not.toContain('<kbd');
+    expect(workspace).not.toContain('zero-latency Tier 1 NLU fallback');
+    expect(workspace).not.toContain('<kbd');
+  });
 });

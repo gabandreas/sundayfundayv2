@@ -4,7 +4,7 @@ import { MarqueeToolsService } from './marquee-tools.service';
 import { MarqueeService } from './marquee.service';
 import { MarqueeLlmService, stripReasoningBlocks } from './marquee-llm.service';
 import { MarqueeContextHydrator } from './marquee-context.service';
-import { hashSecretToken } from '../common/crypto.util';
+import { encryptSecret, hashSecretToken } from '../common/crypto.util';
 
 describe('Marquee NLU, 8 Deterministic Tools & Webhook Token Auth', () => {
   describe('Tier 1 Trilingual NLU (EN / ID / ZH)', () => {
@@ -589,6 +589,271 @@ describe('Marquee NLU, 8 Deterministic Tools & Webhook Token Auth', () => {
         expect(res.ok).toBe(true);
         expect(res.summary).not.toMatch(/\b(Furthermore|In conclusion|It is worth noting|Delve|Tapestry)\b/i);
       }
+    });
+  });
+
+  describe('Live LLM Conversation, 2-Turn Tool Synthesis & Weighted Safe-to-Spend', () => {
+    it('uses weightedSafeToSpendToday (Rp 81.818 / Rp 54.545) and forwards args.purchaseDate into simulateCutoffForUser', async () => {
+      const snapshotsSelectors = {
+        getDefaultActivePeriod: jest.fn().mockResolvedValue({ month: 11, year: 2026, cycleTemporalState: 'ACTIVE' }),
+        getOrCreateDraftSnapshot: jest.fn().mockResolvedValue({
+          month: 11,
+          year: 2026,
+          finalTotalIncome: 5891000,
+          actualDailyOperational: 1720316,
+          deficitUncovered: 0,
+          actualSavings: 6341,
+          totalDeductions: 4522976,
+        }),
+      };
+      const financeSelectors = {
+        getPacing: jest.fn().mockResolvedValue({
+          cycleTemporalState: 'ACTIVE',
+          daysRemaining: 5,
+          remainingBudget: 300000,
+          safeToSpendToday: 60000,
+          weightedSafeToSpendToday: 81818,
+          weekendSafeRate: 81818,
+          weekdaySafeRate: 54545,
+          isTodayWeekend: true,
+          cycleDateLabel: '28 Oct – 26 Nov 2026',
+        }),
+        simulateCutoffForUser: jest.fn().mockResolvedValue({
+          startPeriodLabel: "JAN '27",
+          firstDueDateIso: '2027-01-11',
+          verdict: 'SAFE',
+          dsrAfterPercent: 32.0,
+        }),
+      };
+      const tools = new MarqueeToolsService(
+        snapshotsSelectors as any,
+        {} as any,
+        financeSelectors as any,
+        {} as any,
+        {} as any,
+        {} as any,
+      );
+
+      const pulseRes = await tools.executeTool('get_paycycle_pulse', {}, { userId: 1, month: 11, year: 2026 });
+      expect(pulseRes.ok).toBe(true);
+      expect(pulseRes.summary).toContain('81.818');
+      expect(pulseRes.summary).not.toContain('60.000/day');
+
+      await tools.executeTool(
+        'simulate_purchase_cutoff',
+        {
+          title: 'Permata CC Swipe',
+          amountRp: 500000,
+          instrument: 'CREDIT_CARD',
+          purchaseDate: '2026-11-26',
+        },
+        { userId: 1, month: 11, year: 2026 },
+      );
+      expect(financeSelectors.simulateCutoffForUser).toHaveBeenCalledWith(
+        expect.objectContaining({
+          purchaseDate: '2026-11-26',
+          instrument: 'CREDIT_CARD',
+        }),
+        1,
+      );
+    });
+
+    it('lets casual greetings respond naturally via DeepSeek without forcing Tier 1 tool boilerplate and synthesizes 2-turn tool results', async () => {
+      const encryptedDs = encryptSecret('sk-test-live-ds-mock');
+      const mockPrisma = {
+        globalConfig: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 1,
+            userId: 1,
+            financialPolicyJson: {
+              marqueeAi: {
+                provider: 'DEEPSEEK',
+                deepseekApiKeyEnc: encryptedDs,
+                deepseekKeyPreview: '****mock',
+                deepseekModel: 'deepseek-flash',
+              },
+            },
+          }),
+          findUnique: jest.fn().mockResolvedValue(null),
+        },
+      };
+      const mockTools = {
+        executeTool: jest.fn().mockResolvedValue({
+          ok: true,
+          tool: 'simulate_purchase_cutoff',
+          summary: 'Simulasi: Permata CC jatuh tempo 2027-01-11 (periode 01/2027).',
+          data: { firstDueDateIso: '2027-01-11', startPeriodCode: '01/2027', cutoffDay: 25, dueDay: 11 },
+        }),
+      };
+      const mockHydrator = {
+        hydrateForUser: jest.fn().mockResolvedValue({
+          activePeriod: {
+            periodTag: '11/2026',
+            cycleTemporalState: 'ACTIVE',
+            cycleDateLabel: '28 Oct – 26 Nov 2026',
+          },
+          proactiveReminders: [],
+          systemPrompt: 'ACTIVE PERIOD: 11/2026 | Remaining Rp 300.000 | Weighted today Rp 81.818',
+        }),
+      };
+
+      const service = new MarqueeService(
+        mockPrisma as any,
+        mockTools as any,
+        new MarqueeLlmService(),
+        mockHydrator as any,
+      );
+
+      const origFetch = global.fetch;
+      try {
+        // Case 1: Casual greeting -> no tool call, direct LLM answer, executeTool NOT forced
+        global.fetch = jest.fn().mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            choices: [
+              {
+                message: {
+                  content: 'Hey Gabriel. Remaining living cash is Rp 300.000 (Rp 81.818 today). What do you want to check?',
+                },
+              },
+            ],
+          }),
+        }) as any;
+
+        const hiRes = await service.chat(1, { message: 'hi', month: 11, year: 2026 });
+        expect(hiRes.tierUsed).toBe('TIER2_DEEPSEEK');
+        expect(hiRes.model).toBe('deepseek-flash');
+        expect(hiRes.summary).toContain('Rp 300.000');
+        expect(mockTools.executeTool).not.toHaveBeenCalled();
+
+        // Case 2: 2-turn tool synthesis
+        global.fetch = jest
+          .fn()
+          .mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({
+              choices: [
+                {
+                  message: {
+                    content: '',
+                    tool_calls: [
+                      {
+                        id: 'tc_permata_26nov',
+                        type: 'function',
+                        function: {
+                          name: 'simulate_purchase_cutoff',
+                          arguments: JSON.stringify({
+                            title: 'Permata CC Swipe',
+                            amountRp: 500000,
+                            instrument: 'CREDIT_CARD',
+                            purchaseDate: '2026-11-26',
+                          }),
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            }),
+          })
+          .mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({
+              choices: [
+                {
+                  message: {
+                    content:
+                      '<think>Nov 26 crosses Permata cutoff on 25th so it bills in 01/2027 due Jan 11.</think>Swipe tanggal **26 Nov 2026** lewat cutoff tanggal 25 Bank Permata, jadi masuk tagihan **01/2027** (jatuh tempo **11 Jan 2027**).',
+                  },
+                },
+              ],
+            }),
+          }) as any;
+
+        const ccRes = await service.chat(1, {
+          message: 'kalau gua gesek permata cc tanggal 26 nov masuk tagihan kapan?',
+          month: 11,
+          year: 2026,
+        });
+        expect((global.fetch as jest.Mock).mock.calls).toHaveLength(2);
+        const secondCallBody = JSON.parse((global.fetch as jest.Mock).mock.calls[1][1].body);
+        expect(secondCallBody.messages.some((m: any) => m.role === 'tool' && m.tool_call_id === 'tc_permata_26nov')).toBe(true);
+        expect(mockTools.executeTool).toHaveBeenCalledWith(
+          'simulate_purchase_cutoff',
+          expect.objectContaining({ purchaseDate: '2026-11-26', instrument: 'CREDIT_CARD' }),
+          expect.objectContaining({ userId: 1 }),
+        );
+        expect(ccRes.tierUsed).toBe('TIER2_DEEPSEEK');
+        expect(ccRes.summary).toContain('11 Jan 2027');
+        expect(ccRes.summary).not.toContain('<think>');
+        expect(ccRes.reasoning).toContain('Nov 26 crosses Permata cutoff');
+      } finally {
+        global.fetch = origFetch;
+      }
+    });
+
+    it('maps deepseek-v4.1-flash-free to deepseek-flash on api.deepseek.com bridge and documents exact cutoff law in system prompt', async () => {
+      const llm = new MarqueeLlmService();
+      const origFetch = global.fetch;
+      try {
+        global.fetch = jest
+          .fn()
+          .mockResolvedValueOnce({ ok: false, status: 401 })
+          .mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({
+              choices: [{ message: { content: 'Cycle 11/2026 has Rp 81.818 weighted weekend allowance today.' } }],
+            }),
+          }) as any;
+
+        const bridged = await llm.resolveWithProvider({
+          provider: 'OPENCODE',
+          opencodeApiKey: 'sk-test-bridge-key',
+          opencodeBaseUrl: 'https://opencode.ai/zen/v1',
+          opencodeModel: 'deepseek-v4.1-flash-free',
+          message: 'safe to spend today?',
+          systemContextPrompt: 'ACTIVE PERIOD: 11/2026',
+          tier1Fallback: parseMarqueeIntent('safe to spend today?'),
+        });
+        expect(bridged?.model).toBe('deepseek-flash');
+        const secondUrl = (global.fetch as jest.Mock).mock.calls[1][0];
+        const secondPayload = JSON.parse((global.fetch as jest.Mock).mock.calls[1][1].body);
+        expect(secondUrl).toContain('api.deepseek.com');
+        expect(secondPayload.model).toBe('deepseek-flash');
+      } finally {
+        global.fetch = origFetch;
+      }
+
+      const hydrator = new MarqueeContextHydrator(
+        {
+          monthlySnapshot: { findMany: jest.fn().mockResolvedValue([]) },
+          liabilityLineItem: { findMany: jest.fn().mockResolvedValue([]) },
+          transaction: { findMany: jest.fn().mockResolvedValue([]) },
+        } as any,
+        {
+          getDefaultActivePeriod: jest.fn().mockResolvedValue({ month: 11, year: 2026, cycleTemporalState: 'ACTIVE' }),
+        } as any,
+        {
+          getPacing: jest.fn().mockResolvedValue({
+            cycleTemporalState: 'ACTIVE',
+            daysUntilCycleStart: 0,
+            cycleStartDate: '2026-10-28',
+            cycleEndDate: '2026-11-26',
+            cycleDateLabel: '28 Oct – 26 Nov 2026',
+            baselineDailyRate: 57344,
+            remainingBudget: 300000,
+            safeToSpendToday: 60000,
+            weightedSafeToSpendToday: 81818,
+            weekendSafeRate: 81818,
+            weekdaySafeRate: 54545,
+          }),
+        } as any,
+        { getOverview: jest.fn().mockResolvedValue({ totalBalance: 0, rdpuBalance: 0 }) } as any,
+      );
+      const ctx = await hydrator.hydrateForUser(1, { month: 11, year: 2026, locale: 'id' });
+      expect(ctx.systemPrompt).toMatch(/daysInMonth\s*-\s*15|daysInMonth\(M\)\s*-\s*15/i);
+      expect(ctx.systemPrompt).toContain('25th');
+      expect(ctx.systemPrompt).toContain('81.818');
     });
   });
 });

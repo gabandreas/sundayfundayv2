@@ -6472,7 +6472,7 @@ export interface MarqueeConfigResponse {
   groqKeyPreview: string;
   hasDeepseekKey: boolean;
   deepseekKeyPreview: string;
-  deepseekModel: "deepseek-chat" | "deepseek-reasoner";
+  deepseekModel: "deepseek-chat" | "deepseek-flash" | "deepseek-reasoner";
   hasOpencodeKey: boolean;
   opencodeKeyPreview: string;
   opencodeBaseUrl: string;
@@ -6527,7 +6527,7 @@ export async function updateMarqueeConfig(payload: {
   geminiApiKey?: string | null;
   groqApiKey?: string | null;
   deepseekApiKey?: string | null;
-  deepseekModel?: "deepseek-chat" | "deepseek-reasoner";
+  deepseekModel?: "deepseek-chat" | "deepseek-flash" | "deepseek-reasoner";
   opencodeApiKey?: string | null;
   opencodeBaseUrl?: string | null;
   opencodeModel?: string | null;

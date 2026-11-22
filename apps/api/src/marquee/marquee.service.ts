@@ -29,7 +29,7 @@ export interface StoredMarqueeConfig {
   groqKeyPreview?: string;
   deepseekApiKeyEnc?: string;
   deepseekKeyPreview?: string;
-  deepseekModel?: 'deepseek-chat' | 'deepseek-reasoner';
+  deepseekModel?: 'deepseek-chat' | 'deepseek-flash' | 'deepseek-reasoner';
   opencodeApiKeyEnc?: string;
   opencodeKeyPreview?: string;
   opencodeBaseUrl?: string;
@@ -48,7 +48,7 @@ export interface MarqueeConfigResponse {
   groqKeyPreview: string;
   hasDeepseekKey: boolean;
   deepseekKeyPreview: string;
-  deepseekModel: 'deepseek-chat' | 'deepseek-reasoner';
+  deepseekModel: 'deepseek-chat' | 'deepseek-flash' | 'deepseek-reasoner';
   hasOpencodeKey: boolean;
   opencodeKeyPreview: string;
   opencodeBaseUrl: string;
@@ -140,7 +140,7 @@ export class MarqueeService {
       geminiApiKey?: string | null;
       groqApiKey?: string | null;
       deepseekApiKey?: string | null;
-      deepseekModel?: 'deepseek-chat' | 'deepseek-reasoner';
+      deepseekModel?: 'deepseek-chat' | 'deepseek-flash' | 'deepseek-reasoner';
       opencodeApiKey?: string | null;
       opencodeBaseUrl?: string | null;
       opencodeModel?: string | null;
@@ -163,7 +163,11 @@ export class MarqueeService {
     if (dto.webhookEnabled !== undefined) {
       nextStored.webhookEnabled = Boolean(dto.webhookEnabled);
     }
-    if (dto.deepseekModel === 'deepseek-chat' || dto.deepseekModel === 'deepseek-reasoner') {
+    if (
+      dto.deepseekModel === 'deepseek-chat' ||
+      dto.deepseekModel === 'deepseek-flash' ||
+      dto.deepseekModel === 'deepseek-reasoner'
+    ) {
       nextStored.deepseekModel = dto.deepseekModel;
     }
     if (dto.opencodeBaseUrl !== undefined) {
@@ -332,7 +336,6 @@ export class MarqueeService {
 
     const cfg = await this.prisma.globalConfig.findFirst({ where: { userId } });
     const stored = this.extractStoredConfig(cfg?.financialPolicyJson);
-    const provider: MarqueeAiProvider = stored.provider ?? 'TIER1_ONLY';
 
     let geminiApiKey = process.env.GEMINI_API_KEY || undefined;
     let groqApiKey = process.env.GROQ_API_KEY || undefined;
@@ -343,30 +346,42 @@ export class MarqueeService {
       try {
         geminiApiKey = decryptSecret(stored.geminiApiKeyEnc);
       } catch {
-        geminiApiKey = undefined;
+        geminiApiKey = process.env.GEMINI_API_KEY || undefined;
       }
     }
     if (stored.groqApiKeyEnc) {
       try {
         groqApiKey = decryptSecret(stored.groqApiKeyEnc);
       } catch {
-        groqApiKey = undefined;
+        groqApiKey = process.env.GROQ_API_KEY || undefined;
       }
     }
     if (stored.deepseekApiKeyEnc) {
       try {
         deepseekApiKey = decryptSecret(stored.deepseekApiKeyEnc);
       } catch {
-        deepseekApiKey = undefined;
+        deepseekApiKey = process.env.DEEPSEEK_API_KEY || undefined;
       }
     }
     if (stored.opencodeApiKeyEnc) {
       try {
         opencodeApiKey = decryptSecret(stored.opencodeApiKeyEnc);
       } catch {
-        opencodeApiKey = undefined;
+        opencodeApiKey = process.env.OPENCODE_API_KEY || undefined;
       }
     }
+
+    const provider: MarqueeAiProvider =
+      stored.provider ??
+      (deepseekApiKey
+        ? 'DEEPSEEK'
+        : opencodeApiKey
+          ? 'OPENCODE'
+          : geminiApiKey
+            ? 'GEMINI'
+            : groqApiKey
+              ? 'GROQ'
+              : 'TIER1_ONLY');
 
     let selectedTool = parsedTier1.tool;
     let selectedArgs: Record<string, any> = {
@@ -380,10 +395,23 @@ export class MarqueeService {
     let model = 'tier1-deterministic-nlu';
     let assistantPrefix: string | undefined;
     let reasoning: string | undefined;
+    let llmResolution: Awaited<ReturnType<MarqueeLlmService['resolveWithProvider']>> = null;
 
     const hasAnyKey = Boolean(
       geminiApiKey || groqApiKey || deepseekApiKey || opencodeApiKey,
     );
+
+    const buildHydratedMeta = () =>
+      hydrated
+        ? {
+            periodTag: hydrated.activePeriod.periodTag,
+            cycleTemporalState: hydrated.activePeriod.cycleTemporalState,
+            cycleDateLabel: hydrated.activePeriod.cycleDateLabel,
+            activeRoute: hydrated.uiContext?.activeRoute ?? '/',
+            activeSubTab: hydrated.uiContext?.activeSubTab ?? null,
+            canonicalDueDays: hydrated.dueDayCalendar?.canonicalDueDays ?? [8, 11, 17, 23, 24, 25],
+          }
+        : undefined;
 
     if (provider !== 'TIER1_ONLY' && hasAnyKey) {
       const resolved = await this.llmService.resolveWithProvider({
@@ -391,18 +419,26 @@ export class MarqueeService {
         geminiApiKey,
         groqApiKey,
         deepseekApiKey,
-        deepseekModel: stored.deepseekModel ?? 'deepseek-chat',
+        deepseekModel:
+          stored.deepseekModel ??
+          (process.env.DEEPSEEK_MODEL as any) ??
+          'deepseek-flash',
         opencodeApiKey,
-        opencodeBaseUrl: stored.opencodeBaseUrl || 'https://opencode.ai/zen/v1',
-        opencodeModel: stored.opencodeModel || 'deepseek-v4.1-flash-free',
+        opencodeBaseUrl:
+          stored.opencodeBaseUrl ||
+          process.env.OPENCODE_BASE_URL ||
+          'https://opencode.ai/zen/v1',
+        opencodeModel:
+          stored.opencodeModel ||
+          process.env.OPENCODE_MODEL ||
+          'deepseek-v4.1-flash-free',
         systemContextPrompt: hydrated?.systemPrompt,
         message,
         tier1Fallback: parsedTier1,
       });
 
       if (resolved && resolved.usedProvider !== 'TIER1_ONLY') {
-        selectedTool = resolved.tool;
-        selectedArgs = { ...selectedArgs, ...resolved.args };
+        llmResolution = resolved;
         model = resolved.model;
         assistantPrefix = resolved.assistantPrefix;
         reasoning = resolved.reasoning;
@@ -410,6 +446,30 @@ export class MarqueeService {
         else if (resolved.usedProvider === 'OPENCODE') tierUsed = 'TIER2_OPENCODE';
         else if (resolved.usedProvider === 'GEMINI') tierUsed = 'TIER2_GEMINI';
         else if (resolved.usedProvider === 'GROQ') tierUsed = 'TIER2_GROQ';
+
+        // Direct conversational LLM answer (e.g. greetings or ledger Q&A) — do NOT force Tier 1 tool boilerplate
+        if (!resolved.didCallTool && resolved.tool === null && resolved.assistantPrefix) {
+          return {
+            ok: true,
+            tool: 'conversational' as any,
+            summary: resolved.assistantPrefix,
+            cards: [],
+            tierUsed,
+            model,
+            locale,
+            assistantPrefix: resolved.assistantPrefix,
+            ...(reasoning ? { reasoning } : {}),
+            ...(hydrated?.proactiveReminders
+              ? { proactiveReminders: hydrated.proactiveReminders }
+              : {}),
+            hydratedContext: buildHydratedMeta(),
+          };
+        }
+
+        if (resolved.tool) {
+          selectedTool = resolved.tool;
+          selectedArgs = { ...selectedArgs, ...resolved.args };
+        }
       }
     }
 
@@ -420,6 +480,54 @@ export class MarqueeService {
       year: dto.year,
     });
 
+    if (
+      llmResolution?.didCallTool &&
+      !result.pendingAction &&
+      llmResolution.endpointUrlUsed &&
+      llmResolution.apiKeyUsed &&
+      typeof this.llmService?.synthesizeToolResult === 'function'
+    ) {
+      const pacingObj = (result.data?.pacing ?? null) as Record<string, any> | null;
+      const compactToolPayload = {
+        ok: result.ok,
+        tool: result.tool,
+        summary: result.summary,
+        cards: result.cards,
+        data: {
+          ...(result.data?.sim ? { sim: result.data.sim } : {}),
+          ...(pacingObj
+            ? {
+                pacing: {
+                  remainingBudget: pacingObj.remainingBudget,
+                  weightedSafeToSpendToday: pacingObj.weightedSafeToSpendToday,
+                  weekdaySafeRate: pacingObj.weekdaySafeRate,
+                  weekendSafeRate: pacingObj.weekendSafeRate,
+                  daysRemaining: pacingObj.daysRemaining,
+                  cycleTemporalState: pacingObj.cycleTemporalState,
+                  cycleDateLabel: pacingObj.cycleDateLabel,
+                },
+              }
+            : {}),
+        },
+      };
+      const synth = await this.llmService.synthesizeToolResult({
+        endpointUrl: llmResolution.endpointUrlUsed,
+        apiKey: llmResolution.apiKeyUsed,
+        model: llmResolution.model,
+        message,
+        systemContextPrompt: hydrated?.systemPrompt,
+        toolCallId: llmResolution.toolCallId || 'call_marquee_1',
+        toolName: String(selectedTool),
+        toolArgs: selectedArgs,
+        toolPayload: compactToolPayload,
+      });
+      if (synth?.reply) {
+        result.summary = synth.reply;
+        assistantPrefix = synth.reply;
+        reasoning = [reasoning, synth.reasoning].filter(Boolean).join('\n\n') || undefined;
+      }
+    }
+
     return {
       ...result,
       tierUsed,
@@ -428,16 +536,7 @@ export class MarqueeService {
       ...(assistantPrefix ? { assistantPrefix } : {}),
       ...(reasoning ? { reasoning } : {}),
       ...(hydrated?.proactiveReminders ? { proactiveReminders: hydrated.proactiveReminders } : {}),
-      hydratedContext: hydrated
-        ? {
-            periodTag: hydrated.activePeriod.periodTag,
-            cycleTemporalState: hydrated.activePeriod.cycleTemporalState,
-            cycleDateLabel: hydrated.activePeriod.cycleDateLabel,
-            activeRoute: hydrated.uiContext.activeRoute,
-            activeSubTab: hydrated.uiContext.activeSubTab,
-            canonicalDueDays: hydrated.dueDayCalendar.canonicalDueDays,
-          }
-        : undefined,
+      hydratedContext: buildHydratedMeta(),
     };
   }
 }

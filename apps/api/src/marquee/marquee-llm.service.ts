@@ -12,10 +12,14 @@ export type MarqueeAiProvider =
 export interface LlmIntentResolution {
   usedProvider: MarqueeAiProvider;
   model: string;
-  tool: MarqueeToolName;
+  tool: MarqueeToolName | null;
   args: Record<string, any>;
   assistantPrefix?: string;
   reasoning?: string;
+  didCallTool?: boolean;
+  toolCallId?: string;
+  endpointUrlUsed?: string;
+  apiKeyUsed?: string;
 }
 
 export function stripReasoningBlocks(rawText?: string | null): {
@@ -32,6 +36,8 @@ export function stripReasoningBlocks(rawText?: string | null): {
       if (trimmed) reasonParts.push(trimmed);
       return '';
     })
+    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, '')
+    .replace(/\s+\./g, '.')
     .trim();
   return {
     cleanText: cleaned,
@@ -55,7 +61,7 @@ export const MARQUEE_TOOL_DEFS = [
   {
     name: 'simulate_purchase_cutoff',
     description:
-      'Simulate SPayLater (15th cutoff -> 25th due) or Credit Card (20th cutoff -> 11th due) billing cycle landing and post-purchase DSR impact.',
+      'Simulate SPayLater (dynamic daysInMonth(M) - 15 cutoff -> 25th due) or Bank Permata Credit Card (25th closing cutoff -> 11th due + H-1 business day shift) billing cycle landing and post-purchase DSR impact.',
     parameters: {
       type: 'object',
       properties: {
@@ -63,8 +69,12 @@ export const MARQUEE_TOOL_DEFS = [
         amountRp: { type: 'number' },
         instrument: { type: 'string', enum: ['CASH', 'PAYLATER', 'CREDIT_CARD'] },
         tenorMonths: { type: 'number' },
+        purchaseDate: {
+          type: 'string',
+          description: 'Optional purchase date in YYYY-MM-DD (defaults to today)',
+        },
       },
-      required: ['amountRp'],
+      required: [],
     },
   },
   {
@@ -248,7 +258,7 @@ export class MarqueeLlmService {
             usedProvider: 'DEEPSEEK',
             endpointUrl: 'https://api.deepseek.com/v1/chat/completions',
             apiKey: deepseekApiKey,
-            model: deepseekModel || 'deepseek-chat',
+            model: deepseekModel || 'deepseek-flash',
             message,
             systemContextPrompt,
             tier1Fallback,
@@ -390,9 +400,16 @@ export class MarqueeLlmService {
       systemContextPrompt,
       tier1Fallback,
     } = params;
-    const sys =
-      systemContextPrompt ||
-      'You are Marquee, a deterministic Indonesian personal finance ERP co-pilot. Pick one financial tool and extract structured IDR parameters.';
+    const toolPolicy = [
+      'TOOL USAGE POLICY:',
+      '- For casual greetings (hi, halo, thanks) or general conceptual questions you can answer accurately from the ledger above, answer directly in warm natural prose WITHOUT invoking any tool.',
+      '- Invoke `simulate_purchase_cutoff` whenever the user asks when a purchase will bill/fall due (e.g. "gesek permata cc tanggal 26 nov masuk tagihan kapan?"), passing `instrument` (`CREDIT_CARD` or `PAYLATER`), `purchaseDate` in `YYYY-MM-DD` (resolve month/day against the active ledger year), and `amountRp: 0` if no nominal is stated.',
+      '- Invoke `get_paycycle_pulse` when checking today’s safe-to-spend, remaining cash, or cycle countdown.',
+      '- STRICT COPY RULE: Never output emojis (no checkmarks, rockets, sparks, or faces) anywhere in your response.',
+    ].join('\n');
+    const sys = systemContextPrompt
+      ? `${systemContextPrompt}\n\n${toolPolicy}`
+      : `You are Marquee, an Indonesian personal finance ERP co-pilot.\n\n${toolPolicy}`;
 
     const executeRequest = async (url: string, targetModel: string, includeTools: boolean) =>
       fetch(url, {
@@ -403,7 +420,7 @@ export class MarqueeLlmService {
         },
         body: JSON.stringify({
           model: targetModel,
-          temperature: 0,
+          temperature: 0.2,
           messages: [
             {
               role: 'system',
@@ -427,12 +444,13 @@ export class MarqueeLlmService {
         }),
       });
 
+    let effectiveUrl = endpointUrl;
     let effectiveModel = model;
-    let res = await executeRequest(endpointUrl, effectiveModel, true);
+    let res = await executeRequest(effectiveUrl, effectiveModel, true);
 
     // If proxy endpoint rejects tools parameter (400/422), retry without tools
     if (!res.ok && (res.status === 400 || res.status === 422)) {
-      res = await executeRequest(endpointUrl, effectiveModel, false);
+      res = await executeRequest(effectiveUrl, effectiveModel, false);
     }
 
     // If OPENCODE endpoint returns 401/403/404 with a native DeepSeek sk-... key, bridge to api.deepseek.com
@@ -443,10 +461,16 @@ export class MarqueeLlmService {
       apiKey.startsWith('sk-') &&
       !endpointUrl.includes('api.deepseek.com')
     ) {
-      effectiveModel = 'deepseek-chat';
-      res = await executeRequest('https://api.deepseek.com/v1/chat/completions', effectiveModel, true);
+      effectiveUrl = 'https://api.deepseek.com/v1/chat/completions';
+      const lower = model.toLowerCase();
+      effectiveModel = lower.includes('reason')
+        ? 'deepseek-reasoner'
+        : lower.includes('pro')
+          ? 'deepseek-v4-pro'
+          : 'deepseek-flash';
+      res = await executeRequest(effectiveUrl, effectiveModel, true);
       if (!res.ok && (res.status === 400 || res.status === 422)) {
-        res = await executeRequest('https://api.deepseek.com/v1/chat/completions', effectiveModel, false);
+        res = await executeRequest(effectiveUrl, effectiveModel, false);
       }
     }
 
@@ -463,7 +487,8 @@ export class MarqueeLlmService {
     const reasoning = stripped.reasoning || externalReasoning;
     const assistantPrefix = stripped.cleanText ? stripped.cleanText : undefined;
 
-    const call = msg?.tool_calls?.[0]?.function;
+    const firstToolCall = msg?.tool_calls?.[0];
+    const call = firstToolCall?.function;
     if (call?.name && MARQUEE_TOOL_DEFS.some((t) => t.name === call.name)) {
       let parsedArgs: Record<string, any> = {};
       try {
@@ -477,27 +502,148 @@ export class MarqueeLlmService {
         tool: call.name as MarqueeToolName,
         args: parsedArgs,
         assistantPrefix,
+        didCallTool: true,
+        toolCallId: String(firstToolCall?.id || 'call_marquee_1'),
+        endpointUrlUsed: effectiveUrl,
+        apiKeyUsed: apiKey,
         ...(reasoning ? { reasoning } : {}),
       };
     }
 
-    if (assistantPrefix && tier1Fallback) {
+    if (assistantPrefix) {
       return {
         usedProvider,
         model: effectiveModel,
-        tool: tier1Fallback.tool,
-        args: {
-          title: tier1Fallback.title,
-          amountRp: tier1Fallback.amountRp,
-          instrument: tier1Fallback.instrument,
-          tenorMonths: tier1Fallback.tenorMonths,
-          expression: tier1Fallback.expression,
-        },
+        tool: null,
+        args: {},
         assistantPrefix,
+        didCallTool: false,
+        endpointUrlUsed: effectiveUrl,
+        apiKeyUsed: apiKey,
         ...(reasoning ? { reasoning } : {}),
       };
     }
 
     return null;
+  }
+
+  async synthesizeToolResult(params: {
+    endpointUrl: string;
+    apiKey: string;
+    model: string;
+    message: string;
+    systemContextPrompt?: string;
+    toolCallId: string;
+    toolName: string;
+    toolArgs: Record<string, any>;
+    toolPayload: Record<string, any>;
+  }): Promise<{ reply: string; reasoning?: string } | null> {
+    const {
+      endpointUrl,
+      apiKey,
+      model,
+      message,
+      systemContextPrompt,
+      toolCallId,
+      toolName,
+      toolArgs,
+      toolPayload,
+    } = params;
+
+    const synthSys = [
+      systemContextPrompt || 'You are Marquee, a sharp financial co-pilot.',
+      '',
+      'Use ONLY exact verified numbers and dates from the tool JSON result below. Do not invent numbers. Write naturally in the same language as the user (EN, ID, or ZH), cleanly formatted with concise Markdown. Never output emojis anywhere.',
+    ].join('\n');
+
+    const runTurn2 = async (useToolMessages: boolean) =>
+      fetch(endpointUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(
+          useToolMessages
+            ? {
+                model,
+                temperature: 0.25,
+                tools: MARQUEE_TOOL_DEFS.map((t) => ({
+                  type: 'function',
+                  function: {
+                    name: t.name,
+                    description: t.description,
+                    parameters: t.parameters,
+                  },
+                })),
+                messages: [
+                  { role: 'system', content: synthSys },
+                  { role: 'user', content: message },
+                  {
+                    role: 'assistant',
+                    content: '',
+                    tool_calls: [
+                      {
+                        id: toolCallId,
+                        type: 'function',
+                        function: {
+                          name: toolName,
+                          arguments: JSON.stringify(toolArgs ?? {}),
+                        },
+                      },
+                    ],
+                  },
+                  {
+                    role: 'tool',
+                    tool_call_id: toolCallId,
+                    content: JSON.stringify(toolPayload),
+                  },
+                ],
+              }
+            : {
+                model,
+                temperature: 0.25,
+                messages: [
+                  {
+                    role: 'system',
+                    content: `${synthSys}\n\nVERIFIED_TOOL_RESULT_JSON (${toolName}):\n${JSON.stringify(toolPayload)}`,
+                  },
+                  { role: 'user', content: message },
+                ],
+              },
+        ),
+      });
+
+    try {
+      let res = await runTurn2(true);
+      if (!res.ok) {
+        this.logger.warn(`Turn-2 tool synthesis HTTP ${res.status}, retrying plain synthesis`);
+        res = await runTurn2(false);
+      }
+      if (!res.ok) return null;
+      let json: any = await res.json();
+      let msg = json?.choices?.[0]?.message;
+      let stripped = stripReasoningBlocks(msg?.content);
+      if (!stripped.cleanText.trim()) {
+        const plainRes = await runTurn2(false);
+        if (plainRes.ok) {
+          json = await plainRes.json();
+          msg = json?.choices?.[0]?.message;
+          stripped = stripReasoningBlocks(msg?.content);
+        }
+      }
+      const externalReasoning =
+        typeof msg?.reasoning_content === 'string' && msg.reasoning_content.trim()
+          ? msg.reasoning_content.trim()
+          : undefined;
+      const clean = stripped.cleanText.trim();
+      if (!clean) return null;
+      return {
+        reply: clean,
+        reasoning: stripped.reasoning || externalReasoning,
+      };
+    } catch {
+      return null;
+    }
   }
 }
