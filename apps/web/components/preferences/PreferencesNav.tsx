@@ -1,90 +1,76 @@
-"use strict";
 "use client";
 
-import React from "react";
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import React, { useRef } from "react";
+import { handleTabListKeyDown } from "@/lib/tabs";
+import type { PreferencesTabKey } from "@/lib/tabs";
+import { TranslationKey, useLanguage } from "@/context/LanguageContext";
 
-export type PreferencesTabKey =
-  | "modules"
-  | "payroll"
-  | "buckets"
-  | "sandbox"
-  | "policy"
-  | "requests"
-  | "killswitch";
+export type { PreferencesTabKey };
 
-interface TabItem {
+interface PreferencesTabItem {
   key: PreferencesTabKey;
-  label: string;
-  description: string;
+  labelKey: TranslationKey;
 }
 
-const TABS: TabItem[] = [
-  {
-    key: "modules",
-    label: "App Modules & Presets",
-    description: "Pluggable Odoo-style modules, UI density & life-stage presets",
-  },
-  {
-    key: "payroll",
-    label: "Payroll Formulas",
-    description: "Gross-to-net salary components and allowances",
-  },
-  {
-    key: "buckets",
-    label: "Budget Buckets & Waterfall",
-    description: "Dynamic priority tiers, formula targets & overflow split",
-  },
-  {
-    key: "sandbox",
-    label: "Formula Sandbox",
-    description: "Interactive paycheck and waterfall simulator",
-  },
-  {
-    key: "policy",
-    label: "Risk Policy & Backup",
-    description: "Advisory thresholds, credit ceilings & disaster recovery",
-  },
-  {
-    key: "requests",
-    label: "Custom Rule Requests",
-    description: "Bespoke formula requests, setup quotes & Superadmin inbox",
-  },
-  {
-    key: "killswitch",
-    label: "Subscription Kill-Switch",
-    description: "Anti-fatigue auto-renew alerts, trial deadlines & 1-click cancel links",
-  },
+export const PREFERENCES_TABS: PreferencesTabItem[] = [
+  { key: "formula", labelKey: "sub.preferences.formula" },
+  { key: "instruments", labelKey: "sub.preferences.instruments" },
+  { key: "accounts", labelKey: "sub.preferences.accounts" },
+  { key: "templates", labelKey: "sub.preferences.templates" },
+  { key: "navigation", labelKey: "sub.preferences.navigation" },
+  { key: "notifications", labelKey: "sub.preferences.notifications" },
+  { key: "ai", labelKey: "sub.preferences.ai" },
 ];
 
-export function PreferencesNav() {
-  const searchParams = useSearchParams();
-  const currentTab = (searchParams.get("tab") as PreferencesTabKey) || "payroll";
+interface PreferencesNavProps {
+  currentTab: PreferencesTabKey;
+  onSelectTab: (tab: PreferencesTabKey) => void;
+}
+
+export function PreferencesNav({ currentTab, onSelectTab }: PreferencesNavProps) {
+  const { t } = useLanguage();
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   return (
-    <div className="w-full">
-      <nav
-        className="bg-[#0B0F19] border border-slate-800/80 p-1 rounded-lg flex items-center gap-1 overflow-x-auto no-scrollbar"
-        aria-label="Preferences Tabs"
-      >
-        {TABS.map((tab) => {
-          const isActive = currentTab === tab.key;
-          return (
-            <Link
-              key={tab.key}
-              href={`/preferences?tab=${tab.key}`}
-              className={`whitespace-nowrap text-xs font-medium px-3 py-2 rounded-md transition-all duration-150 ${
-                isActive
-                  ? "bg-slate-800/90 text-white shadow-sm border border-slate-700/60"
-                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 border border-transparent"
-              }`}
-            >
-              {tab.label}
-            </Link>
-          );
-        })}
-      </nav>
+    <div
+      role="tablist"
+      aria-label="Configuration studio sections"
+      className="flex items-center gap-2 border-b border-border pb-3 overflow-x-auto no-scrollbar whitespace-nowrap"
+    >
+      {PREFERENCES_TABS.map((tab, idx) => {
+        const isActive = currentTab === tab.key;
+        return (
+          <button
+            key={tab.key}
+            ref={(el) => {
+              tabRefs.current[idx] = el;
+            }}
+            id={`preferences-tab-${tab.key}`}
+            role="tab"
+            type="button"
+            aria-selected={isActive}
+            aria-controls={`preferences-panel-${tab.key}`}
+            tabIndex={isActive ? 0 : -1}
+            onClick={() => onSelectTab(tab.key)}
+            onKeyDown={(e) =>
+              handleTabListKeyDown(
+                e,
+                PREFERENCES_TABS.map((x) => x.key),
+                idx,
+                onSelectTab,
+                tabRefs,
+              )
+            }
+            className={`px-3 py-1.5 rounded-md text-xs font-medium font-sans transition-colors border shrink-0 cursor-pointer ${
+              isActive
+                ? "bg-surface-active text-text-primary border-border-strong"
+                : "bg-transparent text-text-tertiary border-transparent hover:text-text-secondary hover:bg-surface"
+            }`}
+          >
+            {t(tab.labelKey)}
+          </button>
+        );
+      })}
     </div>
   );
 }

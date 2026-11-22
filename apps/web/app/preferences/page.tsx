@@ -1,30 +1,29 @@
 import React from "react";
-import { fetchGlobalConfig, fetchSnapshot, GlobalConfig } from "@/lib/api";
-import { getDefaultPayrollPeriod } from "@/lib/utils";
-import { PreferencesNav, PreferencesTabKey } from "@/components/preferences/PreferencesNav";
-import { PayrollFormulaTab } from "@/components/preferences/PayrollFormulaTab";
-import { AllocationBucketsTab } from "@/components/preferences/AllocationBucketsTab";
-import { FormulaSandboxTab } from "@/components/preferences/FormulaSandboxTab";
-import { RiskPolicyTab } from "@/components/preferences/RiskPolicyTab";
-import { CustomRequestStudio } from "@/components/preferences/CustomRequestStudio";
-import { ModuleManagerTab } from "@/components/preferences/ModuleManagerTab";
-import { SubscriptionKillSwitchTab } from "@/components/preferences/SubscriptionKillSwitchTab";
+import {
+  GlobalConfig,
+  fetchCustomRequests,
+  fetchEmailStatus,
+  fetchGlobalConfig,
+  fetchKillSwitchNotificationConfig,
+  fetchKillSwitches,
+  fetchSnapshot,
+} from "@/lib/api";
+import { getDefaultPeriodFromNow } from "@/lib/utils";
+import { isValidPreferencesTab, PreferencesTabKey } from "@/lib/tabs";
+import { PreferencesStudio } from "@/components/preferences/PreferencesStudio";
 
-export const metadata = {
-  title: "Preferences & Modular Studio | Sunday Funday ERP",
-  description: "Modular payroll formulas, dynamic budget buckets, formula sandbox, and financial risk policies.",
-};
+export const dynamic = "force-dynamic";
 
-const fallbackConfig: GlobalConfig = {
+const FALLBACK_CONFIG: GlobalConfig = {
   id: 1,
-  baseSalary: 5891000,
-  dailyAllowance: 20000,
+  baseSalary: 5300000,
+  dailyAllowance: 25000,
   laptopAllowance: 250000,
   dailyOperational: 2850000,
-  transport: 300000,
-  internet: 250000,
-  vape: 350000,
-  haircut: 85000,
+  transport: 450000,
+  internet: 350000,
+  vape: 300000,
+  haircut: 80000,
   baseSavings: 1000000,
   creditLimit: 7000000,
   creditStatementDay: 20,
@@ -32,64 +31,104 @@ const fallbackConfig: GlobalConfig = {
   payrollPayoutDay: 25,
   ccUsageLimit: 0,
   paylaterUsageLimit: 0,
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
+  payrollRules: [],
+  allocationBuckets: [],
+  surplusSplitRules: {
+    splits: [],
+  },
+  financialPolicy: {
+    optimalDebtRatioPercent: 20,
+    maxSafeDebtRatioPercent: 35,
+    targetSavingsRatePercent: 20,
+    criticalOperationalFloorRp: 1000000,
+    runwayMilestoneMonths: [3, 6, 12],
+  },
+  lifeStagePreset: "SUPERADMIN_BESPOKE",
+  enabledModulesJson: [
+    "overview",
+    "corporate_payroll",
+    "allocations",
+    "credit_liabilities",
+    "savings_vault",
+    "ledger",
+    "wishlist_simulator",
+    "discipline_audit",
+    "advanced_analytics",
+    "executive_reports",
+  ],
+  uiDensityMode: "COMMAND_COCKPIT",
+  profileMode: "SUPERADMIN_BESPOKE",
+  killSwitchLeadDays: 14,
+  killSwitchBannerEnabled: true,
+  createdAt: "2026-07-01T00:00:00.000Z",
+  updatedAt: "2026-07-01T00:00:00.000Z",
 };
 
-interface PreferencesPageProps {
-  searchParams?: Promise<{ tab?: string }>;
-}
+const TAB_ALIASES: Record<string, PreferencesTabKey> = {
+  payroll: "formula",
+  sandbox: "formula",
+  policy: "instruments",
+  buckets: "templates",
+  modules: "navigation",
+  requests: "navigation",
+  killswitch: "notifications",
+  marquee: "ai",
+  copilot: "ai",
+};
 
-export default async function PreferencesPage(props: PreferencesPageProps) {
-  const searchParams = props.searchParams ? await props.searchParams : {};
-  const currentTab = (searchParams.tab as PreferencesTabKey) || "payroll";
-  const activePeriod = getDefaultPayrollPeriod();
+export default async function PreferencesPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ sub?: string; tab?: string }>;
+}) {
+  const sp = (await searchParams) ?? {};
+  const raw = sp.sub || sp.tab || "";
+  const currentTab: PreferencesTabKey = isValidPreferencesTab(raw)
+    ? raw
+    : TAB_ALIASES[raw] ?? "formula";
 
-  const [config, activeSnapshot] = await Promise.all([
+  const activePeriod = getDefaultPeriodFromNow();
+
+  const [
+    config,
+    activeSnapshot,
+    customRequests,
+    killSwitches,
+    notifConfig,
+    emailStatus,
+  ] = await Promise.all([
     fetchGlobalConfig(),
     fetchSnapshot(activePeriod.month, activePeriod.year),
+    fetchCustomRequests(),
+    fetchKillSwitches(),
+    fetchKillSwitchNotificationConfig(),
+    fetchEmailStatus(),
   ]);
 
-  const resolvedConfig = config || fallbackConfig;
+  const resolvedConfig = config ?? FALLBACK_CONFIG;
 
   return (
-    <div className="space-y-6 max-w-6xl">
-      {/* Header */}
+    <div className="space-y-6 w-full max-w-full">
       <div>
         <h1 className="text-xl font-semibold font-sans text-text-primary tracking-tight">
           Modular ERP Configuration Studio
         </h1>
         <p className="text-xs font-sans text-text-tertiary mt-1">
-          Rule-driven gross-to-net payroll formulas, dynamic budget priority tiers, interactive formula sandbox, and risk policy thresholds.
+          Table-driven paycycle &amp; waterfall formulas, payment instrument cutoffs, asset reservoirs, routine rollover templates, sidebar shortcut builder, and SMTP guard.
         </p>
       </div>
 
-      {/* Tabs Navigation */}
-      <PreferencesNav />
-
-      {/* Tab Panels */}
-      <div className="animate-in fade-in duration-150">
-        {currentTab === "modules" && <ModuleManagerTab config={resolvedConfig} />}
-
-        {currentTab === "payroll" && <PayrollFormulaTab config={resolvedConfig} />}
-
-        {currentTab === "buckets" && (
-          <AllocationBucketsTab
-            config={resolvedConfig}
-            activeMonth={activePeriod.month}
-            activeYear={activePeriod.year}
-            snapshotStatus={activeSnapshot?.status}
-          />
-        )}
-
-        {currentTab === "sandbox" && <FormulaSandboxTab config={resolvedConfig} />}
-
-        {currentTab === "policy" && <RiskPolicyTab config={resolvedConfig} />}
-
-        {currentTab === "requests" && <CustomRequestStudio />}
-
-        {currentTab === "killswitch" && <SubscriptionKillSwitchTab config={resolvedConfig} />}
-      </div>
+      <PreferencesStudio
+        initialTab={currentTab}
+        config={resolvedConfig}
+        activeMonth={activePeriod.month}
+        activeYear={activePeriod.year}
+        snapshotStatus={activeSnapshot?.status}
+        initialCustomRequests={customRequests}
+        initialKillSwitches={killSwitches}
+        initialKillSwitchNotificationConfig={notifConfig}
+        initialEmailStatus={emailStatus}
+      />
     </div>
   );
 }

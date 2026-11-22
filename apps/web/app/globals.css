@@ -5,10 +5,12 @@
   --color-canvas: #0c0e14;
   --color-surface-subtle: #11141c;
   --color-surface: #161922;
+  --color-surface-elevated: #1d222e;
   --color-surface-hover: #1d222e;
   --color-surface-active: #242a38;
 
   --color-border-subtle: #1f2430;
+  --color-border: #282e3d;
   --color-border-default: #282e3d;
   --color-border-strong: #384054;
 
@@ -17,6 +19,9 @@
   --color-text-tertiary: #6b7280;
   --color-text-disabled: #4b5563;
 
+  --color-accent: #10b78d;
+  --color-positive: #10b78d;
+  --color-negative: #e06c53;
   --color-delta-positive: #10b78d;
   --color-delta-negative: #e06c53;
 
@@ -39,6 +44,17 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Strip native browser number input steppers across the entire ERP */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
 }
 
 /* Custom Global Dark-Slate Scrollbars (Non-breaking Executive Dark Aesthetics) */
@@ -76,6 +92,73 @@ body {
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* Instant off-screen tab panel switching preserving state (<10ms) */
+.tab-panel[data-active="false"] {
+  display: block;
+  content-visibility: hidden;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  visibility: hidden;
+  height: 0;
+  overflow: hidden;
+}
+
+@supports not (content-visibility: hidden) {
+  .tab-panel[data-active="false"] {
+    display: none;
+  }
+}
+
+/* Native top-layer modal containment without backdrop blur */
+dialog.erp-dialog {
+  margin: auto;
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 0.5rem;
+  padding: 0;
+  max-width: min(92vw, 48rem);
+  width: 100%;
+  overscroll-behavior: contain;
+}
+
+dialog.erp-dialog::backdrop {
+  background: rgba(12, 14, 20, 0.8);
+  overscroll-behavior: contain;
+}
+
+/* Marquee top-layer right navigation drawer without viewport scroll locking hacks */
+dialog.marquee-drawer {
+  display: none;
+  position: fixed;
+  margin: 0 0 0 auto;
+  inset: 0 0 0 auto;
+  height: 100dvh;
+  max-height: 100dvh;
+  width: min(100vw, 29rem);
+  max-width: min(100vw, 29rem);
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+  border-left: 1px solid var(--color-border-strong);
+  padding: 0;
+}
+
+dialog.marquee-drawer[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+dialog.marquee-drawer:modal {
+  overscroll-behavior: contain;
+}
+
+dialog.marquee-drawer::backdrop {
+  background: rgba(12, 14, 20, 0.72);
+  overflow: hidden;
+  overscroll-behavior: contain;
 }
 
 @media print {
@@ -144,9 +227,11 @@ body {
     border-color: #d1d5db !important;
   }
 
+  thead {
+    display: table-header-group;
+  }
+
   .print-avoid-break,
-  section,
-  table,
   tr {
     break-inside: avoid;
     page-break-inside: avoid;

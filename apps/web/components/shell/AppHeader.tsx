@@ -3,7 +3,7 @@
 import React, { Suspense } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, Menu } from "lucide-react";
+import { BookOpen, Menu, Sparkles } from "lucide-react";
 import { MonthYearSwitcher } from "./MonthYearSwitcher";
 import { GlobalSearchModal } from "./GlobalSearchModal";
 import { AccountHeaderBadge } from "./AccountHeaderBadge";
@@ -75,6 +75,21 @@ export function AppHeader({ onToggleMobileDrawer }: { onToggleMobileDrawer?: () 
       {/* Right Zone: Language + Guide + Period Capsule Navigator + Account Profile */}
       <div className="flex items-center gap-1.5 sm:gap-2.5 justify-end min-w-0 lg:min-w-[260px] shrink-0">
         <div className="hidden sm:flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => {
+              if (typeof window !== "undefined") {
+                window.dispatchEvent(new CustomEvent("erp:marquee-toggle"));
+              }
+            }}
+            title="Marquee AI Co-Pilot (Alt+M)"
+            aria-label="Open Marquee AI Co-Pilot (Alt+M)"
+            className="h-8 px-2.5 rounded border border-border bg-surface hover:border-border-strong text-text-secondary hover:text-text-primary flex items-center gap-1.5 text-[11px] font-mono transition-colors cursor-pointer"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-delta-positive" />
+            <span className="hidden xl:inline">Marquee</span>
+            <kbd className="text-[9px] text-text-tertiary">Alt+M</kbd>
+          </button>
           <LanguageSwitcher compact />
           <Link
             href="/guide"

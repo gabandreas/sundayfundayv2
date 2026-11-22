@@ -14,11 +14,15 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { ReportsModule } from './reports/reports.module';
 import { AuthModule } from './auth/auth.module';
 import { AdminModule } from './admin/admin.module';
+import { EmailModule } from './email/email.module';
 import { AuthMiddleware } from './auth/auth.middleware';
+import { CalculatorModule } from './calculator/calculator.module';
+import { MarqueeModule } from './marquee/marquee.module';
 
 @Module({
   imports: [
     PrismaModule,
+    CalculatorModule,
     SnapshotsModule,
     CreditModule,
     FinanceModule,
@@ -31,6 +35,8 @@ import { AuthMiddleware } from './auth/auth.middleware';
     ReportsModule,
     AuthModule,
     AdminModule,
+    EmailModule,
+    MarqueeModule,
   ],
   controllers: [AppController],
   providers: [AppService],

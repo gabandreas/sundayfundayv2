@@ -6395,3 +6395,121 @@ export async function evaluateFormulaSuiteApi(payload: {
   });
   return handleResponse<{ variables: Record<string, number>; evaluation: FormulaSuiteResult } | null>(res, null);
 }
+
+// ============================================================================
+// MARQUEE 3-TIER DETERMINISTIC AI CO-PILOT APIS (/api/marquee)
+// ============================================================================
+
+export type MarqueeAiProvider = "TIER1_ONLY" | "GEMINI" | "GROQ";
+
+export interface MarqueeCardItem {
+  label: string;
+  value: string;
+  tone?: "default" | "positive" | "caution" | "urgency";
+}
+
+export interface MarqueePendingAction {
+  type: "CONFIRM_EXPENSE";
+  payload: {
+    title: string;
+    amountRp: number;
+    instrument: "CASH" | "PAYLATER" | "CREDIT_CARD";
+    tenorMonths: number;
+    month: number;
+    year: number;
+  };
+}
+
+export interface MarqueeChatResponse {
+  ok: boolean;
+  tool: string;
+  summary: string;
+  cards: MarqueeCardItem[];
+  pendingAction?: MarqueePendingAction;
+  tierUsed: "TIER1_NLU" | "TIER2_GEMINI" | "TIER2_GROQ" | "CONFIRMED_EXECUTION";
+  model: string;
+  locale: "en" | "id" | "zh";
+  data?: Record<string, unknown>;
+}
+
+export interface MarqueeConfigResponse {
+  provider: MarqueeAiProvider;
+  hasGeminiKey: boolean;
+  geminiKeyPreview: string;
+  hasGroqKey: boolean;
+  groqKeyPreview: string;
+  hasWebhookToken: boolean;
+  webhookTokenPreview: string;
+  webhookEnabled: boolean;
+  geminiModel: string;
+  groqModel: string;
+}
+
+export async function sendMarqueeChat(payload: {
+  message: string;
+  confirm?: boolean;
+  pendingAction?: MarqueePendingAction;
+  month?: number;
+  year?: number;
+  locale?: "en" | "id" | "zh";
+}): Promise<MarqueeChatResponse | null> {
+  try {
+    const res = await fetch(`${API_URL}/api/marquee/chat`, {
+      method: "POST",
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(payload),
+    });
+    const data = await handleResponse<MarqueeChatResponse | null>(res, null);
+    if (data?.tierUsed === "CONFIRMED_EXECUTION" || (payload.confirm && data?.ok)) {
+      invalidateCache();
+    }
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchMarqueeConfig(): Promise<MarqueeConfigResponse | null> {
+  try {
+    const res = await fetch(`${API_URL}/api/marquee/config`, {
+      headers: await getAuthHeaders(),
+      cache: "no-store",
+    });
+    return handleResponse<MarqueeConfigResponse | null>(res, null);
+  } catch {
+    return null;
+  }
+}
+
+export async function updateMarqueeConfig(payload: {
+  provider?: MarqueeAiProvider;
+  geminiApiKey?: string | null;
+  groqApiKey?: string | null;
+  webhookEnabled?: boolean;
+}): Promise<MarqueeConfigResponse | null> {
+  try {
+    const res = await fetch(`${API_URL}/api/marquee/config`, {
+      method: "PUT",
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(payload),
+    });
+    return handleResponse<MarqueeConfigResponse | null>(res, null);
+  } catch {
+    return null;
+  }
+}
+
+export async function rotateMarqueeWebhookToken(): Promise<{
+  token: string;
+  webhookTokenPreview: string;
+} | null> {
+  try {
+    const res = await fetch(`${API_URL}/api/marquee/webhook-token/rotate`, {
+      method: "POST",
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+    });
+    return handleResponse<{ token: string; webhookTokenPreview: string } | null>(res, null);
+  } catch {
+    return null;
+  }
+}

@@ -163,7 +163,7 @@ describe('Marquee NLU, 8 Deterministic Tools & Webhook Token Auth', () => {
 
       const pulse = await tools.executeTool('get_financial_pulse', {}, { userId: 2, month: 11, year: 2026 });
       expect(pulse.ok).toBe(true);
-      expect(financeSelectors.getPacing).toHaveBeenCalledWith(11, 2026, 2);
+      expect(financeSelectors.getPacing).toHaveBeenCalledWith(11, 2026, undefined, undefined, 2);
 
       const afford = await tools.executeTool(
         'evaluate_affordability',
@@ -190,7 +190,7 @@ describe('Marquee NLU, 8 Deterministic Tools & Webhook Token Auth', () => {
 
       const savings = await tools.executeTool('get_savings_and_goals', {}, { userId: 2 });
       expect(savings.ok).toBe(true);
-      expect(savingsSelectors.getOverview).toHaveBeenCalledWith(2);
+      expect(savingsSelectors.getOverview).toHaveBeenCalledWith(undefined, 2);
 
       const opt = await tools.executeTool('simulate_debt_payoff', { lumpSumRp: 1000000 }, { userId: 2, month: 11, year: 2026 });
       expect(opt.ok).toBe(true);
