@@ -1,6 +1,7 @@
 import {
   Injectable,
   BadRequestException,
+  ForbiddenException,
   NotFoundException,
   Inject,
   forwardRef,
@@ -11,6 +12,15 @@ import { SnapshotStatus } from '@prisma/client';
 import { CreditService } from '../credit/credit.service';
 import { calculateWorkingDaysForPeriod } from '../calculator/payroll';
 import {
+  DEFAULT_PAYOUT_DAY,
+  DefaultPeriodStrategy,
+  getPayrollPeriodForDate,
+  resolveDefaultActivePeriod,
+} from '../calculator/pacing';
+import { resolveStudioConfig } from '../config/studio.defaults';
+import { calculateCardDueAmountForMonth } from '../credit/credit.utils';
+import { calculateTotalDeductions } from '../calculator/waterfall';
+import {
   buildDefaultSandboxState,
   SandboxState,
 } from '../config/sandbox.defaults';
@@ -19,6 +29,7 @@ import {
   buildDefaultAllocationBuckets,
   buildDefaultSurplusSplitRules,
   buildDefaultFinancialPolicy,
+  evaluateModularEngine,
 } from '../calculator/modular-engine';
 
 @Injectable()
@@ -126,17 +137,6 @@ export class SnapshotsSelectors {
    * are idempotent and scoped strictly to the newly created snapshot.
    */
   async getOrCreateDraftSnapshot(month: number, year: number, userId: number = 1) {
-    const config =
-      (await this.prisma.globalConfig.findUnique({ where: { userId } })) ||
-      (await this.prisma.globalConfig.findFirst({ where: { userId } })) ||
-      (await this.prisma.globalConfig.findFirst({ where: { userId: 1 } }));
-
-    if (userId === 2) {
-      const sandbox =
-        (config?.sandboxStateJson as any) || buildDefaultSandboxState(month, year);
-      return this.buildSandboxSnapshot(sandbox, month, year);
-    }
-
     const existing = await this.prisma.monthlySnapshot.findUnique({
       where: {
         userId_month_year: {
@@ -150,7 +150,7 @@ export class SnapshotsSelectors {
           orderBy: { date: 'desc' },
         },
         budgetRevisions: {
-          orderBy: { createdAt: 'asc' },
+          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
         },
       },
     });
@@ -158,6 +158,11 @@ export class SnapshotsSelectors {
     if (existing) {
       return existing;
     }
+
+    const config =
+      (await this.prisma.globalConfig.findUnique({ where: { userId } })) ||
+      (await this.prisma.globalConfig.findFirst({ where: { userId } })) ||
+      (await this.prisma.globalConfig.findFirst({ where: { userId: 1 } }));
 
     if (!config) {
       throw new BadRequestException(
@@ -186,6 +191,7 @@ export class SnapshotsSelectors {
         config.financialPolicyJson ?? buildDefaultFinancialPolicy(),
     };
 
+    let createdNew = true;
     const snapshot = await this.prisma.monthlySnapshot
       .create({
         data: {
@@ -208,7 +214,7 @@ export class SnapshotsSelectors {
           bonusAmount: 0,
           selfRewardTarget: 0,
           bufferPocket: 0,
-          payrollPayoutDate: new Date(Date.UTC(year, month - 1, config.payrollPayoutDay ?? 25)),
+          payrollPayoutDate: new Date(Date.UTC(year, month - 1, config.payrollPayoutDay ?? DEFAULT_PAYOUT_DAY)),
           isPayoutDateConfirmed: false,
           frozenRulesJson: frozenRulesJson as any,
         },
@@ -219,6 +225,7 @@ export class SnapshotsSelectors {
       })
       .catch(async (err: any) => {
         if (err?.code === 'P2002') {
+          createdNew = false;
           return this.prisma.monthlySnapshot.findUniqueOrThrow({
             where: { userId_month_year: { userId, month, year } },
             include: {
@@ -231,8 +238,8 @@ export class SnapshotsSelectors {
       });
 
     // Idempotent first-view provisioning exception (ARCHITECTURE.md §4):
-    // Sync due liabilities and recalculate initial snapshot figures
-    if (this.creditService) {
+    // Sync due liabilities and recalculate initial snapshot figures ONLY on the creator request
+    if (createdNew && this.creditService) {
       await this.creditService.syncLiabilitiesToSnapshot(month, year, undefined, userId);
       return this.prisma.monthlySnapshot.findUniqueOrThrow({
         where: { id: snapshot.id },
@@ -250,20 +257,7 @@ export class SnapshotsSelectors {
     return snapshot;
   }
 
-  async getSnapshotById(id: number) {
-    if (id === 999999) {
-      const config = await this.prisma.globalConfig.findFirst({
-        where: { userId: 1 },
-      });
-      const sandbox =
-        (config?.sandboxStateJson as any) || buildDefaultSandboxState();
-      return this.buildSandboxSnapshot(
-        sandbox,
-        sandbox.month || 10,
-        sandbox.year || 2026,
-      );
-    }
-
+  async getSnapshotById(id: number, userId?: number) {
     const snapshot = await this.prisma.monthlySnapshot.findUnique({
       where: { id },
       include: {
@@ -271,13 +265,16 @@ export class SnapshotsSelectors {
           orderBy: { date: 'desc' },
         },
         budgetRevisions: {
-          orderBy: { createdAt: 'asc' },
+          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
         },
       },
     });
 
     if (!snapshot) {
       throw new NotFoundException(`Snapshot #${id} not found`);
+    }
+    if (userId !== undefined && snapshot.userId !== userId) {
+      throw new ForbiddenException(`Access denied to snapshot #${id}`);
     }
 
     return snapshot;
@@ -286,10 +283,281 @@ export class SnapshotsSelectors {
   /**
    * Retrieves budget revisions for a snapshot ordered chronologically.
    */
-  async listBudgetRevisions(snapshotId: number) {
+  async listBudgetRevisions(snapshotId: number, userId?: number) {
+    if (userId !== undefined) {
+      await this.getSnapshotById(snapshotId, userId);
+    }
     return this.prisma.budgetRevision.findMany({
       where: { snapshotId },
       orderBy: { createdAt: 'asc' },
     });
+  }
+
+  /**
+   * Read-only 12-month horizon loader for instant frontend period switching.
+   * Returns materialized MonthlySnapshot records verbatim where present, and
+   * synthesizes non-persisted read-only forecast snapshots for unmaterialized
+   * future periods via evaluateModularEngine without mutating the database.
+   */
+  async getDefaultActivePeriod(
+    userId: number = 1,
+    referenceDate: Date = new Date(),
+  ): Promise<{
+    month: number;
+    year: number;
+    strategy: DefaultPeriodStrategy;
+    skippedLockedPeriod: boolean;
+  }> {
+    const config =
+      (await this.prisma.globalConfig.findFirst({ where: { userId } })) ||
+      (await this.prisma.globalConfig.findFirst({ where: { userId: 1 } }));
+    const studioConfig = resolveStudioConfig(userId, config?.formulaParamsJson, config);
+    const strategy: DefaultPeriodStrategy =
+      studioConfig.paycycleFormulaConfig.defaultPeriodStrategy === 'CALENDAR_WINDOW'
+        ? 'CALENDAR_WINDOW'
+        : 'EARLIEST_OPEN_ACTIVE';
+    const cycleTransitionDay =
+      studioConfig.paycycleFormulaConfig.paydayAnchorDay || 27;
+
+    const snapshots = await this.prisma.monthlySnapshot.findMany({
+      where: { userId },
+      select: { month: true, year: true, status: true },
+      orderBy: [{ year: 'asc' }, { month: 'asc' }],
+    });
+
+    const resolved = resolveDefaultActivePeriod({
+      referenceDate,
+      cycleTransitionDay,
+      strategy,
+      snapshots,
+    });
+
+    return {
+      month: resolved.month,
+      year: resolved.year,
+      strategy,
+      skippedLockedPeriod: resolved.skippedLockedPeriod,
+    };
+  }
+
+  async listHorizonSnapshots(
+    startMonth?: number,
+    startYear?: number,
+    count: number = 12,
+    userId: number = 1,
+  ) {
+    const activePeriod = getPayrollPeriodForDate();
+    const sMonth = startMonth && startMonth >= 1 && startMonth <= 12 ? startMonth : activePeriod.month;
+    const sYear = startYear && startYear >= 2020 ? startYear : activePeriod.year;
+    const safeCount = Math.min(24, Math.max(1, Math.round(count || 12)));
+
+    const periods: Array<{ month: number; year: number }> = [];
+    for (let i = 0; i < safeCount; i++) {
+      const idx = sMonth - 1 + i;
+      const month = (idx % 12) + 1;
+      const year = sYear + Math.floor(idx / 12);
+      periods.push({ month, year });
+    }
+
+    const periodOr = periods.map((p) => ({ month: p.month, year: p.year }));
+    const [config, existingSnapshots, bulkBills, cardTxs, contracts] = await Promise.all([
+      (async () =>
+        (await this.prisma.globalConfig.findUnique({ where: { userId } })) ||
+        (await this.prisma.globalConfig.findFirst({ where: { userId } })) ||
+        (await this.prisma.globalConfig.findFirst({ where: { userId: 1 } })))(),
+      this.prisma.monthlySnapshot.findMany({
+        where: { userId, OR: periodOr },
+        include: {
+          transactions: { orderBy: { date: 'desc' } },
+          budgetRevisions: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
+        },
+      }),
+      this.prisma.monthlyBulkBill.findMany({
+        where: { userId, OR: periodOr },
+      }),
+      this.prisma.creditCardTransaction.findMany({
+        where: { userId },
+      }),
+      userId === 1
+        ? this.prisma.creditContract.findMany({
+            where: { isActive: true, remainingTenor: { gt: 0 } },
+          })
+        : Promise.resolve([] as Array<{
+            startYear: number;
+            startMonth: number;
+            totalTenor: number;
+            monthlyInstallment: number;
+          }>),
+    ]);
+
+    if (!config) {
+      throw new BadRequestException('Global configuration has not been initialized');
+    }
+
+    const snapMap = new Map(
+      existingSnapshots.map((s) => [`${s.year}-${s.month}`, s]),
+    );
+    const bulkMap = new Map(
+      bulkBills.map((b) => [`${b.year}-${b.month}`, b]),
+    );
+
+    const payrollRules =
+      (config.payrollRulesJson as any) ??
+      buildDefaultPayrollRules(config.dailyAllowance, config.laptopAllowance);
+    const allocationBuckets =
+      (config.allocationBucketsJson as any) ??
+      buildDefaultAllocationBuckets({
+        transport: config.transport,
+        internet: config.internet,
+        vape: config.vape,
+        haircut: config.haircut,
+        dailyOperational: config.dailyOperational,
+        savings: config.baseSavings,
+        bufferPocket: 0,
+      });
+    const surplusSplitRules =
+      (config.surplusSplitRulesJson as any) ?? buildDefaultSurplusSplitRules();
+    const financialPolicy =
+      (config.financialPolicyJson as any) ?? buildDefaultFinancialPolicy();
+    const formulaEngineType =
+      userId === 1 && !config.formulaEngineType
+        ? 'DEBT_FIRST_WATERFALL'
+        : ((config.formulaEngineType as any) || 'DEBT_FIRST_WATERFALL');
+    const formulaParams = (config.formulaParamsJson as any) || null;
+    const frozenRulesJson = {
+      payrollRules,
+      allocationBuckets,
+      surplusSplitRules,
+      financialPolicy,
+    };
+
+    const items = periods.map(({ month, year }) => {
+      const existing = snapMap.get(`${year}-${month}`);
+      if (existing) {
+        return { ...existing, isForecast: false };
+      }
+
+      const totalWorkingDays = calculateWorkingDaysForPeriod(month, year);
+      const bulk = bulkMap.get(`${year}-${month}`);
+      const paylaterBills = Math.round(bulk?.paylaterAmount ?? 0);
+      const personalDebtBills = Math.round(bulk?.personalDebtAmount ?? 0);
+      const creditCardBills = Math.round(
+        cardTxs.reduce(
+          (sum, c) => sum + calculateCardDueAmountForMonth(c as any, month, year),
+          0,
+        ),
+      );
+      const targetIdx = year * 12 + (month - 1);
+      const contractInstallments = Math.round(
+        contracts.reduce((sum, c) => {
+          const startIdx = c.startYear * 12 + (c.startMonth - 1);
+          const elapsed = targetIdx - startIdx;
+          if (elapsed >= 0 && elapsed < c.totalTenor) {
+            return sum + c.monthlyInstallment;
+          }
+          return sum;
+        }, 0),
+      );
+      const totalCreditBills =
+        paylaterBills + personalDebtBills + creditCardBills + contractInstallments;
+
+      const fixedTargets = {
+        transport: config.transport,
+        internet: config.internet,
+        vape: config.vape,
+        haircut: config.haircut,
+      };
+      const totalDeductions = calculateTotalDeductions(
+        [{ type: 'CREDIT_BILL', amount: totalCreditBills }],
+        fixedTargets,
+        config.dailyOperational,
+      );
+
+      const modular = evaluateModularEngine({
+        baseSalary: config.baseSalary,
+        salaryAdjustment: 0,
+        totalWorkingDays,
+        dailyAllowance: config.dailyAllowance,
+        cafeteriaDeduction: 0,
+        thrAmount: 0,
+        bonusAmount: 0,
+        extraIncome: 0,
+        bridgeInflowAmount: 0,
+        month,
+        year,
+        cycleDays: 30,
+        totalCreditBills,
+        totalDeductions,
+        payrollRules,
+        allocationBuckets,
+        surplusSplitRules,
+        financialPolicy,
+        formulaEngineType,
+        formulaParams,
+        budgetRevisions: [],
+        transactions: [],
+      });
+
+      const payoutIso = new Date(
+        Date.UTC(year, month - 1, config.payrollPayoutDay ?? DEFAULT_PAYOUT_DAY),
+      ).toISOString();
+
+      return {
+        id: -(year * 100 + month),
+        userId,
+        isForecast: true,
+        month,
+        year,
+        status: SnapshotStatus.DRAFT,
+        salaryAdjustment: 0,
+        totalWorkingDays,
+        cafeteriaDeduction: 0,
+        thrAmount: 0,
+        bonusAmount: 0,
+        dailyOperational: modular.canonicalSnapshotColumns.dailyOperational,
+        transport: modular.canonicalSnapshotColumns.transport,
+        internet: modular.canonicalSnapshotColumns.internet,
+        vape: modular.canonicalSnapshotColumns.vape,
+        haircut: modular.canonicalSnapshotColumns.haircut,
+        savings: modular.canonicalSnapshotColumns.savings,
+        selfRewardTarget: modular.canonicalSnapshotColumns.selfRewardTarget,
+        bufferPocket: modular.canonicalSnapshotColumns.bufferPocket,
+        ccUsageLimit: config.ccUsageLimit ?? 0,
+        paylaterUsageLimit: config.paylaterUsageLimit ?? 0,
+        netSalaryIncome: modular.payroll.netSalaryIncome,
+        extraIncome: 0,
+        finalTotalIncome: modular.payroll.finalTotalIncome,
+        totalDeductions,
+        paylaterBills,
+        personalDebtBills,
+        contractInstallments,
+        creditCardBills,
+        actualDailyOperational: modular.waterfall.actualDailyOperational,
+        actualSavings: modular.waterfall.actualSavings,
+        selfReward: modular.waterfall.actualSelfReward,
+        deficitUncovered: modular.waterfall.deficitUncovered,
+        survivalPocket: modular.waterfall.survivalPocket,
+        payrollPayoutDate: payoutIso,
+        isPayoutDateConfirmed: false,
+        frozenRulesJson,
+        bucketRealizationsJson: modular.bucketRealizations,
+        isManualOverride: false,
+        lockedP1: null,
+        lockedP2: null,
+        bridgeInflowAmount: 0,
+        oneOffBillsJson: null,
+        createdAt: payoutIso,
+        updatedAt: payoutIso,
+        transactions: [],
+        budgetRevisions: [],
+      };
+    });
+
+    return {
+      startMonth: sMonth,
+      startYear: sYear,
+      count: safeCount,
+      periods: items,
+    };
   }
 }

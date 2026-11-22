@@ -103,6 +103,11 @@ export interface MonthlySnapshot {
   survivalPocket: number | null;
   frozenRulesJson?: any | null;
   bucketRealizationsJson?: BucketRealization[] | null;
+  isManualOverride?: boolean;
+  lockedP1?: number | null;
+  lockedP2?: number | null;
+  bridgeInflowAmount?: number | null;
+  oneOffBillsJson?: Array<{ slot: string; label: string; amount: number }> | null;
   transactions?: Transaction[];
   budgetRevisions?: BudgetRevision[];
 }
@@ -114,6 +119,8 @@ export interface DailyPacing {
   cycleEndDate: string;
   cycleDateLabel: string;
   isEndDateConfirmed: boolean;
+  cycleTemporalState?: "PRE_PAYDAY" | "ACTIVE" | "COMPLETED";
+  daysUntilCycleStart?: number;
   daysInCycle: number;
   daysPassed: number;
   daysRemaining: number;
@@ -123,6 +130,7 @@ export interface DailyPacing {
   remainingBudget: number;
   baselineDailyRate: number;
   safeToSpendToday: number;
+  paceDeltaRp?: number;
   pacingRatio: number;
   pacingPercentage: number;
   pacingStatus: "ON_TRACK" | "CAUTION" | "BURNING_FAST" | "DEFICIT_RISK";
@@ -316,6 +324,7 @@ interface SwrCacheEntry<T> {
 
 const clientSwrCache = new Map<string, SwrCacheEntry<any>>();
 const inFlightRequests = new Map<string, Promise<any>>();
+let cacheEpoch = 0;
 const SWR_STALE_MS = 60 * 1000; // 60s TTL
 
 export function getCached<T>(key: string): T | undefined {
@@ -331,17 +340,210 @@ export function setCached<T>(key: string, data: T): void {
 
 export function invalidateCache(keyPattern?: string | RegExp): void {
   if (typeof window === "undefined") return;
+  cacheEpoch += 1;
   if (!keyPattern) {
     clientSwrCache.clear();
-    return;
-  }
-  for (const key of Array.from(clientSwrCache.keys())) {
-    if (typeof keyPattern === "string") {
-      if (key.includes(keyPattern)) clientSwrCache.delete(key);
-    } else if (keyPattern.test(key)) {
-      clientSwrCache.delete(key);
+    inFlightRequests.clear();
+  } else {
+    for (const key of Array.from(clientSwrCache.keys())) {
+      if (typeof keyPattern === "string") {
+        if (key.includes(keyPattern)) clientSwrCache.delete(key);
+      } else if (keyPattern.test(key)) {
+        clientSwrCache.delete(key);
+      }
+    }
+    for (const key of Array.from(inFlightRequests.keys())) {
+      if (typeof keyPattern === "string") {
+        if (key.includes(keyPattern)) inFlightRequests.delete(key);
+      } else if (keyPattern.test(key)) {
+        inFlightRequests.delete(key);
+      }
     }
   }
+  window.dispatchEvent(new CustomEvent("erp:data-mutated"));
+}
+
+export interface OptimisticMatrixBulkPayload {
+  month: number;
+  year: number;
+  field: "paylaterAmount" | "personalDebtAmount";
+  value: number;
+}
+
+export interface OptimisticRoutineSpendPayload {
+  month: number;
+  year: number;
+  category: string;
+  label: string;
+  amount: number;
+}
+
+export function dispatchOptimisticMatrixBulk(payload: OptimisticMatrixBulkPayload): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(
+    new CustomEvent("erp:optimistic-matrix-bulk", { detail: payload })
+  );
+}
+
+export function dispatchOptimisticRoutineSpend(payload: OptimisticRoutineSpendPayload): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(
+    new CustomEvent("erp:optimistic-routine-spend", { detail: payload })
+  );
+}
+
+export function applyOptimisticMatrixBulkPatch(
+  matrix: LiabilityMatrixResponse | null,
+  payload: OptimisticMatrixBulkPayload
+): LiabilityMatrixResponse | null {
+  if (!matrix) return matrix;
+  const colKey = `${payload.year}-${payload.month}`;
+  const targetRow =
+    payload.field === "paylaterAmount" ? matrix.payLaterRow : matrix.personalDebtRow;
+  const prevCell = targetRow.cells[colKey] ?? { amount: 0, items: [] };
+  const prevAmount = prevCell.amount ?? 0;
+  const delta = payload.value - prevAmount;
+  const nextTotals = {
+    ...matrix.totalsPerMonth,
+    [colKey]: Math.max(0, (matrix.totalsPerMonth[colKey] ?? 0) + delta),
+  };
+
+  const categoryMatch =
+    payload.field === "paylaterAmount" ? "PAYLATER" : "PERSONAL_DEBT";
+  const existingMonthItems = matrix.lineItemsPerMonth?.[colKey] ?? [];
+  const otherItemsSum = existingMonthItems
+    .filter((i) => {
+      const sameBucket =
+        payload.field === "paylaterAmount"
+          ? i.category === "PAYLATER"
+          : i.category === "PERSONAL_DEBT" || i.category === "P1_VAULT_REFUND";
+      const isBaseline =
+        payload.field === "paylaterAmount"
+          ? i.parentContractId === "PL-BASE-2026" ||
+            i.title === "Unitemized Statement Balance" ||
+            i.title.startsWith("SPayLater Baseline")
+          : i.parentContractId === "PD-BASE" ||
+            i.title === "Unitemized Personal Debt" ||
+            i.title.startsWith("Personal Debt Baseline") ||
+            i.title === "Personal / Peer Obligation";
+      return sameBucket && !isBaseline;
+    })
+    .reduce((sum, i) => sum + Math.round(i.monthlyAmount), 0);
+
+  let updatedBaseline = false;
+  const nextMonthItems = existingMonthItems.map((i) => {
+    const isBaseline =
+      payload.field === "paylaterAmount"
+        ? i.category === "PAYLATER" &&
+          (i.parentContractId === "PL-BASE-2026" ||
+            i.title === "Unitemized Statement Balance" ||
+            i.title.startsWith("SPayLater Baseline"))
+        : i.category === categoryMatch &&
+          (i.parentContractId === "PD-BASE" ||
+            i.title === "Unitemized Personal Debt" ||
+            i.title.startsWith("Personal Debt Baseline") ||
+            i.title === "Personal / Peer Obligation");
+    if (!isBaseline || updatedBaseline) return i;
+    updatedBaseline = true;
+    const nextBaselineAmt = Math.max(0, payload.value - otherItemsSum);
+    return {
+      ...i,
+      monthlyAmount: nextBaselineAmt,
+      principalAmount: i.tenorMonths === 1 ? nextBaselineAmt : i.principalAmount,
+    };
+  });
+
+  const nextCells = {
+    ...targetRow.cells,
+    [colKey]: {
+      ...prevCell,
+      amount: payload.value,
+    },
+  };
+
+  return {
+    ...matrix,
+    ...(payload.field === "paylaterAmount"
+      ? { payLaterRow: { ...matrix.payLaterRow, cells: nextCells } }
+      : { personalDebtRow: { ...matrix.personalDebtRow, cells: nextCells } }),
+    lineItemsPerMonth: {
+      ...matrix.lineItemsPerMonth,
+      [colKey]: nextMonthItems,
+    },
+    totalsPerMonth: nextTotals,
+  };
+}
+
+export function applyOptimisticRoutineSpendPatch(
+  pacing: DailyPacing | null,
+  transactions: Transaction[],
+  payload: OptimisticRoutineSpendPayload
+): { pacing: DailyPacing | null; transactions: Transaction[] } {
+  const optimisticTx: Transaction = {
+    id: -Date.now(),
+    snapshotId: 0,
+    type: "DEDUCTION",
+    sourceType: "MANUAL",
+    sourceId: null,
+    fixedEssentialCategory: payload.category as FixedEssentialCategory,
+    label: `${payload.label} Quota`,
+    amount: Math.round(payload.amount),
+    date: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+  };
+
+  if (!pacing?.fixedEssentialsRealization) {
+    return {
+      pacing,
+      transactions: [optimisticTx, ...transactions],
+    };
+  }
+
+  let addedOverage = 0;
+  let addedCovered = 0;
+  const nextItems = pacing.fixedEssentialsRealization.items.map((item) => {
+    if (item.category !== payload.category) return item;
+    const nextSpent = item.spent + payload.amount;
+    const nextCovered = Math.min(item.target, nextSpent);
+    const nextOverage = Math.max(0, nextSpent - item.target);
+    const nextRemaining = Math.max(0, item.target - nextSpent);
+    addedOverage = nextOverage - item.overage;
+    addedCovered = nextCovered - item.coveredByPool;
+    return {
+      ...item,
+      spent: nextSpent,
+      coveredByPool: nextCovered,
+      overage: nextOverage,
+      remainingPool: nextRemaining,
+      utilizationPercent:
+        item.target > 0 ? Math.min(100, Math.round((nextSpent / item.target) * 100)) : 100,
+    };
+  });
+
+  const nextTotalSpent = pacing.fixedEssentialsRealization.totalSpent + payload.amount;
+  const nextTotalCovered = pacing.fixedEssentialsRealization.totalCoveredByPool + addedCovered;
+  const nextTotalOverage = pacing.fixedEssentialsRealization.totalOverage + addedOverage;
+  const nextTotalRemaining = Math.max(
+    0,
+    pacing.fixedEssentialsRealization.totalRemainingPool - addedCovered
+  );
+
+  return {
+    pacing: {
+      ...pacing,
+      totalDailySpent: pacing.totalDailySpent + addedOverage,
+      remainingBudget: Math.max(0, pacing.remainingBudget - addedOverage),
+      fixedEssentialsRealization: {
+        ...pacing.fixedEssentialsRealization,
+        items: nextItems,
+        totalSpent: nextTotalSpent,
+        totalCoveredByPool: nextTotalCovered,
+        totalOverage: nextTotalOverage,
+        totalRemainingPool: nextTotalRemaining,
+      },
+    },
+    transactions: [optimisticTx, ...transactions],
+  };
 }
 
 export async function swrFetch<T>(
@@ -366,16 +568,23 @@ export async function swrFetch<T>(
     return inFlightRequests.get(cacheKey)!;
   }
 
+  const reqEpoch = cacheEpoch;
+
   // Stale-While-Revalidate: return stale data immediately and revalidate in background
   if (cached) {
-    const bg = (async () => {
+    let bg!: Promise<any>;
+    bg = (async () => {
       try {
         const fresh = await fetcher();
-        clientSwrCache.set(cacheKey, { data: fresh, timestamp: Date.now() });
+        if (reqEpoch === cacheEpoch) {
+          clientSwrCache.set(cacheKey, { data: fresh, timestamp: Date.now() });
+        }
       } catch {
         // preserve stale data on revalidation failure
       } finally {
-        inFlightRequests.delete(cacheKey);
+        if (inFlightRequests.get(cacheKey) === bg) {
+          inFlightRequests.delete(cacheKey);
+        }
       }
     })();
     inFlightRequests.set(cacheKey, bg);
@@ -383,13 +592,18 @@ export async function swrFetch<T>(
   }
 
   // Cold cache
-  const p = (async () => {
+  let p!: Promise<T>;
+  p = (async () => {
     try {
       const fresh = await fetcher();
-      clientSwrCache.set(cacheKey, { data: fresh, timestamp: Date.now() });
+      if (reqEpoch === cacheEpoch) {
+        clientSwrCache.set(cacheKey, { data: fresh, timestamp: Date.now() });
+      }
       return fresh;
     } finally {
-      inFlightRequests.delete(cacheKey);
+      if (inFlightRequests.get(cacheKey) === p) {
+        inFlightRequests.delete(cacheKey);
+      }
     }
   })();
 
@@ -397,14 +611,112 @@ export async function swrFetch<T>(
   return await p;
 }
 
+export async function fetchSnapshotHorizon(
+  startMonth = 10,
+  startYear = 2026,
+  count = 12
+): Promise<MonthlySnapshot[]> {
+  return swrFetch(`horizon:snapshots:${startYear}-${startMonth}:${count}`, async () => {
+    const res = await fetch(
+      `${API_URL}/api/snapshots/horizon?startMonth=${startMonth}&startYear=${startYear}&count=${count}`,
+      { headers: await getAuthHeaders(), cache: "no-store" }
+    );
+    const data = await handleResponse<{ periods?: MonthlySnapshot[] } | null>(res, null);
+    const list = data?.periods ?? [];
+    for (const snap of list) {
+      if (snap && snap.month && snap.year) {
+        setCached(`snapshot:${snap.month}:${snap.year}`, snap);
+      }
+    }
+    return list;
+  }, 5 * 60 * 1000);
+}
+
+export async function fetchPayrollHorizon(
+  startMonth = 10,
+  startYear = 2026,
+  count = 12
+): Promise<Array<{ month: number; year: number; payroll: PayrollResult }>> {
+  return swrFetch(`horizon:payroll:${startYear}-${startMonth}:${count}`, async () => {
+    const res = await fetch(
+      `${API_URL}/api/finance/payroll-horizon?startMonth=${startMonth}&startYear=${startYear}&count=${count}`,
+      { headers: await getAuthHeaders(), cache: "no-store" }
+    );
+    const data = await handleResponse<{
+      periods?: Array<{ month: number; year: number; payroll: PayrollResult }>;
+    } | null>(res, null);
+    const list = data?.periods ?? [];
+    for (const item of list) {
+      if (item && item.month && item.year) {
+        setCached(`payroll:${item.month}:${item.year}`, item.payroll);
+      }
+    }
+    return list;
+  }, 5 * 60 * 1000);
+}
+
 export async function prefetchPeriodData(month: number, year: number): Promise<void> {
   if (typeof window === "undefined") return;
   Promise.allSettled([
     fetchSnapshot(month, year),
+    fetchPayroll(month, year),
     fetchPacing(month, year),
     fetchTransactions(month, year),
+    fetchCardSummary(month, year),
+    fetchCreditUsageLimit(month, year),
+    fetchExecutiveReport(month, year, "all"),
     fetchSavingsVault(month, year),
   ]).catch(() => {});
+}
+
+export async function prefetchHorizonData(
+  activeMonth: number,
+  activeYear: number
+): Promise<void> {
+  if (typeof window === "undefined") return;
+  const prevMonth = activeMonth === 1 ? 12 : activeMonth - 1;
+  const prevYear = activeMonth === 1 ? activeYear - 1 : activeYear;
+  const nextMonth = activeMonth === 12 ? 1 : activeMonth + 1;
+  const nextYear = activeMonth === 12 ? activeYear + 1 : activeYear;
+
+  Promise.allSettled([
+    fetchSnapshotHorizon(10, 2026, 12),
+    fetchPayrollHorizon(10, 2026, 12),
+    fetchLiabilityMatrix(10, 2026, 12),
+    fetchPacing(activeMonth, activeYear),
+    fetchTransactions(activeMonth, activeYear),
+    fetchPacing(prevMonth, prevYear),
+    fetchTransactions(prevMonth, prevYear),
+    fetchPacing(nextMonth, nextYear),
+    fetchTransactions(nextMonth, nextYear),
+    fetchCardSummary(activeMonth, activeYear),
+    fetchCardSummary(prevMonth, prevYear),
+    fetchCardSummary(nextMonth, nextYear),
+    fetchCreditUsageLimit(activeMonth, activeYear),
+    fetchCreditUsageLimit(prevMonth, prevYear),
+    fetchCreditUsageLimit(nextMonth, nextYear),
+    fetchCardTransactions(undefined, undefined, activeMonth, activeYear),
+    fetchCardTransactions(undefined, undefined, prevMonth, prevYear),
+    fetchCardTransactions(undefined, undefined, nextMonth, nextYear),
+    fetchIntelligenceBundle(activeMonth, activeYear),
+  ]).catch(() => {});
+}
+
+export interface DefaultActivePeriodResponse {
+  month: number;
+  year: number;
+  strategy: "EARLIEST_OPEN_ACTIVE" | "CALENDAR_WINDOW";
+  skippedLockedPeriod: boolean;
+}
+
+export async function fetchDefaultActivePeriod(): Promise<DefaultActivePeriodResponse | null> {
+  return swrFetch("defaultActivePeriod", async () => {
+    const res = await fetch(`${API_URL}/api/snapshots/default-period`, {
+      headers: await getAuthHeaders(),
+      cache: "no-store",
+    });
+    return handleResponse<DefaultActivePeriodResponse | null>(res, null);
+  });
 }
 
 export async function fetchSnapshot(
@@ -482,6 +794,7 @@ export async function createSavingsTransaction(data: {
       const body = await res.json().catch(() => ({}));
       return { success: false, error: body.message || "Failed to create savings transaction" };
     }
+    invalidateCache();
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message || "Network error" };
@@ -509,6 +822,7 @@ export async function rebalanceSavingsInstrument(data: {
           : body.message || "Failed to rebalance savings vault",
       };
     }
+    invalidateCache();
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message || "Network error" };
@@ -527,6 +841,7 @@ export async function deleteSavingsTransaction(
       const body = await res.json().catch(() => ({}));
       return { success: false, error: body.message || "Failed to delete savings transaction" };
     }
+    invalidateCache();
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message || "Network error" };
@@ -557,6 +872,7 @@ export async function confirmPeriodDeposit(data: {
       const body = await res.json().catch(() => ({}));
       return { success: false, error: body.message || "Failed to confirm period deposit" };
     }
+    invalidateCache();
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message || "Network error" };
@@ -589,6 +905,7 @@ export async function createSavingsGoal(data: {
       const body = await res.json().catch(() => ({}));
       return { success: false, error: body.message || "Failed to create savings goal" };
     }
+    invalidateCache();
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message || "Network error" };
@@ -617,6 +934,7 @@ export async function updateSavingsGoal(
       const body = await res.json().catch(() => ({}));
       return { success: false, error: body.message || "Failed to update savings goal" };
     }
+    invalidateCache();
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message || "Network error" };
@@ -635,6 +953,7 @@ export async function deleteSavingsGoal(
       const body = await res.json().catch(() => ({}));
       return { success: false, error: body.message || "Failed to delete savings goal" };
     }
+    invalidateCache();
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message || "Network error" };
@@ -660,6 +979,7 @@ export async function saveWealthTarget(data: {
         error: Array.isArray(body.message) ? body.message.join(", ") : body.message || "Failed to save wealth target",
       };
     }
+    invalidateCache();
     return { success: true, data: body };
   } catch (error: any) {
     return { success: false, error: error.message || "Network error" };
@@ -682,6 +1002,7 @@ export async function stopRecurringCardSubscription(
       const body = await res.json().catch(() => ({}));
       return { success: false, error: body.message || "Failed to stop recurring subscription" };
     }
+    invalidateCache();
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message || "Network error" };
@@ -694,11 +1015,13 @@ export async function resumeRecurringCardSubscription(
   try {
     const res = await fetch(`${API_URL}/api/credit/cards/${id}/resume-recurring`, {
       method: "PATCH",
+      headers: await getAuthHeaders(),
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
       return { success: false, error: body.message || "Failed to resume recurring subscription" };
     }
+    invalidateCache();
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message || "Network error" };
@@ -735,11 +1058,13 @@ export async function fetchPayroll(
   month: number,
   year: number
 ): Promise<PayrollResult | null> {
-  const res = await fetch(
-    `${API_URL}/api/finance/payroll?month=${month}&year=${year}`,
-    { headers: await getAuthHeaders(), cache: "no-store" }
-  );
-  return handleResponse<PayrollResult | null>(res, null);
+  return swrFetch(`payroll:${month}:${year}`, async () => {
+    const res = await fetch(
+      `${API_URL}/api/finance/payroll?month=${month}&year=${year}`,
+      { headers: await getAuthHeaders(), cache: "no-store" }
+    );
+    return handleResponse<PayrollResult | null>(res, null);
+  });
 }
 
 export async function closeSnapshot(
@@ -802,6 +1127,7 @@ export async function reopenSnapshot(
         error: Array.isArray(body.message) ? body.message.join(", ") : body.message || `Failed to reopen period (${res.status})`,
       };
     }
+    invalidateCache();
     return { success: true, data: body };
   } catch (error: any) {
     return { success: false, error: error.message || "Network error" };
@@ -900,6 +1226,9 @@ export async function createExpenseTransaction(data: {
   fixedEssentialCategory?: FixedEssentialCategory;
   bucketKey?: string;
   isOperationalRefund?: boolean;
+  paymentMethod?: "CASH" | "PAYLATER" | "CC";
+  paylaterTenor?: number;
+  holdPastCutoff?: boolean;
 }): Promise<{ success: boolean; data?: Transaction; error?: string }> {
   try {
     const res = await fetch(`${API_URL}/api/finance/transactions`, {
@@ -947,6 +1276,8 @@ export async function updateFinanceTransaction(
     label?: string;
     amount?: number;
     date?: string;
+    fixedEssentialCategory?: "TRANSPORT" | "INTERNET" | "VAPE" | "HAIRCUT" | null;
+    paymentMethod?: "CASH" | "PAYLATER" | "CC";
   }
 ): Promise<{ success: boolean; data?: Transaction; error?: string }> {
   try {
@@ -1043,7 +1374,20 @@ export interface KillSwitchItem {
   lastKillSwitchNotifiedAt?: string | null;
 }
 
+export interface SmtpVerificationOutcome {
+  ok: boolean;
+  host: string;
+  port: number;
+  secure: boolean;
+  fallbackUsed: boolean;
+  verifiedAtIso: string;
+  errorCode?: string | null;
+  summary?: string | null;
+  guidance?: string | null;
+}
+
 export interface KillSwitchNotificationConfig {
+  profileEmail?: string | null;
   killSwitchNotifyEmail: string | null;
   killSwitchSmtpUser: string | null;
   hasSmtpPassword: boolean;
@@ -1051,20 +1395,29 @@ export interface KillSwitchNotificationConfig {
   killSwitchWaPhone: string | null;
   hasWaApiKey: boolean;
   killSwitchCustomMessageTemplate: string | null;
+  smtpVerification?: SmtpVerificationOutcome | null;
 }
 
 export interface UpdateKillSwitchNotificationConfigInput {
   killSwitchNotifyEmail?: string;
   killSwitchSmtpUser?: string;
   killSwitchSmtpAppPassword?: string;
+  clearSmtpPassword?: boolean;
+  resetSmtpConfig?: boolean;
   killSwitchWebhookUrl?: string;
   killSwitchWaPhone?: string;
   killSwitchWaApiKey?: string;
+  clearWaApiKey?: boolean;
   killSwitchCustomMessageTemplate?: string;
 }
 
 export interface SendReminderResult {
   success: boolean;
+  mode?: "SENT" | "ERROR" | "DRY_RUN_PREVIEW";
+  configured?: boolean;
+  fallbackUsed?: boolean;
+  errorCode?: string;
+  guidance?: string;
   channels: {
     email: boolean;
     webhook: boolean;
@@ -1120,11 +1473,65 @@ export interface CreditCardSummary {
   utilizationPercent: number;
 }
 
+export type LiabilityCategory =
+  | "PAYLATER"
+  | "PERSONAL_DEBT"
+  | "CREDIT_CARD"
+  | "P1_VAULT_REFUND";
+
+export type BillSettlementState = "UNPAID" | "RESERVED" | "PAID";
+
+export interface LiabilityLineItemDto {
+  id: number;
+  userId: number;
+  month: number;
+  year: number;
+  category: LiabilityCategory;
+  title: string;
+  merchantOrPlatform: string;
+  principalAmount: number;
+  monthlyAmount: number;
+  tenorMonths: number;
+  installmentIndex: number;
+  cutoffDay: number;
+  dueDay: number;
+  isSettled: boolean;
+  isAutoSettled?: boolean;
+  settlementState?: BillSettlementState;
+  dueDateIso?: string;
+  parentContractId: string | null;
+  notes: string | null;
+}
+
+export interface ActiveInstallmentPlanDto {
+  id: string;
+  source: "LINE_ITEM" | "CC_TRANSACTION" | "CREDIT_CONTRACT";
+  category: string;
+  title: string;
+  merchantOrPlatform: string;
+  principalAmount: number;
+  monthlyInstallment: number;
+  totalTenor: number;
+  remainingPrincipal: number;
+  payoffMonth: number;
+  payoffYear: number;
+  payoffDateLabel: string;
+  parentContractId?: string | null;
+  cardId?: number;
+  canAccelerate: boolean;
+  canSettleEarly: boolean;
+  isIncludedInMatrixRows: boolean;
+  cells: Record<string, { amount: number; sliceBadge?: string }>;
+}
+
 export interface LiabilityMatrixColumn {
   month: number;
   year: number;
   key: string;
   label: string;
+  cycleWindow: string;
+  paysDueMonth: string;
+  isPayoutConfirmed: boolean;
 }
 
 export interface LiabilityMatrixCardItem {
@@ -1134,6 +1541,18 @@ export interface LiabilityMatrixCardItem {
   amount: number;
   sliceBadge: string | null;
   endedAtLabel: string | null;
+  isSettled?: boolean;
+  isAutoSettled?: boolean;
+  settlementState?: BillSettlementState;
+  dueDateIso?: string;
+}
+
+export interface PeriodSettlementSummary {
+  totalDue: number;
+  paidAmount: number;
+  reservedAmount: number;
+  unpaidAmount: number;
+  bankHoldNeeded: number;
 }
 
 export interface LiabilityMatrixResponse {
@@ -1141,7 +1560,10 @@ export interface LiabilityMatrixResponse {
   payLaterRow: {
     label: string;
     dueDay: number;
-    cells: Record<string, { bulkBillId?: number; amount: number }>;
+    cells: Record<
+      string,
+      { bulkBillId?: number; amount: number; items?: LiabilityLineItemDto[] }
+    >;
   };
   creditCardRow: {
     label: string;
@@ -1150,38 +1572,60 @@ export interface LiabilityMatrixResponse {
   };
   personalDebtRow: {
     label: string;
-    cells: Record<string, { bulkBillId?: number; amount: number }>;
+    cells: Record<
+      string,
+      { bulkBillId?: number; amount: number; items?: LiabilityLineItemDto[] }
+    >;
   };
   contractRows: Array<{
-    id: number;
+    id: number | string;
     label: string;
     monthlyInstallment: number;
+    source?: "LINE_ITEM" | "CC_TRANSACTION" | "CREDIT_CONTRACT";
+    category?: string;
+    merchantOrPlatform?: string;
+    totalTenor?: number;
+    principalAmount?: number;
+    remainingPrincipal?: number;
+    payoffDateLabel?: string;
+    parentContractId?: string | null;
+    cardId?: number;
+    canAccelerate?: boolean;
+    canSettleEarly?: boolean;
+    isIncludedInMatrixRows?: boolean;
     cells: Record<string, { amount: number; sliceBadge?: string }>;
   }>;
+  activeInstallmentPlans: ActiveInstallmentPlanDto[];
+  lineItemsPerMonth: Record<string, LiabilityLineItemDto[]>;
   totalsPerMonth: Record<string, number>;
+  settlementSummaryPerMonth?: Record<string, PeriodSettlementSummary>;
 }
 
 export async function fetchLiabilityMatrix(
-  startMonth = 7,
+  startMonth = 10,
   startYear = 2026,
   count = 12
 ): Promise<LiabilityMatrixResponse | null> {
-  const res = await fetch(
-    `${API_URL}/api/credit/matrix?startMonth=${startMonth}&startYear=${startYear}&count=${count}`,
-    { headers: await getAuthHeaders(), cache: "no-store" }
-  );
-  return handleResponse<LiabilityMatrixResponse | null>(res, null);
+  return swrFetch(`matrix:${startMonth}:${startYear}:${count}`, async () => {
+    const res = await fetch(
+      `${API_URL}/api/credit/matrix?startMonth=${startMonth}&startYear=${startYear}&count=${count}`,
+      { headers: await getAuthHeaders(), cache: "no-store" }
+    );
+    return handleResponse<LiabilityMatrixResponse | null>(res, null);
+  });
 }
 
 export async function fetchCardSummary(
   month: number,
   year: number
 ): Promise<CreditCardSummary | null> {
-  const res = await fetch(
-    `${API_URL}/api/credit/cards/summary?month=${month}&year=${year}`,
-    { headers: await getAuthHeaders(), cache: "no-store" }
-  );
-  return handleResponse<CreditCardSummary | null>(res, null);
+  return swrFetch(`cardSummary:${month}:${year}`, async () => {
+    const res = await fetch(
+      `${API_URL}/api/credit/cards/summary?month=${month}&year=${year}`,
+      { headers: await getAuthHeaders(), cache: "no-store" }
+    );
+    return handleResponse<CreditCardSummary | null>(res, null);
+  });
 }
 
 export async function fetchCardTransactions(
@@ -1196,11 +1640,14 @@ export async function fetchCardTransactions(
   if (contextMonth !== undefined) params.set("contextMonth", String(contextMonth));
   if (contextYear !== undefined) params.set("contextYear", String(contextYear));
   const query = params.toString() ? `?${params.toString()}` : "";
-  const res = await fetch(`${API_URL}/api/credit/cards${query}`, {
-    headers: await getAuthHeaders(),
-    cache: "no-store",
+  const cacheKey = `cardTransactions:${month ?? "all"}:${year ?? "all"}:${contextMonth ?? "none"}:${contextYear ?? "none"}`;
+  return swrFetch(cacheKey, async () => {
+    const res = await fetch(`${API_URL}/api/credit/cards${query}`, {
+      headers: await getAuthHeaders(),
+      cache: "no-store",
+    });
+    return handleResponse<CreditCardTransaction[]>(res, []);
   });
-  return handleResponse<CreditCardTransaction[]>(res, []);
 }
 
 export async function createCardCharge(data: {
@@ -1226,6 +1673,7 @@ export async function createCardCharge(data: {
     if (!res.ok) {
       return { success: false, error: body.message || "Failed to create card charge" };
     }
+    invalidateCache();
     return { success: true, data: body };
   } catch (error: any) {
     return { success: false, error: error.message || "Network error" };
@@ -1258,6 +1706,7 @@ export async function updateCardCharge(
           : body.message || "Failed to update card charge",
       };
     }
+    invalidateCache();
     return { success: true, data: body };
   } catch (error: any) {
     return { success: false, error: error.message || "Network error" };
@@ -1289,6 +1738,7 @@ export async function settleCardInstallmentEarly(
           : body.message || "Failed to settle installment early",
       };
     }
+    invalidateCache();
     return { success: true, data: body };
   } catch (error: any) {
     return { success: false, error: error.message || "Network error" };
@@ -1308,6 +1758,7 @@ export async function deleteCardCharge(
       const body = await res.json();
       return { success: false, error: body.message || "Failed to delete card charge" };
     }
+    invalidateCache();
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message || "Network error" };
@@ -1361,6 +1812,323 @@ export async function updateBulkBillCell(data: {
   }
 }
 
+export async function fetchInstallmentPlans(): Promise<ActiveInstallmentPlanDto[]> {
+  try {
+    const res = await fetch(`${API_URL}/api/credit/installment-plans`, {
+      headers: await getAuthHeaders(),
+      cache: "no-store",
+    });
+    return handleResponse<ActiveInstallmentPlanDto[]>(res, []);
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchLineItems(params?: {
+  month?: number;
+  year?: number;
+  category?: LiabilityCategory;
+}): Promise<LiabilityLineItemDto[]> {
+  try {
+    const sp = new URLSearchParams();
+    if (params?.month) sp.set("month", String(params.month));
+    if (params?.year) sp.set("year", String(params.year));
+    if (params?.category) sp.set("category", params.category);
+    const query = sp.toString() ? `?${sp.toString()}` : "";
+    const res = await fetch(`${API_URL}/api/credit/line-items${query}`, {
+      headers: await getAuthHeaders(),
+      cache: "no-store",
+    });
+    return handleResponse<LiabilityLineItemDto[]>(res, []);
+  } catch {
+    return [];
+  }
+}
+
+export async function createLineItem(data: {
+  title: string;
+  category: LiabilityCategory;
+  merchantOrPlatform?: string;
+  totalAmount?: number;
+  monthlyAmount?: number;
+  tenorMonths?: number;
+  startMonth?: number;
+  startYear?: number;
+  purchaseDate?: string;
+  autoRouteByCutoff?: boolean;
+  holdPastCutoff?: boolean;
+  cutoffDay?: number;
+  dueDay?: number;
+  parentContractId?: string;
+  amountMode?: "PRINCIPAL_SPLIT" | "FIXED_MONTHLY";
+  notes?: string;
+}): Promise<{ success: boolean; data?: LiabilityLineItemDto[]; error?: string }> {
+  try {
+    const res = await fetch(`${API_URL}/api/credit/line-items`, {
+      method: "POST",
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(data),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return {
+        success: false,
+        error: Array.isArray(body.message)
+          ? body.message.join(", ")
+          : body.message || "Failed to add liability line item",
+      };
+    }
+    invalidateCache();
+    return { success: true, data: Array.isArray(body) ? body : [body] };
+  } catch (error: any) {
+    return { success: false, error: error.message || "Network error" };
+  }
+}
+
+export async function shiftLineItem(
+  id: number,
+  data: {
+    direction: "EARLIER" | "LATER";
+    shiftAllRemainingInContract?: boolean;
+    splitAmount?: number;
+  }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${API_URL}/api/credit/line-items/${id}/shift`, {
+      method: "POST",
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(data),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return {
+        success: false,
+        error: Array.isArray(body.message)
+          ? body.message.join(", ")
+          : body.message || "Failed to shift line item",
+      };
+    }
+    invalidateCache();
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message || "Network error" };
+  }
+}
+
+export async function deleteLineItem(
+  id: number
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${API_URL}/api/credit/line-items/${id}`, {
+      method: "DELETE",
+      headers: await getAuthHeaders(),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return {
+        success: false,
+        error: Array.isArray(body.message)
+          ? body.message.join(", ")
+          : body.message || "Failed to delete line item",
+      };
+    }
+    invalidateCache();
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message || "Network error" };
+  }
+}
+
+export async function toggleLineItemSettled(
+  id: number,
+  isSettled: boolean
+): Promise<{ success: boolean; data?: LiabilityLineItemDto; error?: string }> {
+  try {
+    const res = await fetch(`${API_URL}/api/credit/line-items/${id}/settle`, {
+      method: "PATCH",
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ isSettled }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return {
+        success: false,
+        error: Array.isArray(body.message)
+          ? body.message.join(", ")
+          : body.message || "Failed to update payment status",
+      };
+    }
+    invalidateCache();
+    return { success: true, data: body };
+  } catch (error: any) {
+    return { success: false, error: error.message || "Network error" };
+  }
+}
+
+export async function setLineItemSettlementState(
+  id: number,
+  settlementState: BillSettlementState
+): Promise<{ success: boolean; data?: LiabilityLineItemDto; error?: string }> {
+  try {
+    const res = await fetch(`${API_URL}/api/credit/line-items/${id}/settlement-state`, {
+      method: "PATCH",
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ settlementState }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return {
+        success: false,
+        error: Array.isArray(body.message)
+          ? body.message.join(", ")
+          : body.message || "Failed to update settlement state",
+      };
+    }
+    invalidateCache();
+    return { success: true, data: body };
+  } catch (error: any) {
+    return { success: false, error: error.message || "Network error" };
+  }
+}
+
+export async function settleBulkLineItems(params: {
+  month: number;
+  year: number;
+  category?: LiabilityCategory;
+  isSettled?: boolean;
+  settlementState?: BillSettlementState;
+}): Promise<{
+  success: boolean;
+  data?: {
+    updatedCount: number;
+    month: number;
+    year: number;
+    isSettled: boolean;
+    settlementState?: BillSettlementState;
+  };
+  error?: string;
+}> {
+  try {
+    const res = await fetch(`${API_URL}/api/credit/line-items/settle-bulk`, {
+      method: "PATCH",
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(params),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return {
+        success: false,
+        error: Array.isArray(body.message)
+          ? body.message.join(", ")
+          : body.message || "Failed to update bulk payment status",
+      };
+    }
+    invalidateCache();
+    return { success: true, data: body };
+  } catch (error: any) {
+    return { success: false, error: error.message || "Network error" };
+  }
+}
+
+export async function createBridgeLoan(data: {
+  title: string;
+  merchantOrPlatform?: string;
+  principalAmount: number;
+  monthlyInstallment: number;
+  tenorMonths: number;
+  inflowMonth: number;
+  inflowYear: number;
+  livingCashAllocation: number;
+  routineBillsAllocation: number;
+  routineCategorySlot?: "TRANSPORT" | "INTERNET" | "VAPE" | "HAIRCUT";
+  routineSlotLabel?: string;
+  firstInstallmentMonth: number;
+  firstInstallmentYear: number;
+  earlyPayoffMonth?: number;
+  earlyPayoffYear?: number;
+  dueDay?: number;
+}): Promise<{ success: boolean; data?: any; error?: string }> {
+  try {
+    const res = await fetch(`${API_URL}/api/credit/bridge-loan`, {
+      method: "POST",
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(data),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return {
+        success: false,
+        error: Array.isArray(body.message)
+          ? body.message.join(", ")
+          : body.message || "Failed to record bridge loan",
+      };
+    }
+    invalidateCache();
+    return { success: true, data: body };
+  } catch (error: any) {
+    return { success: false, error: error.message || "Network error" };
+  }
+}
+
+export async function accelerateBridgeLoan(data: {
+  parentContractId: string;
+  targetMonth: number;
+  targetYear: number;
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${API_URL}/api/credit/bridge-loan/accelerate`, {
+      method: "POST",
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(data),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return {
+        success: false,
+        error: Array.isArray(body.message)
+          ? body.message.join(", ")
+          : body.message || "Failed to accelerate payoff",
+      };
+    }
+    invalidateCache();
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message || "Network error" };
+  }
+}
+
+export async function borrowFromP1Vault(
+  snapshotId: number,
+  data: {
+    amount: number;
+    destination: "SELF_REWARD" | "LIVING_CASH";
+    refundMonth: number;
+    refundYear: number;
+    reason: string;
+  }
+): Promise<{ success: boolean; data?: any; error?: string }> {
+  try {
+    const res = await fetch(`${API_URL}/api/snapshots/${snapshotId}/borrow-p1`, {
+      method: "POST",
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(data),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return {
+        success: false,
+        error: Array.isArray(body.message)
+          ? body.message.join(", ")
+          : body.message || "Failed to borrow from P1 savings",
+      };
+    }
+    invalidateCache();
+    return { success: true, data: body };
+  } catch (error: any) {
+    return { success: false, error: error.message || "Network error" };
+  }
+}
+
 export async function fetchKillSwitches(): Promise<KillSwitchResponse | null> {
   const res = await fetch(`${API_URL}/api/credit/kill-switches`, {
     headers: await getAuthHeaders(),
@@ -1387,6 +2155,7 @@ export async function createKillSwitch(
           : body.message || "Failed to create subscription kill-switch",
       };
     }
+    invalidateCache();
     return { success: true, data: body };
   } catch (error: any) {
     return { success: false, error: error.message || "Network error" };
@@ -1412,6 +2181,7 @@ export async function updateKillSwitch(
           : body.message || "Failed to update subscription kill-switch",
       };
     }
+    invalidateCache();
     return { success: true, data: body };
   } catch (error: any) {
     return { success: false, error: error.message || "Network error" };
@@ -1676,6 +2446,7 @@ export interface GlobalConfig {
   enabledModulesJson?: ModuleKey[] | null;
   formulaEngineType?: FormulaEngineType;
   formulaParamsJson?: FormulaParams | null;
+  studioConfig?: ModularStudioConfig;
   killSwitchLeadDays?: number;
   killSwitchBannerEnabled?: boolean;
   recalculateDrafts?: boolean;
@@ -1725,6 +2496,8 @@ export interface CreditCeilingBreakdown {
   maxCashflowBeforeDeficit: number;
   recommendedOptimalCombinedCeiling: number;
   recommendedSafeCombinedCeiling: number;
+  evaluatedOptimalCeilingRp?: number;
+  evaluatedSafeCeilingRp?: number;
   optimalBindingConstraint: OptimalBindingConstraint;
   safeBindingConstraint: SafeBindingConstraint;
   remainingSafeHeadroomForCc: number;
@@ -1736,6 +2509,10 @@ export interface CreditCeilingBreakdown {
 export interface CreditLimitCalculationResult {
   month: number;
   year: number;
+  maturityMonth?: number;
+  maturityYear?: number;
+  ccDueDay?: number;
+  paylaterDueDay?: number;
   isSnapshotPersisted: boolean;
   snapshotStatus: "DRAFT" | "LOCKED" | "UNINITIALIZED";
   bankCreditLimit: number;
@@ -1754,11 +2531,13 @@ export async function fetchCreditUsageLimit(
   month: number,
   year: number
 ): Promise<CreditLimitCalculationResult | null> {
-  const res = await fetch(
-    `${API_URL}/api/credit/usage-limit?month=${month}&year=${year}`,
-    { cache: "no-store" }
-  );
-  return handleResponse<CreditLimitCalculationResult | null>(res, null);
+  return swrFetch(`creditUsageLimit:${month}:${year}`, async () => {
+    const res = await fetch(
+      `${API_URL}/api/credit/usage-limit?month=${month}&year=${year}`,
+      { headers: await getAuthHeaders(), cache: "no-store" }
+    );
+    return handleResponse<CreditLimitCalculationResult | null>(res, null);
+  });
 }
 
 export async function updateCreditUsageLimit(data: {
@@ -1787,6 +2566,7 @@ export async function updateCreditUsageLimit(data: {
           : body.message || "Failed to update credit usage limits",
       };
     }
+    invalidateCache();
     return { success: true, data: body };
   } catch (error: any) {
     return { success: false, error: error.message || "Network error" };
@@ -1822,6 +2602,7 @@ export async function updateGlobalConfig(
         error: Array.isArray(body.message) ? body.message.join(", ") : body.message || "Failed to update configuration",
       };
     }
+    invalidateCache();
     return { success: true, data: body };
   } catch (error: any) {
     return { success: false, error: error.message || "Network error" };
@@ -1846,6 +2627,7 @@ export async function syncConfigToPeriod(
         error: Array.isArray(body.message) ? body.message.join(", ") : body.message || "Failed to sync configuration",
       };
     }
+    invalidateCache();
     return { success: true, data: body };
   } catch (error: any) {
     return { success: false, error: error.message || "Network error" };
@@ -1897,6 +2679,7 @@ export async function restoreDefaultRules(): Promise<{ success: boolean; error?:
         error: Array.isArray(body.message) ? body.message.join(", ") : body.message || "Failed to restore defaults",
       };
     }
+    invalidateCache();
     return { success: true, data: body };
   } catch (error: any) {
     return { success: false, error: error.message || "Network error" };
@@ -1928,6 +2711,7 @@ export interface CustomFeatureRequest {
 
 export async function fetchCustomRequests(): Promise<CustomFeatureRequest[]> {
   const res = await fetch(`${API_URL}/api/config/custom-requests`, {
+    headers: await getAuthHeaders(),
     cache: "no-store",
   });
   return handleResponse<CustomFeatureRequest[]>(res, []);
@@ -2029,6 +2813,7 @@ export async function resyncSnapshotRules(
         error: Array.isArray(body.message) ? body.message.join(", ") : body.message || "Failed to resync rules",
       };
     }
+    invalidateCache();
     return { success: true, data: body };
   } catch (error: any) {
     return { success: false, error: error.message || "Network error" };
@@ -2044,6 +2829,8 @@ export async function createBudgetRevision(
     bucketLabel?: string;
     newValue: number;
     reason: string;
+    isOneOff?: boolean;
+    oneOffLabel?: string;
   }
 ): Promise<{ success: boolean; data?: { revision: BudgetRevision; snapshot: MonthlySnapshot }; error?: string }> {
   try {
@@ -2059,6 +2846,7 @@ export async function createBudgetRevision(
         error: Array.isArray(body.message) ? body.message.join(", ") : body.message || "Failed to revise budget target",
       };
     }
+    invalidateCache();
     return { success: true, data: body };
   } catch (error: any) {
     return { success: false, error: error.message || "Network error" };
@@ -2216,7 +3004,10 @@ export async function fetchWishlistItems(status?: WishlistStatus): Promise<Wishl
     const url = status
       ? `${API_URL}/api/wishlist?status=${encodeURIComponent(status)}`
       : `${API_URL}/api/wishlist`;
-    const res = await fetch(url, { cache: "no-store" });
+    const res = await fetch(url, {
+      headers: await getAuthHeaders(),
+      cache: "no-store",
+    });
     if (!res.ok) return [];
     return await res.json();
   } catch {
@@ -2240,6 +3031,7 @@ export async function createWishlistItem(
         error: Array.isArray(body.message) ? body.message.join(", ") : body.message || "Failed to create wishlist item",
       };
     }
+    invalidateCache();
     return { success: true, data: body };
   } catch (error: any) {
     return { success: false, error: error.message || "Network error" };
@@ -2264,6 +3056,7 @@ export async function updateWishlistItem(
         error: Array.isArray(body.message) ? body.message.join(", ") : body.message || "Failed to update wishlist item",
       };
     }
+    invalidateCache();
     return { success: true, data: body };
   } catch (error: any) {
     return { success: false, error: error.message || "Network error" };
@@ -2286,6 +3079,7 @@ export async function deleteWishlistItem(
         error: Array.isArray(body.message) ? body.message.join(", ") : body.message || "Failed to delete wishlist item",
       };
     }
+    invalidateCache();
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message || "Network error" };
@@ -2335,7 +3129,10 @@ export async function analyzeWishlistItem(
     if (year) params.append("year", String(year));
     if (params.toString()) url += `?${params.toString()}`;
 
-    const res = await fetch(url, { cache: "no-store" });
+    const res = await fetch(url, {
+      headers: await getAuthHeaders(),
+      cache: "no-store",
+    });
     const body = await res.json();
     if (!res.ok) {
       return {
@@ -2365,6 +3162,7 @@ export async function convertWishlistToContract(
         error: Array.isArray(body.message) ? body.message.join(", ") : body.message || "Failed to convert item to contract",
       };
     }
+    invalidateCache();
     return { success: true, data: body };
   } catch (error: any) {
     return { success: false, error: error.message || "Network error" };
@@ -2387,6 +3185,7 @@ export async function trackWishlistAsSavingsGoal(
         error: Array.isArray(body.message) ? body.message.join(", ") : body.message || "Failed to track wishlist item as savings goal",
       };
     }
+    invalidateCache();
     return { success: true, data: body };
   } catch (error: any) {
     return { success: false, error: error.message || "Network error" };
@@ -2528,6 +3327,7 @@ export async function fetchAuditLogs(
   if (severity) query.append("severity", severity);
 
   const res = await fetch(`${API_URL}/api/audit?${query.toString()}`, {
+    headers: await getAuthHeaders(),
     cache: "no-store",
   });
   return handleResponse<PaginatedAuditLogs>(res, { items: [], total: 0, page, limit, totalPages: 0 });
@@ -2535,6 +3335,7 @@ export async function fetchAuditLogs(
 
 export async function fetchAuditSummary(): Promise<AuditSummary | null> {
   const res = await fetch(`${API_URL}/api/audit/summary`, {
+    headers: await getAuthHeaders(),
     cache: "no-store",
   });
   return handleResponse<AuditSummary | null>(res, null);
@@ -2542,6 +3343,7 @@ export async function fetchAuditSummary(): Promise<AuditSummary | null> {
 
 export async function fetchAuditReport(): Promise<AuditEvaluationResult | null> {
   const res = await fetch(`${API_URL}/api/audit/report`, {
+    headers: await getAuthHeaders(),
     cache: "no-store",
   });
   return handleResponse<AuditEvaluationResult | null>(res, null);
@@ -2667,6 +3469,7 @@ export async function fetchAnalytics(
   scope: AnalyticsScope = "all"
 ): Promise<AnalyticsReportResult | null> {
   const res = await fetch(`${API_URL}/api/analytics?scope=${scope}`, {
+    headers: await getAuthHeaders(),
     cache: "no-store",
   });
   return handleResponse<AnalyticsReportResult | null>(res, null);
@@ -3148,6 +3951,55 @@ export interface ExecutiveReportPayload {
   amortizationSchedule: LiabilityAmortizationSchedule;
   dossier: BudgetRevisionAndDisciplineDossier;
   liquidityForecast?: ExecutiveLiquidityForecastReport;
+  liabilityLineItems?: Array<{
+    id: number;
+    month: number;
+    year: number;
+    periodLabel: string;
+    category: string;
+    title: string;
+    merchantOrPlatform: string;
+    principalAmount: number;
+    monthlyAmount: number;
+    tenorMonths: number;
+    installmentIndex: number;
+    dueDay: number;
+    dueDateIso: string;
+    settlementState: BillSettlementState;
+    isSettled: boolean;
+    parentContractId: string | null;
+    notes: string | null;
+  }>;
+  creditCardScheduleItems?: Array<{
+    id: number;
+    periodMonth: number;
+    periodYear: number;
+    periodLabel: string;
+    label: string;
+    chargeType: string;
+    amount: number;
+    sliceBadge: string | null;
+    endedAtLabel: string | null;
+    dueDateIso: string;
+    settlementState: BillSettlementState;
+    isSettled: boolean;
+  }>;
+  activeContractsSummary?: Array<{
+    id: string;
+    source: string;
+    category: string;
+    title: string;
+    merchantOrPlatform: string;
+    principalAmount: number;
+    monthlyInstallment: number;
+    totalTenor: number;
+    remainingPrincipal: number;
+    payoffMonth: number;
+    payoffYear: number;
+    payoffDateLabel: string;
+  }>;
+  settlementTotalsForSelectedPeriod?: PeriodSettlementSummary;
+  horizonMetrics?: ExecutiveHorizonResult;
 }
 
 export async function fetchExecutiveReport(
@@ -3155,11 +4007,13 @@ export async function fetchExecutiveReport(
   year: number,
   scope: ReportScope = "all"
 ): Promise<ExecutiveReportPayload | null> {
-  const res = await fetch(
-    `${API_URL}/api/reports?month=${month}&year=${year}&scope=${scope}`,
-    { cache: "no-store" }
-  );
-  return handleResponse<ExecutiveReportPayload | null>(res, null);
+  return swrFetch(`executiveReport:${month}:${year}:${scope}`, async () => {
+    const res = await fetch(
+      `${API_URL}/api/reports?month=${month}&year=${year}&scope=${scope}`,
+      { headers: await getAuthHeaders(), cache: "no-store" }
+    );
+    return handleResponse<ExecutiveReportPayload | null>(res, null);
+  });
 }
 
 export type SurplusResolutionMode =
@@ -3273,6 +4127,7 @@ export async function executeCashReconciliation(data: {
           : body.message || "Failed to execute cash reconciliation",
       };
     }
+    invalidateCache();
     return { success: true, data: body };
   } catch (error: any) {
     return { success: false, error: error.message || "Network error" };
@@ -3325,6 +4180,7 @@ export async function searchGlobalTransactions(params: {
       sp.set("fixedEssentialCategory", params.fixedEssentialCategory);
     if (params.limit) sp.set("limit", String(params.limit));
     const res = await fetch(`${API_URL}/api/finance/search?${sp.toString()}`, {
+      headers: await getAuthHeaders(),
       cache: "no-store",
     });
     return handleResponse<GlobalSearchResponse | null>(res, null);
@@ -3340,6 +4196,7 @@ export async function exportDatabaseBackup(): Promise<{
 }> {
   try {
     const res = await fetch(`${API_URL}/api/config/backup`, {
+      headers: await getAuthHeaders(),
       cache: "no-store",
     });
     const body = await res.json();
@@ -3448,6 +4305,7 @@ export async function addRoutineCategory(payload: {
           : body.message || "Failed to add routine category",
       };
     }
+    invalidateCache();
     return { success: true, data: body };
   } catch (error: any) {
     return { success: false, error: error.message || "Network error" };
@@ -3476,6 +4334,7 @@ export async function removeRoutineCategory(
         error: body.message || "Failed to remove routine category",
       };
     }
+    invalidateCache();
     return { success: true, data: body };
   } catch (error: any) {
     return { success: false, error: error.message || "Network error" };
@@ -3505,6 +4364,7 @@ export async function initializeNewPeriod(payload: {
           : body.message || "Failed to initialize new period",
       };
     }
+    invalidateCache();
     return { success: true, data: body };
   } catch (error: any) {
     return { success: false, error: error.message || "Network error" };
@@ -3813,19 +4673,52 @@ export interface SecuritySettings {
   trustedIps: TrustedIpRecord[];
 }
 
+function readClientCookieValue(name: string): string | null {
+  if (typeof document === "undefined") return null;
+  const prefix = `${name}=`;
+  const parts = document.cookie.split(";");
+  for (const part of parts) {
+    const trimmed = part.trim();
+    if (trimmed.startsWith(prefix)) {
+      try {
+        return decodeURIComponent(trimmed.slice(prefix.length));
+      } catch {
+        return trimmed.slice(prefix.length);
+      }
+    }
+  }
+  return null;
+}
+
 export async function getAuthHeaders(initHeaders?: HeadersInit): Promise<HeadersInit> {
   const headers = new Headers(initHeaders || {});
   if (typeof window !== "undefined") {
-    const token = localStorage.getItem("erp_auth_token");
+    let token: string | null = null;
+    let userJson: string | null = null;
+    try {
+      token = localStorage.getItem("erp_auth_token");
+      userJson = localStorage.getItem("erp_auth_user");
+    } catch {}
+    if (!token) {
+      try {
+        token = sessionStorage.getItem("erp_auth_token");
+        userJson = userJson || sessionStorage.getItem("erp_auth_user");
+      } catch {}
+    }
+    if (!token) {
+      token = readClientCookieValue("erp_auth_token");
+    }
     if (token) {
       headers.set("Authorization", `Bearer ${token}`);
     }
-    const userJson = localStorage.getItem("erp_auth_user");
     if (userJson) {
       try {
         const u = JSON.parse(userJson);
         if (u?.id) headers.set("x-user-id", String(u.id));
       } catch {}
+    } else {
+      const cookieUid = readClientCookieValue("erp_user_id");
+      if (cookieUid) headers.set("x-user-id", cookieUid);
     }
   } else {
     try {
@@ -3939,6 +4832,32 @@ export async function registerMember(payload: {
     throw new Error(data.message || "Registration failed");
   }
   return data;
+}
+
+export async function updateProfile(payload: {
+  email?: string;
+  fullName?: string;
+}): Promise<{ success: boolean; data?: AuthResponse; error?: string }> {
+  try {
+    const res = await fetch(`${API_URL}/api/auth/profile`, {
+      method: "PATCH",
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(payload),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return {
+        success: false,
+        error: Array.isArray(body.message)
+          ? body.message.join(", ")
+          : body.message || "Failed to update profile",
+      };
+    }
+    invalidateCache();
+    return { success: true, data: body };
+  } catch (err: any) {
+    return { success: false, error: err?.message || "Network error" };
+  }
 }
 
 export async function fetchMe(): Promise<{ user: AuthenticatedUser | null; isUnauthorized?: boolean }> {
@@ -4377,4 +5296,1101 @@ export async function deleteSqlRecord(
     throw new Error(json.message || `Failed to delete record from "${tableName}"`);
   }
   return json;
+}
+
+export interface EmailDispatchResult {
+  status: "SENT" | "DRY_RUN_PREVIEW";
+  configured: boolean;
+  verified?: boolean;
+  fallbackUsed?: boolean;
+  host?: string;
+  port?: number;
+  recipientEmail: string;
+  locale: "EN" | "ID" | "ZH";
+  subject: string;
+  messageId: string | null;
+  attachmentNames: string[];
+  attachmentSizesBytes: number[];
+  checksumSha256?: string;
+  htmlPreview: string;
+  sentAtIso: string;
+}
+
+async function postEmailAction<TBody extends Record<string, any>>(
+  endpoint: string,
+  payload: TBody
+): Promise<{
+  success: boolean;
+  data?: EmailDispatchResult;
+  error?: string;
+  errorCode?: string;
+  guidance?: string;
+}> {
+  try {
+    const res = await fetch(`${API_URL}/api/email/${endpoint}`, {
+      method: "POST",
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(payload),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return {
+        success: false,
+        error: Array.isArray(json.message)
+          ? json.message.join(", ")
+          : json.message || "Email dispatch request failed",
+        errorCode: typeof json.errorCode === "string" ? json.errorCode : undefined,
+        guidance: typeof json.guidance === "string" ? json.guidance : undefined,
+      };
+    }
+    return { success: true, data: json };
+  } catch (err: any) {
+    return { success: false, error: err?.message || "Network error" };
+  }
+}
+
+export async function sendMonthlyStatementEmail(params: {
+  month?: number;
+  year?: number;
+  scope?: "all" | "locked";
+  locale?: "EN" | "ID" | "ZH";
+  recipientEmail?: string;
+  dryRun?: boolean;
+}) {
+  return postEmailAction("monthly-statement", params);
+}
+
+export async function sendCutoffDigestEmail(params: {
+  month?: number;
+  year?: number;
+  locale?: "EN" | "ID" | "ZH";
+  recipientEmail?: string;
+  dryRun?: boolean;
+}) {
+  return postEmailAction("cutoff-digest", params);
+}
+
+export async function sendLedgerBackupEmail(params: {
+  month?: number;
+  year?: number;
+  locale?: "EN" | "ID" | "ZH";
+  recipientEmail?: string;
+  dryRun?: boolean;
+}) {
+  return postEmailAction("ledger-backup", params);
+}
+
+export async function sendTestEmailDispatch(params: {
+  locale?: "EN" | "ID" | "ZH";
+  recipientEmail?: string;
+  dryRun?: boolean;
+}) {
+  return postEmailAction("test-dispatch", params);
+}
+
+export interface EmailStatusResponse {
+  mode: "LIVE_SMTP" | "AUTH_ERROR" | "DRY_RUN_PREVIEW";
+  configured: boolean;
+  verified?: boolean;
+  verificationStatus?: "VERIFIED" | "ERROR" | "UNCONFIGURED";
+  verifiedAtIso?: string | null;
+  fallbackUsed?: boolean;
+  errorCode?: string | null;
+  verificationError?: string | null;
+  verificationGuidance?: string | null;
+  host: string;
+  port: number;
+  secure: boolean;
+  smtpUser: string;
+  profileEmail?: string | null;
+  platformFrom?: string;
+  defaultRecipient: string;
+  configuredRecipient: string;
+  recipientEmail: string;
+  hasSmtpPassword: boolean;
+  hasAppPassword: boolean;
+}
+
+export async function fetchEmailStatus(): Promise<EmailStatusResponse | null> {
+  const res = await fetch(`${API_URL}/api/email/status`, {
+    headers: await getAuthHeaders(),
+    cache: "no-store",
+  });
+  return handleResponse<EmailStatusResponse | null>(res, null);
+}
+
+export async function verifySmtpConnection(): Promise<EmailStatusResponse | null> {
+  try {
+    const res = await fetch(`${API_URL}/api/email/verify`, {
+      method: "POST",
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+      cache: "no-store",
+    });
+    return handleResponse<EmailStatusResponse | null>(res, null);
+  } catch {
+    return null;
+  }
+}
+
+export async function previewEmailTemplate(params: {
+  template:
+    | "monthly-statement"
+    | "cutoff-digest"
+    | "ledger-backup"
+    | "test-dispatch"
+    | "kill-switch";
+  month?: number;
+  year?: number;
+  scope?: "all" | "locked";
+  locale?: "EN" | "ID" | "ZH";
+  recipientEmail?: string;
+  killSwitchId?: number;
+}) {
+  return postEmailAction("preview", params);
+}
+
+// ---------------------------------------------------------------------------
+// Hybrid Go Engine Bridge Endpoints
+// ---------------------------------------------------------------------------
+
+export type HybridInstrument =
+  | "SPAYLATER"
+  | "CREDIT_CARD"
+  | "SPINJAM"
+  | "PERSONAL_DEBT"
+  | "CASH";
+
+export interface CutoffScheduleSliceDto {
+  index: number;
+  totalTenor: number;
+  sliceBadge: string;
+  periodMonth: number;
+  periodYear: number;
+  periodLabel: string;
+  dueMonth: number;
+  dueYear: number;
+  dueDay: number;
+  dueDateIso: string;
+  amount: number;
+}
+
+export interface CutoffSimulateResponse {
+  engineSource?: "GO_BINARY" | "TS_MIRROR";
+  instrument: HybridInstrument;
+  amountMode: "PRINCIPAL_SPLIT" | "FIXED_MONTHLY";
+  totalPrincipal: number;
+  monthlySliceFirst: number;
+  monthlySliceLast: number;
+  tenorMonths: number;
+  cutoffDay: number;
+  dueDay: number;
+  crossedCutoff: boolean;
+  startPeriodMonth: number;
+  startPeriodYear: number;
+  startPeriodLabel: string;
+  firstDueMonth: number;
+  firstDueYear: number;
+  firstDueDateIso: string;
+  endPeriodMonth: number;
+  endPeriodYear: number;
+  endPeriodLabel: string;
+  dsrBeforePercent: number;
+  dsrAfterPercent: number;
+  nextDsrAfterPercent: number;
+  safeHeadroomRemaining: number;
+  daysUntilCutoff: number;
+  verdict: "SAFE" | "CAUTION" | "WAIT_PAST_CUTOFF" | "OVER_LIMIT";
+  advice: string;
+  routingSummary: string;
+  slices: CutoffScheduleSliceDto[];
+}
+
+export interface TimelineEventDto {
+  sequence: number;
+  dateIso: string;
+  label: string;
+  category: string;
+  waveGroup: string;
+  signedAmount: number;
+  runningBalance: number;
+  isBridgeWindow: boolean;
+  notes: string;
+}
+
+export interface TimelineSimulateResponse {
+  engineSource?: "GO_BINARY" | "TS_MIRROR";
+  events: TimelineEventDto[];
+  wave1AvailableCash: number;
+  preThrBridgeMinimumBalance: number;
+  postThrBalance: number;
+  postPaylaterRemainingBalance: number;
+  spaylaterEarlyPayApplied: number;
+  spaylaterRemainingAfterEarly: number;
+  bridgeSafe: boolean;
+  bridgeRiskMessage: string;
+  baseline: {
+    periodLabel: string;
+    paycheckAmount: number;
+    thrAmount: number;
+    paylaterDue: number;
+    creditCardDue: number;
+    personalDebtDue: number;
+    dailyLivingPool: number;
+    routineBillsPool: number;
+    coreSavingsTarget: number;
+  };
+}
+
+export interface FreedCashflowMilestone {
+  month: number;
+  year: number;
+  periodLabel: string;
+  freedMonthlyRp: number;
+  cumulativeFreedRp: number;
+  endingContracts: string[];
+}
+
+export interface HorizonPeriodDriver {
+  month: number;
+  year: number;
+  periodLabel: string;
+  dsrPercent: number;
+  netSavingsRatePct: number;
+  effectiveDailyRate: number;
+  momDebtDelta: number;
+  momIncomeDelta: number;
+  narrativeDriver: string;
+}
+
+export interface ExecutiveHorizonResult {
+  engineSource?: "GO_BINARY" | "TS_MIRROR";
+  selectedPeriodLabel: string;
+  dsrPercent: number;
+  netSavingsRatePercent: number;
+  debtBurnDownVelocityRp: number;
+  effectiveDailyLivingRate: number;
+  totalActiveContracts: number;
+  totalRemainingPrincipalRp: number;
+  nextMilestoneLabel: string;
+  freedUpMilestones: FreedCashflowMilestone[];
+  periodDrivers: HorizonPeriodDriver[];
+}
+
+export interface ContractsBurndownResponse {
+  horizon: ExecutiveHorizonResult;
+  plans: ActiveInstallmentPlanDto[];
+  contractRows: LiabilityMatrixResponse["contractRows"];
+  totalMonthlyCommitmentRp: number;
+  debtFreedomLabel: string;
+}
+
+export interface WalletGuardResult {
+  engineSource?: "GO_BINARY" | "TS_MIRROR";
+  remainingLivingCash: number;
+  actualWalletBalance: number;
+  reservedBillsTotal: number;
+  freeSpendableCash: number;
+  varianceVsLedger: number;
+  guardStatus: "OPTIMAL" | "WATCH" | "SURVIVAL_GUARD";
+  effectiveLivingBase: number;
+  dailySafeFlat: number;
+  dailySafeWeekday: number;
+  dailySafeWeekend: number;
+  safeToSpendToday: number;
+  guidance: string;
+}
+
+export interface WalletGuardStatusResponse {
+  pacing: DailyPacing;
+  settlementSummary: PeriodSettlementSummary;
+  savedCheckin: {
+    actualWalletBalance: number;
+    reservedBillsTotal: number;
+    freeSpendableCash: number;
+    guardStatus: "OPTIMAL" | "WATCH" | "SURVIVAL_GUARD";
+    checkedInAt: string;
+    note: string | null;
+  } | null;
+  guard: WalletGuardResult | null;
+}
+
+export async function simulateCutoffApi(payload: {
+  title?: string;
+  instrument: HybridInstrument;
+  amountMode?: "PRINCIPAL_SPLIT" | "FIXED_MONTHLY";
+  principalAmount: number;
+  monthlyAmount?: number;
+  tenorMonths?: number;
+  purchaseDate?: string;
+  dueDayOverride?: number;
+  holdPastCutoff?: boolean;
+  startMonthOverride?: number;
+  startYearOverride?: number;
+}): Promise<CutoffSimulateResponse | null> {
+  try {
+    const res = await fetch(`${API_URL}/api/finance/cutoff-simulate`, {
+      method: "POST",
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(payload),
+    });
+    return handleResponse<CutoffSimulateResponse | null>(res, null);
+  } catch {
+    return null;
+  }
+}
+
+export async function simulateTimelineApi(payload: {
+  month: number;
+  year: number;
+  spaylaterEarlyPayAmount?: number;
+  thrAmountOverride?: number;
+  thrDateIso?: string;
+  paycheckAmountOverride?: number;
+}): Promise<TimelineSimulateResponse | null> {
+  try {
+    const res = await fetch(`${API_URL}/api/finance/timeline-simulate`, {
+      method: "POST",
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(payload),
+    });
+    return handleResponse<TimelineSimulateResponse | null>(res, null);
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchContractsBurndown(
+  month: number,
+  year: number
+): Promise<ContractsBurndownResponse | null> {
+  return swrFetch(`contractsBurndown:${month}:${year}`, async () => {
+    const res = await fetch(
+      `${API_URL}/api/finance/contracts-burndown?month=${month}&year=${year}`,
+      { headers: await getAuthHeaders(), cache: "no-store" }
+    );
+    return handleResponse<ContractsBurndownResponse | null>(res, null);
+  });
+}
+
+export async function fetchWalletGuardStatus(
+  month: number,
+  year: number
+): Promise<WalletGuardStatusResponse | null> {
+  return swrFetch(`walletGuard:${month}:${year}`, async () => {
+    const res = await fetch(
+      `${API_URL}/api/finance/wallet-guard?month=${month}&year=${year}`,
+      { headers: await getAuthHeaders(), cache: "no-store" }
+    );
+    return handleResponse<WalletGuardStatusResponse | null>(res, null);
+  });
+}
+
+export async function evaluateWalletGuardApi(payload: {
+  month: number;
+  year: number;
+  actualWalletBalance: number;
+  reservedBillsTotal?: number;
+  persist?: boolean;
+  note?: string;
+}): Promise<WalletGuardStatusResponse | null> {
+  try {
+    const res = await fetch(`${API_URL}/api/finance/wallet-guard`, {
+      method: "POST",
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(payload),
+    });
+    const data = await handleResponse<WalletGuardStatusResponse | null>(res, null);
+    if (payload.persist && data) {
+      invalidateCache();
+    }
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchExecutiveHorizon(
+  month: number,
+  year: number,
+  scope: ReportScope = "all"
+): Promise<ExecutiveHorizonResult | null> {
+  return swrFetch(`executiveHorizon:${month}:${year}:${scope}`, async () => {
+    const res = await fetch(
+      `${API_URL}/api/reports/executive-horizon?month=${month}&year=${year}&scope=${scope}`,
+      { headers: await getAuthHeaders(), cache: "no-store" }
+    );
+    return handleResponse<ExecutiveHorizonResult | null>(res, null);
+  });
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Modular Preferences Studio & 8-Engine Go Intelligence API Contracts
+// ───────────────────────────────────────────────────────────────────────────
+
+export interface SinkingFundConfigRow {
+  id: string;
+  name: string;
+  targetAmountRp: number;
+  currentSavedRp: number;
+  monthsRemaining: number;
+}
+
+export interface PeriodScheduleOverride {
+  payslipDateIso?: string;
+  paydayDateIso?: string;
+  workingDaysCount?: number;
+  note?: string;
+}
+
+export interface FormulaDefinitions {
+  takeHomeSalaryFormula: string;
+  proratedThrFormula: string;
+  waterfallAllocationFormula: string;
+  debtSafeCeilingFormula: string;
+  dailySafeToSpendFormula: string;
+  trueHourlyWageFormula: string;
+  forecasterFreedDebtToP1Formula: string;
+}
+
+export interface PaycycleFormulaConfig {
+  defaultPeriodStrategy?: "EARLIEST_OPEN_ACTIVE" | "CALENDAR_WINDOW";
+  paydayAnchorDay: number;
+  payslipAnchorDay?: number;
+  payslipShiftRule?: "SHIFT_PREVIOUS_FRIDAY" | "SHIFT_NEXT_WEEKDAY" | "EXACT_DAY" | string;
+  reviewLagWorkingDays?: number;
+  ledgerEpochMonth?: number;
+  ledgerEpochYear?: number;
+  shiftWeekendToFriday: boolean;
+  periodOverrides?: Record<string, PeriodScheduleOverride>;
+  holidayDatesIso?: string[];
+  waterfallPriorityOrder: string[];
+  p1TargetFloorRp: number;
+  defaultDailyFoodBaselineRp: number;
+  weekendWeightMultiplier: number;
+  workdaysPerWeek: number;
+  workHoursPerDay: number;
+  dailyCommuteHours: number;
+  rdpuAnnualYieldPct: number;
+  emergencyFundTargetRp: number;
+  variableShockPercent: number;
+  milestonePriorityOrder?: string[];
+  formulas?: FormulaDefinitions;
+  sinkingFunds: SinkingFundConfigRow[];
+}
+
+export interface InstrumentConfigRow {
+  id: string;
+  name: string;
+  type: "PAYLATER" | "CREDIT_CARD" | "CASH_LOAN" | string;
+  cutoffDay: number;
+  dueDay: number;
+  dueRule: "FIXED_DAY" | "DISBURSEMENT_DAY";
+  monthlyInterestPct: number;
+  adminFeePct: number;
+  creditLimitRp: number;
+  utilizationWarnPct: number;
+  lateFeeRule: string;
+  active: boolean;
+}
+
+export interface AssetAccountConfigRow {
+  id: string;
+  name: string;
+  institution: string;
+  accountType: "OPERATIONAL_BANK" | "MONEY_MARKET_RDPU" | "CASH_WALLET" | "SAVINGS_VAULT" | string;
+  balanceRp: number;
+  annualYieldPct: number;
+  includeInRunway: boolean;
+  isPrimaryPayroll: boolean;
+}
+
+export interface RoutineTemplateConfigRow {
+  id: string;
+  slotKey: string;
+  name: string;
+  monthlyQuotaRp: number;
+  targetDueDay: number;
+  rolloverPolicy: "SWEEP_TO_P1" | "ROLLOVER_NEXT_MONTH";
+  active: boolean;
+}
+
+export interface CustomSidebarShortcut {
+  id: string;
+  label: string;
+  icon: string;
+  targetHref: string;
+  sectionGroup: "FINANCIAL_ENGINE" | "AUDIT_DECISION" | "SYSTEM";
+}
+
+export interface SidebarNavigationConfig {
+  defaultLandingRoute: string;
+  moduleOverrides: Record<string, { label?: string; hidden?: boolean; order?: number }>;
+  customShortcuts: CustomSidebarShortcut[];
+}
+
+export interface ModularStudioConfig {
+  enableExternalAssetPortfolio?: boolean;
+  actualP1VaultBalanceRp?: number | null;
+  paycycleFormulaConfig: PaycycleFormulaConfig;
+  instrumentsTable: InstrumentConfigRow[];
+  assetAccountsTable: AssetAccountConfigRow[];
+  routineTemplatesTable: RoutineTemplateConfigRow[];
+  sidebarNavigationConfig: SidebarNavigationConfig;
+}
+
+export interface PaycycleHorizonEngineResult {
+  engineSource?: "GO_BINARY" | "TS_MIRROR";
+  periodMonth: number;
+  periodYear: number;
+  periodCode: string;
+  payslipDropIso?: string;
+  paydayIso: string;
+  paydayShiftedFromWeekend: boolean;
+  reviewLagWorkingDays?: number;
+  overrideApplied?: boolean;
+  livingStartIso: string;
+  livingEndIso: string;
+  nextPaydayIso: string;
+  maturityMonth: number;
+  maturityYear: number;
+  totalCycleDays: number;
+  remainingDays: number;
+  elapsedDays: number;
+  remainingWeekdays: number;
+  remainingWeekends: number;
+  weekdaySafeRateRp: number;
+  weekendSafeRateRp: number;
+  flatDailyRateRp: number;
+  weekendMultiplier: number;
+}
+
+export interface NetWorthTrajectoryPoint {
+  month: number;
+  year: number;
+  label: string;
+  projectedAssetsRp: number;
+  remainingDebtRp: number;
+  netWorthRp: number;
+  monthlyYieldRp: number;
+}
+
+export interface NetWorthEngineResult {
+  engineSource?: "GO_BINARY" | "TS_MIRROR";
+  liquidAssetsRp: number;
+  totalAssetsRp: number;
+  totalUnpaidDebtRp: number;
+  currentCycleDebtRp?: number;
+  futureInstallmentPrincipalRp?: number;
+  payLaterPrincipalRp: number;
+  creditCardPrincipalRp: number;
+  personalDebtPrincipalRp: number;
+  liquidNetWorthRp: number;
+  totalNetWorthRp: number;
+  assetToDebtCoveragePct: number;
+  debtToAssetLeveragePct: number;
+  monthlyRdpuYieldRp: number;
+  trajectory: NetWorthTrajectoryPoint[];
+}
+
+export interface ForecasterEngineResult {
+  engineSource?: "GO_BINARY" | "TS_MIRROR";
+  spinjamFreedomDate: string;
+  lowDsrMilestoneDate: string;
+  emergencyFundCompletionDate: string;
+  pureSurvivalRunwayDays: number;
+  projected6MWealthBaselineRp: number;
+  projected12MWealthBaselineRp: number;
+  projected6MWealthZeroLeakRp: number;
+  projected12MWealthZeroLeakRp: number;
+  projected12MWealthShockRp: number;
+  series: Array<{
+    month: number;
+    year: number;
+    label: string;
+    baselineWealthRp: number;
+    disciplinedWealthRp: number;
+    shockWealthRp: number;
+    dsrPercent: number;
+    remainingPersonalDebtRp: number;
+  }>;
+}
+
+export interface AnomalyEngineResult {
+  engineSource?: "GO_BINARY" | "TS_MIRROR";
+  burnVelocityIndex: number;
+  pctBudgetConsumed: number;
+  pctCycleElapsed: number;
+  velocityStatus: "SAFE" | "CAUTION" | "BURNING_FAST" | string;
+  postCutoffCreepRp: number;
+  subscriptionCreepRp: number;
+  alertCount: number;
+  alerts: Array<{
+    code: string;
+    severity: "INFO" | "CAUTION" | "CRITICAL" | string;
+    title: string;
+    description: string;
+    amountRp: number;
+  }>;
+}
+
+export interface EnvelopesEngineResult {
+  engineSource?: "GO_BINARY" | "TS_MIRROR";
+  ageOfMoneyDays: number;
+  bufferDays: number;
+  totalUnspentSweepToP1Rp: number;
+  totalUnspentRollForwardRp: number;
+  totalSinkingMonthlyRp: number;
+  envelopeEvaluations: Array<{
+    id: string;
+    name: string;
+    allocatedRp: number;
+    spentRp: number;
+    unspentRp: number;
+    rolloverPolicy: string;
+    sweptToP1Rp: number;
+    rolledNextCycleRp: number;
+  }>;
+  sinkingSchedules: Array<{
+    id: string;
+    name: string;
+    targetAmountRp: number;
+    currentSavedRp: number;
+    remainingTargetRp: number;
+    monthsRemaining: number;
+    monthlySetAsideRp: number;
+    dailySetAsideRp: number;
+    progressPercent: number;
+  }>;
+}
+
+export interface DebtOptEngineResult {
+  engineSource?: "GO_BINARY" | "TS_MIRROR";
+  totalRemainingBalanceRp: number;
+  totalCurrentMonthlyRp: number;
+  extraLumpSumRp: number;
+  strategies: Array<{
+    strategy: "CONTRACTUAL" | "AVALANCHE" | "SNOWBALL" | string;
+    priorityOrderNames: string[];
+    estimatedInterestSavedRp: number;
+    monthsShaved: number;
+    immediateFreedMonthlyRp: number;
+    summary: string;
+  }>;
+  unlockMilestones: Array<{
+    unlockMonth: number;
+    unlockYear: number;
+    unlockLabel: string;
+    freedMonthlyRp: number;
+    spinjamOnlyFreedRp?: number;
+    cumulativeFreedRp: number;
+    finishedContracts: string[];
+  }>;
+  spinjamMonthlyTotalRp: number;
+  spinjamFreedomLabel: string;
+}
+
+export interface LifeEnergyEngineResult {
+  engineSource?: "GO_BINARY" | "TS_MIRROR";
+  nominalHourlyWageRp: number;
+  trueNetHourlyWageRp: number;
+  totalMonthlyWorkHours: number;
+  totalMonthlyCommuteHours: number;
+  totalLifeEnergyHours: number;
+  netIncomeAfterWorkCostRp: number;
+  conversions: Array<{
+    amountRp: number;
+    workHoursRequired: number;
+    workDaysRequired: number;
+    pctOfMonthlyLifePct: number;
+  }>;
+}
+
+export interface FormulaEvalResult {
+  expression: string;
+  valid: boolean;
+  valueRp: number;
+  valueFloat: number;
+  usedTokens: string[];
+  error?: string;
+}
+
+export interface FormulaSuiteResult {
+  allValid: boolean;
+  results: Record<string, FormulaEvalResult>;
+}
+
+export interface DynamicMilestoneSummary {
+  code: string;
+  targetDateLabel: string;
+  remainingAmountRp: number;
+  labelEn: string;
+  labelId: string;
+  labelZh: string;
+}
+
+export interface IntelligenceBundleResponse {
+  month: number;
+  year: number;
+  periodCode: string;
+  snapshotStatus: string;
+  studioConfig: ModularStudioConfig;
+  effectiveAssetAccounts?: AssetAccountConfigRow[];
+  dynamicMilestone?: DynamicMilestoneSummary;
+  formulaContext?: {
+    variables: Record<string, number>;
+    evaluation: FormulaSuiteResult;
+  };
+  paycycle: PaycycleHorizonEngineResult;
+  networth: NetWorthEngineResult;
+  forecaster: ForecasterEngineResult;
+  anomaly: AnomalyEngineResult;
+  envelopes: EnvelopesEngineResult;
+  debtopt: DebtOptEngineResult;
+  lifeenergy: LifeEnergyEngineResult;
+}
+
+export interface ReconcilerParsedRow {
+  lineNumber: number;
+  rawLine: string;
+  dateIso: string;
+  description: string;
+  amountRp: number;
+  instrument: string;
+  inferredCategory: string;
+  targetPeriodMonth: number;
+  targetPeriodYear: number;
+  targetPeriodCode: string;
+  originalPeriodCode?: string;
+  advancedFromLocked?: boolean;
+  crossedCutoff: boolean;
+  duplicateStatus: "NEW_ENTRY" | "AMOUNT_DATE_MATCH" | "EXACT_MATCH";
+  matchedItemId?: number;
+  matchedItemLabel?: string;
+}
+
+export interface ReconcilerParseResponse {
+  engineSource?: "GO_BINARY" | "TS_MIRROR";
+  totalLines: number;
+  parsedCount: number;
+  newEntryCount: number;
+  duplicateCount: number;
+  totalAmountRp: number;
+  rows: ReconcilerParsedRow[];
+}
+
+export async function fetchIntelligenceBundle(
+  month: number,
+  year: number,
+  extraLumpSum: number = 0
+): Promise<IntelligenceBundleResponse | null> {
+  return swrFetch(`intelligence:${month}:${year}:${extraLumpSum}`, async () => {
+    const res = await fetch(
+      `${API_URL}/api/finance/intelligence?month=${month}&year=${year}&extraLumpSum=${extraLumpSum}`,
+      { headers: await getAuthHeaders(), cache: "no-store" }
+    );
+    return handleResponse<IntelligenceBundleResponse | null>(res, null);
+  });
+}
+
+export async function updateStudioConfigApi(
+  patch: Partial<ModularStudioConfig>
+): Promise<{ studioConfig: ModularStudioConfig; globalConfigId: number } | null> {
+  const res = await fetch(`${API_URL}/api/config/studio`, {
+    method: "PATCH",
+    headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify(patch),
+  });
+  const data = await handleResponse<{ studioConfig: ModularStudioConfig; globalConfigId: number } | null>(res, null);
+  invalidateCache();
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("erp:studio-updated", { detail: data?.studioConfig }));
+  }
+  return data;
+}
+
+export async function parseReconcilerStatementApi(payload: {
+  rawText: string;
+  defaultMethod?: "CASH" | "PAYLATER" | "CREDIT_CARD";
+  defaultYear?: number;
+}): Promise<ReconcilerParseResponse | null> {
+  const res = await fetch(`${API_URL}/api/finance/reconciler/parse`, {
+    method: "POST",
+    headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify(payload),
+  });
+  return handleResponse<ReconcilerParseResponse | null>(res, null);
+}
+
+export async function commitReconcilerRowsApi(rows: Array<{
+  dateIso: string;
+  description: string;
+  amountRp: number;
+  instrument: string;
+  targetPeriodMonth: number;
+  targetPeriodYear: number;
+  inferredCategory?: string;
+}>): Promise<{ committedCount: number; items: any[] } | null> {
+  const res = await fetch(`${API_URL}/api/finance/reconciler/commit`, {
+    method: "POST",
+    headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ rows }),
+  });
+  const data = await handleResponse<{ committedCount: number; items: any[] } | null>(res, null);
+  invalidateCache();
+  return data;
+}
+
+export const RESERVED_WORDS_CATALOG_LIST = [
+  "BASE_SALARY",
+  "WORK_DAYS",
+  "DAILY_ALLOWANCE",
+  "TRANSPORT_ALLOWANCE",
+  "FIXED_ADDITIONS",
+  "GROSS_PAY",
+  "TAX_AND_BPJS",
+  "NET_SALARY",
+  "TENURE_MONTHS",
+  "THR_MULTIPLIER",
+  "THR_AMOUNT",
+  "NET_INCOME",
+  "PAYLATER_DEBT",
+  "CC_DEBT",
+  "SPINJAM_DEBT",
+  "OTHER_DEBT",
+  "TOTAL_DEBT",
+  "ROUTINE_BILLS",
+  "LIVING_BUDGET",
+  "P1_FLOOR",
+  "P1_SAVINGS",
+  "P2_REWARD",
+  "ELAPSED_DAYS",
+  "CYCLE_DAYS",
+  "REMAINING_DAYS",
+  "WEEKEND_WEIGHT",
+  "WORK_DAYS_PER_WEEK",
+  "WORK_HOURS_PER_DAY",
+  "COMMUTE_HOURS_PER_DAY",
+  "OPTIMAL_DSR_PCT",
+  "MAX_SAFE_DSR_PCT",
+] as const;
+
+export function buildDefaultFormulasClient(): FormulaDefinitions {
+  return {
+    takeHomeSalaryFormula:
+      "{BASE_SALARY} + ({WORK_DAYS} * {DAILY_ALLOWANCE}) + {TRANSPORT_ALLOWANCE} + {FIXED_ADDITIONS} - {TAX_AND_BPJS}",
+    proratedThrFormula:
+      "ROUND(({TENURE_MONTHS} / 12) * ({BASE_SALARY} + {FIXED_ADDITIONS}))",
+    waterfallAllocationFormula:
+      "MAX(0, {NET_INCOME} - {TOTAL_DEBT} - {ROUTINE_BILLS} - {LIVING_BUDGET})",
+    debtSafeCeilingFormula:
+      "MAX(0, {NET_INCOME} - {LIVING_BUDGET} - {ROUTINE_BILLS} - {SPINJAM_DEBT} - {OTHER_DEBT})",
+    dailySafeToSpendFormula: "ROUND({LIVING_BUDGET} / MAX(1, {CYCLE_DAYS}))",
+    trueHourlyWageFormula:
+      "ROUND(({NET_SALARY} - {ROUTINE_BILLS}) / MAX(1, ({WORK_DAYS_PER_WEEK} * 4) * ({WORK_HOURS_PER_DAY} + {COMMUTE_HOURS_PER_DAY})))",
+    forecasterFreedDebtToP1Formula: "ROUND(PCT({TOTAL_DEBT}, 70))",
+  };
+}
+
+export function evaluateFormulaDslClient(
+  expression: string,
+  variables: Record<string, number>,
+): FormulaEvalResult {
+  const expr = String(expression || "").trim();
+  if (!expr) {
+    return {
+      expression: expr,
+      valid: false,
+      valueRp: 0,
+      valueFloat: 0,
+      usedTokens: [],
+      error: "Formula expression cannot be empty",
+    };
+  }
+  const allowedSet = new Set<string>(RESERVED_WORDS_CATALOG_LIST);
+  type Tok =
+    | { kind: "EOF" | "PLUS" | "MINUS" | "MUL" | "DIV" | "LPAREN" | "RPAREN" | "COMMA" | "GT" | "LT" | "GTE" | "LTE" | "EQ" }
+    | { kind: "NUM"; num: number }
+    | { kind: "VAR" | "IDENT"; text: string };
+  const toks: Tok[] = [];
+  const used = new Set<string>();
+  let i = 0;
+  try {
+    while (i < expr.length) {
+      const ch = expr[i];
+      if (/\s/.test(ch)) {
+        i++;
+        continue;
+      }
+      if (ch === "+") { toks.push({ kind: "PLUS" }); i++; continue; }
+      if (ch === "-") { toks.push({ kind: "MINUS" }); i++; continue; }
+      if (ch === "*") { toks.push({ kind: "MUL" }); i++; continue; }
+      if (ch === "/") { toks.push({ kind: "DIV" }); i++; continue; }
+      if (ch === "(") { toks.push({ kind: "LPAREN" }); i++; continue; }
+      if (ch === ")") { toks.push({ kind: "RPAREN" }); i++; continue; }
+      if (ch === ",") { toks.push({ kind: "COMMA" }); i++; continue; }
+      if (ch === ">") {
+        if (expr[i + 1] === "=") { toks.push({ kind: "GTE" }); i += 2; }
+        else { toks.push({ kind: "GT" }); i++; }
+        continue;
+      }
+      if (ch === "<") {
+        if (expr[i + 1] === "=") { toks.push({ kind: "LTE" }); i += 2; }
+        else { toks.push({ kind: "LT" }); i++; }
+        continue;
+      }
+      if (ch === "=" && expr[i + 1] === "=") {
+        toks.push({ kind: "EQ" }); i += 2; continue;
+      }
+      if (ch === "{") {
+        const close = expr.indexOf("}", i + 1);
+        if (close === -1) throw new Error("Unclosed '{' in variable token");
+        const name = expr.slice(i + 1, close).trim().toUpperCase();
+        if (!allowedSet.has(name)) throw new Error(`Unknown reserved word {${name}}`);
+        used.add(name);
+        toks.push({ kind: "VAR", text: name });
+        i = close + 1;
+        continue;
+      }
+      if (/[0-9.]/.test(ch)) {
+        const start = i;
+        while (i < expr.length && /[0-9._]/.test(expr[i])) i++;
+        const rawNum = expr.slice(start, i).replace(/_/g, "");
+        const n = Number(rawNum);
+        if (!Number.isFinite(n)) throw new Error(`Invalid number '${rawNum}'`);
+        toks.push({ kind: "NUM", num: n });
+        continue;
+      }
+      if (/[a-zA-Z_]/.test(ch)) {
+        const start = i;
+        while (i < expr.length && /[a-zA-Z0-9_]/.test(expr[i])) i++;
+        const ident = expr.slice(start, i).toUpperCase();
+        if (expr[i] === "(") {
+          toks.push({ kind: "IDENT", text: ident });
+        } else {
+          if (!allowedSet.has(ident)) throw new Error(`Unknown identifier '${ident}' — wrap variables in {${ident}}`);
+          used.add(ident);
+          toks.push({ kind: "VAR", text: ident });
+        }
+        continue;
+      }
+      throw new Error(`Unexpected character '${ch}'`);
+    }
+    toks.push({ kind: "EOF" });
+    let pos = 0;
+    const peek = () => toks[pos] ?? { kind: "EOF" as const };
+    const next = () => toks[pos++] ?? { kind: "EOF" as const };
+
+    const parseCmp = (): number => {
+      let left = parseAdd();
+      const k = peek().kind;
+      if (k === "GT" || k === "LT" || k === "GTE" || k === "LTE" || k === "EQ") {
+        next();
+        const right = parseAdd();
+        if (k === "GT") return left > right ? 1 : 0;
+        if (k === "LT") return left < right ? 1 : 0;
+        if (k === "GTE") return left >= right ? 1 : 0;
+        if (k === "LTE") return left <= right ? 1 : 0;
+        return Math.abs(left - right) < 1e-9 ? 1 : 0;
+      }
+      return left;
+    };
+    const parseAdd = (): number => {
+      let left = parseMul();
+      while (peek().kind === "PLUS" || peek().kind === "MINUS") {
+        const op = next().kind;
+        const right = parseMul();
+        left = op === "PLUS" ? left + right : left - right;
+      }
+      return left;
+    };
+    const parseMul = (): number => {
+      let left = parseUnary();
+      while (peek().kind === "MUL" || peek().kind === "DIV") {
+        const op = next().kind;
+        const right = parseUnary();
+        if (op === "DIV") {
+          if (Math.abs(right) < 1e-12) throw new Error("Division by zero");
+          left /= right;
+        } else {
+          left *= right;
+        }
+      }
+      return left;
+    };
+    const parseUnary = (): number => {
+      if (peek().kind === "PLUS") { next(); return parseUnary(); }
+      if (peek().kind === "MINUS") { next(); return -parseUnary(); }
+      return parsePrimary();
+    };
+    const parsePrimary = (): number => {
+      const tok = next();
+      if (tok.kind === "NUM") return tok.num;
+      if (tok.kind === "VAR") return variables[tok.text] ?? 0;
+      if (tok.kind === "LPAREN") {
+        const v = parseCmp();
+        if (next().kind !== "RPAREN") throw new Error("Expected ')'");
+        return v;
+      }
+      if (tok.kind === "IDENT") {
+        if (next().kind !== "LPAREN") throw new Error(`Expected '(' after ${tok.text}`);
+        const args: number[] = [];
+        if (peek().kind !== "RPAREN") {
+          args.push(parseCmp());
+          while (peek().kind === "COMMA") { next(); args.push(parseCmp()); }
+        }
+        if (next().kind !== "RPAREN") throw new Error(`Expected ')' after ${tok.text} arguments`);
+        switch (tok.text) {
+          case "ROUND": if (args.length !== 1) throw new Error("ROUND expects 1 arg"); return Math.round(args[0]);
+          case "FLOOR": if (args.length !== 1) throw new Error("FLOOR expects 1 arg"); return Math.floor(args[0]);
+          case "CEIL": if (args.length !== 1) throw new Error("CEIL expects 1 arg"); return Math.ceil(args[0]);
+          case "MIN": if (args.length < 1) throw new Error("MIN expects >=1 args"); return Math.min(...args);
+          case "MAX": if (args.length < 1) throw new Error("MAX expects >=1 args"); return Math.max(...args);
+          case "CLAMP":
+            if (args.length !== 3) throw new Error("CLAMP(val, min, max) expects 3 args");
+            return Math.min(args[2], Math.max(args[1], args[0]));
+          case "IF":
+            if (args.length !== 3) throw new Error("IF(cond, t, f) expects 3 args");
+            return args[0] !== 0 ? args[1] : args[2];
+          case "PCT":
+            if (args.length !== 2) throw new Error("PCT(base, pct) expects 2 args");
+            return (args[0] * args[1]) / 100;
+          default:
+            throw new Error(`Unsupported function '${tok.text}'`);
+        }
+      }
+      throw new Error("Unexpected token in formula");
+    };
+    const valueFloat = parseCmp();
+    if (peek().kind !== "EOF") throw new Error("Unexpected trailing tokens");
+    return {
+      expression: expr,
+      valid: true,
+      valueRp: Math.round(valueFloat),
+      valueFloat,
+      usedTokens: Array.from(used),
+    };
+  } catch (err: any) {
+    return {
+      expression: expr,
+      valid: false,
+      valueRp: 0,
+      valueFloat: 0,
+      usedTokens: Array.from(used),
+      error: err?.message || "Invalid formula syntax",
+    };
+  }
+}
+
+export async function evaluateFormulaSuiteApi(payload: {
+  month?: number;
+  year?: number;
+  formulas: Record<string, string>;
+  overrideVariables?: Record<string, number>;
+}): Promise<{ variables: Record<string, number>; evaluation: FormulaSuiteResult } | null> {
+  const res = await fetch(`${API_URL}/api/finance/formula/evaluate`, {
+    method: "POST",
+    headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify(payload),
+  });
+  return handleResponse<{ variables: Record<string, number>; evaluation: FormulaSuiteResult } | null>(res, null);
 }

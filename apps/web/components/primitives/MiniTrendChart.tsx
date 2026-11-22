@@ -6,6 +6,8 @@ export interface MiniTrendChartProps {
   dailySpend?: number[];
   targetDailyBudget?: number;
   statusVariant?: "default" | "caution" | "urgency";
+  cycleTemporalState?: "PRE_PAYDAY" | "ACTIVE" | "COMPLETED";
+  daysUntilCycleStart?: number;
 }
 
 export function MiniTrendChart({
@@ -14,18 +16,22 @@ export function MiniTrendChart({
   dailySpend,
   targetDailyBudget = 150000,
   statusVariant = "default",
+  cycleTemporalState = "ACTIVE",
+  daysUntilCycleStart = 0,
 }: MiniTrendChartProps) {
-  // Defensive normalization so 0 or NaN or negative values never propagate to layout/coordinates
   const safeDays = Math.max(daysInCycle || 30, 1);
-  const safeCurrentDay = Math.min(Math.max(currentDay || 1, 1), safeDays);
+  const isPrePayday = cycleTemporalState === "PRE_PAYDAY";
+  const isCompleted = cycleTemporalState === "COMPLETED";
+  const safeCurrentDay = isPrePayday
+    ? 0
+    : Math.min(Math.max(currentDay ?? 1, 0), safeDays);
 
-  // Generate realistic spending pattern if none provided
+  // Generate realistic spending pattern if none provided (0 spending when pre-payday)
   const data =
     dailySpend ||
     Array.from({ length: safeDays }, (_, i) => {
       const day = i + 1;
-      if (day > safeCurrentDay) return 0;
-      // Realistic variance around target
+      if (isPrePayday || day > safeCurrentDay) return 0;
       const variance = [0.6, 1.1, 0.4, 1.4, 0.9, 0.8, 1.6, 0.5, 1.0, 1.3, 0.7][
         (day - 1) % 11
       ];
@@ -38,8 +44,8 @@ export function MiniTrendChart({
   const barWidth = Math.max(chartWidth / safeDays - 1.5, 1);
 
   const getBarColor = (spend: number, day: number) => {
-    if (day > safeCurrentDay) return "fill-border-subtle/40";
-    if (day === safeCurrentDay) {
+    if (isPrePayday || day > safeCurrentDay) return "fill-border-subtle/40";
+    if (!isCompleted && day === safeCurrentDay) {
       if (statusVariant === "urgency") return "fill-urgency";
       if (statusVariant === "caution") return "fill-caution";
       return "fill-delta-positive";
@@ -48,14 +54,24 @@ export function MiniTrendChart({
     return "fill-border-strong";
   };
 
-  const todayX = (safeCurrentDay - 1) * (chartWidth / safeDays) + barWidth / 2;
+  const todayX = !isPrePayday && safeCurrentDay > 0
+    ? (safeCurrentDay - 1) * (chartWidth / safeDays) + barWidth / 2
+    : NaN;
   const isTodayValid = !isNaN(todayX) && isFinite(todayX);
+
+  const centerCaption = isPrePayday
+    ? `DAY 0 OF ${safeDays} · PRE-PAYDAY PLAN${
+        daysUntilCycleStart > 0 ? ` (STARTS IN ${daysUntilCycleStart}D)` : ""
+      }`
+    : isCompleted
+      ? `CYCLE COMPLETED (${safeDays} OF ${safeDays})`
+      : `TODAY (DAY ${Math.max(1, safeCurrentDay)} OF ${safeDays})`;
 
   return (
     <div className="w-full">
       <div className="flex items-center justify-between text-[10px] font-mono text-text-tertiary mb-1.5">
         <span>DAY 1</span>
-        <span className="text-text-secondary font-medium">TODAY (DAY {safeCurrentDay})</span>
+        <span className="text-text-secondary font-medium">{centerCaption}</span>
         <span>DAY {safeDays}</span>
       </div>
 
