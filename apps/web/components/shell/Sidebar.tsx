@@ -127,7 +127,8 @@ const ANALYSIS_ROUTES: RouteItem[] = [
     labelKey: "nav.analytics",
     href: "/analytics",
     icon: BarChart3,
-    moduleKey: "analytics",
+    moduleKey: "advanced_analytics",
+    subModules: SUBMODULES_BY_ROUTE["/analytics"],
   },
   {
     labelKey: "nav.reports",
