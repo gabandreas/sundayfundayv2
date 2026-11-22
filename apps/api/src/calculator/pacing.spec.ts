@@ -4,6 +4,9 @@ import {
   calculateDailyPacing,
   formatCycleDateLabel,
   toDateString,
+  getJakartaDateParts,
+  getPayrollPeriodForDate,
+  resolveDefaultActivePeriod,
 } from './pacing';
 import { calculateWaterfall } from './waterfall';
 import { calculatePayroll } from './payroll';
@@ -48,21 +51,25 @@ describe('pacing calculator (payday-to-payday variable consumption cycles)', () 
       expect(last.currentDayIndex).toBe(31);
     });
 
-    it('handles past and future dates gracefully with clamping', () => {
-      const start = new Date(Date.UTC(2026, 7, 25));
-      const end = new Date(Date.UTC(2026, 8, 24));
+    it('handles pre-payday and completed dates with true 3-state temporal precision', () => {
+      const start = new Date(Date.UTC(2026, 10, 27)); // 27 Nov 2026
+      const end = new Date(Date.UTC(2026, 11, 27));   // 27 Dec 2026 (31 days)
 
-      // Past date (before cycle start)
-      const past = calculatePacingDays(start, end, new Date(Date.UTC(2026, 6, 1)));
-      expect(past.daysPassed).toBe(0);
-      expect(past.daysRemaining).toBe(31);
-      expect(past.currentDayIndex).toBe(1);
+      // Pre-payday date (before cycle start: Nov 22 is 5 days before Nov 27)
+      const pre = calculatePacingDays(start, end, new Date(Date.UTC(2026, 10, 22)));
+      expect(pre.cycleTemporalState).toBe('PRE_PAYDAY');
+      expect(pre.daysUntilCycleStart).toBe(5);
+      expect(pre.daysPassed).toBe(0);
+      expect(pre.daysRemaining).toBe(31);
+      expect(pre.currentDayIndex).toBe(0);
 
-      // Future date (after cycle end)
-      const future = calculatePacingDays(start, end, new Date(Date.UTC(2026, 9, 1)));
-      expect(future.daysPassed).toBe(31);
-      expect(future.daysRemaining).toBe(1);
-      expect(future.currentDayIndex).toBe(31);
+      // Completed date (after cycle end: Dec 30)
+      const done = calculatePacingDays(start, end, new Date(Date.UTC(2026, 11, 30)));
+      expect(done.cycleTemporalState).toBe('COMPLETED');
+      expect(done.daysUntilCycleStart).toBe(0);
+      expect(done.daysPassed).toBe(31);
+      expect(done.daysRemaining).toBe(0);
+      expect(done.currentDayIndex).toBe(31);
     });
   });
 
@@ -356,6 +363,168 @@ describe('pacing calculator (payday-to-payday variable consumption cycles)', () 
       expect(result.weekdaySafeRate).toBe(result.safeToSpendToday);
       expect(result.weekendSafeRate).toBe(result.safeToSpendToday);
       expect(result.weightedSafeToSpendToday).toBe(result.safeToSpendToday);
+    });
+  });
+
+  describe('Asia/Jakarta timezone & payday-cycle active period resolution', () => {
+    it('resolves Asia/Jakarta (UTC+7) calendar day across UTC midnight boundaries', () => {
+      // 2026-11-15T18:00:00Z is 2026-11-16 01:00 WIB (Monday)
+      const parts = getJakartaDateParts(new Date('2026-11-15T18:00:00.000Z'));
+      expect(parts.isoDate).toBe('2026-11-16');
+      expect(parts.day).toBe(16);
+      expect(parts.month).toBe(11);
+      expect(parts.dayOfWeek).toBe(1);
+    });
+
+    it('resolves Nov 15, 2026 into 10/2026 and transitions to 11/2026 on Nov 27', () => {
+      expect(getPayrollPeriodForDate(new Date('2026-11-15T10:00:00.000Z'))).toEqual({
+        month: 10,
+        year: 2026,
+      });
+      expect(getPayrollPeriodForDate(new Date('2026-11-26T16:00:00.000Z'))).toEqual({
+        month: 10,
+        year: 2026,
+      });
+      // 2026-11-26T18:00:00Z = 2026-11-27 01:00 WIB -> transitions to 11/2026
+      expect(getPayrollPeriodForDate(new Date('2026-11-26T18:00:00.000Z'))).toEqual({
+        month: 11,
+        year: 2026,
+      });
+    });
+
+    it('resolves 3 temporal states in calculateDailyPacing (PRE_PAYDAY, ACTIVE paceDeltaRp, COMPLETED)', () => {
+      const novStart = new Date(Date.UTC(2026, 10, 27)); // 27 Nov 2026
+      const novEnd = new Date(Date.UTC(2026, 11, 27));   // 27 Dec 2026 (31 days)
+
+      // State 1: PRE_PAYDAY (22 Nov 2026) -> Day 0, 5 days until payday, projected rates populated
+      const pre = calculateDailyPacing({
+        periodMonth: 11,
+        periodYear: 2026,
+        cycleStartDate: novStart,
+        cycleEndDate: novEnd,
+        isEndDateConfirmed: true,
+        actualDailyOperational: 1416659,
+        dailyOperationalTarget: 1500000,
+        totalDailySpent: 0,
+        referenceDate: new Date(Date.UTC(2026, 10, 22)),
+        weekendMultiplier: 1.5,
+      });
+      expect(pre.cycleTemporalState).toBe('PRE_PAYDAY');
+      expect(pre.daysUntilCycleStart).toBe(5);
+      expect(pre.currentDayIndex).toBe(0);
+      expect(pre.daysPassed).toBe(0);
+      expect(pre.daysRemaining).toBe(31);
+      expect(pre.weekdaySafeRate).toBe(39352);
+      expect(pre.weekendSafeRate).toBe(59027);
+      expect(pre.paceDeltaRp).toBe(0);
+
+      // State 2: ACTIVE (1 Dec 2026 -> 4 days passed, Day 5 of 31, spent 50,000 vs 182,795 expected)
+      const activeUnder = calculateDailyPacing({
+        periodMonth: 11,
+        periodYear: 2026,
+        cycleStartDate: novStart,
+        cycleEndDate: novEnd,
+        isEndDateConfirmed: true,
+        actualDailyOperational: 1416659,
+        dailyOperationalTarget: 1500000,
+        totalDailySpent: 50000,
+        referenceDate: new Date(Date.UTC(2026, 11, 1)),
+        weekendMultiplier: 1.5,
+      });
+      expect(activeUnder.cycleTemporalState).toBe('ACTIVE');
+      expect(activeUnder.daysUntilCycleStart).toBe(0);
+      expect(activeUnder.currentDayIndex).toBe(5);
+      expect(activeUnder.daysRemaining).toBe(27);
+      // 1,416,659 * 4 / 31 = 182,795 -> 182,795 - 50,000 = +132,795 ahead of pace
+      expect(activeUnder.paceDeltaRp).toBe(132795);
+
+      const activeOver = calculateDailyPacing({
+        periodMonth: 11,
+        periodYear: 2026,
+        cycleStartDate: novStart,
+        cycleEndDate: novEnd,
+        isEndDateConfirmed: true,
+        actualDailyOperational: 1416659,
+        dailyOperationalTarget: 1500000,
+        totalDailySpent: 300000,
+        referenceDate: new Date(Date.UTC(2026, 11, 1)),
+        weekendMultiplier: 1.5,
+      });
+      expect(activeOver.paceDeltaRp).toBe(-117205);
+
+      // State 3: COMPLETED (30 Dec 2026) -> 0 remaining, 0 safe rates
+      const completed = calculateDailyPacing({
+        periodMonth: 11,
+        periodYear: 2026,
+        cycleStartDate: novStart,
+        cycleEndDate: novEnd,
+        isEndDateConfirmed: true,
+        actualDailyOperational: 1416659,
+        dailyOperationalTarget: 1500000,
+        totalDailySpent: 1200000,
+        referenceDate: new Date(Date.UTC(2026, 11, 30)),
+        weekendMultiplier: 1.5,
+      });
+      expect(completed.cycleTemporalState).toBe('COMPLETED');
+      expect(completed.currentDayIndex).toBe(31);
+      expect(completed.daysRemaining).toBe(0);
+      expect(completed.safeToSpendToday).toBe(0);
+      expect(completed.weekdaySafeRate).toBe(0);
+      expect(completed.weekendSafeRate).toBe(0);
+    });
+
+    it('resolves smart default period to earliest open DRAFT cycle when current calendar cycle is LOCKED', () => {
+      const nov22Ref = new Date('2026-11-22T03:00:00.000Z'); // 22 Nov 2026 WIB -> calendar cycle 10/2026
+
+      // Default strategy skips LOCKED 10/2026 -> opens 11/2026
+      expect(
+        resolveDefaultActivePeriod({
+          referenceDate: nov22Ref,
+          strategy: 'EARLIEST_OPEN_ACTIVE',
+          snapshots: [
+            { month: 10, year: 2026, status: 'LOCKED' },
+            { month: 11, year: 2026, status: 'DRAFT' },
+            { month: 12, year: 2026, status: 'DRAFT' },
+          ],
+        }),
+      ).toEqual({ month: 11, year: 2026, skippedLockedPeriod: true });
+
+      // Skips multiple consecutive locked periods into 12/2026
+      expect(
+        resolveDefaultActivePeriod({
+          referenceDate: nov22Ref,
+          strategy: 'EARLIEST_OPEN_ACTIVE',
+          snapshots: [
+            { month: 10, year: 2026, status: 'LOCKED' },
+            { month: 11, year: 2026, status: 'LOCKED' },
+            { month: 12, year: 2026, status: 'DRAFT' },
+          ],
+        }),
+      ).toEqual({ month: 12, year: 2026, skippedLockedPeriod: true });
+
+      // When calendar cycle is still DRAFT, stays on 10/2026
+      expect(
+        resolveDefaultActivePeriod({
+          referenceDate: nov22Ref,
+          strategy: 'EARLIEST_OPEN_ACTIVE',
+          snapshots: [
+            { month: 10, year: 2026, status: 'DRAFT' },
+            { month: 11, year: 2026, status: 'DRAFT' },
+          ],
+        }),
+      ).toEqual({ month: 10, year: 2026, skippedLockedPeriod: false });
+
+      // Explicit CALENDAR_WINDOW preference keeps 10/2026 even when LOCKED
+      expect(
+        resolveDefaultActivePeriod({
+          referenceDate: nov22Ref,
+          strategy: 'CALENDAR_WINDOW',
+          snapshots: [
+            { month: 10, year: 2026, status: 'LOCKED' },
+            { month: 11, year: 2026, status: 'DRAFT' },
+          ],
+        }),
+      ).toEqual({ month: 10, year: 2026, skippedLockedPeriod: false });
     });
   });
 });
