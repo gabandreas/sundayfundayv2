@@ -1,7 +1,7 @@
 import {
   calculatePayroll,
   sumExtraIncome,
-  calculateWorkingDaysForPeriod,
+  calculateWorkingDaysForConsumptionPeriod,
 } from './payroll';
 import { calculateWaterfall } from './waterfall';
 import { evaluateInstallmentRiskTier } from './wishlist';
@@ -263,11 +263,11 @@ export function calculateLiquidityForecast(
     const cycleEndDate = new Date(nextPayoutTs - 86400000);
     const cycleDateLabel = formatCycleDateLabel(cycleStartDate, cycleEndDate);
 
-    // 1. Projected Payroll & Income (auto-calculates 16th M-1 to 15th M working days with 2026–2027 Indonesian holidays when uninitialized)
+    // 1. Projected Payroll & Income (Payday(M-1) attendance cutoff 16th M-2 to 15th M-1 with 2026–2027 Indonesian holidays when uninitialized)
     const totalWorkingDays =
       existingSnap && existingSnap.totalWorkingDays > 0
         ? existingSnap.totalWorkingDays
-        : calculateWorkingDaysForPeriod(month, year);
+        : calculateWorkingDaysForConsumptionPeriod(month, year);
     const salaryAdjustment = existingSnap ? existingSnap.salaryAdjustment : 0;
     const cafeteriaDeduction = existingSnap
       ? existingSnap.cafeteriaDeduction

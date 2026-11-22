@@ -224,6 +224,18 @@ function addWorkingDaysUtc(start: Date, lag: number, holidays: Set<string>): Dat
   return d;
 }
 
+function addWorkingDaysClampedToMonthUtc(start: Date, lag: number, holidays: Set<string>): Date {
+  const d = addWorkingDaysUtc(start, lag, holidays);
+  if (lag > 0 && (d.getUTCFullYear() !== start.getUTCFullYear() || d.getUTCMonth() !== start.getUTCMonth())) {
+    let lastDay = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 0));
+    while (!isWorkingDayUtc(lastDay, holidays) && lastDay.getTime() > start.getTime()) {
+      lastDay = new Date(lastDay.getTime() - 86400000);
+    }
+    return lastDay;
+  }
+  return d;
+}
+
 export function computePaycycleHorizonTs(req: PaycycleHorizonRequest): PaycycleHorizonResult {
   const m = req.month < 1 || req.month > 12 ? 11 : req.month;
   const y = req.year < 2020 ? 2026 : req.year;
@@ -266,11 +278,11 @@ export function computePaycycleHorizonTs(req: PaycycleHorizonRequest): PaycycleH
       payslipDrop = expPayslip;
       overrideApplied = true;
     }
-    payday = addWorkingDaysUtc(payslipDrop, lagDays, holidays);
+    payday = addWorkingDaysClampedToMonthUtc(payslipDrop, lagDays, holidays);
     shifted = payslipShifted;
 
     const nextStage1 = resolvePayslipUtc(m, y, pAnchor, shiftRule, holidays);
-    nextPayday = addWorkingDaysUtc(nextStage1.date, lagDays, holidays);
+    nextPayday = addWorkingDaysClampedToMonthUtc(nextStage1.date, lagDays, holidays);
   } else {
     const leg = resolvePaydayUtc(prevYm.month, prevYm.year, anchor, req.shiftWeekendToFriday);
     payday = leg.date;

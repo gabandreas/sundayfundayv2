@@ -19,7 +19,7 @@ import {
   sumExtraIncome,
   calculateDecemberProratedThr,
   getWorkingDaysCutoffWindow,
-  calculateWorkingDaysForPeriod,
+  calculateWorkingDaysForConsumptionPeriod,
 } from '../calculator/payroll';
 import {
   calculateFixedEssentialsRealization,
@@ -250,8 +250,8 @@ export class ReportsSelectors {
     const resolvedWorkingDays = selectedSnapshot
       ? selectedSnapshot.totalWorkingDays > 0
         ? selectedSnapshot.totalWorkingDays
-        : calculateWorkingDaysForPeriod(month, year)
-      : calculateWorkingDaysForPeriod(month, year);
+        : calculateWorkingDaysForConsumptionPeriod(month, year)
+      : calculateWorkingDaysForConsumptionPeriod(month, year);
 
     const payroll = calculatePayroll({
       baseSalary: config.baseSalary,

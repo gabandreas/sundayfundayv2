@@ -1,6 +1,6 @@
 # Live Ledger State (`userId = 1` / Gabriel)
 
-Generated from Neon PostgreSQL Cloud at 2026-11-22T06:34:54.509Z.
+Generated from Neon PostgreSQL Cloud at 2026-11-22T08:33:58.726Z.
 Regenerate anytime via `npm run erp:report -- --write`.
 
 ## Global Configuration
@@ -8,8 +8,8 @@ Regenerate anytime via `npm run erp:report -- --write`.
 - Base Salary: Rp 5.300.000
 - Daily Attendance Rate: Rp 25.000/day
 - Laptop Allowance: Rp 250.000/mo
-- Default Payroll Payout Day: 25th
-- Credit Statement Cutoff / Due: 20th / 11th
+- Default Payroll Payout Day: 27th
+- Credit Statement Cutoff / Due: 25th / 11th
 
 ## Monthly Snapshots (`MonthlySnapshot`)
 
@@ -21,14 +21,15 @@ Regenerate anytime via `npm run erp:report -- --write`.
 | 10/2026 | LOCKED | NO | Rp 5.791.000 | Rp 4.082.655 | Rp 991.000 | Rp 328.345 | Rp 0 | Rp 0 | 2026-09-28 |
 | 11/2026 | DRAFT | YES | Rp 5.891.000 | Rp 4.522.976 | Rp 1.720.316 | Rp 6.341 | Rp 250.000 | Rp 0 | 2026-10-28 |
 | 12/2026 | DRAFT | NO | Rp 5.904.000 | Rp 4.187.341 | Rp 1.416.659 | Rp 0 | Rp 0 | Rp 83.341 | 2026-11-27 |
-| 01/2027 | DRAFT | NO | Rp 9.840.917 | Rp 3.171.115 | Rp 2.850.000 | Rp 1.000.000 | Rp 2.284.802 | Rp 0 | 2026-12-28 |
-| 02/2027 | DRAFT | NO | Rp 5.891.000 | Rp 1.967.159 | Rp 2.850.000 | Rp 538.841 | Rp 0 | Rp 0 | 2027-01-25 |
-| 03/2027 | DRAFT | NO | Rp 5.891.000 | Rp 835.996 | Rp 2.850.000 | Rp 1.000.000 | Rp 670.004 | Rp 0 | 2027-02-25 |
-| 04/2027 | DRAFT | NO | Rp 5.766.000 | Rp 697.726 | Rp 2.850.000 | Rp 1.000.000 | Rp 683.274 | Rp 0 | 2027-03-25 |
-| 05/2027 | DRAFT | NO | Rp 5.916.000 | Rp 293.044 | Rp 2.850.000 | Rp 1.000.000 | Rp 1.237.956 | Rp 0 | 2027-04-25 |
-| 06/2027 | DRAFT | NO | Rp 5.891.000 | Rp 293.044 | Rp 2.850.000 | Rp 1.000.000 | Rp 1.212.956 | Rp 0 | 2027-05-25 |
-| 07/2027 | DRAFT | NO | Rp 5.841.000 | Rp 293.044 | Rp 2.850.000 | Rp 1.000.000 | Rp 1.162.956 | Rp 0 | 2027-06-25 |
-| 08/2027 | DRAFT | NO | Rp 5.941.000 | Rp 293.044 | Rp 2.850.000 | Rp 1.000.000 | Rp 1.262.956 | Rp 0 | 2027-07-25 |
+| 01/2027 | DRAFT | NO | Rp 9.840.917 | Rp 3.171.115 | Rp 1.500.000 | Rp 1.000.000 | Rp 3.634.802 | Rp 0 | 2026-12-28 |
+| 02/2027 | DRAFT | NO | Rp 5.891.000 | Rp 1.967.159 | Rp 1.500.000 | Rp 1.000.000 | Rp 888.841 | Rp 0 | 2027-01-27 |
+| 03/2027 | DRAFT | NO | Rp 5.891.000 | Rp 835.996 | Rp 1.500.000 | Rp 1.000.000 | Rp 2.020.004 | Rp 0 | 2027-02-26 |
+| 04/2027 | DRAFT | NO | Rp 5.766.000 | Rp 697.726 | Rp 1.500.000 | Rp 1.000.000 | Rp 2.033.274 | Rp 0 | 2027-03-29 |
+| 05/2027 | DRAFT | NO | Rp 5.916.000 | Rp 293.044 | Rp 1.500.000 | Rp 1.000.000 | Rp 2.587.956 | Rp 0 | 2027-04-27 |
+| 06/2027 | DRAFT | NO | Rp 5.891.000 | Rp 293.044 | Rp 1.500.000 | Rp 1.000.000 | Rp 2.562.956 | Rp 0 | 2027-05-27 |
+| 07/2027 | DRAFT | NO | Rp 5.841.000 | Rp 293.044 | Rp 1.500.000 | Rp 1.000.000 | Rp 2.512.956 | Rp 0 | 2027-06-25 |
+| 08/2027 | DRAFT | NO | Rp 5.941.000 | Rp 293.044 | Rp 1.500.000 | Rp 1.000.000 | Rp 2.612.956 | Rp 0 | 2027-07-26 |
+| 09/2027 | DRAFT | NO | Rp 5.916.000 | Rp 293.044 | Rp 1.500.000 | Rp 1.000.000 | Rp 2.587.956 | Rp 0 | 2027-08-26 |
 
 ## 12-Month Debt Matrix (`AUG '26` - `JUL '27`)
 

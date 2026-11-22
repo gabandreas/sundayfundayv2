@@ -1,4 +1,5 @@
 import { GoBridgeService } from './go-bridge.service';
+import { resolveStudioConfig } from '../config/studio.defaults';
 import {
   buildExecutiveHorizonTs,
   computeLifeEnergyTs,
@@ -397,5 +398,79 @@ describe('Hybrid Engine (Go <-> TypeScript Parity & Financial Precision)', () =>
     expect(lrcGo.rows[0].advancedFromLocked).toBe(true);
     expect(lrcGo.rows[1].targetPeriodCode).toBe('11/2026');
     expect(lrcGo.rows[1].advancedFromLocked).toBe(true);
+
+    // Same-month banking clamp on Feb 2027 corporate payroll (Feb 25 Thu + 2 wd clamps inside Feb -> Fri Feb 26, not Mar 01)
+    const febClampReq = {
+      month: 2,
+      year: 2027,
+      anchorDay: 27,
+      payslipAnchorDay: 25,
+      payslipShiftRule: 'SHIFT_PREVIOUS_FRIDAY' as const,
+      reviewLagWorkingDays: 2,
+      holidaysIso: ['2026-12-25', '2027-01-01'],
+      shiftWeekendToFriday: true,
+      weekendMultiplier: 1.5,
+      remainingBudgetRp: 1500000,
+      referenceDateIso: '2027-02-01',
+    };
+    const { engineSource: febSrc, ...febGo } = await bridge.computePaycycleHorizon(febClampReq);
+    expect(febSrc).toBe('GO_BINARY');
+    expect(febGo).toEqual(computePaycycleHorizonTs(febClampReq));
+    expect(febGo.paydayIso).toBe('2027-01-27');
+    expect(febGo.nextPaydayIso).toBe('2027-02-26');
+    expect(febGo.livingEndIso).toBe('2027-02-25');
+    expect(febGo.totalCycleDays).toBe(30);
+  });
+
+  it('keeps every 10/2026..09/2027 cycle contiguous and strictly 28-31 days under studio defaults', () => {
+    const studio = resolveStudioConfig(1, null, { payrollPayoutDay: 27 });
+    const pcCfg = studio.paycycleFormulaConfig;
+    const months: Array<[number, number]> = [
+      [10, 2026],
+      [11, 2026],
+      [12, 2026],
+      [1, 2027],
+      [2, 2027],
+      [3, 2027],
+      [4, 2027],
+      [5, 2027],
+      [6, 2027],
+      [7, 2027],
+      [8, 2027],
+      [9, 2027],
+    ];
+    let prevEndIso: string | null = null;
+    for (const [m, y] of months) {
+      const nextM = m === 12 ? 1 : m + 1;
+      const nextY = m === 12 ? y + 1 : y;
+      const curKey = `${String(m).padStart(2, '0')}/${y}`;
+      const nextKey = `${String(nextM).padStart(2, '0')}/${nextY}`;
+      const h = computePaycycleHorizonTs({
+        month: m,
+        year: y,
+        anchorDay: pcCfg.paydayAnchorDay,
+        payslipAnchorDay: pcCfg.payslipAnchorDay,
+        payslipShiftRule: pcCfg.payslipShiftRule,
+        reviewLagWorkingDays: pcCfg.reviewLagWorkingDays,
+        holidaysIso: pcCfg.holidayDatesIso,
+        explicitPayslipIso: pcCfg.periodOverrides?.[curKey]?.payslipDateIso,
+        explicitStartIso: pcCfg.periodOverrides?.[curKey]?.paydayDateIso,
+        explicitNextPaydayIso: pcCfg.periodOverrides?.[nextKey]?.paydayDateIso,
+        shiftWeekendToFriday: pcCfg.shiftWeekendToFriday,
+        weekendMultiplier: pcCfg.weekendWeightMultiplier,
+        remainingBudgetRp: 1500000,
+      });
+      expect(h.totalCycleDays).toBeGreaterThanOrEqual(28);
+      expect(h.totalCycleDays).toBeLessThanOrEqual(31);
+      if (prevEndIso) {
+        const expectedStart = new Date(
+          Date.parse(`${prevEndIso}T00:00:00.000Z`) + 86400000,
+        )
+          .toISOString()
+          .slice(0, 10);
+        expect(h.livingStartIso).toBe(expectedStart);
+      }
+      prevEndIso = h.livingEndIso;
+    }
   });
 });

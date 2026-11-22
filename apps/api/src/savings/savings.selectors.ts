@@ -202,7 +202,7 @@ export class SavingsSelectors {
       }
     }
 
-    let monthlyLivingExpenseBaseline = 2_850_000;
+    let monthlyLivingExpenseBaseline = 1_500_000;
     if (config) {
       monthlyLivingExpenseBaseline =
         config.dailyOperational < 500_000

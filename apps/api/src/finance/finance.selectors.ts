@@ -16,7 +16,7 @@ import {
   TransactionType,
   TransactionSourceType,
 } from '@prisma/client';
-import { calculatePayroll, calculateWorkingDaysForPeriod, sumExtraIncome, PayrollResult } from '../calculator/payroll';
+import { calculatePayroll, calculateWorkingDaysForConsumptionPeriod, sumExtraIncome, PayrollResult } from '../calculator/payroll';
 import {
   calculateDailyPacing,
   PacingResult,
@@ -231,7 +231,7 @@ export class FinanceSelectors {
         config,
         snapshot: snap,
         month,
-        totalWorkingDays: snap?.totalWorkingDays ?? calculateWorkingDaysForPeriod(month, year),
+        totalWorkingDays: snap?.totalWorkingDays ?? calculateWorkingDaysForConsumptionPeriod(month, year),
         extraIncome: snap ? sumExtraIncome(snap.transactions) : 0,
       });
       return { month, year, payroll };

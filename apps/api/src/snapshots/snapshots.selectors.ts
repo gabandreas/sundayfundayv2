@@ -10,7 +10,8 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { SnapshotStatus } from '@prisma/client';
 import { CreditService } from '../credit/credit.service';
-import { calculateWorkingDaysForPeriod } from '../calculator/payroll';
+import { calculateWorkingDaysForConsumptionPeriod } from '../calculator/payroll';
+import { computePaycycleHorizonTs } from '../calculator/erp-engines';
 import {
   DEFAULT_PAYOUT_DAY,
   DefaultPeriodStrategy,
@@ -191,6 +192,25 @@ export class SnapshotsSelectors {
         config.financialPolicyJson ?? buildDefaultFinancialPolicy(),
     };
 
+    const studioConfig = resolveStudioConfig(userId, config?.formulaParamsJson, config);
+    const pcCfg = studioConfig.paycycleFormulaConfig;
+    const periodKey = `${String(month).padStart(2, '0')}/${year}`;
+    const override = pcCfg.periodOverrides?.[periodKey];
+    const resolvedHorizon = computePaycycleHorizonTs({
+      month,
+      year,
+      anchorDay: pcCfg.paydayAnchorDay ?? config.payrollPayoutDay ?? DEFAULT_PAYOUT_DAY,
+      payslipAnchorDay: pcCfg.payslipAnchorDay,
+      payslipShiftRule: pcCfg.payslipShiftRule,
+      reviewLagWorkingDays: pcCfg.reviewLagWorkingDays,
+      holidaysIso: pcCfg.holidayDatesIso,
+      explicitPayslipIso: override?.payslipDateIso,
+      explicitStartIso: override?.paydayDateIso,
+      shiftWeekendToFriday: pcCfg.shiftWeekendToFriday,
+      weekendMultiplier: pcCfg.weekendWeightMultiplier,
+      remainingBudgetRp: 0,
+    });
+
     let createdNew = true;
     const snapshot = await this.prisma.monthlySnapshot
       .create({
@@ -207,21 +227,15 @@ export class SnapshotsSelectors {
           savings: config.baseSavings,
           ccUsageLimit: config.ccUsageLimit ?? 0,
           paylaterUsageLimit: config.paylaterUsageLimit ?? 0,
-          totalWorkingDays: calculateWorkingDaysForPeriod(month, year),
+          totalWorkingDays: calculateWorkingDaysForConsumptionPeriod(month, year),
           salaryAdjustment: 0,
           cafeteriaDeduction: 0,
           thrAmount: 0,
           bonusAmount: 0,
           selfRewardTarget: 0,
           bufferPocket: 0,
-          payrollPayoutDate: new Date(
-            Date.UTC(
-              month === 1 ? year - 1 : year,
-              month === 1 ? 11 : month - 2,
-              config.payrollPayoutDay ?? DEFAULT_PAYOUT_DAY,
-            ),
-          ),
-          isPayoutDateConfirmed: false,
+          payrollPayoutDate: new Date(`${resolvedHorizon.paydayIso}T00:00:00.000Z`),
+          isPayoutDateConfirmed: Boolean(override?.paydayDateIso),
           frozenRulesJson: frozenRulesJson as any,
         },
         include: {
@@ -443,7 +457,26 @@ export class SnapshotsSelectors {
         return { ...existing, isForecast: false };
       }
 
-      const totalWorkingDays = calculateWorkingDaysForPeriod(month, year);
+      const studioCfg = resolveStudioConfig(userId, config?.formulaParamsJson, config);
+      const pcCfg = studioCfg.paycycleFormulaConfig;
+      const periodKey = `${String(month).padStart(2, '0')}/${year}`;
+      const override = pcCfg.periodOverrides?.[periodKey];
+      const horizon = computePaycycleHorizonTs({
+        month,
+        year,
+        anchorDay: pcCfg.paydayAnchorDay ?? config.payrollPayoutDay ?? DEFAULT_PAYOUT_DAY,
+        payslipAnchorDay: pcCfg.payslipAnchorDay,
+        payslipShiftRule: pcCfg.payslipShiftRule,
+        reviewLagWorkingDays: pcCfg.reviewLagWorkingDays,
+        holidaysIso: pcCfg.holidayDatesIso,
+        explicitPayslipIso: override?.payslipDateIso,
+        explicitStartIso: override?.paydayDateIso,
+        shiftWeekendToFriday: pcCfg.shiftWeekendToFriday,
+        weekendMultiplier: pcCfg.weekendWeightMultiplier,
+        remainingBudgetRp: 0,
+      });
+
+      const totalWorkingDays = calculateWorkingDaysForConsumptionPeriod(month, year);
       const bulk = bulkMap.get(`${year}-${month}`);
       const paylaterBills = Math.round(bulk?.paylaterAmount ?? 0);
       const personalDebtBills = Math.round(bulk?.personalDebtAmount ?? 0);
@@ -504,9 +537,7 @@ export class SnapshotsSelectors {
         transactions: [],
       });
 
-      const payoutIso = new Date(
-        Date.UTC(year, month - 1, config.payrollPayoutDay ?? DEFAULT_PAYOUT_DAY),
-      ).toISOString();
+      const payoutIso = new Date(`${horizon.paydayIso}T00:00:00.000Z`).toISOString();
 
       return {
         id: -(year * 100 + month),

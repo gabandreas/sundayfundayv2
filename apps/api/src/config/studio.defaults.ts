@@ -174,15 +174,70 @@ export function buildDefaultStudioConfig(
       periodOverrides: isSandbox
         ? {}
         : {
+            '10/2026': {
+              payslipDateIso: '2026-09-24',
+              paydayDateIso: '2026-09-28',
+              note: 'Sep 28 Payday',
+            },
             '11/2026': {
               payslipDateIso: '2026-10-23',
               paydayDateIso: '2026-10-28',
               note: 'Oct 28 Payday',
             },
+            '12/2026': {
+              payslipDateIso: '2026-11-25',
+              paydayDateIso: '2026-11-27',
+              note: 'Nov 27 Payday',
+            },
             '01/2027': {
               payslipDateIso: '2026-12-23',
               paydayDateIso: '2026-12-28',
               note: 'Holiday Schedule',
+            },
+            '02/2027': {
+              payslipDateIso: '2027-01-25',
+              paydayDateIso: '2027-01-27',
+              note: 'Jan 27 Payday',
+            },
+            '03/2027': {
+              payslipDateIso: '2027-02-25',
+              paydayDateIso: '2027-02-26',
+              note: 'Feb EOM Banking Clamp',
+            },
+            '04/2027': {
+              payslipDateIso: '2027-03-25',
+              paydayDateIso: '2027-03-29',
+              note: 'Mar 29 Payday',
+            },
+            '05/2027': {
+              payslipDateIso: '2027-04-23',
+              paydayDateIso: '2027-04-27',
+              note: 'Apr 27 Payday',
+            },
+            '06/2027': {
+              payslipDateIso: '2027-05-25',
+              paydayDateIso: '2027-05-27',
+              note: 'May 27 Payday',
+            },
+            '07/2027': {
+              payslipDateIso: '2027-06-23',
+              paydayDateIso: '2027-06-25',
+              note: 'Jun 25 Payday',
+            },
+            '08/2027': {
+              payslipDateIso: '2027-07-23',
+              paydayDateIso: '2027-07-26',
+              note: 'Jul 26 Payday',
+            },
+            '09/2027': {
+              payslipDateIso: '2027-08-24',
+              paydayDateIso: '2027-08-26',
+              note: 'Aug 26 Payday',
+            },
+            '10/2027': {
+              payslipDateIso: '2027-09-22',
+              paydayDateIso: '2027-09-24',
+              note: 'Sep 24 Payday',
             },
           },
       shiftWeekendToFriday: true,

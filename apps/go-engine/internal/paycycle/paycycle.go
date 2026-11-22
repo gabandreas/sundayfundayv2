@@ -223,6 +223,18 @@ func addWorkingDays(start time.Time, lag int, holidays map[string]bool) time.Tim
 	return d
 }
 
+func addWorkingDaysClampedToMonth(start time.Time, lag int, holidays map[string]bool) time.Time {
+	d := addWorkingDays(start, lag, holidays)
+	if lag > 0 && (d.Year() != start.Year() || d.Month() != start.Month()) {
+		lastDay := time.Date(start.Year(), start.Month()+1, 0, 0, 0, 0, 0, time.UTC)
+		for !isWorkingDay(lastDay, holidays) && lastDay.After(start) {
+			lastDay = lastDay.AddDate(0, 0, -1)
+		}
+		return lastDay
+	}
+	return d
+}
+
 func ComputePaycycleHorizon(req HorizonRequest) HorizonResult {
 	m := req.Month
 	if m < 1 || m > 12 {
@@ -278,11 +290,11 @@ func ComputePaycycleHorizon(req HorizonRequest) HorizonResult {
 			payslipDrop = expPayslip
 			overrideApplied = true
 		}
-		payday = addWorkingDays(payslipDrop, lagDays, holidays)
+		payday = addWorkingDaysClampedToMonth(payslipDrop, lagDays, holidays)
 		shifted = payslipShifted
 
 		nextPayslip, _ := resolvePayslipDate(m, y, pAnchor, shiftRule, holidays)
-		nextPayday = addWorkingDays(nextPayslip, lagDays, holidays)
+		nextPayday = addWorkingDaysClampedToMonth(nextPayslip, lagDays, holidays)
 	} else {
 		payday, shifted = resolvePaydayDate(prevM, prevY, anchor, req.ShiftWeekendToFriday)
 		payslipDrop = addWorkingDays(payday, -2, holidays)

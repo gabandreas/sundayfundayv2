@@ -10,6 +10,7 @@ import {
   calculatePayroll,
   getWorkingDaysCutoffWindow,
   calculateWorkingDaysForPeriod,
+  calculateWorkingDaysForConsumptionPeriod,
   DEFAULT_LAPTOP_ALLOWANCE,
 } from './payroll';
 
@@ -237,6 +238,15 @@ describe('payroll calculator', () => {
       const mar2027 = getWorkingDaysCutoffWindow(3, 2027);
       expect(mar2027.holidaysInWindow.length).toBe(5);
       expect(mar2027.workingDays).toBe(mar2027.totalWeekdays - 5);
+    });
+
+    it('maps consumption period M to Payday(M-1) attendance working days for provisioning', () => {
+      // 09/2027 consumption cycle is funded by Payday(08/2027), whose attendance cutoff is 16 Jul – 15 Aug 2027 (21 working days)
+      expect(calculateWorkingDaysForConsumptionPeriod(9, 2027)).toBe(21);
+      expect(calculateWorkingDaysForConsumptionPeriod(2, 2027)).toBe(20);
+      expect(calculateWorkingDaysForConsumptionPeriod(4, 2027)).toBe(15);
+      expect(calculateWorkingDaysForConsumptionPeriod(8, 2027)).toBe(22);
+      expect(calculateWorkingDaysForConsumptionPeriod(1, 2027)).toBe(22);
     });
   });
 });

@@ -107,16 +107,23 @@ async function main() {
 
     assert.equal(Math.round(jan27?.finalTotalIncome ?? -1), 9840917, '01/2027 Total Income (with Natal THR) must be 9,840,917');
     assert.equal(Math.round(jan27?.totalDeductions ?? -1), 3171115, '01/2027 Total Debt must be 3,171,115');
+    assert.equal(Math.round(jan27?.dailyOperational ?? -1), 1500000, '01/2027 dailyOperational must be 1,500,000');
     assert.equal(Math.round(jan27?.actualSavings ?? -1), 1000000, '01/2027 P1 must be 1,000,000');
-    assert.equal(Math.round(jan27?.selfReward ?? -1), 2284802, '01/2027 P2 must be 2,284,802');
+    assert.equal(Math.round(jan27?.selfReward ?? -1), 3634802, '01/2027 P2 must be 3,634,802');
 
     assert.equal(Math.round(feb27?.totalDeductions ?? -1), 1967159, '02/2027 Total Debt must be 1,967,159');
+    assert.equal(Math.round(feb27?.dailyOperational ?? -1), 1500000, '02/2027 dailyOperational must be 1,500,000');
+    assert.equal(Math.round(feb27?.actualSavings ?? -1), 1000000, '02/2027 P1 must be 1,000,000');
+    assert.equal(Math.round(feb27?.selfReward ?? -1), 888841, '02/2027 P2 must be 888,841');
     assert.equal(Math.round(mar27?.totalDeductions ?? -1), 835996, '03/2027 Total Debt must be 835,996');
 
     const jul27: any = snapMap.get('7/2027');
     const aug27: any = snapMap.get('8/2027');
+    const sep27: any = snapMap.get('9/2027');
     assert.equal(Math.round(jul27?.totalDeductions ?? -1), 293044, '07/2027 Total Debt must be 293,044');
     assert.equal(Math.round(aug27?.totalDeductions ?? -1), 293044, '08/2027 Total Debt must be 293,044');
+    assert.equal(Math.round(sep27?.totalDeductions ?? -1), 293044, '09/2027 Total Debt must be 293,044');
+    assert.equal(Math.round(sep27?.finalTotalIncome ?? -1), 5916000, '09/2027 Total Income (21 wd) must be 5,916,000');
     for (const s of [jul27, aug27]) {
       const ccTxs = await prisma.transaction.findMany({
         where: { snapshotId: s.id, sourceType: 'CC_TRANSACTION' },
@@ -334,7 +341,7 @@ async function main() {
     console.log('\n[8/11] Verifying Lock-Safe Bulk Statement Reconciler & Formula DSL endpoint...');
     const parsed = await financeSelectors.parseStatementForUser(
       {
-        rawText: '2026-10-12, Kopi SPayLater, Rp 34.200\n2026-10-18, GrabRide Cash, Rp 28.500',
+        rawText: '2026-09-12, Kopi SPayLater, Rp 34.200\n2026-10-18, GrabRide Cash, Rp 28.500',
         defaultMethod: 'CASH',
         defaultYear: 2026,
       },

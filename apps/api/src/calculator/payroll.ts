@@ -141,6 +141,20 @@ export function calculateWorkingDaysForPeriod(
   return getWorkingDaysCutoffWindow(month, year).workingDays;
 }
 
+/**
+ * Under the Consumption & Bill-Maturity Month convention (Period M is funded
+ * by Payday(M-1)), payroll attendance follows the 16th of (M-2) through 15th
+ * of (M-1) cutoff window.
+ */
+export function calculateWorkingDaysForConsumptionPeriod(
+  consumptionMonth: number,
+  consumptionYear: number,
+): number {
+  const prevMonth = consumptionMonth === 1 ? 12 : consumptionMonth - 1;
+  const prevYear = consumptionMonth === 1 ? consumptionYear - 1 : consumptionYear;
+  return calculateWorkingDaysForPeriod(prevMonth, prevYear);
+}
+
 export interface PayrollInput {
   baseSalary: number;
   salaryAdjustment?: number;

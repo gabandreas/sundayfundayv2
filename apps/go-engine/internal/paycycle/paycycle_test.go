@@ -210,3 +210,21 @@ func TestHorizonThreeTemporalStatesPreActiveCompleted(t *testing.T) {
 		t.Fatalf("expected RemainingDays=0 and CurrentDayIndex==TotalCycleDays in COMPLETED, got rem=%d idx=%d total=%d", done.RemainingDays, done.CurrentDayIndex, done.TotalCycleDays)
 	}
 }
+
+func TestFeb2027SameMonthBankingClamp(t *testing.T) {
+	res := ComputePaycycleHorizon(HorizonRequest{
+		Month:                2,
+		Year:                 2027,
+		PayslipAnchorDay:     25,
+		PayslipShiftRule:     "SHIFT_PREVIOUS_FRIDAY",
+		ReviewLagWorkingDays: 2,
+		HolidaysIso:          []string{"2026-12-25", "2027-01-01"},
+		ShiftWeekendToFriday: true,
+		WeekendMultiplier:    1.5,
+		RemainingBudgetRp:    1500000,
+		ReferenceDateIso:     "2027-02-01",
+	})
+	if res.PaydayIso != "2027-01-27" || res.NextPaydayIso != "2027-02-26" || res.LivingEndIso != "2027-02-25" || res.TotalCycleDays != 30 {
+		t.Fatalf("expected 30d clamped Feb cycle (2027-01-27..2027-02-25 -> next 2027-02-26), got %+v", res)
+	}
+}

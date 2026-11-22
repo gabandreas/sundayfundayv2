@@ -73,7 +73,7 @@ const DEFAULT_ALLOCATION_BUCKETS: AllocationBucketRule[] = [
     group: "DAILY_OPERATIONAL",
     priorityTier: 0,
     formulaType: "FIXED_AMOUNT",
-    value: 2850000,
+    value: 1500000,
     isActive: true,
   },
   {
