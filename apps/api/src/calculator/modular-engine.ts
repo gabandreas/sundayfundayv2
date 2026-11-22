@@ -96,6 +96,7 @@ export interface ModularEngineSnapshotInput {
   thrAmount?: number;
   bonusAmount?: number;
   extraIncome?: number;
+  bridgeInflowAmount?: number;
   month: number;
   year: number;
   cycleDays: number;
@@ -112,6 +113,14 @@ export interface ModularEngineSnapshotInput {
     category?: string | null;
     newValue: number;
   }>;
+  isManualOverride?: boolean;
+  lockedP1?: number | null;
+  lockedP2?: number | null;
+  oneOffBills?: Array<{
+    slot: string;
+    label: string;
+    amount: number;
+  }> | null;
   transactions?: Array<{
     type: string;
     sourceType?: string | null;
@@ -485,6 +494,7 @@ export function evaluateModularPayroll(params: {
   adjustedBaseSalary: number;
   bpjsDeduction: number;
   laptopAllowance: number;
+  netBasePayroll: number;
   totalDailyAllowance: number;
   netSalaryIncome: number;
   finalTotalIncome: number;
@@ -615,6 +625,7 @@ export function evaluateModularPayroll(params: {
     adjustedBaseSalary,
     bpjsDeduction,
     laptopAllowance,
+    netBasePayroll,
     totalDailyAllowance,
     netSalaryIncome,
     finalTotalIncome,
@@ -705,7 +716,11 @@ export function evaluateModularEngine(
     customPayrollRows: input.formulaParams?.customPayrollRows,
   });
 
-  const finalTotalIncome = payroll.finalTotalIncome;
+  const bridgeInflow = Math.max(
+    0,
+    Math.round(Number(input.bridgeInflowAmount) || 0),
+  );
+  const finalTotalIncome = payroll.finalTotalIncome + bridgeInflow;
   const totalCreditBills = Math.max(0, Number(input.totalCreditBills) || 0);
   const cycleDays = Math.max(1, Number(input.cycleDays) || 30);
 
@@ -750,8 +765,19 @@ export function evaluateModularEngine(
   }
 
   const activeBuckets: BucketEvalIntermediate[] = [];
-  for (const rule of buckets) {
-    if (!rule.isActive) continue;
+  const oneOffLabelMap = new Map<string, string>();
+  if (Array.isArray(input.oneOffBills)) {
+    for (const item of input.oneOffBills) {
+      if (item && item.slot && item.label) {
+        oneOffLabelMap.set(item.slot.toLowerCase(), item.label);
+      }
+    }
+  }
+
+  for (const rawRule of buckets) {
+    if (!rawRule.isActive) continue;
+    const customLabel = oneOffLabelMap.get(rawRule.id.toLowerCase());
+    const rule = customLabel ? { ...rawRule, label: customLabel } : rawRule;
 
     const { target: baselineTarget, capHit } = resolveBucketTarget(rule, {
       finalTotalIncome,
@@ -860,8 +886,27 @@ export function evaluateModularEngine(
     for (const b of fixedEssentialsTier0) {
       b.fundedAmount = b.revisedTarget;
     }
-    for (const b of bufferTier0) {
-      b.fundedAmount = isDeficit ? 0 : b.revisedTarget;
+    const availableForBufferOverride = Math.max(
+      0,
+      finalTotalIncome -
+        totalDeductions -
+        totalFixedEssentialsTarget -
+        engineOverrideResult.actualDailyOperational,
+    );
+    let distributedBufferOverride = 0;
+    for (let i = 0; i < bufferTier0.length; i++) {
+      const b = bufferTier0[i];
+      const bufferFundedCap = Math.min(totalBufferTarget, availableForBufferOverride);
+      if (i === bufferTier0.length - 1) {
+        b.fundedAmount = Math.max(0, bufferFundedCap - distributedBufferOverride);
+      } else {
+        const share =
+          totalBufferTarget > 0
+            ? Math.round((b.revisedTarget / totalBufferTarget) * bufferFundedCap)
+            : 0;
+        b.fundedAmount = share;
+        distributedBufferOverride += share;
+      }
     }
     if (dailyOpTier0.length > 0) {
       dailyOpTier0[0].fundedAmount = engineOverrideResult.actualDailyOperational;
@@ -872,19 +917,111 @@ export function evaluateModularEngine(
     if (tier2.length > 0) {
       tier2[0].fundedAmount = engineOverrideResult.selfReward;
     }
+  } else if (input.isManualOverride) {
+    // Locked cash envelope override: honor revised Tier 0 targets and locked P1/P2
+    // so mid-cycle non-cash Debt Matrix additions never cannibalize living cash.
+    for (const b of tier0) {
+      b.fundedAmount = b.revisedTarget;
+    }
+
+    const lockedP1Val =
+      input.lockedP1 !== undefined && input.lockedP1 !== null
+        ? Math.max(0, Math.round(input.lockedP1))
+        : tier1.reduce((s, b) => s + b.revisedTarget, 0);
+
+    if (tier1.length > 0) {
+      const rawRevisedSum = tier1.reduce((s, b) => s + b.revisedTarget, 0);
+      let allocatedTier1 = 0;
+      for (let i = 0; i < tier1.length; i++) {
+        const b = tier1[i];
+        if (i === tier1.length - 1) {
+          b.fundedAmount = lockedP1Val - allocatedTier1;
+        } else {
+          const share =
+            rawRevisedSum > 0
+              ? Math.round((b.revisedTarget / rawRevisedSum) * lockedP1Val)
+              : 0;
+          b.fundedAmount = share;
+          allocatedTier1 += share;
+        }
+      }
+    }
+
+    const lockedP2Val =
+      input.lockedP2 !== undefined && input.lockedP2 !== null
+        ? Math.max(0, Math.round(input.lockedP2))
+        : Math.max(0, availableFunds - lockedP1Val);
+
+    if (tier2.length > 0) {
+      const selfRewardBucket =
+        tier2.find((b) => b.rule.id.toLowerCase() === 'self_reward') ??
+        tier2[0];
+      for (const b of tier2) {
+        b.fundedAmount = b === selfRewardBucket ? lockedP2Val : 0;
+      }
+    }
+
+    // Surface any true mathematical cashflow deficit transparently instead of masking it as 0
+    const totalAllocatedUnderOverride =
+      totalDeductions +
+      upfrontEssentialAndOperational +
+      totalBufferTarget +
+      lockedP1Val +
+      lockedP2Val;
+    deficitUncovered = Math.max(
+      0,
+      Math.round(totalAllocatedUnderOverride - finalTotalIncome),
+    );
+    isDeficit = deficitUncovered > 0;
   } else if (availableFunds < 0) {
-    // Deficit state
+    // Deficit state under Proportional Living Cash Law:
+    // Priority: TotalDebt -> RoutineBills -> Proportional Living Cash -> Buffer
     isDeficit = true;
     deficitUncovered = Math.abs(availableFunds);
 
     for (const b of fixedEssentialsTier0) {
       b.fundedAmount = b.revisedTarget;
     }
-    for (const b of bufferTier0) {
-      b.fundedAmount = 0;
+    const availableForLiving = Math.max(
+      0,
+      finalTotalIncome - totalDeductions - totalFixedEssentialsTarget,
+    );
+    const fundedLivingTotal = Math.min(totalDailyOpTarget, availableForLiving);
+    if (dailyOpTier0.length > 0) {
+      let distributedLiving = 0;
+      for (let i = 0; i < dailyOpTier0.length; i++) {
+        const b = dailyOpTier0[i];
+        if (i === dailyOpTier0.length - 1) {
+          b.fundedAmount = Math.max(0, fundedLivingTotal - distributedLiving);
+        } else {
+          const share =
+            totalDailyOpTarget > 0
+              ? Math.round((b.revisedTarget / totalDailyOpTarget) * fundedLivingTotal)
+              : 0;
+          b.fundedAmount = share;
+          distributedLiving += share;
+        }
+      }
     }
-    for (const b of dailyOpTier0) {
-      b.fundedAmount = 0;
+    const bufferFundedTotal = Math.min(
+      totalBufferTarget,
+      Math.max(0, availableForLiving - fundedLivingTotal),
+    );
+    if (bufferTier0.length > 0) {
+      let distributedBuffer = 0;
+      for (let i = 0; i < bufferTier0.length; i++) {
+        const b = bufferTier0[i];
+        if (i === bufferTier0.length - 1) {
+          b.fundedAmount = Math.max(0, bufferFundedTotal - distributedBuffer);
+        } else {
+          const share =
+            totalBufferTarget > 0
+              ? Math.round((b.revisedTarget / totalBufferTarget) * bufferFundedTotal)
+              : 0;
+          b.fundedAmount = share;
+          distributedBuffer += share;
+        }
+      }
     }
     for (const b of tier1) {
       b.fundedAmount = 0;
@@ -902,23 +1039,34 @@ export function evaluateModularEngine(
       b.fundedAmount = b.revisedTarget;
     }
 
-    // Tier 1 (Core Savings)
-    const tier1TargetSum = tier1.reduce((s, b) => s + b.revisedTarget, 0);
+    // Tier 1 (Core Savings) — honor explicit lockedP1 cap when manual override / P1 forward-borrow is active
+    const tier1TargetSum =
+      input.isManualOverride &&
+      input.lockedP1 !== undefined &&
+      input.lockedP1 !== null
+        ? Math.max(0, Math.round(input.lockedP1))
+        : tier1.reduce((s, b) => s + b.revisedTarget, 0);
     const tier1FundedTotal = Math.min(availableFunds, tier1TargetSum);
 
     if (tier1TargetSum > 0) {
+      const rawRevisedSum = tier1.reduce((s, b) => s + b.revisedTarget, 0);
       let allocatedTier1 = 0;
       for (let i = 0; i < tier1.length; i++) {
         const b = tier1[i];
         if (i === tier1.length - 1) {
           b.fundedAmount = tier1FundedTotal - allocatedTier1;
         } else {
-          const share = Math.round(
-            (b.revisedTarget / tier1TargetSum) * tier1FundedTotal,
-          );
+          const share =
+            rawRevisedSum > 0
+              ? Math.round((b.revisedTarget / rawRevisedSum) * tier1FundedTotal)
+              : 0;
           b.fundedAmount = share;
           allocatedTier1 += share;
         }
+      }
+    } else {
+      for (const b of tier1) {
+        b.fundedAmount = 0;
       }
     }
 
@@ -1035,9 +1183,7 @@ export function evaluateModularEngine(
 
   const actualDailyOperational = engineOverrideResult
     ? engineOverrideResult.actualDailyOperational
-    : isDeficit
-      ? 0
-      : totalDailyOpTarget;
+    : dailyOpTier0.reduce((s, b) => s + b.fundedAmount, 0);
   const actualSavings = engineOverrideResult
     ? engineOverrideResult.actualSavings
     : getBucketFunded('core_savings', 'SAVINGS_P1');
@@ -1046,9 +1192,7 @@ export function evaluateModularEngine(
     : getBucketFunded('self_reward', 'SELF_REWARD_P2');
   const survivalPocket = engineOverrideResult
     ? engineOverrideResult.survivalPocket
-    : isDeficit
-      ? upfrontEssentialAndOperational
-      : actualDailyOperational + totalFixedEssentialsTarget;
+    : actualDailyOperational + totalFixedEssentialsTarget;
 
   const canonicalSnapshotColumns = {
     transport: getBucketTarget('transport'),

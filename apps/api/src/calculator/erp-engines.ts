@@ -255,10 +255,10 @@ export function computePaycycleHorizonTs(req: PaycycleHorizonRequest): PaycycleH
   let shifted = false;
   let overrideApplied = false;
 
-  const nextYm = addHybridMonths(m, y, 1);
+  const prevYm = addHybridMonths(m, y, -1);
   if (useTwoStage) {
     const pAnchor = (req.payslipAnchorDay ?? 0) > 0 ? req.payslipAnchorDay! : 25;
-    const stage1 = resolvePayslipUtc(m, y, pAnchor, shiftRule, holidays);
+    const stage1 = resolvePayslipUtc(prevYm.month, prevYm.year, pAnchor, shiftRule, holidays);
     payslipDrop = stage1.date;
     payslipShifted = stage1.shifted;
     const expPayslip = parseIsoUtc(req.explicitPayslipIso);
@@ -269,16 +269,16 @@ export function computePaycycleHorizonTs(req: PaycycleHorizonRequest): PaycycleH
     payday = addWorkingDaysUtc(payslipDrop, lagDays, holidays);
     shifted = payslipShifted;
 
-    const nextStage1 = resolvePayslipUtc(nextYm.month, nextYm.year, pAnchor, shiftRule, holidays);
+    const nextStage1 = resolvePayslipUtc(m, y, pAnchor, shiftRule, holidays);
     nextPayday = addWorkingDaysUtc(nextStage1.date, lagDays, holidays);
   } else {
-    const leg = resolvePaydayUtc(m, y, anchor, req.shiftWeekendToFriday);
+    const leg = resolvePaydayUtc(prevYm.month, prevYm.year, anchor, req.shiftWeekendToFriday);
     payday = leg.date;
     shifted = leg.shifted;
     payslipDrop = addWorkingDaysUtc(payday, -2, holidays);
     payslipShifted = shifted;
     lagDays = 2;
-    nextPayday = resolvePaydayUtc(nextYm.month, nextYm.year, anchor, req.shiftWeekendToFriday).date;
+    nextPayday = resolvePaydayUtc(m, y, anchor, req.shiftWeekendToFriday).date;
   }
 
   const expStart = parseIsoUtc(req.explicitStartIso);
@@ -384,8 +384,8 @@ export function computePaycycleHorizonTs(req: PaycycleHorizonRequest): PaycycleH
     cycleTemporalState,
     daysUntilCycleStart,
     currentDayIndex,
-    maturityMonth: nextYm.month,
-    maturityYear: nextYm.year,
+    maturityMonth: m,
+    maturityYear: y,
     totalCycleDays: totalDays,
     remainingDays: remDays,
     elapsedDays,
@@ -481,14 +481,13 @@ export function routeTransactionToPaycycleTs(req: RouteTxRequest): RouteTxResult
 
   if (instUpper === 'CASH') {
     const anchor = !req.anchorDay || req.anchorDay <= 0 ? 27 : req.anchorDay;
-    const target = day < anchor ? addHybridMonths(m, y, -1) : { month: m, year: y };
-    const mat = addHybridMonths(target.month, target.year, 1);
+    const target = day >= anchor ? addHybridMonths(m, y, 1) : { month: m, year: y };
     return {
       targetPeriodMonth: target.month,
       targetPeriodYear: target.year,
       targetPeriodCode: `${String(target.month).padStart(2, '0')}/${target.year}`,
-      maturityMonth: mat.month,
-      maturityYear: mat.year,
+      maturityMonth: target.month,
+      maturityYear: target.year,
       dueDay: day,
       cutoffDay: 0,
       crossedCutoff: false,
@@ -498,50 +497,47 @@ export function routeTransactionToPaycycleTs(req: RouteTxRequest): RouteTxResult
 
   if (dueRule === 'DISBURSEMENT_DAY' || instUpper === 'CASH_LOAN' || instUpper === 'SPINJAM') {
     const firstDue = addHybridMonths(m, y, 1);
-    const target = addHybridMonths(firstDue.month, firstDue.year, -1);
     return {
-      targetPeriodMonth: target.month,
-      targetPeriodYear: target.year,
-      targetPeriodCode: `${String(target.month).padStart(2, '0')}/${target.year}`,
+      targetPeriodMonth: firstDue.month,
+      targetPeriodYear: firstDue.year,
+      targetPeriodCode: `${String(firstDue.month).padStart(2, '0')}/${firstDue.year}`,
       maturityMonth: firstDue.month,
       maturityYear: firstDue.year,
       dueDay,
       cutoffDay: 0,
       crossedCutoff: false,
-      explanation: `Disbursement-day loan on day ${day} matures ${String(firstDue.month).padStart(2, '0')}/${firstDue.year} on day ${dueDay}, funded by Paycycle ${String(target.month).padStart(2, '0')}/${target.year}.`,
+      explanation: `Disbursement-day loan on day ${day} matures ${String(firstDue.month).padStart(2, '0')}/${firstDue.year} on day ${dueDay} -> Period ${String(firstDue.month).padStart(2, '0')}/${firstDue.year}.`,
     };
   }
 
   if (instUpper === 'CREDIT_CARD' || instUpper === 'CC') {
     const crossed = day > cutoffDay;
-    const target = addHybridMonths(m, y, crossed ? 1 : 0);
-    const mat = addHybridMonths(target.month, target.year, 1);
+    const target = addHybridMonths(m, y, crossed ? 2 : 1);
     return {
       targetPeriodMonth: target.month,
       targetPeriodYear: target.year,
       targetPeriodCode: `${String(target.month).padStart(2, '0')}/${target.year}`,
-      maturityMonth: mat.month,
-      maturityYear: mat.year,
+      maturityMonth: target.month,
+      maturityYear: target.year,
       dueDay,
       cutoffDay,
       crossedCutoff: crossed,
-      explanation: `Credit Card tx on day ${day} (cutoff ${cutoffDay}) matures ${dueDay}/${String(mat.month).padStart(2, '0')}/${mat.year} -> funded by Paycycle ${String(target.month).padStart(2, '0')}/${target.year}.`,
+      explanation: `Credit Card tx on day ${day} (cutoff ${cutoffDay}) matures ${dueDay}/${String(target.month).padStart(2, '0')}/${target.year} -> Period ${String(target.month).padStart(2, '0')}/${target.year}.`,
     };
   }
 
   const crossed = day >= cutoffDay;
-  const target = crossed ? { month: m, year: y } : addHybridMonths(m, y, -1);
-  const mat = crossed ? addHybridMonths(m, y, 1) : { month: m, year: y };
+  const target = crossed ? addHybridMonths(m, y, 1) : { month: m, year: y };
   return {
     targetPeriodMonth: target.month,
     targetPeriodYear: target.year,
     targetPeriodCode: `${String(target.month).padStart(2, '0')}/${target.year}`,
-    maturityMonth: mat.month,
-    maturityYear: mat.year,
+    maturityMonth: target.month,
+    maturityYear: target.year,
     dueDay,
     cutoffDay,
     crossedCutoff: crossed,
-    explanation: `PayLater tx on day ${day} (cutoff ${cutoffDay}) matures ${dueDay}/${String(mat.month).padStart(2, '0')}/${mat.year} -> funded by Paycycle ${String(target.month).padStart(2, '0')}/${target.year}.`,
+    explanation: `PayLater tx on day ${day} (cutoff ${cutoffDay}) matures ${dueDay}/${String(target.month).padStart(2, '0')}/${target.year} -> Period ${String(target.month).padStart(2, '0')}/${target.year}.`,
   };
 }
 

@@ -1,6 +1,7 @@
 import {
   Injectable,
   BadRequestException,
+  ForbiddenException,
   NotFoundException,
   Inject,
   forwardRef,
@@ -9,6 +10,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../audit/audit-log.service';
 import { SnapshotsSelectors } from './snapshots.selectors';
+import { CreditService } from '../credit/credit.service';
 import { buildDefaultSandboxState } from '../config/sandbox.defaults';
 import {
   SnapshotStatus,
@@ -18,7 +20,9 @@ import {
   AuditCategory,
   AuditSeverity,
   BudgetRevisionCategory,
+  LiabilityCategory,
 } from '@prisma/client';
+import { BorrowFromP1Dto } from './dto/borrow-p1.dto';
 import {
   calculatePayroll,
   sumExtraIncome,
@@ -53,6 +57,9 @@ export class SnapshotsService {
     @Optional()
     @Inject(forwardRef(() => SnapshotsSelectors))
     private readonly selectors?: SnapshotsSelectors,
+    @Optional()
+    @Inject(forwardRef(() => CreditService))
+    private readonly creditService?: CreditService,
   ) {}
 
   /**
@@ -63,6 +70,7 @@ export class SnapshotsService {
   async assertSnapshotUnlocked(
     snapshotId: number,
     tx?: Prisma.TransactionClient,
+    userId?: number,
   ): Promise<MonthlySnapshot> {
     const client = tx ?? this.prisma;
     const snapshot = await client.monthlySnapshot.findUnique({
@@ -71,6 +79,9 @@ export class SnapshotsService {
 
     if (!snapshot) {
       throw new NotFoundException(`Snapshot #${snapshotId} not found`);
+    }
+    if (userId !== undefined && snapshot.userId !== userId) {
+      throw new ForbiddenException(`Access denied to snapshot #${snapshotId}`);
     }
 
     if (snapshot.status === SnapshotStatus.LOCKED) {
@@ -89,12 +100,20 @@ export class SnapshotsService {
   async recalculateSnapshot(
     snapshotId: number,
     txClient?: Prisma.TransactionClient,
+    userId?: number,
   ) {
     const execute = async (tx: Prisma.TransactionClient) => {
       const snapshot = await tx.monthlySnapshot.findUniqueOrThrow({
         where: { id: snapshotId },
-        include: { budgetRevisions: true },
+        include: {
+          budgetRevisions: {
+            orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+          },
+        },
       });
+      if (userId !== undefined && snapshot.userId !== userId) {
+        throw new ForbiddenException(`Access denied to snapshot #${snapshotId}`);
+      }
       if (snapshot.status === SnapshotStatus.LOCKED) {
         throw new BadRequestException('Cannot recalculate a locked snapshot');
       }
@@ -117,13 +136,29 @@ export class SnapshotsService {
         );
       }
 
+      const modularRules =
+        (snapshot.frozenRulesJson as any) ||
+        synthesizeRulesFromSnapshot({
+          ...snapshot,
+          dailyAllowance: config.dailyAllowance,
+          laptopAllowance: config.laptopAllowance,
+        });
+
+      const frozenDailyRule = Array.isArray(modularRules?.payrollRules)
+        ? modularRules.payrollRules.find((r: any) => r?.id === 'daily_attendance')
+        : null;
+      const effectiveDailyAllowance =
+        snapshot.frozenRulesJson && frozenDailyRule && frozenDailyRule.value !== undefined
+          ? Number(frozenDailyRule.value)
+          : config.dailyAllowance;
+
       const extraIncome = sumExtraIncome(transactions);
 
       const payroll = calculatePayroll({
         baseSalary: config.baseSalary,
         salaryAdjustment: snapshot.salaryAdjustment,
         totalWorkingDays: snapshot.totalWorkingDays,
-        dailyAllowance: config.dailyAllowance,
+        dailyAllowance: effectiveDailyAllowance,
         cafeteriaDeduction: snapshot.cafeteriaDeduction,
         thrAmount: snapshot.thrAmount,
         bonusAmount: snapshot.bonusAmount,
@@ -151,33 +186,32 @@ export class SnapshotsService {
         return snapshot.dailyOperational;
       })();
 
+      const trackingStartYear = config.activeTrackingStartYear ?? 2026;
+      const trackingStartMonth = config.activeTrackingStartMonth ?? 10;
+      const isPreTrackingPeriod =
+        snapshot.year < trackingStartYear ||
+        (snapshot.year === trackingStartYear && snapshot.month < trackingStartMonth);
+
       const totalDeductions = calculateTotalDeductions(
         transactions,
         fixedTargets,
-        effectiveDailyOperational,
+        isPreTrackingPeriod ? undefined : effectiveDailyOperational,
       );
 
       const totalCreditBills = transactions
         .filter((t) => t.type === 'CREDIT_BILL')
         .reduce((sum, t) => sum + Number(t.amount), 0);
 
-      const modularRules =
-        (snapshot.frozenRulesJson as any) ||
-        synthesizeRulesFromSnapshot({
-          ...snapshot,
-          dailyAllowance: config.dailyAllowance,
-          laptopAllowance: config.laptopAllowance,
-        });
-
       const modularResult = evaluateModularEngine({
         baseSalary: config.baseSalary,
         salaryAdjustment: snapshot.salaryAdjustment,
         totalWorkingDays: snapshot.totalWorkingDays,
-        dailyAllowance: config.dailyAllowance,
+        dailyAllowance: effectiveDailyAllowance,
         cafeteriaDeduction: snapshot.cafeteriaDeduction,
         thrAmount: snapshot.thrAmount,
         bonusAmount: snapshot.bonusAmount,
         extraIncome,
+        bridgeInflowAmount: snapshot.bridgeInflowAmount ?? 0,
         month: snapshot.month,
         year: snapshot.year,
         cycleDays: 30,
@@ -193,6 +227,10 @@ export class SnapshotsService {
             : ((config.formulaEngineType as any) || 'DEBT_FIRST_WATERFALL'),
         formulaParams: (config.formulaParamsJson as any) || null,
         budgetRevisions: snapshot.budgetRevisions,
+        isManualOverride: snapshot.isManualOverride,
+        lockedP1: snapshot.lockedP1,
+        lockedP2: snapshot.lockedP2,
+        oneOffBills: (snapshot.oneOffBillsJson as any) || null,
         transactions,
       });
 
@@ -224,7 +262,9 @@ export class SnapshotsService {
         },
         include: {
           transactions: true,
-          budgetRevisions: true,
+          budgetRevisions: {
+            orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+          },
         },
       });
     };
@@ -239,37 +279,10 @@ export class SnapshotsService {
    * If useDecemberProratedThr is provided, computes THR server-side using the pure calculator.
    * Rejects immediately if snapshot is LOCKED.
    */
-  async updateSnapshot(id: number, dto: UpdateSnapshotDto) {
-    if (id === 999999) {
-      const globalConfig = await this.prisma.globalConfig.findFirst({
-        where: { userId: 1 },
-      });
-      const sandbox =
-        (globalConfig?.sandboxStateJson as any) || buildDefaultSandboxState();
-      if (dto.totalWorkingDays !== undefined)
-        sandbox.persona.totalWorkingDays = dto.totalWorkingDays;
-      if ((dto as any).dailyOperational !== undefined)
-        sandbox.persona.dailyLivingBudget = (dto as any).dailyOperational;
-      if (dto.payrollPayoutDate !== undefined && dto.payrollPayoutDate) {
-        const d = new Date(dto.payrollPayoutDate);
-        if (!isNaN(d.getDate())) sandbox.persona.paydayAnchor = d.getDate();
-      }
-      await this.prisma.globalConfig.update({
-        where: { userId: 1 },
-        data: { sandboxStateJson: sandbox },
-      });
-      return (
-        this.selectors?.buildSandboxSnapshot(
-          sandbox,
-          sandbox.month || 10,
-          sandbox.year || 2026,
-        ) ?? (sandbox as any)
-      );
-    }
-
+  async updateSnapshot(id: number, dto: UpdateSnapshotDto, userId?: number) {
     const execute = async (tx: Prisma.TransactionClient) => {
-      // 1. Assert snapshot is unlocked (rejects if LOCKED)
-      const snapshot = await this.assertSnapshotUnlocked(id, tx);
+      // 1. Assert snapshot is unlocked (rejects if LOCKED) and owned by caller
+      const snapshot = await this.assertSnapshotUnlocked(id, tx, userId);
 
       const config =
         (await tx.globalConfig.findUnique({ where: { userId: snapshot.userId } })) ||
@@ -382,17 +395,16 @@ export class SnapshotsService {
    * Only the chronologically earliest still-open DRAFT snapshot may be closed at any time.
    * Attempting to close a later period while an earlier one remains DRAFT will throw.
    */
-  async closePeriod(snapshotId: number, dto?: ClosePeriodDto) {
+  async closePeriod(snapshotId: number, dto?: ClosePeriodDto, userId?: number) {
     const result = await this.prisma.$transaction(
       async (tx) => {
         // 1. Verify snapshot is currently DRAFT (rejects with BadRequestException if LOCKED)
-      const current = await this.assertSnapshotUnlocked(snapshotId, tx);
+      const current = await this.assertSnapshotUnlocked(snapshotId, tx, userId);
 
-      // 2. Enforce chronological order: no earlier DRAFT snapshot may exist.
-      //    An "earlier" snapshot is one where (year < current.year) OR
-      //    (year === current.year AND month < current.month).
+      // 2. Enforce chronological order within the same userId: no earlier DRAFT snapshot may exist.
       const earlierDraft = await tx.monthlySnapshot.findFirst({
         where: {
+          userId: current.userId,
           status: SnapshotStatus.DRAFT,
           id: { not: snapshotId },
           OR: [
@@ -414,13 +426,16 @@ export class SnapshotsService {
       // 3. Final recalculation within the transaction
       await this.recalculateSnapshot(snapshotId, tx);
 
-      // 4. Decrement remainingTenor by 1 for all active contracts
-      const activeContracts = await tx.creditContract.findMany({
-        where: {
-          isActive: true,
-          remainingTenor: { gt: 0 },
-        },
-      });
+      // 4. Decrement remainingTenor by 1 for all active legacy contracts (userId 1 only)
+      const activeContracts =
+        current.userId === 1
+          ? await tx.creditContract.findMany({
+              where: {
+                isActive: true,
+                remainingTenor: { gt: 0 },
+              },
+            })
+          : [];
 
       for (const contract of activeContracts) {
         const newRemainingTenor = Math.max(0, contract.remainingTenor - 1);
@@ -506,12 +521,15 @@ export class SnapshotsService {
   /**
    * Reopens a previously LOCKED snapshot back to DRAFT status for administrative modifications.
    */
-  async reopenSnapshot(snapshotId: number) {
+  async reopenSnapshot(snapshotId: number, userId?: number) {
     const snapshot = await this.prisma.monthlySnapshot.findUnique({
       where: { id: snapshotId },
     });
     if (!snapshot) {
       throw new NotFoundException(`Snapshot #${snapshotId} not found`);
+    }
+    if (userId !== undefined && snapshot.userId !== userId) {
+      throw new ForbiddenException(`Access denied to snapshot #${snapshotId}`);
     }
 
     if (snapshot.status !== SnapshotStatus.LOCKED) {
@@ -546,8 +564,13 @@ export class SnapshotsService {
    * Evaluates expired consumption cycles and automatically locks them
    * once the configurable grace period (default: 14 days) has elapsed.
    */
-  async evaluateAutoClosePeriods(referenceDate: Date = new Date()) {
-    const config = await this.prisma.globalConfig.findFirst();
+  async evaluateAutoClosePeriods(
+    referenceDate: Date = new Date(),
+    userId: number = 1,
+  ) {
+    const config = await this.prisma.globalConfig.findFirst({
+      where: { userId },
+    });
     if (!config || !config.autoCloseEnabled) {
       return { autoClosedCount: 0, checkedCount: 0, autoClosedPeriods: [] };
     }
@@ -556,9 +579,10 @@ export class SnapshotsService {
     const trackingStartMonth = config.activeTrackingStartMonth ?? 10;
     const trackingStartYear = config.activeTrackingStartYear ?? 2026;
 
-    // Fetch DRAFT snapshots starting from active tracking start
+    // Fetch DRAFT snapshots starting from active tracking start for this userId only
     const draftSnapshots = await this.prisma.monthlySnapshot.findMany({
       where: {
+        userId,
         status: SnapshotStatus.DRAFT,
         OR: [
           { year: { gt: trackingStartYear } },
@@ -623,6 +647,7 @@ export class SnapshotsService {
   async createBudgetRevision(
     snapshotId: number,
     dto: CreateBudgetRevisionDto,
+    userId?: number,
   ) {
     const categoryFieldMap: Record<string, string> = {
       SAVINGS: 'savings',
@@ -640,7 +665,7 @@ export class SnapshotsService {
       dto.bucketKey ?? (dto.category ? dto.category.toLowerCase() : undefined);
     const bucketLabel = dto.bucketLabel ?? dto.category ?? dto.bucketKey ?? 'Custom Bucket';
 
-    const snapshot = await this.assertSnapshotUnlocked(snapshotId);
+    const snapshot = await this.assertSnapshotUnlocked(snapshotId, undefined, userId);
 
     let previousValue = 0;
     if (targetField && snapshot[targetField as keyof typeof snapshot] !== undefined) {
@@ -659,10 +684,42 @@ export class SnapshotsService {
       await this.assertSnapshotUnlocked(snapshotId, tx);
 
       if (targetField) {
+        let nextOneOffBills = Array.isArray(snapshot.oneOffBillsJson)
+          ? ([...(snapshot.oneOffBillsJson as any[])] as Array<{
+              slot: string;
+              label: string;
+              amount: number;
+            }>)
+          : [];
+
+        if (bucketKey) {
+          if (dto.isOneOff) {
+            const customSlotLabel =
+              dto.oneOffLabel?.trim() || dto.bucketLabel?.trim() || bucketLabel;
+            nextOneOffBills = nextOneOffBills.filter(
+              (item) => item.slot?.toLowerCase() !== bucketKey.toLowerCase(),
+            );
+            if (dto.newValue > 0) {
+              nextOneOffBills.push({
+                slot: bucketKey.toLowerCase(),
+                label: customSlotLabel,
+                amount: dto.newValue,
+              });
+            }
+          } else if (dto.oneOffLabel === '') {
+            nextOneOffBills = nextOneOffBills.filter(
+              (item) => item.slot?.toLowerCase() !== bucketKey.toLowerCase(),
+            );
+          }
+        }
+
         await tx.monthlySnapshot.update({
           where: { id: snapshotId },
           data: {
             [targetField]: dto.newValue,
+            ...(dto.isOneOff !== undefined || dto.oneOffLabel === ''
+              ? { oneOffBillsJson: nextOneOffBills as any }
+              : {}),
           },
         });
       }
@@ -704,9 +761,11 @@ export class SnapshotsService {
    * Resyncs global modular rules into this snapshot's frozenRulesJson and triggers recalculation.
    * Strictly rejects when snapshot is LOCKED.
    */
-  async resyncSnapshotRules(snapshotId: number) {
-    const snapshot = await this.assertSnapshotUnlocked(snapshotId);
-    const config = await this.prisma.globalConfig.findFirst();
+  async resyncSnapshotRules(snapshotId: number, userId?: number) {
+    const snapshot = await this.assertSnapshotUnlocked(snapshotId, undefined, userId);
+    const config =
+      (await this.prisma.globalConfig.findFirst({ where: { userId: snapshot.userId } })) ||
+      (await this.prisma.globalConfig.findFirst({ where: { userId: 1 } }));
     if (!config) {
       throw new BadRequestException('Global configuration has not been initialized');
     }
@@ -770,6 +829,7 @@ export class SnapshotsService {
   async previewBudgetRevision(
     snapshotId: number,
     dto: PreviewBudgetRevisionDto,
+    userId?: number,
   ) {
     const categoryFieldMap: Record<string, string> = {
       SAVINGS: 'savings',
@@ -787,7 +847,7 @@ export class SnapshotsService {
       dto.bucketKey ?? (dto.category ? dto.category.toLowerCase() : undefined);
     const bucketLabel = dto.bucketLabel ?? dto.category ?? dto.bucketKey ?? 'Custom Bucket';
 
-    const snapshot = await this.assertSnapshotUnlocked(snapshotId);
+    const snapshot = await this.assertSnapshotUnlocked(snapshotId, undefined, userId);
 
     let previousValue = 0;
     if (targetField && snapshot[targetField as keyof typeof snapshot] !== undefined) {
@@ -802,7 +862,9 @@ export class SnapshotsService {
     }
     const difference = dto.newValue - previousValue;
 
-    const config = await this.prisma.globalConfig.findFirst();
+    const config =
+      (await this.prisma.globalConfig.findFirst({ where: { userId: snapshot.userId } })) ||
+      (await this.prisma.globalConfig.findFirst({ where: { userId: 1 } }));
     if (!config) {
       throw new BadRequestException('Global configuration has not been initialized');
     }
@@ -884,8 +946,9 @@ export class SnapshotsService {
       hypotheticalVape +
       hypotheticalHaircut;
 
+    const bridgeInflow = Math.max(0, Math.round(snapshot.bridgeInflowAmount ?? 0));
     const waterfall = calculateWaterfall({
-      finalTotalIncome: payroll.finalTotalIncome,
+      finalTotalIncome: payroll.finalTotalIncome + bridgeInflow,
       totalDeductions,
       savingsTarget: hypotheticalSavings,
       selfRewardTarget: hypotheticalSelfRewardTarget,
@@ -986,15 +1049,6 @@ export class SnapshotsService {
       throw new BadRequestException('Global configuration has not been initialized');
     }
 
-    if (userId !== 1 && (userId === 2 || config.profileMode === 'STANDARD_GENERAL') && config.sandboxStateJson) {
-      const sandbox =
-        (config.sandboxStateJson as any) || buildDefaultSandboxState(month, year);
-      return (
-        this.selectors?.buildSandboxSnapshot(sandbox, month, year) ??
-        (sandbox as any)
-      );
-    }
-
     const existing = await this.prisma.monthlySnapshot.findUnique({
       where: {
         userId_month_year: { userId, month, year },
@@ -1010,5 +1064,216 @@ export class SnapshotsService {
     }
 
     return this.selectors.getOrCreateDraftSnapshot(month, year, userId);
+  }
+
+  /**
+   * P1 Vault Self-Borrowing ("Forward Purchase"):
+   * Transfers `amount` out of current period Core Savings (P1) into Self-Reward (P2) or Living Cash,
+   * while automatically locking a mandatory `P1_VAULT_REFUND` LiabilityLineItem into `(refundMonth, refundYear)`.
+   */
+  async borrowFromP1Vault(snapshotId: number, dto: BorrowFromP1Dto, userId?: number) {
+    const amount = Math.round(dto.amount);
+    if (amount <= 0) {
+      throw new BadRequestException('Borrow amount must be positive');
+    }
+
+    const result = await this.prisma.$transaction(
+      async (tx) => {
+        const snapshot = await this.assertSnapshotUnlocked(snapshotId, tx, userId);
+        const currentSerial = snapshot.year * 12 + snapshot.month;
+        const refundSerial = dto.refundYear * 12 + dto.refundMonth;
+        if (refundSerial <= currentSerial) {
+          throw new BadRequestException(
+            'Refund period must be strictly later than the current borrowing period',
+          );
+        }
+
+        const currentSavings = Math.round(snapshot.actualSavings ?? 0);
+        if (amount > currentSavings) {
+          throw new BadRequestException(
+            `Requested borrow (Rp ${amount.toLocaleString('id-ID')}) exceeds available Core Savings P1 (Rp ${currentSavings.toLocaleString('id-ID')})`,
+          );
+        }
+
+        const refundSnapshot = await tx.monthlySnapshot.findUnique({
+          where: {
+            userId_month_year: {
+              userId: snapshot.userId,
+              month: dto.refundMonth,
+              year: dto.refundYear,
+            },
+          },
+        });
+        if (refundSnapshot?.status === SnapshotStatus.LOCKED) {
+          throw new BadRequestException(
+            `Target refund period (${dto.refundMonth}/${dto.refundYear}) is locked`,
+          );
+        }
+
+        const nextP1 = Math.max(0, currentSavings - amount);
+        const reason = dto.reason.trim();
+
+        if (dto.destination === 'SELF_REWARD') {
+          const prevP2 = Math.round(snapshot.selfReward ?? 0);
+          await tx.monthlySnapshot.update({
+            where: { id: snapshotId },
+            data: {
+              savings: nextP1,
+              isManualOverride: true,
+              lockedP1: nextP1,
+              lockedP2: prevP2 + amount,
+            },
+          });
+
+          await tx.budgetRevision.create({
+            data: {
+              snapshotId,
+              month: snapshot.month,
+              year: snapshot.year,
+              category: BudgetRevisionCategory.SAVINGS,
+              bucketKey: 'core_savings',
+              bucketLabel: 'Priority 1 Core Savings',
+              previousValue: snapshot.savings,
+              newValue: nextP1,
+              difference: nextP1 - snapshot.savings,
+              reason: `P1 Vault forward-borrow (${reason}) -> Self-Reward P2, mandatory refund scheduled ${dto.refundMonth}/${dto.refundYear}`,
+            },
+          });
+        } else {
+          const prevLiving = Math.round(snapshot.dailyOperational);
+          const nextLiving = prevLiving + amount;
+          await tx.monthlySnapshot.update({
+            where: { id: snapshotId },
+            data: {
+              savings: nextP1,
+              dailyOperational: nextLiving,
+              isManualOverride: true,
+              lockedP1: nextP1,
+            },
+          });
+
+          await tx.budgetRevision.createMany({
+            data: [
+              {
+                snapshotId,
+                month: snapshot.month,
+                year: snapshot.year,
+                category: BudgetRevisionCategory.SAVINGS,
+                bucketKey: 'core_savings',
+                bucketLabel: 'Priority 1 Core Savings',
+                previousValue: snapshot.savings,
+                newValue: nextP1,
+                difference: nextP1 - snapshot.savings,
+                reason: `P1 Vault forward-borrow (${reason}) -> Living Cash, mandatory refund scheduled ${dto.refundMonth}/${dto.refundYear}`,
+              },
+              {
+                snapshotId,
+                month: snapshot.month,
+                year: snapshot.year,
+                category: BudgetRevisionCategory.DAILY_OPERATIONAL,
+                bucketKey: 'daily_operational',
+                bucketLabel: 'Daily Operational Living Budget',
+                previousValue: prevLiving,
+                newValue: nextLiving,
+                difference: amount,
+                reason: `P1 Vault forward-borrow liquidity infusion (${reason})`,
+              },
+            ],
+          });
+        }
+
+        const updatedSource = await this.recalculateSnapshot(snapshotId, tx);
+
+        const contractId = `P1-REFUND-${snapshot.year}${String(snapshot.month).padStart(2, '0')}-${Date.now()}`;
+        const createdRefundItem = await tx.liabilityLineItem.create({
+          data: {
+            userId: snapshot.userId,
+            month: dto.refundMonth,
+            year: dto.refundYear,
+            category: LiabilityCategory.P1_VAULT_REFUND,
+            title: `${reason} (P1 Vault Refund)`,
+            merchantOrPlatform: 'Internal P1 Vault',
+            principalAmount: amount,
+            monthlyAmount: amount,
+            tenorMonths: 1,
+            installmentIndex: 1,
+            cutoffDay: 1,
+            dueDay: 25,
+            isSettled: false,
+            parentContractId: contractId,
+            notes: `Mandatory P1 restoration from ${snapshot.month}/${snapshot.year} borrow`,
+          },
+        });
+
+        const itemsInRefundMonth = await tx.liabilityLineItem.findMany({
+          where: {
+            userId: snapshot.userId,
+            month: dto.refundMonth,
+            year: dto.refundYear,
+          },
+        });
+        const paylaterSum = itemsInRefundMonth
+          .filter((li) => li.category === LiabilityCategory.PAYLATER)
+          .reduce((s, li) => s + Math.round(li.monthlyAmount), 0);
+        const personalDebtSum = itemsInRefundMonth
+          .filter(
+            (li) =>
+              li.category === LiabilityCategory.PERSONAL_DEBT ||
+              li.category === LiabilityCategory.P1_VAULT_REFUND,
+          )
+          .reduce((s, li) => s + Math.round(li.monthlyAmount), 0);
+
+        await tx.monthlyBulkBill.upsert({
+          where: {
+            userId_month_year: {
+              userId: snapshot.userId,
+              month: dto.refundMonth,
+              year: dto.refundYear,
+            },
+          },
+          update: {
+            paylaterAmount: paylaterSum,
+            personalDebtAmount: personalDebtSum,
+            amount: paylaterSum + personalDebtSum,
+          },
+          create: {
+            userId: snapshot.userId,
+            month: dto.refundMonth,
+            year: dto.refundYear,
+            paylaterAmount: paylaterSum,
+            personalDebtAmount: personalDebtSum,
+            creditCardAmount: 0,
+            amount: paylaterSum + personalDebtSum,
+          },
+        });
+
+        if (refundSnapshot && refundSnapshot.status === SnapshotStatus.DRAFT && this.creditService) {
+          await this.creditService.syncLiabilitiesToSnapshot(
+            dto.refundMonth,
+            dto.refundYear,
+            tx,
+            snapshot.userId,
+          );
+        }
+
+        return {
+          snapshot: updatedSource,
+          refundLineItem: createdRefundItem,
+        };
+      },
+      { maxWait: 15000, timeout: 30000 },
+    );
+
+    await this.auditLogService.record({
+      action: 'P1_VAULT_FORWARD_BORROW',
+      category: AuditCategory.SAVINGS,
+      summary: `Borrowed Rp ${amount.toLocaleString('id-ID')} from P1 Core Savings to ${dto.destination} (${dto.reason}) with mandatory refund in ${dto.refundMonth}/${dto.refundYear}`,
+      details: JSON.stringify(dto),
+      month: result.snapshot.month,
+      year: result.snapshot.year,
+      severity: AuditSeverity.ADJUSTMENT,
+    });
+
+    return result;
   }
 }

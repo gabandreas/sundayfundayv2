@@ -22,13 +22,15 @@ export class AnalyticsSelectors {
    */
   async getAnalyticsReport(
     scope: AnalyticsScope = 'all',
+    userId: number = 1,
   ): Promise<AnalyticsReportResult> {
     const normalizedScope: AnalyticsScope =
       scope === 'locked' ? 'locked' : 'all';
 
     const [allNonPhantomSnapshots, savingsTransactions] = await Promise.all([
-      this.auditSelectors.listHistoricalSnapshots(),
+      this.auditSelectors.listHistoricalSnapshots(userId),
       this.prisma.savingsManualTransaction.findMany({
+        where: { userId },
         orderBy: { date: 'asc' },
       }),
     ]);

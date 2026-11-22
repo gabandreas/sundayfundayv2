@@ -24,10 +24,16 @@ export class AuditService {
    * Internal shared evaluation engine.
    * Feeds historical snapshots and withdrawals into the authoritative calculator/discipline.ts evaluator.
    */
-  private async computeEvaluation(): Promise<AuditEvaluationResult> {
-    const snapshots = await this.selectors.listHistoricalSnapshots();
-    const withdrawals = await this.selectors.listSavingsWithdrawals();
-    const bulkBills = await this.selectors.listBulkBills();
+  private async computeEvaluation(
+    userId: number = 1,
+  ): Promise<AuditEvaluationResult> {
+    const snapshots = await this.selectors.listHistoricalSnapshots(userId);
+    const withdrawals = await this.selectors.listSavingsWithdrawals(userId);
+    const bulkBills = await this.selectors.listBulkBills(
+      undefined,
+      undefined,
+      userId,
+    );
 
     // Group MonthlyBulkBill personalDebtAmount and paylaterAmount by period `${year}-${month}`
     const personalDebtByPeriod = new Map<string, number>();
@@ -91,7 +97,7 @@ export class AuditService {
       date: w.date,
     }));
 
-    const config = await this.selectors.getGlobalConfig();
+    const config = await this.selectors.getGlobalConfig(userId);
     const policy = config?.financialPolicyJson as any;
 
     return evaluateAuditDimensions(snapshotInputs, withdrawalInputs, policy);
@@ -101,8 +107,8 @@ export class AuditService {
    * Evaluates historical snapshots and returns the aggregate discipline scorecard summary.
    * Single source of truth: delegates directly to calculator/discipline.ts.
    */
-  async getSummary(): Promise<AuditSummary> {
-    const result = await this.computeEvaluation();
+  async getSummary(userId: number = 1): Promise<AuditSummary> {
+    const result = await this.computeEvaluation(userId);
     return {
       disciplineScore: result.healthScorecard.disciplineScore,
       healthStatus: result.healthScorecard.healthStatus,
@@ -118,7 +124,7 @@ export class AuditService {
    * (powers SCORECARD/OPERATIONAL/REWARDS/DEBT_BURDEN views).
    * Shares identical underlying data and calculation with getSummary().
    */
-  async getFullReport(): Promise<AuditEvaluationResult> {
-    return this.computeEvaluation();
+  async getFullReport(userId: number = 1): Promise<AuditEvaluationResult> {
+    return this.computeEvaluation(userId);
   }
 }

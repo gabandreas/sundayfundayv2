@@ -36,6 +36,12 @@ export interface ForecastSnapshotLike {
   bufferPocket: number;
   payrollPayoutDate?: Date | null;
   isPayoutDateConfirmed?: boolean;
+  bridgeInflowAmount?: number | null;
+  isManualOverride?: boolean;
+  actualDailyOperational?: number | null;
+  actualSavings?: number | null;
+  selfReward?: number | null;
+  deficitUncovered?: number | null;
   transactions?: Array<{
     type: string;
     sourceType?: string | null;
@@ -389,16 +395,21 @@ export function calculateLiquidityForecast(
     const projectedTotalDeductions =
       contractsTotal + scheduledBillsTotal + creditCardsTotal + bulkBillsTotal;
 
+    const bridgeInflow = existingSnap
+      ? Math.max(0, Math.round(existingSnap.bridgeInflowAmount ?? 0))
+      : 0;
+    const effectiveTotalIncome = payroll.finalTotalIncome + bridgeInflow;
+
     const debtRatioPercent =
-      payroll.finalTotalIncome > 0
+      effectiveTotalIncome > 0
         ? Math.round(
-            (projectedTotalDeductions / payroll.finalTotalIncome) * 1000,
+            (projectedTotalDeductions / effectiveTotalIncome) * 1000,
           ) / 10
         : 0;
     const debtStatus = evaluateInstallmentRiskTier(debtRatioPercent);
 
-    const wf = calculateWaterfall({
-      finalTotalIncome: payroll.finalTotalIncome,
+    const rawWf = calculateWaterfall({
+      finalTotalIncome: effectiveTotalIncome,
       totalDeductions: projectedTotalDeductions,
       savingsTarget: p1SavingsTarget,
       selfRewardTarget,
@@ -406,6 +417,18 @@ export function calculateLiquidityForecast(
       fixedExpenses: projectedFixedEssentials,
       bufferPocket: projectedBufferPocket,
     });
+
+    const wf = existingSnap?.isManualOverride
+      ? {
+          ...rawWf,
+          actualDailyOperational:
+            existingSnap.actualDailyOperational ?? rawWf.actualDailyOperational,
+          actualSavings: existingSnap.actualSavings ?? rawWf.actualSavings,
+          selfReward: existingSnap.selfReward ?? rawWf.selfReward,
+          deficitUncovered: existingSnap.deficitUncovered ?? 0,
+          isDeficit: (existingSnap.deficitUncovered ?? 0) > 0,
+        }
+      : rawWf;
 
     let liquidityStatus: ForecastLiquidityStatus = 'HEALTHY_SURPLUS';
     let isLiquiditySqueeze = false;
@@ -440,7 +463,7 @@ export function calculateLiquidityForecast(
       cycleDateLabel,
       projectedNetSalaryIncome: payroll.netSalaryIncome,
       projectedExtraIncome: payroll.extraIncome,
-      projectedFinalTotalIncome: payroll.finalTotalIncome,
+      projectedFinalTotalIncome: effectiveTotalIncome,
       projectedFixedEssentials,
       projectedDailyOperationalTarget,
       projectedBufferPocket,

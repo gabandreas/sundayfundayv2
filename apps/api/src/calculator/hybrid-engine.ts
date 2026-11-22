@@ -1,0 +1,857 @@
+export type HybridInstrument =
+  | 'SPAYLATER'
+  | 'CREDIT_CARD'
+  | 'SPINJAM'
+  | 'PERSONAL_DEBT'
+  | 'CASH';
+
+export type HybridAmountMode = 'PRINCIPAL_SPLIT' | 'FIXED_MONTHLY';
+
+export interface CutoffSimulateRequest {
+  title?: string;
+  instrument: HybridInstrument;
+  amountMode?: HybridAmountMode;
+  principalAmount: number;
+  monthlyAmount?: number;
+  tenorMonths: number;
+  purchaseDate?: string; // YYYY-MM-DD
+  dueDayOverride?: number;
+  holdPastCutoff?: boolean;
+  startMonthOverride?: number;
+  startYearOverride?: number;
+  periodNetIncome?: number;
+  currentPeriodObligations?: number;
+  nextPeriodObligations?: number;
+  nextPeriodNetIncome?: number;
+  safeHeadroom?: number;
+}
+
+export interface CutoffScheduleSlice {
+  index: number;
+  totalTenor: number;
+  sliceBadge: string;
+  periodMonth: number;
+  periodYear: number;
+  periodLabel: string;
+  dueMonth: number;
+  dueYear: number;
+  dueDay: number;
+  dueDateIso: string;
+  amount: number;
+}
+
+export interface CutoffSimulateResult {
+  instrument: HybridInstrument;
+  amountMode: HybridAmountMode;
+  totalPrincipal: number;
+  monthlySliceFirst: number;
+  monthlySliceLast: number;
+  tenorMonths: number;
+  cutoffDay: number;
+  dueDay: number;
+  crossedCutoff: boolean;
+  startPeriodMonth: number;
+  startPeriodYear: number;
+  startPeriodLabel: string;
+  firstDueMonth: number;
+  firstDueYear: number;
+  firstDueDateIso: string;
+  endPeriodMonth: number;
+  endPeriodYear: number;
+  endPeriodLabel: string;
+  dsrBeforePercent: number;
+  dsrAfterPercent: number;
+  nextDsrAfterPercent: number;
+  safeHeadroomRemaining: number;
+  daysUntilCutoff: number;
+  verdict: 'SAFE' | 'CAUTION' | 'WAIT_PAST_CUTOFF' | 'OVER_LIMIT';
+  advice: string;
+  routingSummary: string;
+  slices: CutoffScheduleSlice[];
+}
+
+export interface CashflowWaveInput {
+  dateIso: string;
+  label: string;
+  category: 'INFLOW' | 'LIABILITY' | 'ROUTINE' | 'LIVING' | 'SAVINGS';
+  amount: number;
+  isConfirmed?: boolean;
+}
+
+export interface TimelineSimulateRequest {
+  periodMonth: number;
+  periodYear: number;
+  paycheckDateIso: string;
+  paycheckAmount: number;
+  thrDateIso?: string;
+  thrAmount?: number;
+  nextPaycheckDateIso?: string;
+  nextPaycheckAmount?: number;
+  totalPaylaterDue: number;
+  paylaterDueDateIso: string;
+  totalCreditCardDue: number;
+  creditCardDueDateIso: string;
+  totalPersonalDebtDue: number;
+  personalDebtDueDateIso: string;
+  personalDebtItems?: CashflowWaveInput[];
+  dailyLivingPool: number;
+  routineBillsPool: number;
+  coreSavingsTarget: number;
+  spaylaterEarlyPayAmount?: number;
+  customEvents?: CashflowWaveInput[];
+}
+
+export interface TimelineEvent {
+  sequence: number;
+  dateIso: string;
+  label: string;
+  category: string;
+  waveGroup: string;
+  signedAmount: number;
+  runningBalance: number;
+  isBridgeWindow: boolean;
+  notes: string;
+}
+
+export interface TimelineSimulateResult {
+  events: TimelineEvent[];
+  wave1AvailableCash: number;
+  preThrBridgeMinimumBalance: number;
+  postThrBalance: number;
+  postPaylaterRemainingBalance: number;
+  spaylaterEarlyPayApplied: number;
+  spaylaterRemainingAfterEarly: number;
+  bridgeSafe: boolean;
+  bridgeRiskMessage: string;
+}
+
+export interface WalletGuardRequest {
+  remainingLivingCash: number;
+  actualWalletBalance: number;
+  reservedBillsTotal: number;
+  daysRemaining: number;
+  remainingWeekdays: number;
+  remainingWeekendDays: number;
+  weekendMultiplier?: number;
+  isWeekendToday?: boolean;
+}
+
+export interface WalletGuardResult {
+  remainingLivingCash: number;
+  actualWalletBalance: number;
+  reservedBillsTotal: number;
+  freeSpendableCash: number;
+  varianceVsLedger: number;
+  guardStatus: 'OPTIMAL' | 'WATCH' | 'SURVIVAL_GUARD';
+  effectiveLivingBase: number;
+  dailySafeFlat: number;
+  dailySafeWeekday: number;
+  dailySafeWeekend: number;
+  safeToSpendToday: number;
+  guidance: string;
+}
+
+export interface HorizonPeriodMetricInput {
+  month: number;
+  year: number;
+  periodLabel: string;
+  finalTotalIncome: number;
+  totalDebt: number;
+  fixedEssentials: number;
+  actualDailyOperational: number;
+  bufferPocket: number;
+  actualSavings: number;
+  selfReward: number;
+  deficitUncovered: number;
+  daysInCycle: number;
+}
+
+export interface HorizonContractSummaryInput {
+  id: string;
+  title: string;
+  category: string;
+  merchantOrPlatform: string;
+  monthlyInstallment: number;
+  principalAmount: number;
+  remainingPrincipal: number;
+  remainingSlices: number;
+  totalTenor: number;
+  payoffMonth: number;
+  payoffYear: number;
+  payoffDateLabel: string;
+}
+
+export interface ExecutiveHorizonRequest {
+  selectedMonth: number;
+  selectedYear: number;
+  periods: HorizonPeriodMetricInput[];
+  contracts: HorizonContractSummaryInput[];
+}
+
+export interface FreedCashflowMilestone {
+  month: number;
+  year: number;
+  periodLabel: string;
+  freedMonthlyRp: number;
+  cumulativeFreedRp: number;
+  endingContracts: string[];
+}
+
+export interface HorizonPeriodDriver {
+  month: number;
+  year: number;
+  periodLabel: string;
+  dsrPercent: number;
+  netSavingsRatePct: number;
+  effectiveDailyRate: number;
+  momDebtDelta: number;
+  momIncomeDelta: number;
+  narrativeDriver: string;
+}
+
+export interface ExecutiveHorizonResult {
+  selectedPeriodLabel: string;
+  dsrPercent: number;
+  netSavingsRatePercent: number;
+  debtBurnDownVelocityRp: number;
+  effectiveDailyLivingRate: number;
+  totalActiveContracts: number;
+  totalRemainingPrincipalRp: number;
+  nextMilestoneLabel: string;
+  freedUpMilestones: FreedCashflowMilestone[];
+  periodDrivers: HorizonPeriodDriver[];
+}
+
+const MONTH_SHORT = [
+  'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
+  'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC',
+];
+
+export function formatHybridPeriodLabel(m: number, y: number): string {
+  if (m < 1 || m > 12) return `${String(m).padStart(2, '0')}/${y}`;
+  return `${MONTH_SHORT[m - 1]} '${String(y % 100).padStart(2, '0')}`;
+}
+
+export function addHybridMonths(m: number, y: number, offset: number): { month: number; year: number } {
+  const total = y * 12 + (m - 1) + offset;
+  const newY = Math.floor(total / 12);
+  const newM = ((total % 12) + 12) % 12;
+  return { month: newM + 1, year: newY };
+}
+
+function daysInMonthUtc(m: number, y: number): number {
+  return new Date(Date.UTC(y, m, 0)).getUTCDate();
+}
+
+function parseDateParts(iso?: string): { year: number; month: number; day: number; ok: boolean } {
+  if (!iso) return { year: 0, month: 0, day: 0, ok: false };
+  const datePart = iso.trim().split('T')[0];
+  const parts = datePart.split('-').map((x) => parseInt(x, 10));
+  if (parts.length !== 3 || parts.some((n) => Number.isNaN(n))) {
+    return { year: 0, month: 0, day: 0, ok: false };
+  }
+  const [y, m, d] = parts;
+  if (m < 1 || m > 12 || d < 1 || d > 31) {
+    return { year: 0, month: 0, day: 0, ok: false };
+  }
+  return { year: y, month: m, day: d, ok: true };
+}
+
+export function computeLosslessSlices(
+  principalInput: number,
+  monthlyInput: number,
+  tenorInput: number,
+  mode: HybridAmountMode,
+): { slices: number[]; totalPrincipal: number } {
+  const tenor = Math.max(1, Math.min(60, Math.round(tenorInput || 1)));
+  const monthly = Math.max(0, Math.round(monthlyInput || 0));
+  const principal = Math.max(0, Math.round(principalInput || 0));
+
+  if (mode === 'FIXED_MONTHLY' && monthly > 0) {
+    return {
+      slices: Array.from({ length: tenor }, () => monthly),
+      totalPrincipal: monthly * tenor,
+    };
+  }
+  if (principal <= 0 && monthly > 0) {
+    return {
+      slices: Array.from({ length: tenor }, () => monthly),
+      totalPrincipal: monthly * tenor,
+    };
+  }
+
+  const base = Math.trunc(principal / tenor);
+  const rem = principal % tenor;
+  const slices = Array.from({ length: tenor }, (_, i) => (i < rem ? base + 1 : base));
+  return { slices, totalPrincipal: principal };
+}
+
+function round1(v: number): number {
+  return Math.round(v * 10) / 10;
+}
+
+export function simulateCutoffTs(req: CutoffSimulateRequest): CutoffSimulateResult {
+  const tenor = Math.max(1, Math.min(60, Math.round(req.tenorMonths || 1)));
+  const inst: HybridInstrument = req.instrument || 'SPAYLATER';
+  const mode: HybridAmountMode =
+    req.amountMode || (req.principalAmount > 0 ? 'PRINCIPAL_SPLIT' : 'FIXED_MONTHLY');
+
+  const { slices: rawAmounts, totalPrincipal } = computeLosslessSlices(
+    req.principalAmount,
+    req.monthlyAmount ?? 0,
+    tenor,
+    mode,
+  );
+  const firstSlice = rawAmounts[0];
+  const lastSlice = rawAmounts[tenor - 1];
+
+  const parsed = parseDateParts(req.purchaseDate);
+  const pY = parsed.ok ? parsed.year : 2026;
+  const pM = parsed.ok ? parsed.month : 11;
+  const pD = parsed.ok ? parsed.day : 18;
+
+  let cutoffDay = 15;
+  let dueDay = 25;
+  let crossedCutoff = false;
+  let startPeriodM = pM;
+  let startPeriodY = pY;
+  let daysUntilCutoff = 0;
+
+  if (inst === 'CREDIT_CARD') {
+    cutoffDay = 20;
+    dueDay =
+      req.dueDayOverride && req.dueDayOverride >= 1 && req.dueDayOverride <= 31
+        ? req.dueDayOverride
+        : 11;
+    if (pD > 20) {
+      crossedCutoff = true;
+      const shifted = addHybridMonths(pM, pY, 2);
+      startPeriodM = shifted.month;
+      startPeriodY = shifted.year;
+      daysUntilCutoff = daysInMonthUtc(pM, pY) - pD + 20;
+    } else {
+      crossedCutoff = false;
+      const shifted = addHybridMonths(pM, pY, 1);
+      startPeriodM = shifted.month;
+      startPeriodY = shifted.year;
+      daysUntilCutoff = 20 - pD;
+    }
+  } else if (inst === 'SPINJAM' || inst === 'PERSONAL_DEBT') {
+    cutoffDay = pD;
+    dueDay =
+      req.dueDayOverride && req.dueDayOverride >= 1 && req.dueDayOverride <= 31
+        ? req.dueDayOverride
+        : pD;
+    crossedCutoff = false;
+    const shifted = addHybridMonths(pM, pY, 1);
+    startPeriodM = shifted.month;
+    startPeriodY = shifted.year;
+    daysUntilCutoff = 0;
+  } else if (inst === 'CASH') {
+    cutoffDay = 0;
+    dueDay = pD;
+    crossedCutoff = false;
+    startPeriodM = pM;
+    startPeriodY = pY;
+    daysUntilCutoff = 0;
+  } else {
+    cutoffDay = 15;
+    dueDay =
+      req.dueDayOverride && req.dueDayOverride >= 1 && req.dueDayOverride <= 31
+        ? req.dueDayOverride
+        : 25;
+    if (pD >= 15) {
+      crossedCutoff = true;
+      const shifted = addHybridMonths(pM, pY, 1);
+      startPeriodM = shifted.month;
+      startPeriodY = shifted.year;
+      daysUntilCutoff = daysInMonthUtc(pM, pY) - pD + 15;
+    } else {
+      crossedCutoff = false;
+      startPeriodM = pM;
+      startPeriodY = pY;
+      daysUntilCutoff = 15 - pD;
+    }
+  }
+
+  if (
+    req.startMonthOverride &&
+    req.startYearOverride &&
+    req.startMonthOverride >= 1 &&
+    req.startMonthOverride <= 12 &&
+    req.startYearOverride >= 2000
+  ) {
+    startPeriodM = req.startMonthOverride;
+    startPeriodY = req.startYearOverride;
+  }
+
+  if (req.holdPastCutoff) {
+    const shifted = addHybridMonths(startPeriodM, startPeriodY, 1);
+    startPeriodM = shifted.month;
+    startPeriodY = shifted.year;
+    crossedCutoff = true;
+  }
+
+  const slices: CutoffScheduleSlice[] = rawAmounts.map((amt, i) => {
+    const p = addHybridMonths(startPeriodM, startPeriodY, i);
+    const d = p;
+    const clampedDay = Math.min(dueDay, daysInMonthUtc(d.month, d.year));
+    const dueDateIso = `${String(d.year).padStart(4, '0')}-${String(d.month).padStart(2, '0')}-${String(clampedDay).padStart(2, '0')}`;
+    return {
+      index: i + 1,
+      totalTenor: tenor,
+      sliceBadge: `${i + 1}/${tenor}`,
+      periodMonth: p.month,
+      periodYear: p.year,
+      periodLabel: formatHybridPeriodLabel(p.month, p.year),
+      dueMonth: d.month,
+      dueYear: d.year,
+      dueDay: clampedDay,
+      dueDateIso,
+      amount: amt,
+    };
+  });
+
+  const firstSliceInfo = slices[0];
+  const lastSliceInfo = slices[tenor - 1];
+
+  const netIncome = Math.max(0, Math.round(req.periodNetIncome ?? 0));
+  const curObl = Math.max(0, Math.round(req.currentPeriodObligations ?? 0));
+  const nextObl = Math.max(0, Math.round(req.nextPeriodObligations ?? 0));
+  const nextIncome =
+    req.nextPeriodNetIncome && req.nextPeriodNetIncome > 0
+      ? Math.round(req.nextPeriodNetIncome)
+      : netIncome;
+
+  const dsrBeforePercent = netIncome > 0 ? round1((curObl / netIncome) * 100) : 0;
+  const dsrAfterPercent =
+    netIncome > 0 ? round1(((curObl + firstSlice) / netIncome) * 100) : 0;
+  const nextDsrAfterPercent =
+    nextIncome > 0 ? round1(((nextObl + firstSlice) / nextIncome) * 100) : 0;
+
+  const safeHeadroom = Math.round(req.safeHeadroom ?? 0);
+  const safeHeadroomRemaining = safeHeadroom - firstSlice;
+
+  let verdict: CutoffSimulateResult['verdict'] = 'SAFE';
+  let advice = 'Fits within current period safe debt envelope.';
+
+  if (inst !== 'CASH' && firstSlice > 0) {
+    const waitAvailable = !crossedCutoff && daysUntilCutoff > 0 && daysUntilCutoff <= 5;
+    if (safeHeadroom > 0 && firstSlice > safeHeadroom) {
+      if (waitAvailable && nextObl + firstSlice < curObl) {
+        const nextP = addHybridMonths(
+          firstSliceInfo.periodMonth,
+          firstSliceInfo.periodYear,
+          1,
+        );
+        verdict = 'WAIT_PAST_CUTOFF';
+        advice = `Wait ${daysUntilCutoff + 1} day(s) past the ${cutoffDay}th cutoff to defer billing into ${formatHybridPeriodLabel(nextP.month, nextP.year)}.`;
+      } else {
+        verdict = 'OVER_LIMIT';
+        advice = `Exceeds safe headroom by Rp ${(firstSlice - safeHeadroom).toLocaleString('id-ID')}. Defer or extend tenor.`;
+      }
+    } else if (dsrAfterPercent >= 45) {
+      if (waitAvailable) {
+        const nextP = addHybridMonths(
+          firstSliceInfo.periodMonth,
+          firstSliceInfo.periodYear,
+          1,
+        );
+        verdict = 'WAIT_PAST_CUTOFF';
+        advice = `DSR reaches ${dsrAfterPercent.toFixed(1)}%. Waiting ${daysUntilCutoff + 1} day(s) past the ${cutoffDay}th cutoff shifts 1st charge to ${formatHybridPeriodLabel(nextP.month, nextP.year)}.`;
+      } else {
+        verdict = 'CAUTION';
+        advice = `First slice lifts DSR to ${dsrAfterPercent.toFixed(1)}% in ${firstSliceInfo.periodLabel}.`;
+      }
+    } else if (dsrAfterPercent >= 32) {
+      verdict = 'CAUTION';
+      advice = `Manageable, lifts ${firstSliceInfo.periodLabel} DSR from ${dsrBeforePercent.toFixed(1)}% to ${dsrAfterPercent.toFixed(1)}%.`;
+    } else if (crossedCutoff) {
+      verdict = 'SAFE';
+      advice = `Post-${cutoffDay}th cutoff purchase: bills in ${firstSliceInfo.periodLabel} (due ${firstSliceInfo.dueDateIso}).`;
+    }
+  }
+
+  const routingSummary =
+    tenor > 1
+      ? `${tenor}x slices (${firstSliceInfo.periodLabel} -> ${lastSliceInfo.periodLabel}), 1st due ${firstSliceInfo.dueDateIso}`
+      : `${firstSliceInfo.periodLabel} (${firstSliceInfo.sliceBadge}) · ${formatHybridPeriodLabel(pM, pY)} -> ${firstSliceInfo.periodLabel} (due ${firstSliceInfo.dueDateIso})`;
+
+  return {
+    instrument: inst,
+    amountMode: mode,
+    totalPrincipal,
+    monthlySliceFirst: firstSlice,
+    monthlySliceLast: lastSlice,
+    tenorMonths: tenor,
+    cutoffDay,
+    dueDay,
+    crossedCutoff,
+    startPeriodMonth: firstSliceInfo.periodMonth,
+    startPeriodYear: firstSliceInfo.periodYear,
+    startPeriodLabel: firstSliceInfo.periodLabel,
+    firstDueMonth: firstSliceInfo.dueMonth,
+    firstDueYear: firstSliceInfo.dueYear,
+    firstDueDateIso: firstSliceInfo.dueDateIso,
+    endPeriodMonth: lastSliceInfo.periodMonth,
+    endPeriodYear: lastSliceInfo.periodYear,
+    endPeriodLabel: lastSliceInfo.periodLabel,
+    dsrBeforePercent,
+    dsrAfterPercent,
+    nextDsrAfterPercent,
+    safeHeadroomRemaining,
+    daysUntilCutoff,
+    verdict,
+    advice,
+    routingSummary,
+    slices,
+  };
+}
+
+export function simulateTimelineTs(req: TimelineSimulateRequest): TimelineSimulateResult {
+  const earlyPayRaw = Math.round(req.spaylaterEarlyPayAmount ?? 0);
+  const earlyApplied = Math.max(0, Math.min(earlyPayRaw, Math.round(req.totalPaylaterDue)));
+  const remPaylater = Math.round(req.totalPaylaterDue) - earlyApplied;
+
+  const events: CashflowWaveInput[] =
+    req.customEvents && req.customEvents.length > 0
+      ? [...req.customEvents]
+      : [
+          {
+            dateIso: req.paycheckDateIso,
+            label: 'Wave 1: Monthly Salary Payroll',
+            category: 'INFLOW',
+            amount: Math.round(req.paycheckAmount),
+            isConfirmed: true,
+          },
+          ...(req.routineBillsPool > 0
+            ? [
+                {
+                  dateIso: req.paycheckDateIso,
+                  label: 'Reserve Routine Bills Pool',
+                  category: 'ROUTINE' as const,
+                  amount: -Math.round(req.routineBillsPool),
+                },
+              ]
+            : []),
+          ...(req.dailyLivingPool > 0
+            ? [
+                {
+                  dateIso: req.paycheckDateIso,
+                  label: 'Allocate 21-Day Living Bridge Allowance',
+                  category: 'LIVING' as const,
+                  amount: -Math.round(req.dailyLivingPool),
+                },
+              ]
+            : []),
+          ...(earlyApplied > 0
+            ? [
+                {
+                  dateIso: req.paycheckDateIso,
+                  label: 'Split-Pay Wave 1: Early SPayLater Set-Aside',
+                  category: 'LIABILITY' as const,
+                  amount: -earlyApplied,
+                },
+              ]
+            : []),
+          ...(req.personalDebtItems && req.personalDebtItems.length > 0
+            ? req.personalDebtItems
+            : req.totalPersonalDebtDue > 0
+              ? [
+                  {
+                    dateIso: req.personalDebtDueDateIso,
+                    label: 'Personal Debt & SPinjam Maturities',
+                    category: 'LIABILITY' as const,
+                    amount: -Math.round(req.totalPersonalDebtDue),
+                  },
+                ]
+              : []),
+          ...(req.totalCreditCardDue > 0
+            ? [
+                {
+                  dateIso: req.creditCardDueDateIso,
+                  label: 'Credit Card Statement Due (11th)',
+                  category: 'LIABILITY' as const,
+                  amount: -Math.round(req.totalCreditCardDue),
+                },
+              ]
+            : []),
+          ...(req.thrAmount && req.thrAmount > 0 && req.thrDateIso
+            ? [
+                {
+                  dateIso: req.thrDateIso,
+                  label: 'Wave 2: December Natal THR / Windfall',
+                  category: 'INFLOW' as const,
+                  amount: Math.round(req.thrAmount),
+                },
+              ]
+            : []),
+          ...(remPaylater > 0
+            ? [
+                {
+                  dateIso: req.paylaterDueDateIso,
+                  label: 'SPayLater Final Settlement (25th)',
+                  category: 'LIABILITY' as const,
+                  amount: -remPaylater,
+                },
+              ]
+            : []),
+          ...(req.coreSavingsTarget > 0
+            ? [
+                {
+                  dateIso: req.thrDateIso || req.paylaterDueDateIso,
+                  label: 'Core Savings Transfer (P1 Vault)',
+                  category: 'SAVINGS' as const,
+                  amount: -Math.round(req.coreSavingsTarget),
+                },
+              ]
+            : []),
+          ...(req.nextPaycheckAmount && req.nextPaycheckAmount > 0 && req.nextPaycheckDateIso
+            ? [
+                {
+                  dateIso: req.nextPaycheckDateIso,
+                  label: 'Next Cycle Paycheck Arrival',
+                  category: 'INFLOW' as const,
+                  amount: Math.round(req.nextPaycheckAmount),
+                },
+              ]
+            : []),
+        ];
+
+  events.sort((a, b) => {
+    if (a.dateIso === b.dateIso) return b.amount - a.amount;
+    return a.dateIso < b.dateIso ? -1 : 1;
+  });
+
+  let running = 0;
+  let minBridge = Number.MAX_SAFE_INTEGER;
+  let postThr = 0;
+  let postPaylater = 0;
+
+  const out: TimelineEvent[] = events.map((ev, idx) => {
+    running += ev.amount;
+    const inBridge = Boolean(req.thrDateIso && ev.dateIso <= req.thrDateIso);
+    if (inBridge && running < minBridge) minBridge = running;
+    if (ev.dateIso === req.thrDateIso && ev.amount > 0) postThr = running;
+    if (ev.dateIso === req.paylaterDueDateIso) postPaylater = running;
+
+    let waveGroup = 'WAVE_1';
+    if (req.thrDateIso && ev.dateIso >= req.thrDateIso) waveGroup = 'WAVE_2';
+    if (req.nextPaycheckDateIso && ev.dateIso >= req.nextPaycheckDateIso) {
+      waveGroup = 'NEXT_CYCLE';
+    }
+
+    return {
+      sequence: idx + 1,
+      dateIso: ev.dateIso,
+      label: ev.label,
+      category: ev.category,
+      waveGroup,
+      signedAmount: ev.amount,
+      runningBalance: running,
+      isBridgeWindow: inBridge,
+      notes: `Running cash: Rp ${running.toLocaleString('id-ID')}`,
+    };
+  });
+
+  if (minBridge === Number.MAX_SAFE_INTEGER) minBridge = running;
+  const bridgeSafe = minBridge >= 0;
+
+  return {
+    events: out,
+    wave1AvailableCash: Math.round(req.paycheckAmount),
+    preThrBridgeMinimumBalance: minBridge,
+    postThrBalance: postThr,
+    postPaylaterRemainingBalance: postPaylater,
+    spaylaterEarlyPayApplied: earlyApplied,
+    spaylaterRemainingAfterEarly: Math.round(req.totalPaylaterDue) - earlyApplied,
+    bridgeSafe,
+    bridgeRiskMessage: bridgeSafe
+      ? `21-day bridge stays liquid with minimum cash cushion Rp ${minBridge.toLocaleString('id-ID')}.`
+      : `Bridge shortage of Rp ${Math.abs(minBridge).toLocaleString('id-ID')} detected before THR wave. Reduce Wave 1 early PayLater paydown.`,
+  };
+}
+
+export function evaluateWalletGuardTs(req: WalletGuardRequest): WalletGuardResult {
+  const remainingLiving = Math.round(req.remainingLivingCash);
+  const actualWallet = Math.round(req.actualWalletBalance);
+  const reserved = Math.round(req.reservedBillsTotal);
+  const freeCash = actualWallet - reserved;
+  const variance = freeCash - remainingLiving;
+
+  let effectiveBase = remainingLiving;
+  if (actualWallet > 0 && freeCash < effectiveBase) {
+    effectiveBase = freeCash;
+  }
+  if (effectiveBase < 0) effectiveBase = 0;
+
+  const days = Math.max(1, Math.round(req.daysRemaining || 1));
+  const mult = req.weekendMultiplier && req.weekendMultiplier > 0 ? req.weekendMultiplier : 1.5;
+  const flat = Math.trunc(effectiveBase / days);
+  const weightedUnits =
+    req.remainingWeekdays + req.remainingWeekendDays * mult > 0
+      ? req.remainingWeekdays + req.remainingWeekendDays * mult
+      : days;
+
+  const weekdaySafe = Math.round(effectiveBase / weightedUnits);
+  const weekendSafe = Math.round((effectiveBase * mult) / weightedUnits);
+  const todaySafe = req.isWeekendToday ? weekendSafe : weekdaySafe;
+
+  let guardStatus: WalletGuardResult['guardStatus'] = 'OPTIMAL';
+  let guidance = 'Actual free cash aligns with your planned living runway.';
+
+  if (freeCash < 0) {
+    guardStatus = 'SURVIVAL_GUARD';
+    guidance = `Free spendable cash is Rp ${Math.abs(freeCash).toLocaleString('id-ID')} below reserved bills. Pause discretionary spending immediately.`;
+  } else if (remainingLiving > 0) {
+    const ratio = freeCash / remainingLiving;
+    if (ratio < 0.75 || variance <= -(todaySafe * 2)) {
+      guardStatus = 'SURVIVAL_GUARD';
+      guidance = `Wallet is Rp ${Math.abs(variance).toLocaleString('id-ID')} behind ledger plan. Cap daily spend at Rp ${todaySafe.toLocaleString('id-ID')}.`;
+    } else if (ratio < 0.92 || variance < 0) {
+      guardStatus = 'WATCH';
+      guidance = `Slight slippage of Rp ${Math.abs(variance).toLocaleString('id-ID')} vs ledger plan. Target <= Rp ${todaySafe.toLocaleString('id-ID')} today.`;
+    } else if (variance > 0) {
+      guardStatus = 'OPTIMAL';
+      guidance = `Surplus Rp ${variance.toLocaleString('id-ID')} above plan after bill reservations.`;
+    }
+  }
+
+  return {
+    remainingLivingCash: remainingLiving,
+    actualWalletBalance: actualWallet,
+    reservedBillsTotal: reserved,
+    freeSpendableCash: freeCash,
+    varianceVsLedger: variance,
+    guardStatus,
+    effectiveLivingBase: effectiveBase,
+    dailySafeFlat: flat,
+    dailySafeWeekday: weekdaySafe,
+    dailySafeWeekend: weekendSafe,
+    safeToSpendToday: todaySafe,
+    guidance,
+  };
+}
+
+export function buildExecutiveHorizonTs(req: ExecutiveHorizonRequest): ExecutiveHorizonResult {
+  const periods = req.periods ?? [];
+  const contracts = req.contracts ?? [];
+  const sel =
+    periods.find(
+      (p) => p.month === req.selectedMonth && p.year === req.selectedYear,
+    ) ?? periods[0];
+
+  const selectedPeriodLabel = sel?.periodLabel ?? formatHybridPeriodLabel(req.selectedMonth, req.selectedYear);
+  const dsrPercent =
+    sel && sel.finalTotalIncome > 0
+      ? round1((sel.totalDebt / sel.finalTotalIncome) * 100)
+      : 0;
+  const netSavingsRatePercent =
+    sel && sel.finalTotalIncome > 0
+      ? round1(((sel.actualSavings + sel.selfReward) / sel.finalTotalIncome) * 100)
+      : 0;
+  const days = sel && sel.daysInCycle > 0 ? sel.daysInCycle : 30;
+  const effectiveDailyLivingRate = sel ? Math.trunc(sel.actualDailyOperational / days) : 0;
+
+  let debtBurnDownVelocityRp = 0;
+  const selIdx = sel
+    ? periods.findIndex((p) => p.month === sel.month && p.year === sel.year)
+    : -1;
+  if (selIdx >= 0 && periods.length - selIdx > 1) {
+    const endIdx = Math.min(periods.length - 1, selIdx + 3);
+    const steps = endIdx - selIdx;
+    if (steps > 0) {
+      debtBurnDownVelocityRp = Math.trunc(
+        (periods[selIdx].totalDebt - periods[endIdx].totalDebt) / steps,
+      );
+    }
+  }
+
+  const periodDrivers: HorizonPeriodDriver[] = periods.map((p, i) => {
+    const pDsr = p.finalTotalIncome > 0 ? round1((p.totalDebt / p.finalTotalIncome) * 100) : 0;
+    const pSave =
+      p.finalTotalIncome > 0
+        ? round1(((p.actualSavings + p.selfReward) / p.finalTotalIncome) * 100)
+        : 0;
+    const pDays = p.daysInCycle > 0 ? p.daysInCycle : 30;
+    let momDebtDelta = 0;
+    let momIncomeDelta = 0;
+    let narrativeDriver = 'Baseline cycle structure';
+    if (i > 0) {
+      const prev = periods[i - 1];
+      momDebtDelta = p.totalDebt - prev.totalDebt;
+      momIncomeDelta = p.finalTotalIncome - prev.finalTotalIncome;
+      if (momDebtDelta < 0 && momIncomeDelta > 0) {
+        narrativeDriver = `Income +Rp ${momIncomeDelta.toLocaleString('id-ID')} & debt -Rp ${Math.abs(momDebtDelta).toLocaleString('id-ID')}`;
+      } else if (momDebtDelta < 0) {
+        narrativeDriver = `Debt step-down (-Rp ${Math.abs(momDebtDelta).toLocaleString('id-ID')} vs ${prev.periodLabel})`;
+      } else if (momDebtDelta > 0) {
+        narrativeDriver = `Debt step-up (+Rp ${momDebtDelta.toLocaleString('id-ID')} vs ${prev.periodLabel})`;
+      } else if (momIncomeDelta !== 0) {
+        narrativeDriver = `Income shift (${momIncomeDelta >= 0 ? '+' : ''}${momIncomeDelta} vs ${prev.periodLabel})`;
+      }
+    }
+
+    return {
+      month: p.month,
+      year: p.year,
+      periodLabel: p.periodLabel,
+      dsrPercent: pDsr,
+      netSavingsRatePct: pSave,
+      effectiveDailyRate: Math.trunc(p.actualDailyOperational / pDays),
+      momDebtDelta,
+      momIncomeDelta,
+      narrativeDriver,
+    };
+  });
+
+  const freedMap = new Map<string, FreedCashflowMilestone>();
+  let totalRemainingPrincipalRp = 0;
+  for (const c of contracts) {
+    totalRemainingPrincipalRp += Math.round(c.remainingPrincipal);
+    if (c.payoffMonth >= 1 && c.payoffMonth <= 12 && c.payoffYear >= 2000) {
+      const freed = addHybridMonths(c.payoffMonth, c.payoffYear, 1);
+      const key = `${freed.year}-${String(freed.month).padStart(2, '0')}`;
+      const existing = freedMap.get(key) ?? {
+        month: freed.month,
+        year: freed.year,
+        periodLabel: formatHybridPeriodLabel(freed.month, freed.year),
+        freedMonthlyRp: 0,
+        cumulativeFreedRp: 0,
+        endingContracts: [],
+      };
+      existing.freedMonthlyRp += Math.round(c.monthlyInstallment);
+      existing.endingContracts.push(c.title);
+      freedMap.set(key, existing);
+    }
+  }
+
+  const ordered = Array.from(freedMap.entries())
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([, val]) => val);
+
+  let cumulative = 0;
+  let nextMilestoneLabel = 'Debt-Free / All Settled';
+  ordered.forEach((m, idx) => {
+    cumulative += m.freedMonthlyRp;
+    m.cumulativeFreedRp = cumulative;
+    if (idx === 0) {
+      nextMilestoneLabel = `+Rp ${m.freedMonthlyRp.toLocaleString('id-ID')}/mo freed in ${m.periodLabel}`;
+    }
+  });
+
+  return {
+    selectedPeriodLabel,
+    dsrPercent,
+    netSavingsRatePercent,
+    debtBurnDownVelocityRp,
+    effectiveDailyLivingRate,
+    totalActiveContracts: contracts.length,
+    totalRemainingPrincipalRp,
+    nextMilestoneLabel,
+    freedUpMilestones: ordered,
+    periodDrivers,
+  };
+}
+
+export * from './erp-engines';

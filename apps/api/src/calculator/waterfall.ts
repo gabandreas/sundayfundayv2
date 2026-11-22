@@ -247,14 +247,21 @@ export function calculateWaterfall(input: WaterfallInput): WaterfallResult {
       const shortfall = Math.abs(
         afterDebt - fixedExpenses - dailyOperationalTarget,
       );
+      const actualDailyOperational = Math.min(
+        dailyOperationalTarget,
+        Math.max(
+          0,
+          input.finalTotalIncome - totalDeductions - fixedExpenses - lockedSavings,
+        ),
+      );
       return {
         availableFunds: remainingAfterSavingsAndRoutine,
         deficitUncovered: shortfall,
-        actualSavings: 0,
+        actualSavings: lockedSavings,
         actualSelfReward: 0,
         selfReward: 0,
-        actualDailyOperational: 0,
-        survivalPocket: fixedExpenses + dailyOperationalTarget,
+        actualDailyOperational,
+        survivalPocket: actualDailyOperational + fixedExpenses,
         isDeficit: true,
         formulaEngineType: engine,
       };
@@ -304,14 +311,18 @@ export function calculateWaterfall(input: WaterfallInput): WaterfallResult {
     if (input.finalTotalIncome < mandatoryCommitments) {
       const deficit =
         mandatoryCommitments + dailyOperationalTarget - input.finalTotalIncome;
+      const actualDailyOperational = Math.min(
+        dailyOperationalTarget,
+        Math.max(0, input.finalTotalIncome - totalDeductions - fixedExpenses),
+      );
       return {
         availableFunds: input.finalTotalIncome - mandatoryCommitments - dailyOperationalTarget,
         deficitUncovered: Math.max(0, deficit),
         actualSavings: 0,
         actualSelfReward: 0,
         selfReward: 0,
-        actualDailyOperational: 0,
-        survivalPocket: fixedExpenses + dailyOperationalTarget,
+        actualDailyOperational,
+        survivalPocket: actualDailyOperational + fixedExpenses,
         isDeficit: true,
         formulaEngineType: engine,
       };
@@ -369,14 +380,22 @@ export function calculateWaterfall(input: WaterfallInput): WaterfallResult {
 
     const remainingForLiving = totalCashflow - priorityHealthcareAndFixed;
     if (remainingForLiving < 0) {
+      const actualDailyOperational = Math.min(
+        dailyOperationalTarget,
+        Math.max(
+          0,
+          totalCashflow - totalDeductions - fixedExpenses - healthcareReserve,
+        ),
+      );
       return {
         availableFunds: remainingForLiving - dailyOperationalTarget,
         deficitUncovered: Math.abs(remainingForLiving - dailyOperationalTarget),
         actualSavings: 0,
         actualSelfReward: 0,
         selfReward: 0,
-        actualDailyOperational: 0,
-        survivalPocket: fixedExpenses + healthcareReserve + dailyOperationalTarget,
+        actualDailyOperational,
+        survivalPocket:
+          actualDailyOperational + fixedExpenses + healthcareReserve,
         isDeficit: true,
         formulaEngineType: engine,
       };
@@ -407,9 +426,19 @@ export function calculateWaterfall(input: WaterfallInput): WaterfallResult {
     };
   }
 
-  // ── Engine 1 (Default): DEBT_FIRST_WATERFALL (100% Untouched Canonical Logic)
+  // ── Engine 1 (Default): DEBT_FIRST_WATERFALL with Proportional Living Cash Law
   // 1. Upfront non-negotiable essentials & daily operational living budget
   const essentialAndOperational = fixedExpenses + dailyOperationalTarget;
+
+  // Proportional Living Cash allocation (Debt -> Routine -> Living Cash -> Buffer -> P1 -> P2)
+  const availableForLiving = Math.max(
+    0,
+    input.finalTotalIncome - totalDeductions - fixedExpenses,
+  );
+  const proportionalLivingCash = Math.min(
+    dailyOperationalTarget,
+    availableForLiving,
+  );
 
   // Available funds after upfront non-negotiable commitments & debt deductions
   const availableFunds =
@@ -426,8 +455,8 @@ export function calculateWaterfall(input: WaterfallInput): WaterfallResult {
       actualSavings: 0,
       actualSelfReward: 0,
       selfReward: 0,
-      actualDailyOperational: 0,
-      survivalPocket: essentialAndOperational, // Reflects the NEED, not what was actually available
+      actualDailyOperational: proportionalLivingCash,
+      survivalPocket: proportionalLivingCash + fixedExpenses,
       isDeficit: true,
     };
   }

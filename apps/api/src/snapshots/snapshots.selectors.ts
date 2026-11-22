@@ -214,7 +214,13 @@ export class SnapshotsSelectors {
           bonusAmount: 0,
           selfRewardTarget: 0,
           bufferPocket: 0,
-          payrollPayoutDate: new Date(Date.UTC(year, month - 1, config.payrollPayoutDay ?? DEFAULT_PAYOUT_DAY)),
+          payrollPayoutDate: new Date(
+            Date.UTC(
+              month === 1 ? year - 1 : year,
+              month === 1 ? 11 : month - 2,
+              config.payrollPayoutDay ?? DEFAULT_PAYOUT_DAY,
+            ),
+          ),
           isPayoutDateConfirmed: false,
           frozenRulesJson: frozenRulesJson as any,
         },

@@ -163,6 +163,9 @@ export class UpsertGlobalConfigDto {
   formulaParamsJson?: any;
 
   @IsOptional()
+  studioConfig?: any;
+
+  @IsOptional()
   customRoutineCategoriesJson?: any;
 
   @IsOptional()

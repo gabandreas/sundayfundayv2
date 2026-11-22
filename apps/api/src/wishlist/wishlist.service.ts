@@ -26,6 +26,7 @@ import {
   ExistingLiabilityPeriod,
 } from '../calculator/wishlist';
 import { calculatePayroll } from '../calculator/payroll';
+import { getPayrollPeriodForDate } from '../calculator/pacing';
 
 @Injectable()
 export class WishlistService {
@@ -36,9 +37,10 @@ export class WishlistService {
     private readonly configSelectors: ConfigSelectors,
   ) {}
 
-  async createItem(dto: CreateWishlistItemDto): Promise<WishlistItem> {
+  async createItem(dto: CreateWishlistItemDto, userId: number = 1): Promise<WishlistItem> {
     return this.prisma.wishlistItem.create({
       data: {
+        userId,
         name: dto.name,
         price: dto.price,
         fundingType: dto.fundingType ?? WishlistFundingType.CASH,
@@ -58,8 +60,9 @@ export class WishlistService {
   async updateItem(
     id: number,
     dto: UpdateWishlistItemDto,
+    userId: number = 1,
   ): Promise<WishlistItem> {
-    const existing = await this.selectors.getItemById(id);
+    const existing = await this.selectors.getItemById(id, userId);
     if (!existing) {
       throw new NotFoundException(`WishlistItem #${id} not found`);
     }
@@ -83,8 +86,8 @@ export class WishlistService {
     });
   }
 
-  async deleteItem(id: number): Promise<WishlistItem> {
-    const existing = await this.selectors.getItemById(id);
+  async deleteItem(id: number, userId: number = 1): Promise<WishlistItem> {
+    const existing = await this.selectors.getItemById(id, userId);
     if (!existing) {
       throw new NotFoundException(`WishlistItem #${id} not found`);
     }
@@ -95,6 +98,7 @@ export class WishlistService {
     itemIdOrDraft: number | AnalyzeWishlistDraftDto,
     month?: number,
     year?: number,
+    userId: number = 1,
   ): Promise<WishlistAnalysisResult> {
     let price: number;
     let fundingType: WishlistFundingType;
@@ -104,7 +108,7 @@ export class WishlistService {
     let targetYear: number | null | undefined;
 
     if (typeof itemIdOrDraft === 'number') {
-      const item = await this.selectors.getItemById(itemIdOrDraft);
+      const item = await this.selectors.getItemById(itemIdOrDraft, userId);
       if (!item) {
         throw new NotFoundException(`WishlistItem #${itemIdOrDraft} not found`);
       }
@@ -121,22 +125,23 @@ export class WishlistService {
       monthlyPayment = itemIdOrDraft.monthlyPayment;
     }
 
-    const now = new Date();
-    const startMonth = month ?? targetMonth ?? now.getMonth() + 1;
-    const startYear = year ?? targetYear ?? now.getFullYear();
+    const defaultPeriod = getPayrollPeriodForDate();
+    const startMonth = month ?? targetMonth ?? defaultPeriod.month;
+    const startYear = year ?? targetYear ?? defaultPeriod.year;
 
-    // 1. Financial Context
+    // 1. Financial Context scoped strictly by userId
     let snapshot = await this.prisma.monthlySnapshot.findUnique({
-      where: { userId_month_year: { userId: 1, month: startMonth, year: startYear } },
+      where: { userId_month_year: { userId, month: startMonth, year: startYear } },
     });
 
     if (!snapshot) {
       snapshot = await this.prisma.monthlySnapshot.findFirst({
+        where: { userId },
         orderBy: [{ year: 'desc' }, { month: 'desc' }],
       });
     }
 
-    const config = await this.configSelectors.getConfig();
+    const config = await this.configSelectors.getConfig(userId);
     const currentSelfReward = snapshot?.selfReward ?? 0;
     const selfRewardTarget = snapshot?.selfRewardTarget ?? 0;
 
@@ -162,6 +167,7 @@ export class WishlistService {
       startMonth,
       startYear,
       baseIncome,
+      userId,
     );
 
     // 3. Pure Calculation
@@ -179,8 +185,9 @@ export class WishlistService {
 
   async convertToContract(
     itemId: number,
+    userId: number = 1,
   ): Promise<{ contract: CreditContract; item: WishlistItem }> {
-    const item = await this.selectors.getItemById(itemId);
+    const item = await this.selectors.getItemById(itemId, userId);
     if (!item) {
       throw new NotFoundException(`WishlistItem #${itemId} not found`);
     }
@@ -203,9 +210,9 @@ export class WishlistService {
         ? item.monthlyPayment
         : item.price / effectiveTenor;
 
-    const now = new Date();
-    const startMonth = item.targetMonth ?? now.getMonth() + 1;
-    const startYear = item.targetYear ?? now.getFullYear();
+    const defaultPeriod = getPayrollPeriodForDate();
+    const startMonth = item.targetMonth ?? defaultPeriod.month;
+    const startYear = item.targetYear ?? defaultPeriod.year;
 
     const result = await this.prisma.$transaction(async (tx) => {
       const contract = await tx.creditContract.create({
@@ -251,16 +258,20 @@ export class WishlistService {
     startMonth: number,
     startYear: number,
     defaultBaseIncome?: number,
+    userId: number = 1,
   ): Promise<ExistingLiabilityPeriod[]> {
-    const contracts = await this.prisma.creditContract.findMany({
-      where: {
-        isActive: true,
-        remainingTenor: { gt: 0 },
-      },
-    });
+    const contracts =
+      userId === 1
+        ? await this.prisma.creditContract.findMany({
+            where: {
+              isActive: true,
+              remainingTenor: { gt: 0 },
+            },
+          })
+        : [];
 
     const cardTxs = await this.prisma.creditCardTransaction.findMany({
-      where: { status: CreditCardStatus.ACTIVE },
+      where: { userId, status: CreditCardStatus.ACTIVE },
     });
 
     const periods: ExistingLiabilityPeriod[] = [];
@@ -281,7 +292,7 @@ export class WishlistService {
 
       // 2. Monthly Bulk Bills
       const bulkBills = await this.prisma.monthlyBulkBill.findMany({
-        where: { month, year },
+        where: { userId, month, year },
       });
       const bulkBillSum = bulkBills.reduce((acc, b) => acc + b.amount, 0);
 
@@ -312,7 +323,7 @@ export class WishlistService {
 
       // 4. Per-month income lookup (falls back to defaultBaseIncome for future months without snapshot)
       const monthSnapshot = await this.prisma.monthlySnapshot.findUnique({
-        where: { userId_month_year: { userId: 1, month, year } },
+        where: { userId_month_year: { userId, month, year } },
       });
       const monthIncome =
         monthSnapshot?.finalTotalIncome && monthSnapshot.finalTotalIncome > 0
@@ -334,17 +345,15 @@ export class WishlistService {
     return periods;
   }
 
-  async trackAsSavingsGoal(id: number) {
-    const item = await this.prisma.wishlistItem.findUnique({
-      where: { id },
-    });
+  async trackAsSavingsGoal(id: number, userId: number = 1) {
+    const item = await this.selectors.getItemById(id, userId);
     if (!item) {
       throw new NotFoundException(`Wishlist item #${id} not found`);
     }
 
     // Check if already linked
     let goal = await this.prisma.savingsGoal.findFirst({
-      where: { wishlistItemId: id },
+      where: { wishlistItemId: id, userId },
     });
 
     if (!goal) {

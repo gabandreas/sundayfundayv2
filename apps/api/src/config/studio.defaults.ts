@@ -168,13 +168,18 @@ export function buildDefaultStudioConfig(
       payslipAnchorDay: 25,
       payslipShiftRule: 'SHIFT_PREVIOUS_FRIDAY',
       reviewLagWorkingDays: 2,
-      ledgerEpochMonth: 10,
+      ledgerEpochMonth: 11,
       ledgerEpochYear: 2026,
       holidayDatesIso: ['2026-12-25', '2027-01-01'],
       periodOverrides: isSandbox
         ? {}
         : {
-            '12/2026': {
+            '11/2026': {
+              payslipDateIso: '2026-10-23',
+              paydayDateIso: '2026-10-28',
+              note: 'Oct 28 Payday',
+            },
+            '01/2027': {
               payslipDateIso: '2026-12-23',
               paydayDateIso: '2026-12-28',
               note: 'Holiday Schedule',

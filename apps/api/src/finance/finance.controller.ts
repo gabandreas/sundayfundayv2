@@ -23,6 +23,15 @@ import {
   ExecuteReconcileBalanceDto,
 } from './dto/reconcile-balance.dto';
 import { getUserIdOrThrow } from '../auth/auth.utils';
+import { getPayrollPeriodForDate } from '../calculator/pacing';
+import {
+  CommitReconcilerDto,
+  EvaluateFormulaSuiteDto,
+  ParseReconcilerDto,
+  SimulateCutoffDto,
+  SimulateTimelineDto,
+  WalletGuardEvaluateDto,
+} from './dto/hybrid-finance.dto';
 
 @Controller('api/finance')
 export class FinanceController {
@@ -51,21 +60,39 @@ export class FinanceController {
   }
 
   @Post('transactions')
-  async createTransaction(@Body() dto: CreateTransactionDto) {
-    return this.financeService.createTransaction(dto);
+  async createTransaction(@Body() dto: CreateTransactionDto, @Req() req?: any) {
+    const userId = getUserIdOrThrow(req);
+    return this.financeService.createTransaction(dto, userId);
   }
 
   @Patch('transactions/:id')
   async updateTransaction(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateTransactionDto,
+    @Req() req?: any,
   ) {
-    return this.financeService.updateTransaction(id, dto);
+    const userId = getUserIdOrThrow(req);
+    return this.financeService.updateTransaction(id, dto, userId);
   }
 
   @Delete('transactions/:id')
-  async deleteTransaction(@Param('id', ParseIntPipe) id: number) {
-    return this.financeService.deleteTransaction(id);
+  async deleteTransaction(@Param('id', ParseIntPipe) id: number, @Req() req?: any) {
+    const userId = getUserIdOrThrow(req);
+    return this.financeService.deleteTransaction(id, userId);
+  }
+
+  @Get('payroll-horizon')
+  async getPayrollHorizon(
+    @Query('startMonth') startMonthStr?: string,
+    @Query('startYear') startYearStr?: string,
+    @Query('count') countStr?: string,
+    @Req() req?: any,
+  ) {
+    const startMonth = startMonthStr ? parseInt(startMonthStr, 10) : undefined;
+    const startYear = startYearStr ? parseInt(startYearStr, 10) : undefined;
+    const count = countStr ? parseInt(countStr, 10) : 12;
+    const userId = getUserIdOrThrow(req);
+    return this.financeSelectors.listHorizonPayrolls(startMonth, startYear, count, userId);
   }
 
   @Get('payroll')
@@ -130,13 +157,15 @@ export class FinanceController {
   }
 
   @Post('reconcile')
-  async executeReconcile(@Body() dto: ExecuteReconcileBalanceDto) {
-    return this.financeService.executeCashReconciliation(dto);
+  async executeReconcile(@Body() dto: ExecuteReconcileBalanceDto, @Req() req?: any) {
+    const userId = getUserIdOrThrow(req);
+    return this.financeService.executeCashReconciliation(dto, userId);
   }
 
   @Post('reconcile-balance')
-  async executeReconcileBalance(@Body() dto: ExecuteReconcileBalanceDto) {
-    return this.financeService.executeCashReconciliation(dto);
+  async executeReconcileBalance(@Body() dto: ExecuteReconcileBalanceDto, @Req() req?: any) {
+    const userId = getUserIdOrThrow(req);
+    return this.financeService.executeCashReconciliation(dto, userId);
   }
 
   @Get('search')
@@ -175,5 +204,97 @@ export class FinanceController {
   @Patch('credit-card/:id/resume-recurring')
   async resumeRecurringSubscription(@Param('id', ParseIntPipe) id: number) {
     return this.creditService.resumeRecurringSubscription(id);
+  }
+
+  @Post('cutoff-simulate')
+  async simulateCutoff(@Body() dto: SimulateCutoffDto, @Req() req?: any) {
+    const userId = getUserIdOrThrow(req);
+    return this.financeSelectors.simulateCutoffForUser(dto, userId);
+  }
+
+  @Post('timeline-simulate')
+  async simulateTimeline(@Body() dto: SimulateTimelineDto, @Req() req?: any) {
+    const userId = getUserIdOrThrow(req);
+    return this.financeSelectors.simulateTimelineForUser(dto, userId);
+  }
+
+  @Get('contracts-burndown')
+  async getContractsBurndown(
+    @Query('month') monthStr?: string,
+    @Query('year') yearStr?: string,
+    @Req() req?: any,
+  ) {
+    const def = getPayrollPeriodForDate();
+    const month = monthStr ? parseInt(monthStr, 10) : def.month;
+    const year = yearStr ? parseInt(yearStr, 10) : def.year;
+    const userId = getUserIdOrThrow(req);
+    return this.financeSelectors.getContractsBurndown(month, year, userId);
+  }
+
+  @Get('wallet-guard')
+  async getWalletGuardStatus(
+    @Query('month') monthStr?: string,
+    @Query('year') yearStr?: string,
+    @Req() req?: any,
+  ) {
+    const def = getPayrollPeriodForDate();
+    const month = monthStr ? parseInt(monthStr, 10) : def.month;
+    const year = yearStr ? parseInt(yearStr, 10) : def.year;
+    const userId = getUserIdOrThrow(req);
+    return this.financeSelectors.getWalletGuardStatus(month, year, userId);
+  }
+
+  @Post('wallet-guard')
+  async evaluateWalletGuard(
+    @Body() dto: WalletGuardEvaluateDto,
+    @Req() req?: any,
+  ) {
+    const userId = getUserIdOrThrow(req);
+    return this.financeService.evaluateAndPersistWalletGuard(dto, userId);
+  }
+
+  @Get('intelligence')
+  async getIntelligenceBundle(
+    @Query('month') monthStr?: string,
+    @Query('year') yearStr?: string,
+    @Query('extraLumpSum') lumpStr?: string,
+    @Req() req?: any,
+  ) {
+    const def = getPayrollPeriodForDate();
+    const month = monthStr ? parseInt(monthStr, 10) : def.month;
+    const year = yearStr ? parseInt(yearStr, 10) : def.year;
+    const extraLumpSum = lumpStr ? parseInt(lumpStr, 10) : 0;
+    const userId = getUserIdOrThrow(req);
+    return this.financeSelectors.getIntelligenceBundle(
+      month,
+      year,
+      userId,
+      Number.isNaN(extraLumpSum) ? 0 : extraLumpSum,
+    );
+  }
+
+  @Post('reconciler/parse')
+  async parseReconciler(@Body() dto: ParseReconcilerDto, @Req() req?: any) {
+    const userId = getUserIdOrThrow(req);
+    return this.financeSelectors.parseStatementForUser(dto, userId);
+  }
+
+  @Post('reconciler/commit')
+  async commitReconciler(@Body() dto: CommitReconcilerDto, @Req() req?: any) {
+    const userId = getUserIdOrThrow(req);
+    return this.financeService.commitReconcilerRows(dto, userId);
+  }
+
+  @Post('formula/evaluate')
+  async evaluateFormulaSuite(@Body() dto: EvaluateFormulaSuiteDto, @Req() req?: any) {
+    const def = getPayrollPeriodForDate();
+    const userId = getUserIdOrThrow(req);
+    return this.financeSelectors.evaluateFormulaSuiteForUser(
+      dto.month ?? def.month,
+      dto.year ?? def.year,
+      dto.formulas,
+      dto.overrideVariables,
+      userId,
+    );
   }
 }

@@ -3,6 +3,7 @@ import {
   IsNotEmpty,
   IsNumber,
   IsOptional,
+  IsBoolean,
   IsString,
   Min,
   MinLength,
@@ -30,4 +31,12 @@ export class CreateBudgetRevisionDto {
   @IsNotEmpty({ message: 'reason is required' })
   @MinLength(3, { message: 'reason must be at least 3 characters' })
   reason: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isOneOff?: boolean;
+
+  @IsOptional()
+  @IsString()
+  oneOffLabel?: string;
 }

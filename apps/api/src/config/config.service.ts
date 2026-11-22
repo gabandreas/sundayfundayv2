@@ -1,11 +1,19 @@
 import {
   Injectable,
   BadRequestException,
+  ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../audit/audit-log.service';
-import { AuditCategory, AuditSeverity, SnapshotStatus } from '@prisma/client';
+import {
+  AuditCategory,
+  AuditSeverity,
+  CreditCardChargeType,
+  CreditCardStatus,
+  LiabilityCategory,
+  SnapshotStatus,
+} from '@prisma/client';
 import { UpsertGlobalConfigDto } from './dto/upsert-global-config.dto';
 import { SimulateRulesDto } from './dto/simulate-rules.dto';
 import { CreateCustomRequestDto } from './dto/create-custom-request.dto';
@@ -25,6 +33,7 @@ import {
   SandboxState,
   RoutineCategoryConfig,
 } from './sandbox.defaults';
+import { resolveStudioConfig } from './studio.defaults';
 
 @Injectable()
 export class ConfigService {
@@ -58,7 +67,27 @@ export class ConfigService {
       }
     }
 
-    const { recalculateDrafts, fromMonth, fromYear, ...configFields } = dto;
+    const { recalculateDrafts, fromMonth, fromYear, studioConfig, ...configFields } = dto;
+
+    if (studioConfig !== undefined) {
+      const existing = await this.prisma.globalConfig.findFirst({ where: { userId } });
+      const baseFormula =
+        existing?.formulaParamsJson && typeof existing.formulaParamsJson === 'object'
+          ? { ...(existing.formulaParamsJson as any) }
+          : {};
+      const mergedStudio = resolveStudioConfig(
+        userId,
+        { studioConfig },
+        existing ?? undefined,
+      );
+      configFields.formulaParamsJson = {
+        ...baseFormula,
+        ...(dto.formulaParamsJson && typeof dto.formulaParamsJson === 'object'
+          ? dto.formulaParamsJson
+          : {}),
+        studioConfig: mergedStudio,
+      };
+    }
 
     const updated = await this.prisma.globalConfig.upsert({
       where: { userId },
@@ -131,6 +160,112 @@ export class ConfigService {
   }
 
   /**
+   * Updates Modular Preferences Studio tables (stored cleanly under GlobalConfig.formulaParamsJson.studioConfig).
+   */
+  async updateStudioConfig(patch: any, userId: number = 1) {
+    const existing =
+      (await this.prisma.globalConfig.findUnique({ where: { userId } })) ||
+      (await this.prisma.globalConfig.findFirst({ where: { userId } }));
+
+    if (!existing) {
+      throw new NotFoundException('GlobalConfig not found for user');
+    }
+
+    const curStudio = resolveStudioConfig(userId, existing.formulaParamsJson, existing);
+    const nextStudio = resolveStudioConfig(
+      userId,
+      {
+        studioConfig: {
+          enableExternalAssetPortfolio:
+            typeof patch?.enableExternalAssetPortfolio === 'boolean'
+              ? patch.enableExternalAssetPortfolio
+              : curStudio.enableExternalAssetPortfolio,
+          actualP1VaultBalanceRp:
+            patch && Object.prototype.hasOwnProperty.call(patch, 'actualP1VaultBalanceRp')
+              ? patch.actualP1VaultBalanceRp === null
+                ? null
+                : Math.max(0, Math.round(Number(patch.actualP1VaultBalanceRp) || 0))
+              : curStudio.actualP1VaultBalanceRp,
+          paycycleFormulaConfig: patch?.paycycleFormulaConfig
+            ? {
+                ...curStudio.paycycleFormulaConfig,
+                ...patch.paycycleFormulaConfig,
+                formulas: patch.paycycleFormulaConfig.formulas
+                  ? {
+                      ...curStudio.paycycleFormulaConfig.formulas,
+                      ...patch.paycycleFormulaConfig.formulas,
+                    }
+                  : curStudio.paycycleFormulaConfig.formulas,
+                periodOverrides: patch.paycycleFormulaConfig.periodOverrides
+                  ? patch.paycycleFormulaConfig.periodOverrides
+                  : curStudio.paycycleFormulaConfig.periodOverrides,
+              }
+            : curStudio.paycycleFormulaConfig,
+          instrumentsTable: Array.isArray(patch?.instrumentsTable)
+            ? patch.instrumentsTable
+            : curStudio.instrumentsTable,
+          assetAccountsTable: Array.isArray(patch?.assetAccountsTable)
+            ? patch.assetAccountsTable
+            : curStudio.assetAccountsTable,
+          routineTemplatesTable: Array.isArray(patch?.routineTemplatesTable)
+            ? patch.routineTemplatesTable
+            : curStudio.routineTemplatesTable,
+          sidebarNavigationConfig: patch?.sidebarNavigationConfig
+            ? {
+                ...curStudio.sidebarNavigationConfig,
+                ...patch.sidebarNavigationConfig,
+              }
+            : curStudio.sidebarNavigationConfig,
+        },
+      },
+      existing,
+    );
+
+    const baseFormula =
+      existing.formulaParamsJson && typeof existing.formulaParamsJson === 'object'
+        ? { ...(existing.formulaParamsJson as any) }
+        : {};
+
+    const syncTopFields: Record<string, any> = {};
+    if (patch?.paycycleFormulaConfig?.paydayAnchorDay) {
+      syncTopFields.payrollPayoutDay = Math.max(
+        1,
+        Math.min(31, Number(patch.paycycleFormulaConfig.paydayAnchorDay) || 27),
+      );
+    }
+    if (patch?.paycycleFormulaConfig?.p1TargetFloorRp !== undefined) {
+      syncTopFields.baseSavings = Math.max(
+        0,
+        Math.round(Number(patch.paycycleFormulaConfig.p1TargetFloorRp) || 0),
+      );
+    }
+
+    const updated = await this.prisma.globalConfig.update({
+      where: { id: existing.id },
+      data: {
+        ...syncTopFields,
+        formulaParamsJson: {
+          ...baseFormula,
+          studioConfig: nextStudio,
+        } as any,
+      },
+    });
+
+    await this.auditLogService.record({
+      action: 'UPDATE_STUDIO_CONFIG',
+      category: AuditCategory.SETTINGS,
+      summary: 'Updated Modular Preferences Studio configuration tables',
+      details: JSON.stringify(Object.keys(patch || {})),
+      severity: AuditSeverity.INFO,
+    });
+
+    return {
+      studioConfig: nextStudio,
+      globalConfigId: updated.id,
+    };
+  }
+
+  /**
    * Simulates modular formula evaluation for a hypothetical paycheck, debts, and cycle days.
    */
   async simulateModularRules(dto: SimulateRulesDto) {
@@ -194,10 +329,12 @@ export class ConfigService {
   }
 
   /**
-   * Restores modular formula rules to canonical factory defaults.
+   * Restores modular formula rules to canonical factory defaults for the caller's userId.
    */
-  async restoreDefaultRules() {
-    const config = await this.prisma.globalConfig.findFirst();
+  async restoreDefaultRules(userId: number = 1) {
+    const config =
+      (await this.prisma.globalConfig.findUnique({ where: { userId } })) ||
+      (await this.prisma.globalConfig.findFirst({ where: { userId } }));
     const dailyAllowance = config?.dailyAllowance ?? 20000;
     const laptopAllowance = config?.laptopAllowance ?? 250000;
 
@@ -215,7 +352,7 @@ export class ConfigService {
     const financialPolicyJson = buildDefaultFinancialPolicy();
 
     const updated = await this.prisma.globalConfig.update({
-      where: { userId: 1 },
+      where: { userId },
       data: {
         payrollRulesJson: payrollRulesJson as any,
         allocationBucketsJson: allocationBucketsJson as any,
@@ -578,18 +715,332 @@ export class ConfigService {
   // ─────────────────────────────────────────────
 
   /**
-   * Resets the isolated commercial demo sandbox state to clean defaults.
+   * Resets the isolated Demo Sandbox (`userId = 2`) onto clean, deterministic PostgreSQL rows
+   * while strictly protecting User #1's production records from ever being touched.
    */
-  async resetSandbox(): Promise<SandboxState> {
-    const sandbox = buildDefaultSandboxState();
-    await this.prisma.globalConfig.update({
-      where: { userId: 1 },
-      data: {
-        sandboxStateJson: sandbox as any,
-        customRoutineCategoriesJson: sandbox.routineCategories as any,
+  async resetSandbox(userId: number = 2): Promise<SandboxState & { initializedPeriods: number }> {
+    if (userId !== 2) {
+      throw new ForbiddenException(
+        'Reset Sandbox is strictly restricted to the Demo Sandbox workspace (userId = 2)',
+      );
+    }
+
+    const sandbox = buildDefaultSandboxState(10, 2026);
+    const sandboxPayrollRules = [
+      {
+        id: 'net_fixed',
+        label: 'Flat Net Salary',
+        direction: 'ADDITION',
+        formulaType: 'FIXED_AMOUNT',
+        value: 0,
+        isActive: false,
       },
+    ];
+    const sandboxBuckets = buildDefaultAllocationBuckets({
+      transport: 600_000,
+      internet: 450_000,
+      vape: 300_000,
+      haircut: 0,
+      dailyOperational: 3_000_000,
+      savings: 1_500_000,
+      bufferPocket: 0,
     });
-    return sandbox;
+    const sandboxSurplusSplit = buildDefaultSurplusSplitRules();
+    const sandboxPolicy = buildDefaultFinancialPolicy();
+    const sandboxRoutineCategories: RoutineCategoryConfig[] = [
+      { id: 'transport', label: 'Transport & Fuel', target: 600_000, isCustom: false },
+      { id: 'internet', label: 'Internet & Utilities', target: 450_000, isCustom: false },
+      { id: 'vape', label: 'Subscriptions & Lifestyle', target: 300_000, isCustom: false },
+    ];
+    sandbox.routineCategories = sandboxRoutineCategories;
+
+    await this.prisma.$transaction(
+      async (tx) => {
+        await tx.transaction.deleteMany({
+          where: { snapshot: { userId: 2 } },
+        });
+        await tx.budgetRevision.deleteMany({
+          where: { snapshot: { userId: 2 } },
+        });
+        await tx.monthlySnapshot.deleteMany({
+          where: { userId: 2 },
+        });
+        await tx.liabilityLineItem.deleteMany({
+          where: { userId: 2 },
+        });
+        await tx.monthlyBulkBill.deleteMany({
+          where: { userId: 2 },
+        });
+        await tx.creditCardTransaction.deleteMany({
+          where: { userId: 2 },
+        });
+        await tx.savingsManualTransaction.deleteMany({
+          where: { userId: 2 },
+        });
+        await tx.savingsGoal.deleteMany({
+          where: { userId: 2 },
+        });
+        await tx.wishlistItem.deleteMany({
+          where: { userId: 2 },
+        });
+
+        await tx.globalConfig.upsert({
+          where: { userId: 2 },
+          update: {
+            baseSalary: 10_000_000,
+            dailyAllowance: 0,
+            laptopAllowance: 0,
+            dailyOperational: 3_000_000,
+            transport: 600_000,
+            internet: 450_000,
+            vape: 300_000,
+            haircut: 0,
+            baseSavings: 1_500_000,
+            creditLimit: 20_000_000,
+            creditStatementDay: 20,
+            creditDueDay: 11,
+            payrollPayoutDay: 25,
+            ccUsageLimit: 3_000_000,
+            paylaterUsageLimit: 1_500_000,
+            activeTrackingStartMonth: 10,
+            activeTrackingStartYear: 2026,
+            profileMode: 'STANDARD_GENERAL',
+            lifeStagePreset: 'CORPORATE_PROFESSIONAL',
+            uiDensityMode: 'COMMAND_COCKPIT',
+            payrollMode: 'FIXED_SALARY',
+            formulaEngineType: 'DEBT_FIRST_WATERFALL',
+            payrollRulesJson: sandboxPayrollRules as any,
+            allocationBucketsJson: sandboxBuckets as any,
+            surplusSplitRulesJson: sandboxSurplusSplit as any,
+            financialPolicyJson: sandboxPolicy as any,
+            customRoutineCategoriesJson: sandboxRoutineCategories as any,
+            sandboxStateJson: sandbox as any,
+          },
+          create: {
+            userId: 2,
+            baseSalary: 10_000_000,
+            dailyAllowance: 0,
+            laptopAllowance: 0,
+            dailyOperational: 3_000_000,
+            transport: 600_000,
+            internet: 450_000,
+            vape: 300_000,
+            haircut: 0,
+            baseSavings: 1_500_000,
+            creditLimit: 20_000_000,
+            creditStatementDay: 20,
+            creditDueDay: 11,
+            payrollPayoutDay: 25,
+            ccUsageLimit: 3_000_000,
+            paylaterUsageLimit: 1_500_000,
+            activeTrackingStartMonth: 10,
+            activeTrackingStartYear: 2026,
+            profileMode: 'STANDARD_GENERAL',
+            lifeStagePreset: 'CORPORATE_PROFESSIONAL',
+            uiDensityMode: 'COMMAND_COCKPIT',
+            payrollMode: 'FIXED_SALARY',
+            formulaEngineType: 'DEBT_FIRST_WATERFALL',
+            payrollRulesJson: sandboxPayrollRules as any,
+            allocationBucketsJson: sandboxBuckets as any,
+            surplusSplitRulesJson: sandboxSurplusSplit as any,
+            financialPolicyJson: sandboxPolicy as any,
+            customRoutineCategoriesJson: sandboxRoutineCategories as any,
+            sandboxStateJson: sandbox as any,
+          },
+        });
+
+        await tx.creditCardTransaction.createMany({
+          data: [
+            {
+              userId: 2,
+              label: 'MacBook Air M3 (Installment)',
+              amount: 15_000_000,
+              totalAmount: 15_000_000,
+              monthlyAmount: 1_250_000,
+              chargeType: CreditCardChargeType.INSTALLMENT,
+              tenor: 12,
+              category: 'Workstation',
+              transactionDate: new Date('2026-10-01T00:00:00.000Z'),
+              billingMonth: 10,
+              billingYear: 2026,
+              isRecurring: false,
+              isActive: true,
+              status: CreditCardStatus.ACTIVE,
+              notes: 'Demo Sandbox workstation installment',
+            },
+            {
+              userId: 2,
+              label: 'Spotify Premium Family',
+              amount: 55_000,
+              totalAmount: 55_000,
+              monthlyAmount: 55_000,
+              chargeType: CreditCardChargeType.RECURRING,
+              tenor: 1,
+              category: 'Subscription',
+              transactionDate: new Date('2026-10-01T00:00:00.000Z'),
+              billingMonth: 10,
+              billingYear: 2026,
+              isRecurring: true,
+              isActive: true,
+              status: CreditCardStatus.ACTIVE,
+              notes: 'Demo Sandbox recurring subscription',
+            },
+          ],
+        });
+
+        await tx.liabilityLineItem.createMany({
+          data: [
+            {
+              userId: 2,
+              month: 10,
+              year: 2026,
+              category: LiabilityCategory.PAYLATER,
+              title: 'Shopee PayLater Gadget Accessory (1/3)',
+              merchantOrPlatform: 'SPayLater',
+              principalAmount: 900_000,
+              monthlyAmount: 300_000,
+              tenorMonths: 3,
+              installmentIndex: 1,
+              cutoffDay: 15,
+              dueDay: 25,
+              isSettled: false,
+              parentContractId: 'DEMO-PL-01',
+            },
+            {
+              userId: 2,
+              month: 11,
+              year: 2026,
+              category: LiabilityCategory.PAYLATER,
+              title: 'Shopee PayLater Gadget Accessory (2/3)',
+              merchantOrPlatform: 'SPayLater',
+              principalAmount: 900_000,
+              monthlyAmount: 300_000,
+              tenorMonths: 3,
+              installmentIndex: 2,
+              cutoffDay: 15,
+              dueDay: 25,
+              isSettled: false,
+              parentContractId: 'DEMO-PL-01',
+            },
+            {
+              userId: 2,
+              month: 12,
+              year: 2026,
+              category: LiabilityCategory.PAYLATER,
+              title: 'Shopee PayLater Gadget Accessory (3/3)',
+              merchantOrPlatform: 'SPayLater',
+              principalAmount: 900_000,
+              monthlyAmount: 300_000,
+              tenorMonths: 3,
+              installmentIndex: 3,
+              cutoffDay: 15,
+              dueDay: 25,
+              isSettled: false,
+              parentContractId: 'DEMO-PL-01',
+            },
+            {
+              userId: 2,
+              month: 11,
+              year: 2026,
+              category: LiabilityCategory.PERSONAL_DEBT,
+              title: 'Family Bridge Advance',
+              merchantOrPlatform: 'Personal / Peer',
+              principalAmount: 200_000,
+              monthlyAmount: 200_000,
+              tenorMonths: 1,
+              installmentIndex: 1,
+              cutoffDay: 1,
+              dueDay: 25,
+              isSettled: false,
+              parentContractId: 'DEMO-PD-01',
+            },
+          ],
+        });
+
+        await tx.monthlyBulkBill.createMany({
+          data: [
+            {
+              userId: 2,
+              label: 'Monthly Bulk Bill',
+              paylaterAmount: 300_000,
+              personalDebtAmount: 0,
+              creditCardAmount: 0,
+              amount: 300_000,
+              month: 10,
+              year: 2026,
+            },
+            {
+              userId: 2,
+              label: 'Monthly Bulk Bill',
+              paylaterAmount: 300_000,
+              personalDebtAmount: 200_000,
+              creditCardAmount: 0,
+              amount: 500_000,
+              month: 11,
+              year: 2026,
+            },
+            {
+              userId: 2,
+              label: 'Monthly Bulk Bill',
+              paylaterAmount: 300_000,
+              personalDebtAmount: 0,
+              creditCardAmount: 0,
+              amount: 300_000,
+              month: 12,
+              year: 2026,
+            },
+          ],
+        });
+
+        await tx.savingsManualTransaction.createMany({
+          data: [
+            {
+              userId: 2,
+              label: 'Liquid Emergency Reserve Deposit',
+              amount: 15_000_000,
+              instrumentType: 'LIQUID_CASH',
+              date: new Date('2026-10-01T00:00:00.000Z'),
+            },
+            {
+              userId: 2,
+              label: 'Core Investment Fund Allocation',
+              amount: 10_000_000,
+              instrumentType: 'INVESTMENT_RDPU',
+              date: new Date('2026-10-01T00:00:00.000Z'),
+            },
+          ],
+        });
+
+        await tx.savingsGoal.create({
+          data: {
+            userId: 2,
+            name: 'Emergency Fund Buffer',
+            targetAmount: 30_000_000,
+            currentAllocatedAmount: 25_000_000,
+            targetMonth: 12,
+            targetYear: 2026,
+            category: 'EMERGENCY_FUND',
+          },
+        });
+      },
+      { maxWait: 15000, timeout: 30000 },
+    );
+
+    const demoPeriods = [
+      { month: 10, year: 2026 },
+      { month: 11, year: 2026 },
+      { month: 12, year: 2026 },
+      { month: 1, year: 2027 },
+      { month: 2, year: 2027 },
+    ];
+    for (const p of demoPeriods) {
+      await this.snapshotsService.initializePeriod(p.month, p.year, 2);
+    }
+
+    return {
+      ...sandbox,
+      initializedPeriods: demoPeriods.length,
+    };
   }
 
   /**

@@ -2,8 +2,9 @@ import * as crypto from 'crypto';
 import { UnauthorizedException } from '@nestjs/common';
 
 export function getUserIdOrThrow(req: any): number {
-  const userId = req?.user?.id || req?.userId || (process.env.NODE_ENV === 'test' ? 1 : null);
-  if (!userId) {
+  const isTest = process.env.NODE_ENV === 'test';
+  const userId = req?.user?.id || req?.userId || (isTest ? 1 : null);
+  if (!userId || (!isTest && !req?.isAuthenticated)) {
     throw new UnauthorizedException('Authentication required.');
   }
   return userId;
@@ -67,6 +68,8 @@ export function verifyPassword(password: string, storedHash: string): boolean {
   return verifyPasswordWithStatus(password, storedHash).isValid;
 }
 
+export const DUMMY_SCRYPT_HASH = hashPassword('dummy-constant-time-mitigation-2026');
+
 export function hashPin(pin: string): string {
   return hashPassword(pin);
 }
@@ -86,6 +89,7 @@ export interface JwtPayload {
   blueprintType: string;
   fullName: string;
   iat?: number;
+  nbf?: number;
   exp?: number;
 }
 
@@ -103,15 +107,34 @@ export function signToken(payload: Omit<JwtPayload, 'exp' | 'iat'>, expiresInSec
 
 export function verifyToken(token: string): JwtPayload | null {
   try {
-    const [header, body, signature] = token.split('.');
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const [header, body, signature] = parts;
     if (!header || !body || !signature) return null;
+
+    const parsedHeader = JSON.parse(Buffer.from(header, 'base64url').toString('utf8')) as {
+      alg?: string;
+      typ?: string;
+    };
+    if (!parsedHeader || parsedHeader.alg !== 'HS256') return null;
+
     const expectedSig = crypto
       .createHmac('sha256', JWT_SECRET)
       .update(`${header}.${body}`)
       .digest('base64url');
-    if (signature !== expectedSig) return null;
+
+    const sigBuf = Buffer.from(signature, 'utf8');
+    const expectedBuf = Buffer.from(expectedSig, 'utf8');
+    if (sigBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(sigBuf, expectedBuf)) {
+      return null;
+    }
+
     const payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as JwtPayload;
-    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
+    const now = Math.floor(Date.now() / 1000);
+    if (typeof payload.exp !== 'number' || payload.exp <= now) {
+      return null;
+    }
+    if (typeof payload.nbf === 'number' && payload.nbf > now) {
       return null;
     }
     return payload;

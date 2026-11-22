@@ -49,6 +49,13 @@ export interface ReconciliationSimulationInput {
   vapeTarget: number;
   haircutTarget: number;
   bufferPocketTarget: number;
+  actualDailyOperational?: number | null;
+  isManualOverride?: boolean;
+  bridgeInflowAmount?: number | null;
+  actualSavings?: number | null;
+  selfReward?: number | null;
+  deficitUncovered?: number | null;
+  netSalaryIncomeOverride?: number | null;
   transactions: Array<{
     type: string;
     sourceType: string;
@@ -122,6 +129,7 @@ export function calculateCashReconciliation(
     Math.max(0, input.haircutTarget);
 
   // 1. Current Baseline State
+  const bridgeInflow = Math.max(0, Math.round(Number(input.bridgeInflowAmount) || 0));
   const currentExtraIncome = sumExtraIncome(input.transactions);
   const currentPayroll = calculatePayroll({
     baseSalary: input.baseSalary,
@@ -134,6 +142,15 @@ export function calculateCashReconciliation(
     extraIncome: currentExtraIncome,
     laptopAllowance: input.laptopAllowance,
   });
+  const baseNetIncome =
+    input.netSalaryIncomeOverride !== undefined &&
+    input.netSalaryIncomeOverride !== null
+      ? Math.round(input.netSalaryIncomeOverride) +
+        input.thrAmount +
+        input.bonusAmount +
+        currentExtraIncome
+      : currentPayroll.finalTotalIncome;
+  const currentPoolIncome = baseNetIncome + bridgeInflow;
 
   const fixedTargets = {
     transport: input.transportTarget,
@@ -148,7 +165,7 @@ export function calculateCashReconciliation(
     input.dailyOperationalTarget,
   );
   const currentWaterfall = calculateWaterfall({
-    finalTotalIncome: currentPayroll.finalTotalIncome,
+    finalTotalIncome: currentPoolIncome,
     totalDeductions: currentTotalDeductions,
     savingsTarget: input.savingsTarget,
     selfRewardTarget: input.selfRewardTarget,
@@ -156,6 +173,37 @@ export function calculateCashReconciliation(
     fixedExpenses,
     bufferPocket: input.bufferPocketTarget,
   });
+
+  const hasStoredDailyOp =
+    input.actualDailyOperational !== undefined &&
+    input.actualDailyOperational !== null;
+  const fundedDailyOperational = hasStoredDailyOp
+    ? Math.max(0, Math.round(input.actualDailyOperational!))
+    : input.isManualOverride
+      ? Math.max(0, Math.round(input.dailyOperationalTarget))
+      : currentWaterfall.actualDailyOperational;
+
+  const effectiveCurrentSavings =
+    input.isManualOverride &&
+    input.actualSavings !== undefined &&
+    input.actualSavings !== null
+      ? Math.max(0, Math.round(input.actualSavings))
+      : currentWaterfall.actualSavings;
+  const effectiveCurrentSelfReward =
+    input.isManualOverride &&
+    input.selfReward !== undefined &&
+    input.selfReward !== null
+      ? Math.max(0, Math.round(input.selfReward))
+      : currentWaterfall.selfReward;
+  const effectiveCurrentDeficit =
+    input.isManualOverride &&
+    input.deficitUncovered !== undefined &&
+    input.deficitUncovered !== null
+      ? Math.max(0, Math.round(input.deficitUncovered))
+      : currentWaterfall.deficitUncovered;
+  const effectiveCurrentIsDeficit = input.isManualOverride
+    ? effectiveCurrentDeficit > 0
+    : currentWaterfall.isDeficit;
 
   const currentDailySpent = calculateOperationalDailySpent(
     input.transactions,
@@ -168,7 +216,7 @@ export function calculateCashReconciliation(
     cycleStartDate: input.cycleStartDate,
     cycleEndDate: input.cycleEndDate,
     isEndDateConfirmed: input.isEndDateConfirmed,
-    actualDailyOperational: currentWaterfall.actualDailyOperational,
+    actualDailyOperational: fundedDailyOperational,
     dailyOperationalTarget: input.dailyOperationalTarget,
     totalDailySpent: currentDailySpent,
     referenceDate: input.referenceDate,
@@ -251,13 +299,21 @@ export function calculateCashReconciliation(
     laptopAllowance: input.laptopAllowance,
   });
 
+  const projectedPoolIncome =
+    (input.netSalaryIncomeOverride !== undefined &&
+    input.netSalaryIncomeOverride !== null
+      ? Math.round(input.netSalaryIncomeOverride) +
+        input.thrAmount +
+        input.bonusAmount +
+        projectedExtraIncome
+      : projectedPayroll.finalTotalIncome) + bridgeInflow;
   const projectedTotalDeductions = calculateTotalDeductions(
     simulatedTransactions,
     fixedTargets,
     simulatedDailyOperationalTarget,
   );
   const projectedWaterfall = calculateWaterfall({
-    finalTotalIncome: projectedPayroll.finalTotalIncome,
+    finalTotalIncome: projectedPoolIncome,
     totalDeductions: projectedTotalDeductions,
     savingsTarget: input.savingsTarget,
     selfRewardTarget: input.selfRewardTarget,
@@ -265,6 +321,51 @@ export function calculateCashReconciliation(
     fixedExpenses,
     bufferPocket: input.bufferPocketTarget,
   });
+
+  let projectedActualDailyOperational = projectedWaterfall.actualDailyOperational;
+  let projectedActualSavings = projectedWaterfall.actualSavings;
+  let projectedSelfReward = projectedWaterfall.selfReward;
+  let projectedDeficitUncovered = projectedWaterfall.deficitUncovered;
+  let projectedIsDeficit = projectedWaterfall.isDeficit;
+
+  if (input.isManualOverride) {
+    if (resolvedActionType === 'REVISE_OPERATIONAL_TARGET') {
+      projectedActualDailyOperational = fundedDailyOperational + adjustmentAmount;
+      const p2Cut = Math.min(effectiveCurrentSelfReward, adjustmentAmount);
+      projectedSelfReward = effectiveCurrentSelfReward - p2Cut;
+      const remCut = adjustmentAmount - p2Cut;
+      const p1Cut = Math.min(effectiveCurrentSavings, remCut);
+      projectedActualSavings = effectiveCurrentSavings - p1Cut;
+      projectedDeficitUncovered =
+        effectiveCurrentDeficit + Math.max(0, remCut - p1Cut);
+      projectedIsDeficit = projectedDeficitUncovered > 0;
+    } else if (resolvedActionType === 'RECORD_INCOME_ADJUSTMENT') {
+      projectedActualDailyOperational = fundedDailyOperational;
+      projectedActualSavings = effectiveCurrentSavings;
+      projectedSelfReward = effectiveCurrentSelfReward + adjustmentAmount;
+      projectedDeficitUncovered = effectiveCurrentDeficit;
+      projectedIsDeficit = effectiveCurrentIsDeficit;
+    } else {
+      projectedActualDailyOperational = fundedDailyOperational;
+      const dedDelta = Math.max(
+        0,
+        projectedTotalDeductions - currentTotalDeductions,
+      );
+      const p2Cut = Math.min(effectiveCurrentSelfReward, dedDelta);
+      projectedSelfReward = effectiveCurrentSelfReward - p2Cut;
+      const remDelta = dedDelta - p2Cut;
+      const p1Cut = Math.min(effectiveCurrentSavings, remDelta);
+      projectedActualSavings = effectiveCurrentSavings - p1Cut;
+      projectedDeficitUncovered =
+        effectiveCurrentDeficit + Math.max(0, remDelta - p1Cut);
+      projectedIsDeficit = projectedDeficitUncovered > 0;
+    }
+  } else if (
+    hasStoredDailyOp &&
+    resolvedActionType !== 'REVISE_OPERATIONAL_TARGET'
+  ) {
+    projectedActualDailyOperational = fundedDailyOperational;
+  }
 
   const projectedDailySpent = calculateOperationalDailySpent(
     simulatedTransactions,
@@ -277,44 +378,44 @@ export function calculateCashReconciliation(
     cycleStartDate: input.cycleStartDate,
     cycleEndDate: input.cycleEndDate,
     isEndDateConfirmed: input.isEndDateConfirmed,
-    actualDailyOperational: projectedWaterfall.actualDailyOperational,
+    actualDailyOperational: projectedActualDailyOperational,
     dailyOperationalTarget: simulatedDailyOperationalTarget,
     totalDailySpent: projectedDailySpent,
     referenceDate: input.referenceDate,
   });
 
   const triggersWaterfallDeficit =
-    !currentWaterfall.isDeficit && projectedWaterfall.isDeficit;
+    !effectiveCurrentIsDeficit && projectedIsDeficit;
   const worsensWaterfallDeficit =
-    currentWaterfall.isDeficit &&
-    projectedWaterfall.deficitUncovered > currentWaterfall.deficitUncovered;
+    effectiveCurrentIsDeficit &&
+    projectedDeficitUncovered > effectiveCurrentDeficit;
   const reducesPriority1Savings =
-    projectedWaterfall.actualSavings < currentWaterfall.actualSavings;
+    projectedActualSavings < effectiveCurrentSavings;
   const savingsReductionAmount = Math.max(
     0,
-    currentWaterfall.actualSavings - projectedWaterfall.actualSavings,
+    effectiveCurrentSavings - projectedActualSavings,
   );
   const reducesPriority2SelfReward =
-    projectedWaterfall.selfReward < currentWaterfall.selfReward;
+    projectedSelfReward < effectiveCurrentSelfReward;
   const selfRewardReductionAmount = Math.max(
     0,
-    currentWaterfall.selfReward - projectedWaterfall.selfReward,
+    effectiveCurrentSelfReward - projectedSelfReward,
   );
 
   const warnings: string[] = [];
   if (triggersWaterfallDeficit) {
     warnings.push(
-      `Waterfall Deficit Trap: Recording this ${formatIdrPlain(adjustmentAmount)} adjustment pushes total upfront commitments past net income, triggering an uncovered deficit of ${formatIdrPlain(projectedWaterfall.deficitUncovered)} and collapsing the funded Daily Operational allocation to Rp 0.`,
+      `Waterfall Deficit Trap: Recording this ${formatIdrPlain(adjustmentAmount)} adjustment pushes total upfront commitments past net income, triggering an uncovered deficit of ${formatIdrPlain(projectedDeficitUncovered)} and proportionally capping Daily Operational funding at ${formatIdrPlain(projectedActualDailyOperational)} of ${formatIdrPlain(simulatedDailyOperationalTarget)}.`,
     );
   } else if (worsensWaterfallDeficit) {
     warnings.push(
-      `Deficit Escalation: This adjustment increases the uncovered Waterfall Deficit from ${formatIdrPlain(currentWaterfall.deficitUncovered)} to ${formatIdrPlain(projectedWaterfall.deficitUncovered)}.`,
+      `Deficit Escalation: This adjustment increases the uncovered Waterfall Deficit from ${formatIdrPlain(effectiveCurrentDeficit)} to ${formatIdrPlain(projectedDeficitUncovered)}.`,
     );
   }
 
   if (reducesPriority1Savings) {
     warnings.push(
-      `Priority 1 Savings Impact: This adjustment reduces funded P1 Core Savings by ${formatIdrPlain(savingsReductionAmount)} (from ${formatIdrPlain(currentWaterfall.actualSavings)} to ${formatIdrPlain(projectedWaterfall.actualSavings)}).`,
+      `Priority 1 Savings Impact: This adjustment reduces funded P1 Core Savings by ${formatIdrPlain(savingsReductionAmount)} (from ${formatIdrPlain(effectiveCurrentSavings)} to ${formatIdrPlain(projectedActualSavings)}).`,
     );
   }
 
@@ -340,34 +441,34 @@ export function calculateCashReconciliation(
     daysRemaining: currentPacing.daysRemaining,
     cycleDateLabel: currentPacing.cycleDateLabel,
     current: {
-      finalTotalIncome: currentPayroll.finalTotalIncome,
+      finalTotalIncome: currentPoolIncome,
       totalDeductions: currentTotalDeductions,
       dailyOperationalTarget: input.dailyOperationalTarget,
-      actualDailyOperational: currentWaterfall.actualDailyOperational,
+      actualDailyOperational: fundedDailyOperational,
       totalDailySpent: currentDailySpent,
       remainingBudget: currentPacing.remainingBudget,
       safeToSpendToday: currentPacing.safeToSpendToday,
       baselineDailyRate: currentPacing.baselineDailyRate,
       pacingStatus: currentPacing.pacingStatus,
-      actualSavings: currentWaterfall.actualSavings,
-      selfReward: currentWaterfall.selfReward,
-      deficitUncovered: currentWaterfall.deficitUncovered,
-      isDeficit: currentWaterfall.isDeficit,
+      actualSavings: effectiveCurrentSavings,
+      selfReward: effectiveCurrentSelfReward,
+      deficitUncovered: effectiveCurrentDeficit,
+      isDeficit: effectiveCurrentIsDeficit,
     },
     projected: {
-      finalTotalIncome: projectedPayroll.finalTotalIncome,
+      finalTotalIncome: projectedPoolIncome,
       totalDeductions: projectedTotalDeductions,
       dailyOperationalTarget: simulatedDailyOperationalTarget,
-      actualDailyOperational: projectedWaterfall.actualDailyOperational,
+      actualDailyOperational: projectedActualDailyOperational,
       totalDailySpent: projectedDailySpent,
       remainingBudget: projectedPacing.remainingBudget,
       safeToSpendToday: projectedPacing.safeToSpendToday,
       baselineDailyRate: projectedPacing.baselineDailyRate,
       pacingStatus: projectedPacing.pacingStatus,
-      actualSavings: projectedWaterfall.actualSavings,
-      selfReward: projectedWaterfall.selfReward,
-      deficitUncovered: projectedWaterfall.deficitUncovered,
-      isDeficit: projectedWaterfall.isDeficit,
+      actualSavings: projectedActualSavings,
+      selfReward: projectedSelfReward,
+      deficitUncovered: projectedDeficitUncovered,
+      isDeficit: projectedIsDeficit,
     },
     impact: {
       triggersWaterfallDeficit,

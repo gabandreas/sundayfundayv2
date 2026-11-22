@@ -32,6 +32,12 @@ export interface CreditLimitCalculationInput {
   paylaterUsageLimit: number;
   optimalDebtRatioPercent?: number;
   maxSafeDebtRatioPercent?: number;
+  maturityMonth?: number;
+  maturityYear?: number;
+  ccDueDay?: number;
+  paylaterDueDay?: number;
+  evaluatedSafeCeilingRp?: number;
+  evaluatedOptimalCeilingRp?: number;
 }
 
 export interface InstrumentLimitEvaluation {
@@ -73,6 +79,10 @@ export interface CreditCeilingBreakdown {
 export interface CreditLimitCalculationResult {
   month: number;
   year: number;
+  maturityMonth?: number;
+  maturityYear?: number;
+  ccDueDay?: number;
+  paylaterDueDay?: number;
   isSnapshotPersisted: boolean;
   snapshotStatus: 'DRAFT' | 'LOCKED' | 'UNINITIALIZED';
   bankCreditLimit: number;
@@ -211,22 +221,30 @@ export function calculateCreditUsageLimit(
       manualDeductions,
   );
 
-  // 3. Effective Bounded Ceilings = min(ratioCeiling, cashflowCeiling)
-  const recommendedOptimalCombinedCeiling = Math.min(
-    ratioBasedOptimalRevolvingCeiling,
-    maxCashflowBeforeSavingsSlash,
-  );
-  const recommendedSafeCombinedCeiling = Math.min(
-    ratioBasedSafeRevolvingCeiling,
-    maxCashflowBeforeDeficit,
-  );
+  // 3. Effective Bounded Ceilings = Formula-driven or min(ratioCeiling, cashflowCeiling)
+  const recommendedOptimalCombinedCeiling =
+    input.evaluatedOptimalCeilingRp !== undefined
+      ? Math.max(0, Math.round(input.evaluatedOptimalCeilingRp))
+      : Math.min(
+          ratioBasedOptimalRevolvingCeiling,
+          maxCashflowBeforeSavingsSlash,
+        );
+  const recommendedSafeCombinedCeiling =
+    input.evaluatedSafeCeilingRp !== undefined
+      ? Math.max(0, Math.round(input.evaluatedSafeCeilingRp))
+      : Math.min(
+          ratioBasedSafeRevolvingCeiling,
+          maxCashflowBeforeDeficit,
+        );
 
   const optimalBindingConstraint: OptimalBindingConstraint =
+    input.evaluatedOptimalCeilingRp !== undefined ||
     maxCashflowBeforeSavingsSlash < ratioBasedOptimalRevolvingCeiling
       ? 'CASHFLOW_SAVINGS_PROTECTION'
       : 'DEBT_RATIO_20';
 
   const safeBindingConstraint: SafeBindingConstraint =
+    input.evaluatedSafeCeilingRp !== undefined ||
     maxCashflowBeforeDeficit < ratioBasedSafeRevolvingCeiling
       ? 'CASHFLOW_DEFICIT_PROTECTION'
       : 'DEBT_RATIO_35';
@@ -269,6 +287,10 @@ export function calculateCreditUsageLimit(
   return {
     month: input.month,
     year: input.year,
+    ...(input.maturityMonth !== undefined ? { maturityMonth: input.maturityMonth } : {}),
+    ...(input.maturityYear !== undefined ? { maturityYear: input.maturityYear } : {}),
+    ...(input.ccDueDay !== undefined ? { ccDueDay: input.ccDueDay } : {}),
+    ...(input.paylaterDueDay !== undefined ? { paylaterDueDay: input.paylaterDueDay } : {}),
     isSnapshotPersisted: input.isSnapshotPersisted,
     snapshotStatus: input.snapshotStatus,
     bankCreditLimit,

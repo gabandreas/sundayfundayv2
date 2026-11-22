@@ -108,9 +108,10 @@ describe('calculateCashReconciliation', () => {
     expect(deficitTrap.impact.triggersWaterfallDeficit).toBe(true);
     expect(deficitTrap.projected.isDeficit).toBe(true);
     expect(deficitTrap.projected.deficitUncovered).toBe(120000);
-    // Because waterfall enters deficit, actualDailyOperational collapses to 0!
-    expect(deficitTrap.projected.actualDailyOperational).toBe(0);
-    expect(deficitTrap.projected.safeToSpendToday).toBe(0);
+    // Under Proportional Living Cash Law: FundedLivingCash = 5,940,000 - 3,800,000 - 760,000 = 1,380,000;
+    // minus 200,000 spent -> 1,180,000 remaining over 10 days -> safeToSpendToday = 118,000
+    expect(deficitTrap.projected.actualDailyOperational).toBe(1380000);
+    expect(deficitTrap.projected.safeToSpendToday).toBe(118000);
     expect(
       deficitTrap.impact.warnings.some((w) =>
         w.includes('Waterfall Deficit Trap'),
@@ -207,6 +208,60 @@ describe('calculateCashReconciliation', () => {
       expect(res.adjustmentAmount).toBe(100000);
       expect(res.discrepancyDirection).toBe('SHORTFALL');
       expect(res.resolvedActionType).toBe('RECORD_DEDUCTION_ADJUSTMENT');
+    });
+
+    it('honors stored actualDailyOperational, isManualOverride, and bridgeInflowAmount for 10/2026 reconciliation (Rp 591k -> Rp 300k shortfall = Rp 291k, zero refund loop)', () => {
+      const octResult = calculateCashReconciliation({
+        periodMonth: 10,
+        periodYear: 2026,
+        actualRealBalance: 300000,
+        baseSalary: 5300000,
+        salaryAdjustment: 0,
+        totalWorkingDays: 20,
+        dailyAllowance: 25000,
+        cafeteriaDeduction: 0,
+        thrAmount: 0,
+        bonusAmount: 0,
+        laptopAllowance: 250000,
+        savingsTarget: 500000,
+        selfRewardTarget: 250000,
+        dailyOperationalTarget: 1720316,
+        actualDailyOperational: 1720316,
+        isManualOverride: true,
+        bridgeInflowAmount: 900000,
+        actualSavings: 6341,
+        selfReward: 250000,
+        deficitUncovered: 0,
+        transportTarget: 200000,
+        internetTarget: 200000,
+        vapeTarget: 0,
+        haircutTarget: 0,
+        bufferPocketTarget: 0,
+        transactions: [
+          { type: 'CREDIT_BILL', sourceType: 'BULK_BILL', amount: 3155483 },
+          { type: 'CREDIT_BILL', sourceType: 'CC_TRANSACTION', amount: 1060900 },
+          { type: 'CREDIT_BILL', sourceType: 'PERSONAL_DEBT', amount: 197960 },
+          { type: 'DEDUCTION', sourceType: 'MANUAL', amount: 1129316 },
+        ],
+        cycleStartDate: new Date(Date.UTC(2026, 9, 28)),
+        cycleEndDate: new Date(Date.UTC(2026, 10, 26)),
+        isEndDateConfirmed: true,
+        referenceDate: new Date(Date.UTC(2026, 10, 15)),
+      });
+
+      expect(octResult.current.finalTotalIncome).toBe(6791000);
+      expect(octResult.current.actualDailyOperational).toBe(1720316);
+      expect(octResult.current.totalDailySpent).toBe(1129316);
+      expect(octResult.systemRemainingBudget).toBe(591000);
+      expect(octResult.discrepancyDirection).toBe('SHORTFALL');
+      expect(octResult.varianceAmount).toBe(-291000);
+      expect(octResult.adjustmentAmount).toBe(291000);
+      expect(octResult.resolvedActionType).toBe('RECORD_DEDUCTION_ADJUSTMENT');
+      expect(octResult.projected.totalDailySpent).toBe(1420316);
+      expect(octResult.projected.remainingBudget).toBe(300000);
+      expect(octResult.projected.isDeficit).toBe(false);
+      expect(octResult.projected.actualSavings).toBe(6341);
+      expect(octResult.projected.selfReward).toBe(250000);
     });
   });
 });

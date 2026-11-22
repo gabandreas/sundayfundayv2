@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEmail } from 'class-validator';
+import { IsBoolean, IsString, IsOptional } from 'class-validator';
 
 export class UpdateKillSwitchNotificationConfigDto {
   @IsOptional()
@@ -14,6 +14,14 @@ export class UpdateKillSwitchNotificationConfigDto {
   killSwitchSmtpAppPassword?: string;
 
   @IsOptional()
+  @IsBoolean()
+  clearSmtpPassword?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  resetSmtpConfig?: boolean;
+
+  @IsOptional()
   @IsString()
   killSwitchWebhookUrl?: string;
 
@@ -24,6 +32,10 @@ export class UpdateKillSwitchNotificationConfigDto {
   @IsOptional()
   @IsString()
   killSwitchWaApiKey?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  clearWaApiKey?: boolean;
 
   @IsOptional()
   @IsString()

@@ -155,13 +155,15 @@ export function getPayrollPeriodForDate(
   let year: number;
 
   if (calDay >= cycleTransitionDay) {
-    month = calMonth;
-    year = calYear;
-  } else if (calMonth === 1) {
-    month = 12;
-    year = calYear - 1;
+    if (calMonth === 12) {
+      month = 1;
+      year = calYear + 1;
+    } else {
+      month = calMonth + 1;
+      year = calYear;
+    }
   } else {
-    month = calMonth - 1;
+    month = calMonth;
     year = calYear;
   }
 
@@ -211,15 +213,14 @@ export function getPaydayCycleWindow(
   nextSnapshotPayoutDate?: Date | null,
   defaultPayoutDay: number = DEFAULT_PAYOUT_DAY,
 ): PaydayCycleWindow {
+  const prevMonth = month === 1 ? 12 : month - 1;
+  const prevYear = month === 1 ? year - 1 : year;
   const cycleStartDate = snapshotPayoutDate
     ? new Date(snapshotPayoutDate)
-    : new Date(Date.UTC(year, month - 1, defaultPayoutDay));
+    : new Date(Date.UTC(prevYear, prevMonth - 1, defaultPayoutDay));
 
   const startNorm = normalizeDate(cycleStartDate);
   const startTs = Date.UTC(startNorm.year, startNorm.month - 1, startNorm.day);
-
-  const nextMonth = month === 12 ? 1 : month + 1;
-  const nextYear = month === 12 ? year + 1 : year;
 
   let nextPayoutDate: Date;
   let isEndDateConfirmed = false;
@@ -231,10 +232,10 @@ export function getPaydayCycleWindow(
       nextPayoutDate = new Date(nextSnapshotPayoutDate);
       isEndDateConfirmed = true;
     } else {
-      nextPayoutDate = new Date(Date.UTC(nextYear, nextMonth - 1, defaultPayoutDay));
+      nextPayoutDate = new Date(Date.UTC(year, month - 1, defaultPayoutDay));
     }
   } else {
-    nextPayoutDate = new Date(Date.UTC(nextYear, nextMonth - 1, defaultPayoutDay));
+    nextPayoutDate = new Date(Date.UTC(year, month - 1, defaultPayoutDay));
   }
 
   const nextNorm = normalizeDate(nextPayoutDate);

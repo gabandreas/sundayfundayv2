@@ -7,6 +7,7 @@ import {
   WealthTargetPlanResult,
 } from './savings.utils';
 import { buildDefaultSandboxState } from '../config/sandbox.defaults';
+import { resolveStudioConfig } from '../config/studio.defaults';
 
 export interface SavingsMilestone {
   months: number;
@@ -117,69 +118,6 @@ export class SavingsSelectors {
     referenceYear?: number,
     userId: number = 1,
   ): Promise<SavingsVaultResult> {
-    if (userId === 2) {
-      const config = await this.prisma.globalConfig.findFirst({
-        where: { userId },
-      });
-      const sandbox =
-        (config?.sandboxStateJson as any) ||
-        buildDefaultSandboxState(referenceMonth, referenceYear);
-        const vault = sandbox.savingsVault ?? {
-          balance: 25_000_000,
-          liquidCashBalance: 15_000_000,
-          investmentRdpuBalance: 10_000_000,
-          liquidSharePercent: 60,
-          rdpuSharePercent: 40,
-        };
-
-        const monthlyLivingExpenseBaseline =
-          sandbox.persona?.dailyLivingBudget ?? 3_000_000;
-        const runwayMonths =
-          monthlyLivingExpenseBaseline > 0
-            ? Math.round((vault.balance / monthlyLivingExpenseBaseline) * 10) / 10
-            : 8.3;
-
-        const transactions = [
-          {
-            id: 9001,
-            date: new Date('2026-10-01T00:00:00.000Z'),
-            label: 'Liquid Emergency Reserve Deposit',
-            amount: 15_000_000,
-            instrumentType: 'LIQUID_CASH',
-            notes: 'Standard Edition Initial Liquid Reserve',
-          },
-          {
-            id: 9002,
-            date: new Date('2026-10-01T00:00:00.000Z'),
-            label: 'Core Investment Fund Allocation',
-            amount: 10_000_000,
-            instrumentType: 'INVESTMENT_RDPU',
-            notes: 'Standard Edition Initial Investment Allocation',
-          },
-        ];
-
-        const periodDepositsByPeriod: Record<string, number> = {
-          '2026-10': sandbox.persona?.coreSavingsTarget ?? 1_500_000,
-        };
-
-        const overview = await this.getOverview(new Date(), userId);
-
-        return {
-          balance: vault.balance,
-          liquidCashBalance: vault.liquidCashBalance,
-          investmentRdpuBalance: vault.investmentRdpuBalance,
-          liquidSharePercent: vault.liquidSharePercent,
-          rdpuSharePercent: vault.rdpuSharePercent,
-          monthlyLivingExpenseBaseline,
-          runwayMonths,
-          milestones: [],
-          transactions,
-          periodDepositsByPeriod,
-          untransferredLockedPeriods: [],
-          overview,
-        };
-      }
-
     const [config, transactions, lockedSnapshots, overview] = await Promise.all([
       (await this.prisma.globalConfig.findFirst({ where: { userId } })) ||
         (await this.prisma.globalConfig.findFirst({ where: { userId: 1 } })),
@@ -194,13 +132,30 @@ export class SavingsSelectors {
       this.getOverview(new Date(), userId),
     ]);
 
-    const balance = transactions.reduce((sum, t) => sum + t.amount, 0);
-    const liquidCashBalance = transactions
-      .filter((t) => (t.instrumentType ?? 'LIQUID_CASH') === 'LIQUID_CASH')
-      .reduce((sum, t) => sum + t.amount, 0);
-    const investmentRdpuBalance = transactions
+    const rawBalance = transactions.reduce((sum, t) => sum + t.amount, 0);
+    const studioConfig = resolveStudioConfig(userId, config?.formulaParamsJson, config);
+    const epochYm =
+      (studioConfig.paycycleFormulaConfig.ledgerEpochYear ?? 2026) * 12 +
+      (studioConfig.paycycleFormulaConfig.ledgerEpochMonth ?? 10);
+    const scopedLockedSnapshots = lockedSnapshots.filter(
+      (s) => s.year * 12 + s.month >= epochYm,
+    );
+    const hasP1Override =
+      studioConfig.actualP1VaultBalanceRp !== null &&
+      studioConfig.actualP1VaultBalanceRp !== undefined &&
+      !Number.isNaN(Number(studioConfig.actualP1VaultBalanceRp));
+    const balance = hasP1Override
+      ? Math.max(0, Math.round(Number(studioConfig.actualP1VaultBalanceRp)))
+      : rawBalance;
+    const investmentRdpuBalanceRaw = transactions
       .filter((t) => t.instrumentType === 'INVESTMENT_RDPU')
       .reduce((sum, t) => sum + t.amount, 0);
+    const liquidCashBalance = hasP1Override
+      ? Math.max(0, balance - Math.max(0, investmentRdpuBalanceRaw))
+      : transactions
+          .filter((t) => (t.instrumentType ?? 'LIQUID_CASH') === 'LIQUID_CASH')
+          .reduce((sum, t) => sum + t.amount, 0);
+    const investmentRdpuBalance = investmentRdpuBalanceRaw;
 
     const positivePoolTotal =
       Math.max(0, liquidCashBalance) + Math.max(0, investmentRdpuBalance);
@@ -227,7 +182,7 @@ export class SavingsSelectors {
     }
 
     const untransferredLockedPeriods: UntransferredLockedPeriod[] = [];
-    for (const s of lockedSnapshots) {
+    for (const s of scopedLockedSnapshots) {
       const actualSavings = s.actualSavings ?? 0;
       if (actualSavings <= 0) continue;
 
@@ -287,86 +242,6 @@ export class SavingsSelectors {
     referenceDate: Date = new Date(),
     userId: number = 1,
   ): Promise<SavingsOverviewResult> {
-    if (userId === 2) {
-      const config = await this.prisma.globalConfig.findFirst({
-        where: { userId },
-      });
-      const sandbox =
-        (config?.sandboxStateJson as any) || buildDefaultSandboxState();
-        const vault = sandbox.savingsVault ?? {
-          balance: 25_000_000,
-          liquidCashBalance: 15_000_000,
-          investmentRdpuBalance: 10_000_000,
-          liquidSharePercent: 60,
-          rdpuSharePercent: 40,
-        };
-        const p1Target = sandbox.persona?.coreSavingsTarget ?? 1_500_000;
-        const netSalary = sandbox.persona?.netSalary ?? 10_000_000;
-
-        const accumulationLedger: SavingsPeriodLedgerItem[] = [
-          {
-            month: 10,
-            year: 2026,
-            status: SnapshotStatus.DRAFT,
-            monthlyTarget: p1Target,
-            actualSavings: p1Target,
-            depositedAmount: p1Target,
-            pendingTransfer: 0,
-            isFullyDeposited: true,
-          },
-        ];
-
-        const goals: EnrichedSavingsGoal[] = [
-          {
-            id: 901,
-            name: 'Emergency Fund Buffer',
-            targetAmount: 30_000_000,
-            currentAllocatedAmount: 25_000_000,
-            targetMonth: 12,
-            targetYear: 2026,
-            category: 'EMERGENCY_FUND',
-            isCompleted: false,
-            isReadyToBuy: false,
-            linkedWishlistItem: null,
-            createdAt: new Date('2026-10-01T00:00:00.000Z'),
-            updatedAt: new Date('2026-10-01T00:00:00.000Z'),
-            progressPercent: 83,
-            remainingNeeded: 5_000_000,
-            monthsUntilTarget: 2,
-            requiredMonthlyContribution: 2_500_000,
-            projectedMonthsAtPace: 4,
-            projectedCompletionDate: '2/2027',
-          },
-        ];
-
-        return {
-          kpi: {
-            totalVaultBalance: vault.balance,
-            liquidCashBalance: vault.liquidCashBalance,
-            investmentRdpuBalance: vault.investmentRdpuBalance,
-            liquidSharePercent: vault.liquidSharePercent,
-            rdpuSharePercent: vault.rdpuSharePercent,
-            totalPlanned2026P1: p1Target,
-            avgMonthlySavingsP1: p1Target,
-            averageMonthlySavingsRatePercent:
-              Math.round((p1Target / netSalary) * 1000) / 10,
-          },
-          accumulationLedger,
-          goals,
-          wealthTargetConfig: {
-            targetBalance: 50_000_000,
-            targetMonth: 12,
-            targetYear: 2027,
-            base: 'CUSTOM',
-          },
-          financialCapacity: {
-            currentPeriodNetIncome: netSalary,
-            maxMonthlySavableCapacity: 3_500_000,
-            avgMonthlySavingsP1: p1Target,
-          },
-        };
-      }
-
     const [config, snapshots, transactions, goals, wishlistItems] =
       await Promise.all([
         (await this.prisma.globalConfig.findFirst({ where: { userId } })) ||
@@ -389,13 +264,30 @@ export class SavingsSelectors {
         }),
       ]);
 
-    const balance = transactions.reduce((sum, t) => sum + t.amount, 0);
-    const liquidCashBalance = transactions
-      .filter((t) => (t.instrumentType ?? 'LIQUID_CASH') === 'LIQUID_CASH')
-      .reduce((sum, t) => sum + t.amount, 0);
-    const investmentRdpuBalance = transactions
+    const rawBalance = transactions.reduce((sum, t) => sum + t.amount, 0);
+    const studioConfig = resolveStudioConfig(userId, config?.formulaParamsJson, config);
+    const epochYm =
+      (studioConfig.paycycleFormulaConfig.ledgerEpochYear ?? 2026) * 12 +
+      (studioConfig.paycycleFormulaConfig.ledgerEpochMonth ?? 10);
+    const scopedSnapshots = snapshots.filter(
+      (s) => s.year * 12 + s.month >= epochYm,
+    );
+    const hasP1Override =
+      studioConfig.actualP1VaultBalanceRp !== null &&
+      studioConfig.actualP1VaultBalanceRp !== undefined &&
+      !Number.isNaN(Number(studioConfig.actualP1VaultBalanceRp));
+    const balance = hasP1Override
+      ? Math.max(0, Math.round(Number(studioConfig.actualP1VaultBalanceRp)))
+      : rawBalance;
+    const investmentRdpuBalanceRaw = transactions
       .filter((t) => t.instrumentType === 'INVESTMENT_RDPU')
       .reduce((sum, t) => sum + t.amount, 0);
+    const liquidCashBalance = hasP1Override
+      ? Math.max(0, balance - Math.max(0, investmentRdpuBalanceRaw))
+      : transactions
+          .filter((t) => (t.instrumentType ?? 'LIQUID_CASH') === 'LIQUID_CASH')
+          .reduce((sum, t) => sum + t.amount, 0);
+    const investmentRdpuBalance = investmentRdpuBalanceRaw;
 
     const positivePoolTotal =
       Math.max(0, liquidCashBalance) + Math.max(0, investmentRdpuBalance);
@@ -427,7 +319,7 @@ export class SavingsSelectors {
     let totalActualIncome2026 = 0;
     let p1PositivePeriodsCount = 0;
 
-    for (const s of snapshots) {
+    for (const s of scopedSnapshots) {
       const actualSavings = s.actualSavings ?? 0;
       const key = `${s.year}-${s.month}`;
       const depositedAmount = periodDepositsByPeriod[key] ?? 0;
@@ -458,7 +350,7 @@ export class SavingsSelectors {
       p1PositivePeriodsCount > 0
         ? Math.round(totalPlanned2026P1 / p1PositivePeriodsCount)
         : totalPlanned2026P1 > 0
-          ? Math.round(totalPlanned2026P1 / Math.max(1, snapshots.length))
+          ? Math.round(totalPlanned2026P1 / Math.max(1, scopedSnapshots.length))
           : 0;
 
     const averageMonthlySavingsRatePercent =

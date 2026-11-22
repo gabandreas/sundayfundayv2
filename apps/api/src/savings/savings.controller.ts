@@ -49,8 +49,9 @@ export class SavingsController {
   }
 
   @Post('confirm-period-deposit')
-  confirmPeriodDeposit(@Body() dto: ConfirmPeriodDepositDto) {
-    return this.savingsService.confirmPeriodDeposit(dto);
+  confirmPeriodDeposit(@Body() dto: ConfirmPeriodDepositDto, @Req() req?: any) {
+    const userId = getUserIdOrThrow(req);
+    return this.savingsService.confirmPeriodDeposit(dto, userId);
   }
 
   @Post('wealth-target')
@@ -62,8 +63,10 @@ export class SavingsController {
       targetYear: number;
       targetBase?: string;
     },
+    @Req() req?: any,
   ) {
-    return this.savingsService.saveWealthTarget(dto);
+    const userId = getUserIdOrThrow(req);
+    return this.savingsService.saveWealthTarget(dto, userId);
   }
 
   @Get('goals')
@@ -73,35 +76,42 @@ export class SavingsController {
   }
 
   @Post('goals')
-  createGoal(@Body() dto: CreateSavingsGoalDto) {
-    return this.savingsService.createGoal(dto);
+  createGoal(@Body() dto: CreateSavingsGoalDto, @Req() req?: any) {
+    const userId = getUserIdOrThrow(req);
+    return this.savingsService.createGoal(dto, userId);
   }
 
   @Patch('goals/:id')
   updateGoal(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateSavingsGoalDto,
+    @Req() req?: any,
   ) {
-    return this.savingsService.updateGoal(id, dto);
+    const userId = getUserIdOrThrow(req);
+    return this.savingsService.updateGoal(id, dto, userId);
   }
 
   @Delete('goals/:id')
-  deleteGoal(@Param('id', ParseIntPipe) id: number) {
-    return this.savingsService.deleteGoal(id);
+  deleteGoal(@Param('id', ParseIntPipe) id: number, @Req() req?: any) {
+    const userId = getUserIdOrThrow(req);
+    return this.savingsService.deleteGoal(id, userId);
   }
 
   @Post()
-  createTransaction(@Body() dto: CreateSavingsTransactionDto) {
-    return this.savingsService.createTransaction(dto);
+  createTransaction(@Body() dto: CreateSavingsTransactionDto, @Req() req?: any) {
+    const userId = getUserIdOrThrow(req);
+    return this.savingsService.createTransaction(dto, userId);
   }
 
   @Post('rebalance')
-  rebalanceInstrument(@Body() dto: RebalanceSavingsDto) {
-    return this.savingsService.rebalanceInstrument(dto);
+  rebalanceInstrument(@Body() dto: RebalanceSavingsDto, @Req() req?: any) {
+    const userId = getUserIdOrThrow(req);
+    return this.savingsService.rebalanceInstrument(dto, userId);
   }
 
   @Delete(':id')
-  deleteTransaction(@Param('id', ParseIntPipe) id: number) {
-    return this.savingsService.deleteTransaction(id);
+  deleteTransaction(@Param('id', ParseIntPipe) id: number, @Req() req?: any) {
+    const userId = getUserIdOrThrow(req);
+    return this.savingsService.deleteTransaction(id, userId);
   }
 }

@@ -267,13 +267,13 @@ func ComputePaycycleHorizon(req HorizonRequest) HorizonResult {
 	var payslipDrop, payday, nextPayday time.Time
 	var payslipShifted, shifted, overrideApplied bool
 
-	nextM, nextY := addMonths(m, y, 1)
+	prevM, prevY := addMonths(m, y, -1)
 	if useTwoStage {
 		pAnchor := req.PayslipAnchorDay
 		if pAnchor <= 0 {
 			pAnchor = 25
 		}
-		payslipDrop, payslipShifted = resolvePayslipDate(m, y, pAnchor, shiftRule, holidays)
+		payslipDrop, payslipShifted = resolvePayslipDate(prevM, prevY, pAnchor, shiftRule, holidays)
 		if expPayslip, ok := parseIsoDate(req.ExplicitPayslipIso); ok {
 			payslipDrop = expPayslip
 			overrideApplied = true
@@ -281,14 +281,14 @@ func ComputePaycycleHorizon(req HorizonRequest) HorizonResult {
 		payday = addWorkingDays(payslipDrop, lagDays, holidays)
 		shifted = payslipShifted
 
-		nextPayslip, _ := resolvePayslipDate(nextM, nextY, pAnchor, shiftRule, holidays)
+		nextPayslip, _ := resolvePayslipDate(m, y, pAnchor, shiftRule, holidays)
 		nextPayday = addWorkingDays(nextPayslip, lagDays, holidays)
 	} else {
-		payday, shifted = resolvePaydayDate(m, y, anchor, req.ShiftWeekendToFriday)
+		payday, shifted = resolvePaydayDate(prevM, prevY, anchor, req.ShiftWeekendToFriday)
 		payslipDrop = addWorkingDays(payday, -2, holidays)
 		payslipShifted = shifted
 		lagDays = 2
-		nextPayday, _ = resolvePaydayDate(nextM, nextY, anchor, req.ShiftWeekendToFriday)
+		nextPayday, _ = resolvePaydayDate(m, y, anchor, req.ShiftWeekendToFriday)
 	}
 
 	if expStart, ok := parseIsoDate(req.ExplicitStartIso); ok {
@@ -402,8 +402,8 @@ func ComputePaycycleHorizon(req HorizonRequest) HorizonResult {
 		CycleTemporalState:   temporalState,
 		DaysUntilCycleStart:  daysUntilStart,
 		CurrentDayIndex:      currentDayIndex,
-		MaturityMonth:        nextM,
-		MaturityYear:         nextY,
+		MaturityMonth:        m,
+		MaturityYear:         y,
 		TotalCycleDays:       totalDays,
 		RemainingDays:        remDays,
 		ElapsedDays:          elapsedDays,
@@ -536,18 +536,18 @@ func RouteTransactionToPaycycle(req RouteTxRequest) RouteTxResult {
 		if anchor <= 0 {
 			anchor = 27
 		}
-		// If txDate >= anchor, it belongs to Cycle(m,y); if < anchor, Cycle(m-1,y)
+		// Under Consumption & Bill-Maturity Month = Period M:
+		// If txDate >= anchor, it belongs to Cycle(m+1,y); if < anchor, Cycle(m,y)
 		targetM, targetY := m, y
-		if day < anchor {
-			targetM, targetY = addMonths(m, y, -1)
+		if day >= anchor {
+			targetM, targetY = addMonths(m, y, 1)
 		}
-		matM, matY := addMonths(targetM, targetY, 1)
 		return RouteTxResult{
 			TargetPeriodMonth: targetM,
 			TargetPeriodYear:  targetY,
 			TargetPeriodCode:  fmt.Sprintf("%02d/%d", targetM, targetY),
-			MaturityMonth:     matM,
-			MaturityYear:      matY,
+			MaturityMonth:     targetM,
+			MaturityYear:      targetY,
 			DueDay:            day,
 			CutoffDay:         0,
 			CrossedCutoff:     false,
@@ -556,67 +556,61 @@ func RouteTransactionToPaycycle(req RouteTxRequest) RouteTxResult {
 	}
 
 	if dueRule == "DISBURSEMENT_DAY" || instUpper == "CASH_LOAN" || instUpper == "SPINJAM" {
-		// First installment matures in M+1 on disbursement day, funded by Paycycle(M) if dueDay < anchor, else Paycycle(M) still covers M+1 due dates < 25th
+		// First installment matures in M+1 on disbursement day -> Period M+1
 		firstDueM, firstDueY := addMonths(m, y, 1)
-		targetM, targetY := addMonths(firstDueM, firstDueY, -1)
 		return RouteTxResult{
-			TargetPeriodMonth: targetM,
-			TargetPeriodYear:  targetY,
-			TargetPeriodCode:  fmt.Sprintf("%02d/%d", targetM, targetY),
+			TargetPeriodMonth: firstDueM,
+			TargetPeriodYear:  firstDueY,
+			TargetPeriodCode:  fmt.Sprintf("%02d/%d", firstDueM, firstDueY),
 			MaturityMonth:     firstDueM,
 			MaturityYear:      firstDueY,
 			DueDay:            dueDay,
 			CutoffDay:         0,
 			CrossedCutoff:     false,
-			Explanation:       fmt.Sprintf("Disbursement-day loan on day %d matures %02d/%d on day %d, funded by Paycycle %02d/%d.", day, firstDueM, firstDueY, dueDay, targetM, targetY),
+			Explanation:       fmt.Sprintf("Disbursement-day loan on day %d matures %02d/%d on day %d -> Period %02d/%d.", day, firstDueM, firstDueY, dueDay, firstDueM, firstDueY),
 		}
 	}
 
 	if instUpper == "CREDIT_CARD" || instUpper == "CC" {
-		// <= cutoff (20th): due 11th of M+1 -> funded by Paycycle M
-		// > cutoff (21st+): due 11th of M+2 -> funded by Paycycle M+1
+		// <= cutoff (20th): due 11th of M+1 -> Period M+1
+		// > cutoff (21st+): due 11th of M+2 -> Period M+2
 		crossed := day > cutoffDay
-		offset := 0
+		offset := 1
 		if crossed {
-			offset = 1
+			offset = 2
 		}
 		targetM, targetY := addMonths(m, y, offset)
-		matM, matY := addMonths(targetM, targetY, 1)
 		return RouteTxResult{
 			TargetPeriodMonth: targetM,
 			TargetPeriodYear:  targetY,
 			TargetPeriodCode:  fmt.Sprintf("%02d/%d", targetM, targetY),
-			MaturityMonth:     matM,
-			MaturityYear:      matY,
+			MaturityMonth:     targetM,
+			MaturityYear:      targetY,
 			DueDay:            dueDay,
 			CutoffDay:         cutoffDay,
 			CrossedCutoff:     crossed,
-			Explanation:       fmt.Sprintf("Credit Card tx on day %d (cutoff %d) matures %d/%02d/%d -> funded by Paycycle %02d/%d.", day, cutoffDay, dueDay, matM, matY, targetM, targetY),
+			Explanation:       fmt.Sprintf("Credit Card tx on day %d (cutoff %d) matures %d/%02d/%d -> Period %02d/%d.", day, cutoffDay, dueDay, targetM, targetY, targetM, targetY),
 		}
 	}
 
 	// Default PAYLATER (15th cutoff, 25th due):
-	// Before 15th (days 1..14) -> due 25th of M -> funded by Paycycle M-1!
-	// On/after 15th (days 15..31) -> due 25th of M+1 -> funded by Paycycle M!
+	// Before 15th (days 1..14) -> due 25th of M -> Period M!
+	// On/after 15th (days 15..31) -> due 25th of M+1 -> Period M+1!
 	crossed := day >= cutoffDay
-	var targetM, targetY, matM, matY int
+	targetM, targetY := m, y
 	if crossed {
-		targetM, targetY = m, y
-		matM, matY = addMonths(m, y, 1)
-	} else {
-		targetM, targetY = addMonths(m, y, -1)
-		matM, matY = m, y
+		targetM, targetY = addMonths(m, y, 1)
 	}
 	_ = strconv.Itoa(targetM)
 	return RouteTxResult{
 		TargetPeriodMonth: targetM,
 		TargetPeriodYear:  targetY,
 		TargetPeriodCode:  fmt.Sprintf("%02d/%d", targetM, targetY),
-		MaturityMonth:     matM,
-		MaturityYear:      matY,
+		MaturityMonth:     targetM,
+		MaturityYear:      targetY,
 		DueDay:            dueDay,
 		CutoffDay:         cutoffDay,
 		CrossedCutoff:     crossed,
-		Explanation:       fmt.Sprintf("PayLater tx on day %d (cutoff %d) matures %d/%02d/%d -> funded by Paycycle %02d/%d.", day, cutoffDay, dueDay, matM, matY, targetM, targetY),
+		Explanation:       fmt.Sprintf("PayLater tx on day %d (cutoff %d) matures %d/%02d/%d -> Period %02d/%d.", day, cutoffDay, dueDay, targetM, targetY, targetM, targetY),
 	}
 }

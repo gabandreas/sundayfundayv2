@@ -1,17 +1,28 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { forwardRef, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SnapshotsSelectors } from '../snapshots/snapshots.selectors';
+import { CreditSelectors } from '../credit/credit.selectors';
+import { GoBridgeService, WithEngineMeta } from '../calculator/go-bridge.service';
+import {
+  CutoffSimulateResult,
+  ExecutiveHorizonResult,
+  TimelineSimulateResult,
+  WalletGuardResult,
+  addHybridMonths,
+  formatHybridPeriodLabel,
+} from '../calculator/hybrid-engine';
 import {
   Transaction,
   TransactionType,
   TransactionSourceType,
 } from '@prisma/client';
-import { calculatePayroll, sumExtraIncome, PayrollResult } from '../calculator/payroll';
+import { calculatePayroll, calculateWorkingDaysForPeriod, sumExtraIncome, PayrollResult } from '../calculator/payroll';
 import {
   calculateDailyPacing,
   PacingResult,
   normalizeDate,
   getPaydayCycleWindow,
+  getPayrollPeriodForDate,
 } from '../calculator/pacing';
 import {
   calculateCashReconciliation,
@@ -25,6 +36,9 @@ import {
   sumOperationalRefunds,
 } from '../calculator/waterfall';
 import { buildDefaultSandboxState } from '../config/sandbox.defaults';
+import { resolveStudioConfig } from '../config/studio.defaults';
+import { computePaycycleHorizonTs } from '../calculator/erp-engines';
+import { evaluateModularPayroll } from '../calculator/modular-engine';
 
 export type EnrichedPacingResult = PacingResult & {
   fixedEssentialsRealization: FixedEssentialsRealizationSummary;
@@ -36,6 +50,10 @@ export class FinanceSelectors {
   constructor(
     private readonly prisma: PrismaService,
     private readonly snapshotsSelectors: SnapshotsSelectors,
+    private readonly goBridge: GoBridgeService,
+    @Optional()
+    @Inject(forwardRef(() => CreditSelectors))
+    private readonly creditSelectors?: CreditSelectors,
   ) {}
 
   async listTransactions(
@@ -43,20 +61,6 @@ export class FinanceSelectors {
     year: number,
     userId: number = 1,
   ): Promise<Transaction[]> {
-    if (userId === 2) {
-      const config = await this.prisma.globalConfig.findFirst({
-        where: { userId },
-      });
-      const sandbox =
-        (config?.sandboxStateJson as any) ||
-        buildDefaultSandboxState(month, year);
-      return (sandbox.transactions || []).map((t: any) => ({
-        ...t,
-        snapshotId: 999999,
-        createdAt: new Date().toISOString(),
-      }));
-    }
-
     const snapshot = await this.prisma.monthlySnapshot.findUnique({
       where: { userId_month_year: { userId, month, year } },
     });
@@ -71,38 +75,82 @@ export class FinanceSelectors {
     });
   }
 
+  private computePayrollForSnapshot(params: {
+    config: any;
+    snapshot: any;
+    month: number;
+    totalWorkingDays: number;
+    extraIncome: number;
+  }): PayrollResult {
+    const { config, snapshot, month, totalWorkingDays, extraIncome } = params;
+    const frozenPayrollRules = (snapshot?.frozenRulesJson as any)?.payrollRules;
+    const payrollRules =
+      Array.isArray(frozenPayrollRules) && frozenPayrollRules.length > 0
+        ? frozenPayrollRules
+        : Array.isArray(config?.payrollRulesJson) && config.payrollRulesJson.length > 0
+          ? config.payrollRulesJson
+          : null;
+
+    if (payrollRules) {
+      const frozenDailyRule = payrollRules.find((r: any) => r?.id === 'daily_attendance');
+      const effectiveDailyAllowance =
+        frozenPayrollRules && frozenDailyRule && frozenDailyRule.value !== undefined
+          ? Number(frozenDailyRule.value)
+          : config.dailyAllowance;
+      const salaryAdjustment = snapshot?.salaryAdjustment ?? 0;
+      const cafeteriaDeduction = snapshot?.cafeteriaDeduction ?? 0;
+      const thrAmount = snapshot?.thrAmount ?? 0;
+      const bonusAmount = snapshot?.bonusAmount ?? 0;
+      const mod = evaluateModularPayroll({
+        baseSalary: config.baseSalary,
+        salaryAdjustment,
+        totalWorkingDays,
+        dailyAllowance: effectiveDailyAllowance,
+        cafeteriaDeduction,
+        thrAmount,
+        bonusAmount,
+        extraIncome,
+        month,
+        payrollRules,
+        customPayrollRows: (config.formulaParamsJson as any)?.customPayrollRows,
+      });
+      return {
+        baseSalary: config.baseSalary,
+        salaryAdjustment,
+        adjustedBaseSalary: mod.adjustedBaseSalary,
+        bpjsDeduction: mod.bpjsDeduction,
+        laptopAllowance: mod.laptopAllowance,
+        netBasePayroll: mod.netBasePayroll,
+        totalWorkingDays,
+        dailyAllowance: effectiveDailyAllowance,
+        totalDailyAllowance: mod.totalDailyAllowance,
+        netSalaryIncome: mod.netSalaryIncome,
+        extraIncome,
+        finalTotalIncome: mod.finalTotalIncome,
+        thrAmount: mod.thrAmount,
+        bonusAmount: mod.bonusAmount,
+        cafeteriaDeduction,
+      };
+    }
+
+    return calculatePayroll({
+      baseSalary: config.baseSalary,
+      salaryAdjustment: snapshot?.salaryAdjustment ?? 0,
+      totalWorkingDays,
+      dailyAllowance: config.dailyAllowance,
+      cafeteriaDeduction: snapshot?.cafeteriaDeduction ?? 0,
+      thrAmount: snapshot?.thrAmount ?? 0,
+      bonusAmount: snapshot?.bonusAmount ?? 0,
+      extraIncome,
+      laptopAllowance: config.laptopAllowance,
+    });
+  }
+
   async getPayroll(
     month: number,
     year: number,
     userId: number = 1,
   ): Promise<PayrollResult> {
-    if (userId === 2) {
-      const config = await this.prisma.globalConfig.findFirst({
-        where: { userId },
-      });
-      const sandbox =
-        (config?.sandboxStateJson as any) ||
-        buildDefaultSandboxState(month, year);
-      const salary = sandbox.persona?.netSalary ?? 10_000_000;
-      return {
-        baseSalary: salary,
-        salaryAdjustment: 0,
-        adjustedBaseSalary: salary,
-        totalWorkingDays: 21,
-        dailyAllowance: 0,
-        totalDailyAllowance: 0,
-        laptopAllowance: 0,
-        cafeteriaDeduction: 0,
-        bpjsDeduction: 0,
-        netBasePayroll: salary,
-        netSalaryIncome: salary,
-        thrAmount: 0,
-        bonusAmount: 0,
-        extraIncome: 0,
-        finalTotalIncome: salary,
-      };
-    }
-
     const config =
       (await this.prisma.globalConfig.findFirst({ where: { userId } })) ||
       (await this.prisma.globalConfig.findFirst({ where: { userId: 1 } }));
@@ -133,17 +181,63 @@ export class FinanceSelectors {
 
     const extraIncome = sumExtraIncome(transactions);
 
-    return calculatePayroll({
-      baseSalary: config.baseSalary,
-      salaryAdjustment: snapshot.salaryAdjustment,
+    return this.computePayrollForSnapshot({
+      config,
+      snapshot,
+      month,
       totalWorkingDays: snapshot.totalWorkingDays,
-      dailyAllowance: config.dailyAllowance,
-      cafeteriaDeduction: snapshot.cafeteriaDeduction,
-      thrAmount: snapshot.thrAmount,
-      bonusAmount: snapshot.bonusAmount,
       extraIncome,
-      laptopAllowance: config.laptopAllowance,
     });
+  }
+
+  async listHorizonPayrolls(
+    startMonth?: number,
+    startYear?: number,
+    count: number = 12,
+    userId: number = 1,
+  ) {
+    const activePeriod = getPayrollPeriodForDate();
+    const sMonth = startMonth && startMonth >= 1 && startMonth <= 12 ? startMonth : activePeriod.month;
+    const sYear = startYear && startYear >= 2020 ? startYear : activePeriod.year;
+    const safeCount = Math.min(24, Math.max(1, Math.round(count || 12)));
+
+    const periods: Array<{ month: number; year: number }> = [];
+    for (let i = 0; i < safeCount; i++) {
+      const idx = sMonth - 1 + i;
+      const month = (idx % 12) + 1;
+      const year = sYear + Math.floor(idx / 12);
+      periods.push({ month, year });
+    }
+
+    const periodOr = periods.map((p) => ({ month: p.month, year: p.year }));
+    const [config, snapshots] = await Promise.all([
+      (async () =>
+        (await this.prisma.globalConfig.findFirst({ where: { userId } })) ||
+        (await this.prisma.globalConfig.findFirst({ where: { userId: 1 } })))(),
+      this.prisma.monthlySnapshot.findMany({
+        where: { userId, OR: periodOr },
+        include: { transactions: true },
+      }),
+    ]);
+
+    if (!config) {
+      throw new NotFoundException('Global configuration not found');
+    }
+
+    const snapMap = new Map(snapshots.map((s) => [`${s.year}-${s.month}`, s]));
+    const items = periods.map(({ month, year }) => {
+      const snap = snapMap.get(`${year}-${month}`);
+      const payroll = this.computePayrollForSnapshot({
+        config,
+        snapshot: snap,
+        month,
+        totalWorkingDays: snap?.totalWorkingDays ?? calculateWorkingDaysForPeriod(month, year),
+        extraIncome: snap ? sumExtraIncome(snap.transactions) : 0,
+      });
+      return { month, year, payroll };
+    });
+
+    return { startMonth: sMonth, startYear: sYear, count: safeCount, periods: items };
   }
 
   async getPacing(
@@ -153,60 +247,6 @@ export class FinanceSelectors {
     weekendMultiplier?: number,
     userId: number = 1,
   ): Promise<EnrichedPacingResult> {
-    if (userId === 2) {
-      const config = await this.prisma.globalConfig.findFirst({
-        where: { userId },
-      });
-      const sandbox =
-        (config?.sandboxStateJson as any) ||
-        buildDefaultSandboxState(month, year);
-        const snap = this.snapshotsSelectors.buildSandboxSnapshot(
-          sandbox,
-          month,
-          year,
-        );
-        const defaultPayoutDay = sandbox.persona?.paydayAnchor ?? 25;
-        const cycleWindow = getPaydayCycleWindow(
-          month,
-          year,
-          snap.payrollPayoutDate,
-          null,
-          defaultPayoutDay,
-        );
-        const transactions = snap.transactions;
-        const fixedTargets = {
-          transport: snap.transport,
-          internet: snap.internet,
-          vape: snap.vape,
-          haircut: snap.haircut,
-        };
-        const totalDailySpent = calculateOperationalDailySpent(
-          transactions,
-          fixedTargets,
-        );
-        const pacing = calculateDailyPacing({
-          periodMonth: month,
-          periodYear: year,
-          cycleStartDate: cycleWindow.cycleStartDate,
-          cycleEndDate: cycleWindow.cycleEndDate,
-          isEndDateConfirmed: false,
-          actualDailyOperational: snap.actualDailyOperational,
-          dailyOperationalTarget: snap.dailyOperational,
-          totalDailySpent,
-          referenceDate,
-          weekendMultiplier,
-        });
-        const fixedEssentialsRealization = calculateFixedEssentialsRealization(
-          transactions,
-          fixedTargets,
-        );
-        return {
-          ...pacing,
-          fixedEssentialsRealization,
-          operationalRefundsTotal: 0,
-        };
-      }
-
     const config =
       (await this.prisma.globalConfig.findFirst({ where: { userId } })) ||
       (await this.prisma.globalConfig.findFirst({ where: { userId: 1 } }));
@@ -227,7 +267,9 @@ export class FinanceSelectors {
       throw new NotFoundException(`Snapshot for ${month}/${year} not found`);
     }
 
-    const defaultPayoutDay = config?.payrollPayoutDay ?? 25;
+    const studioConfig = resolveStudioConfig(userId, config?.formulaParamsJson, config);
+    const pcCfg = studioConfig.paycycleFormulaConfig;
+    const defaultPayoutDay = pcCfg.paydayAnchorDay ?? config?.payrollPayoutDay ?? 27;
 
     const nextMonth = month === 12 ? 1 : month + 1;
     const nextYear = month === 12 ? year + 1 : year;
@@ -236,14 +278,50 @@ export class FinanceSelectors {
       where: { userId_month_year: { userId, month: nextMonth, year: nextYear } },
     });
 
-    const cycleWindow = getPaydayCycleWindow(
+    const curPeriodKey = `${String(month).padStart(2, '0')}/${year}`;
+    const nextPeriodKey = `${String(nextMonth).padStart(2, '0')}/${nextYear}`;
+    const curOverride = pcCfg.periodOverrides?.[curPeriodKey];
+    const nextOverride = pcCfg.periodOverrides?.[nextPeriodKey];
+    const isCurConfirmed =
+      Boolean(snapshot.isPayoutDateConfirmed) ||
+      (year === 2026 && month >= 11) ||
+      (year === 2027 && month === 1);
+    const isNextConfirmed =
+      Boolean(nextSnapshot?.isPayoutDateConfirmed) ||
+      (nextYear === 2026 && nextMonth >= 11) ||
+      (nextYear === 2027 && nextMonth === 1);
+
+    const explicitStartIso =
+      curOverride?.paydayDateIso ||
+      (isCurConfirmed && snapshot.payrollPayoutDate
+        ? new Date(snapshot.payrollPayoutDate).toISOString().slice(0, 10)
+        : undefined);
+    const explicitNextPaydayIso =
+      nextOverride?.paydayDateIso ||
+      (isNextConfirmed && nextSnapshot?.payrollPayoutDate
+        ? new Date(nextSnapshot.payrollPayoutDate).toISOString().slice(0, 10)
+        : undefined);
+
+    const resolvedHorizon = computePaycycleHorizonTs({
       month,
       year,
-      snapshot.payrollPayoutDate,
-      nextSnapshot?.isPayoutDateConfirmed ? nextSnapshot.payrollPayoutDate : null,
-      defaultPayoutDay,
-    );
-    const { cycleStartDate, cycleEndDate, isEndDateConfirmed } = cycleWindow;
+      anchorDay: defaultPayoutDay,
+      payslipAnchorDay: pcCfg.payslipAnchorDay,
+      payslipShiftRule: pcCfg.payslipShiftRule,
+      reviewLagWorkingDays: pcCfg.reviewLagWorkingDays,
+      holidaysIso: pcCfg.holidayDatesIso,
+      explicitPayslipIso: curOverride?.payslipDateIso,
+      shiftWeekendToFriday: pcCfg.shiftWeekendToFriday,
+      explicitStartIso,
+      explicitNextPaydayIso,
+      weekendMultiplier: pcCfg.weekendWeightMultiplier,
+      remainingBudgetRp: 0,
+    });
+
+    const cycleStartDate = new Date(`${resolvedHorizon.paydayIso}T00:00:00.000Z`);
+    const nextPayDate = new Date(`${resolvedHorizon.nextPaydayIso}T00:00:00.000Z`);
+    const cycleEndDate = new Date(nextPayDate.getTime() - 86400000);
+    const isEndDateConfirmed = Boolean(explicitNextPaydayIso);
 
     const transactions = await this.prisma.transaction.findMany({
       where: { snapshotId: snapshot.id },
@@ -393,6 +471,13 @@ export class FinanceSelectors {
       vapeTarget: snapshot?.vape ?? config.vape,
       haircutTarget: snapshot?.haircut ?? config.haircut,
       bufferPocketTarget: snapshot?.bufferPocket ?? 0,
+      actualDailyOperational: snapshot?.actualDailyOperational,
+      isManualOverride: snapshot?.isManualOverride ?? false,
+      bridgeInflowAmount: snapshot?.bridgeInflowAmount ?? 0,
+      actualSavings: snapshot?.actualSavings,
+      selfReward: snapshot?.selfReward,
+      deficitUncovered: snapshot?.deficitUncovered,
+      netSalaryIncomeOverride: snapshot?.netSalaryIncome,
       transactions,
       cycleStartDate,
       cycleEndDate,
@@ -428,31 +513,6 @@ export class FinanceSelectors {
       q.replace(/[^0-9]/g, '').length >= 3 && !Number.isNaN(numericCandidate);
 
     const userId = params.userId || 1;
-    if (userId === 2) {
-      const config = await this.prisma.globalConfig.findFirst({
-        where: { userId },
-      });
-      const sandbox =
-        (config?.sandboxStateJson as any) || buildDefaultSandboxState();
-      let txs = (sandbox.transactions || []).map((t: any) => ({
-        ...t,
-        snapshotId: 999999,
-        snapshot: {
-          id: 999999,
-          month: sandbox.month,
-          year: sandbox.year,
-          status: 'DRAFT',
-        },
-      }));
-      if (params.type) txs = txs.filter((t: any) => t.type === params.type);
-      if (params.sourceType)
-        txs = txs.filter((t: any) => t.sourceType === params.sourceType);
-      if (q) {
-        txs = txs.filter((t: any) => t.label.toLowerCase().includes(qLower));
-      }
-      return txs.slice(0, limit);
-    }
-
     const allRows = await this.prisma.transaction.findMany({
       where: {
         snapshot: {
@@ -539,5 +599,1115 @@ export class FinanceSelectors {
         date: r.date.toISOString(),
       })),
     };
+  }
+
+  async simulateCutoffForUser(
+    dto: {
+      title?: string;
+      instrument: 'SPAYLATER' | 'CREDIT_CARD' | 'SPINJAM' | 'PERSONAL_DEBT' | 'CASH';
+      amountMode?: 'PRINCIPAL_SPLIT' | 'FIXED_MONTHLY';
+      principalAmount: number;
+      monthlyAmount?: number;
+      tenorMonths?: number;
+      purchaseDate?: string;
+      dueDayOverride?: number;
+      holdPastCutoff?: boolean;
+      startMonthOverride?: number;
+      startYearOverride?: number;
+    },
+    userId: number = 1,
+  ): Promise<WithEngineMeta<CutoffSimulateResult>> {
+    const initial = await this.goBridge.simulateCutoff({
+      title: dto.title,
+      instrument: dto.instrument,
+      amountMode: dto.amountMode,
+      principalAmount: dto.principalAmount,
+      monthlyAmount: dto.monthlyAmount,
+      tenorMonths: dto.tenorMonths ?? 1,
+      purchaseDate: dto.purchaseDate,
+      dueDayOverride: dto.dueDayOverride,
+      holdPastCutoff: dto.holdPastCutoff,
+      startMonthOverride: dto.startMonthOverride,
+      startYearOverride: dto.startYearOverride,
+    });
+
+    const startM = initial.startPeriodMonth;
+    const startY = initial.startPeriodYear;
+    const nextP = addHybridMonths(startM, startY, 1);
+
+    const [startSnap, nextSnap, matrix] = await Promise.all([
+      this.snapshotsSelectors.getOrCreateDraftSnapshot(startM, startY, userId),
+      this.snapshotsSelectors.getOrCreateDraftSnapshot(nextP.month, nextP.year, userId),
+      this.creditSelectors
+        ? this.creditSelectors.getLiabilityMatrix(startM, startY, 4, userId)
+        : Promise.resolve(null),
+    ]);
+
+    const startKey = `${startY}-${startM}`;
+    const nextKey = `${nextP.year}-${nextP.month}`;
+    const curObl =
+      matrix?.totalsPerMonth[startKey] ?? Math.round(startSnap.totalDeductions ?? 0);
+    const nextObl =
+      matrix?.totalsPerMonth[nextKey] ?? Math.round(nextSnap.totalDeductions ?? 0);
+    const netInc = Math.round(startSnap.finalTotalIncome ?? 0);
+    const nextNetInc = Math.round(nextSnap.finalTotalIncome ?? netInc);
+    const safeHeadroom = Math.max(
+      0,
+      Math.round(
+        (startSnap.actualSavings ?? 0) +
+          (startSnap.selfReward ?? 0) -
+          (startSnap.deficitUncovered ?? 0),
+      ),
+    );
+
+    return this.goBridge.simulateCutoff({
+      title: dto.title,
+      instrument: dto.instrument,
+      amountMode: dto.amountMode,
+      principalAmount: dto.principalAmount,
+      monthlyAmount: dto.monthlyAmount,
+      tenorMonths: dto.tenorMonths ?? 1,
+      purchaseDate: dto.purchaseDate,
+      dueDayOverride: dto.dueDayOverride,
+      holdPastCutoff: dto.holdPastCutoff,
+      startMonthOverride: dto.startMonthOverride,
+      startYearOverride: dto.startYearOverride,
+      periodNetIncome: netInc,
+      currentPeriodObligations: curObl,
+      nextPeriodObligations: nextObl,
+      nextPeriodNetIncome: nextNetInc,
+      safeHeadroom,
+    });
+  }
+
+  async simulateTimelineForUser(
+    dto: {
+      month: number;
+      year: number;
+      spaylaterEarlyPayAmount?: number;
+      thrAmountOverride?: number;
+      thrDateIso?: string;
+      paycheckAmountOverride?: number;
+    },
+    userId: number = 1,
+  ): Promise<WithEngineMeta<TimelineSimulateResult> & {
+    baseline: {
+      periodLabel: string;
+      paycheckAmount: number;
+      thrAmount: number;
+      paylaterDue: number;
+      creditCardDue: number;
+      personalDebtDue: number;
+      dailyLivingPool: number;
+      routineBillsPool: number;
+      coreSavingsTarget: number;
+    };
+  }> {
+    const nextP = addHybridMonths(dto.month, dto.year, 1);
+    const [config, curSnap, nextSnap, matrix] = await Promise.all([
+      this.prisma.globalConfig.findFirst({ where: { userId } }),
+      this.snapshotsSelectors.getOrCreateDraftSnapshot(dto.month, dto.year, userId),
+      this.snapshotsSelectors.getOrCreateDraftSnapshot(nextP.month, nextP.year, userId),
+      this.creditSelectors
+        ? this.creditSelectors.getLiabilityMatrix(dto.month, dto.year, 3, userId)
+        : Promise.resolve(null),
+    ]);
+
+    const studioConfig = resolveStudioConfig(userId, config?.formulaParamsJson, config);
+    const pcCfg = studioConfig.paycycleFormulaConfig;
+    const curPeriodKey = `${String(dto.month).padStart(2, '0')}/${dto.year}`;
+    const nextPeriodKey = `${String(nextP.month).padStart(2, '0')}/${nextP.year}`;
+    const curOverride = pcCfg.periodOverrides?.[curPeriodKey];
+    const nextOverride = pcCfg.periodOverrides?.[nextPeriodKey];
+    const isCurConfirmed =
+      Boolean(curSnap.isPayoutDateConfirmed) ||
+      (dto.year === 2026 && dto.month >= 11) ||
+      (dto.year === 2027 && dto.month === 1);
+    const isNextConfirmed =
+      Boolean(nextSnap.isPayoutDateConfirmed) ||
+      (nextP.year === 2026 && nextP.month >= 11) ||
+      (nextP.year === 2027 && nextP.month === 1);
+
+    const timelineHorizon = computePaycycleHorizonTs({
+      month: dto.month,
+      year: dto.year,
+      anchorDay: pcCfg.paydayAnchorDay ?? 27,
+      payslipAnchorDay: pcCfg.payslipAnchorDay,
+      payslipShiftRule: pcCfg.payslipShiftRule,
+      reviewLagWorkingDays: pcCfg.reviewLagWorkingDays,
+      holidaysIso: pcCfg.holidayDatesIso,
+      explicitPayslipIso: curOverride?.payslipDateIso,
+      shiftWeekendToFriday: pcCfg.shiftWeekendToFriday,
+      explicitStartIso:
+        curOverride?.paydayDateIso ||
+        (isCurConfirmed && curSnap.payrollPayoutDate
+          ? new Date(curSnap.payrollPayoutDate).toISOString().slice(0, 10)
+          : undefined),
+      explicitNextPaydayIso:
+        nextOverride?.paydayDateIso ||
+        (isNextConfirmed && nextSnap.payrollPayoutDate
+          ? new Date(nextSnap.payrollPayoutDate).toISOString().slice(0, 10)
+          : undefined),
+      weekendMultiplier: pcCfg.weekendWeightMultiplier,
+      remainingBudgetRp: 0,
+    });
+
+    const curKey = `${dto.year}-${dto.month}`;
+    const dueYM = { month: dto.month, year: dto.year };
+    const payDate = timelineHorizon.paydayIso;
+    const nextPayDate = timelineHorizon.nextPaydayIso;
+
+    // Prevent cross-cycle THR double counting between Dec 2026 (which previews Dec 18 THR)
+    // and Jan 2027 (whose finalTotalIncome already sums netSalaryIncome + thrAmount).
+    const curThrRaw = Math.max(0, Math.round(curSnap.thrAmount ?? 0));
+    const paycheckAmount =
+      dto.paycheckAmountOverride !== undefined
+        ? Math.round(dto.paycheckAmountOverride)
+        : curThrRaw > 0
+          ? Math.max(0, Math.round((curSnap.finalTotalIncome ?? 0) - curThrRaw))
+          : Math.round(curSnap.finalTotalIncome ?? 0);
+    const derivedThr =
+      dto.thrAmountOverride !== undefined
+        ? Math.round(dto.thrAmountOverride)
+        : curThrRaw > 0
+          ? curThrRaw
+          : dto.month === 12
+            ? Math.round(nextSnap.thrAmount ?? 0)
+            : 0;
+    const thrDateIso =
+      dto.thrDateIso ||
+      (derivedThr > 0
+        ? dto.month === 12
+          ? `${dto.year}-12-18`
+          : `${payDate.slice(0, 4)}-12-18`
+        : '');
+
+    const paylaterDue = Math.round(matrix?.payLaterRow.cells[curKey]?.amount ?? 0);
+    const creditCardDue = Math.round(matrix?.creditCardRow.cells[curKey]?.amount ?? 0);
+    const personalDebtDue = Math.round(
+      matrix?.personalDebtRow.cells[curKey]?.amount ?? 0,
+    );
+    const routineBillsPool = Math.round(
+      (curSnap.transport ?? 0) +
+        (curSnap.internet ?? 0) +
+        (curSnap.vape ?? 0) +
+        (curSnap.haircut ?? 0),
+    );
+    const dailyLivingPool = Math.round(
+      curSnap.actualDailyOperational ?? curSnap.dailyOperational ?? 0,
+    );
+    const coreSavingsTarget = Math.round(curSnap.actualSavings ?? 0);
+
+    const personalDebtItemsRaw = matrix?.personalDebtRow?.cells?.[curKey]?.items ?? [];
+    const dueDaysInMonth = new Date(Date.UTC(dueYM.year, dueYM.month, 0)).getUTCDate();
+    const personalDebtItems = personalDebtItemsRaw
+      .filter((item: any) => Math.round(item.monthlyAmount ?? 0) > 0)
+      .map((item: any) => {
+        const d = Math.min(Math.max(1, Number(item.dueDay || 8)), dueDaysInMonth);
+        return {
+          dateIso: `${dueYM.year}-${String(dueYM.month).padStart(2, '0')}-${String(d).padStart(2, '0')}`,
+          label: String(item.title || 'Personal Debt Installment'),
+          category: 'LIABILITY' as const,
+          amount: -Math.round(item.monthlyAmount ?? 0),
+        };
+      });
+
+    const sim = await this.goBridge.simulateTimeline({
+      periodMonth: dto.month,
+      periodYear: dto.year,
+      paycheckDateIso: payDate,
+      paycheckAmount,
+      thrDateIso,
+      thrAmount: derivedThr,
+      nextPaycheckDateIso: nextPayDate,
+      nextPaycheckAmount:
+        nextSnap.thrAmount && nextSnap.thrAmount > 0
+          ? Math.max(0, Math.round((nextSnap.finalTotalIncome ?? paycheckAmount) - nextSnap.thrAmount))
+          : Math.round(nextSnap.finalTotalIncome ?? paycheckAmount),
+      totalPaylaterDue: paylaterDue,
+      paylaterDueDateIso: `${dueYM.year}-${String(dueYM.month).padStart(2, '0')}-25`,
+      totalCreditCardDue: creditCardDue,
+      creditCardDueDateIso: `${dueYM.year}-${String(dueYM.month).padStart(2, '0')}-11`,
+      totalPersonalDebtDue: personalDebtDue,
+      personalDebtDueDateIso: `${dueYM.year}-${String(dueYM.month).padStart(2, '0')}-08`,
+      personalDebtItems,
+      dailyLivingPool,
+      routineBillsPool,
+      coreSavingsTarget,
+      spaylaterEarlyPayAmount: Math.round(dto.spaylaterEarlyPayAmount ?? 0),
+    });
+
+    return {
+      ...sim,
+      baseline: {
+        periodLabel: formatHybridPeriodLabel(dto.month, dto.year),
+        paycheckAmount,
+        thrAmount: derivedThr,
+        paylaterDue,
+        creditCardDue,
+        personalDebtDue,
+        dailyLivingPool,
+        routineBillsPool,
+        coreSavingsTarget,
+      },
+    };
+  }
+
+  async getContractsBurndown(
+    month: number,
+    year: number,
+    userId: number = 1,
+  ): Promise<{
+    horizon: WithEngineMeta<ExecutiveHorizonResult>;
+    plans: any[];
+    contractRows: any[];
+    totalMonthlyCommitmentRp: number;
+    debtFreedomLabel: string;
+  }> {
+    const matrix = this.creditSelectors
+      ? await this.creditSelectors.getLiabilityMatrix(7, 2026, 24, userId)
+      : null;
+
+    const snapshots = await this.prisma.monthlySnapshot.findMany({
+      where: { userId },
+      orderBy: [{ year: 'asc' }, { month: 'asc' }],
+    });
+
+    const periodInputs = snapshots.map((s) => ({
+      month: s.month,
+      year: s.year,
+      periodLabel: formatHybridPeriodLabel(s.month, s.year),
+      finalTotalIncome: Math.round(s.finalTotalIncome ?? 0),
+      totalDebt: Math.round(
+        matrix?.totalsPerMonth[`${s.year}-${s.month}`] ?? s.totalDeductions ?? 0,
+      ),
+      fixedEssentials: Math.round(
+        (s.transport ?? 0) + (s.internet ?? 0) + (s.vape ?? 0) + (s.haircut ?? 0),
+      ),
+      actualDailyOperational: Math.round(s.actualDailyOperational ?? 0),
+      bufferPocket: Math.round(s.bufferPocket ?? 0),
+      actualSavings: Math.round(s.actualSavings ?? 0),
+      selfReward: Math.round(s.selfReward ?? 0),
+      deficitUncovered: Math.round(s.deficitUncovered ?? 0),
+      daysInCycle: 30,
+    }));
+
+    const plans = matrix?.activeInstallmentPlans ?? [];
+    const contractInputs = plans.map((p) => {
+      const remainingSlices =
+        p.monthlyInstallment > 0
+          ? Math.max(1, Math.round(p.remainingPrincipal / p.monthlyInstallment))
+          : 1;
+      return {
+        id: p.id,
+        title: p.title,
+        category: p.category,
+        merchantOrPlatform: p.merchantOrPlatform,
+        monthlyInstallment: Math.round(p.monthlyInstallment),
+        principalAmount: Math.round(p.principalAmount),
+        remainingPrincipal: Math.round(p.remainingPrincipal),
+        remainingSlices,
+        totalTenor: p.totalTenor,
+        payoffMonth: p.payoffMonth,
+        payoffYear: p.payoffYear,
+        payoffDateLabel: p.payoffDateLabel,
+      };
+    });
+
+    const horizon = await this.goBridge.buildExecutiveHorizon({
+      selectedMonth: month,
+      selectedYear: year,
+      periods: periodInputs,
+      contracts: contractInputs,
+    });
+
+    const totalMonthlyCommitmentRp = plans.reduce(
+      (sum, p) => sum + Math.round(p.monthlyInstallment),
+      0,
+    );
+    let latestPlan = plans[0];
+    for (const p of plans) {
+      if (
+        !latestPlan ||
+        p.payoffYear > latestPlan.payoffYear ||
+        (p.payoffYear === latestPlan.payoffYear &&
+          p.payoffMonth > latestPlan.payoffMonth)
+      ) {
+        latestPlan = p;
+      }
+    }
+
+    return {
+      horizon,
+      plans,
+      contractRows: matrix?.contractRows ?? [],
+      totalMonthlyCommitmentRp,
+      debtFreedomLabel: latestPlan?.payoffDateLabel ?? 'Debt Free',
+    };
+  }
+
+  async getWalletGuardStatus(
+    month: number,
+    year: number,
+    userId: number = 1,
+    overrideActualWalletBalance?: number,
+    overrideReservedBillsTotal?: number,
+  ): Promise<{
+    pacing: EnrichedPacingResult;
+    settlementSummary: {
+      totalDue: number;
+      paidAmount: number;
+      reservedAmount: number;
+      unpaidAmount: number;
+      bankHoldNeeded: number;
+    };
+    savedCheckin: {
+      actualWalletBalance: number;
+      reservedBillsTotal: number;
+      freeSpendableCash: number;
+      guardStatus: 'OPTIMAL' | 'WATCH' | 'SURVIVAL_GUARD';
+      checkedInAt: string;
+      note: string | null;
+    } | null;
+    guard: WithEngineMeta<WalletGuardResult> | null;
+  }> {
+    const [pacing, matrix, config] = await Promise.all([
+      this.getPacing(month, year, undefined, undefined, userId),
+      this.creditSelectors
+        ? this.creditSelectors.getLiabilityMatrix(month, year, 1, userId)
+        : Promise.resolve(null),
+      this.prisma.globalConfig.findFirst({ where: { userId } }),
+    ]);
+
+    const key = `${year}-${month}`;
+    const settlementSummary = matrix?.settlementSummaryPerMonth?.[key] ?? {
+      totalDue: 0,
+      paidAmount: 0,
+      reservedAmount: 0,
+      unpaidAmount: 0,
+      bankHoldNeeded: 0,
+    };
+
+    const policyContainer = (config?.financialPolicyJson as any) ?? {};
+    const saved = policyContainer?.walletCheckins?.[key] ?? null;
+
+    const targetBalance =
+      overrideActualWalletBalance !== undefined
+        ? overrideActualWalletBalance
+        : saved?.actualWalletBalance;
+    const targetReserved =
+      overrideReservedBillsTotal !== undefined
+        ? overrideReservedBillsTotal
+        : settlementSummary.bankHoldNeeded;
+
+    let guard: WithEngineMeta<WalletGuardResult> | null = null;
+    if (targetBalance !== undefined && targetBalance !== null) {
+      guard = await this.goBridge.evaluateWalletGuard({
+        remainingLivingCash: Math.round(pacing.remainingBudget),
+        actualWalletBalance: Math.round(targetBalance),
+        reservedBillsTotal: Math.round(targetReserved),
+        daysRemaining: pacing.daysRemaining,
+        remainingWeekdays: pacing.remainingWeekdays,
+        remainingWeekendDays: pacing.remainingWeekendDays,
+        weekendMultiplier: pacing.weekendMultiplier,
+        isWeekendToday: pacing.isWeekendToday,
+      });
+    }
+
+    return {
+      pacing,
+      settlementSummary,
+      savedCheckin: saved,
+      guard,
+    };
+  }
+
+  async getIntelligenceBundle(
+    month: number,
+    year: number,
+    userId: number = 1,
+    extraLumpSumRp: number = 0,
+  ) {
+    const nextYm = addHybridMonths(month, year, 1);
+    const [config, activeSnap, nextSnap, allSnaps, txs, matrix, cardTxs, pacing, manualSavingsTxs] =
+      await Promise.all([
+        this.prisma.globalConfig.findFirst({ where: { userId } }),
+        this.snapshotsSelectors.getOrCreateDraftSnapshot(month, year, userId),
+        this.snapshotsSelectors.getOrCreateDraftSnapshot(nextYm.month, nextYm.year, userId),
+        this.prisma.monthlySnapshot.findMany({
+          where: { userId },
+          orderBy: [{ year: 'asc' }, { month: 'asc' }],
+        }),
+        this.listTransactions(month, year, userId),
+        this.creditSelectors
+          ? this.creditSelectors.getLiabilityMatrix(month, year, 12, userId)
+          : Promise.resolve(null),
+        this.prisma.creditCardTransaction.findMany({ where: { userId } }),
+        this.getPacing(month, year, undefined, undefined, userId),
+        this.prisma.savingsManualTransaction.findMany({ where: { userId } }),
+      ]);
+
+    const studioConfig = resolveStudioConfig(userId, config?.formulaParamsJson, config);
+    const pcCfg = studioConfig.paycycleFormulaConfig;
+
+    const epochYm =
+      (pcCfg.ledgerEpochYear ?? 2026) * 12 + (pcCfg.ledgerEpochMonth ?? 10);
+    const scopedAllSnaps = allSnaps.filter(
+      (s: any) => s.year * 12 + s.month >= epochYm,
+    );
+    const horizonPeriodsSource =
+      scopedAllSnaps.length > 0 ? scopedAllSnaps : [activeSnap];
+
+    // Upcoming periods starting from selected month/year
+    const selectedYmVal = year * 12 + month;
+    const upcomingSnaps = horizonPeriodsSource.filter(
+      (s: any) => s.year * 12 + s.month >= selectedYmVal,
+    );
+    const upcomingList = upcomingSnaps.length > 0 ? upcomingSnaps : [activeSnap];
+
+    const upcomingPeriodsForNw = upcomingList.slice(0, 12).map((s: any, idx: number) => {
+      const k = `${s.year}-${s.month}`;
+      const pl = Math.round(matrix?.payLaterRow?.cells?.[k]?.amount ?? 0);
+      const ccCell = matrix?.creditCardRow?.cells?.[k];
+      const ccRaw = Math.round(ccCell?.amount ?? 0);
+      const ccInstallmentOnly = (ccCell?.items ?? [])
+        .filter((i: any) => Boolean(i.sliceBadge))
+        .reduce((sum: number, i: any) => sum + Math.round(i.amount ?? 0), 0);
+      const cc = idx === 0 ? ccRaw : ccInstallmentOnly;
+
+      const pdItems = matrix?.personalDebtRow?.cells?.[k]?.items ?? [];
+      const pdHasItems = Array.isArray(pdItems) && pdItems.length > 0;
+      const pdExternal = pdHasItems
+        ? pdItems
+            .filter((i: any) => i.category !== 'P1_VAULT_REFUND')
+            .reduce((sum: number, i: any) => sum + Math.round(i.monthlyAmount ?? 0), 0)
+        : Math.round(matrix?.personalDebtRow?.cells?.[k]?.amount ?? 0);
+
+      const totalDebt = matrix ? pl + cc + pdExternal : Math.round(s.totalDeductions ?? pl + cc + pdExternal);
+      return {
+        month: s.month,
+        year: s.year,
+        label: formatHybridPeriodLabel(s.month, s.year),
+        projectedSavingsP1Rp: Math.round(s.actualSavings ?? pcCfg.p1TargetFloorRp),
+        projectedSurplusP2Rp: Math.round(s.selfReward ?? 0),
+        totalDebtDueRp: totalDebt,
+        payLaterDueRp: pl,
+        creditCardDueRp: cc,
+        personalDebtDueRp: pdExternal,
+      };
+    });
+
+    const forecastPeriods = upcomingList.slice(0, 12).map((s: any) => {
+      const k = `${s.year}-${s.month}`;
+      const pd = Math.round(matrix?.personalDebtRow?.cells?.[k]?.amount ?? 0);
+      const totalDebt =
+        matrix?.totalsPerMonth?.[k] !== undefined
+          ? Math.round(matrix.totalsPerMonth[k])
+          : Math.round(s.totalDeductions ?? 0);
+      const inc = Math.round(s.finalTotalIncome ?? 0);
+      return {
+        month: s.month,
+        year: s.year,
+        label: formatHybridPeriodLabel(s.month, s.year),
+        totalIncomeRp: inc,
+        totalDebtDueRp: totalDebt,
+        personalDebtDueRp: pd,
+        dailyLivingRp: Math.round(s.actualDailyOperational ?? pcCfg.defaultDailyFoodBaselineRp),
+        routineBillsRp: Math.round(
+          (s.transport ?? 0) + (s.internet ?? 0) + (s.vape ?? 0) + (s.haircut ?? 0),
+        ),
+        coreSavingsP1Rp: Math.round(s.actualSavings ?? 0),
+        selfRewardP2Rp: Math.round(s.selfReward ?? 0),
+        dsrPercent: inc > 0 ? Math.round((totalDebt / inc) * 1000) / 10 : 0,
+      };
+    });
+
+    const cashDeductions = txs
+      .filter((t: any) => t.type === 'DEDUCTION' && t.sourceType === 'MANUAL' && !t.fixedEssentialCategory)
+      .map((t: any) => ({
+        id: Number(t.id),
+        label: String(t.label ?? 'Expense'),
+        category: 'DAILY_LIVING',
+        amountRp: Math.round(Number(t.amount ?? 0)),
+        dateIso: new Date(t.date).toISOString().slice(0, 10),
+      }));
+
+    const postCutoffItems: Array<{
+      title: string;
+      instrument: string;
+      purchaseDay: number;
+      amountRp: number;
+      nextPeriodLabel?: string;
+    }> = [];
+
+    if (matrix?.payLaterRow?.cells?.[`${year}-${month}`]?.items) {
+      for (const li of matrix.payLaterRow.cells[`${year}-${month}`].items ?? []) {
+        const titleLower = String(li.title || '').toLowerCase();
+        if (titleLower.includes('nov 15') || titleLower.includes('nov 16') || titleLower.includes('nov 17') || titleLower.includes('post-cutoff')) {
+          postCutoffItems.push({
+            title: li.title,
+            instrument: 'SPAYLATER',
+            purchaseDay: 15,
+            amountRp: Math.round(li.monthlyAmount ?? 0),
+            nextPeriodLabel: formatHybridPeriodLabel(month, year),
+          });
+        }
+      }
+    }
+
+    const recurringCharges = cardTxs
+      .filter((c: any) => c.chargeType === 'RECURRING' && c.isActive !== false)
+      .map((c: any) => ({
+        label: String(c.label ?? 'Subscription'),
+        category: String(c.category || 'ai').toLowerCase(),
+        amountRp: Math.round(c.monthlyAmount ?? c.amount ?? 0),
+      }));
+
+    // Real-life ledger accounts derived directly from actual vault records + wallet check-ins
+    // Isolates pre-October 2026 synthetic seed backfill (e.g. 08/2026 Rp 500k) from User #1 live balances.
+    const manualP1Total = Math.max(
+      0,
+      manualSavingsTxs.reduce(
+        (sum: number, tx: any) => sum + Math.round(Number(tx.amount ?? 0)),
+        0,
+      ),
+    );
+    const hasExplicitP1Override =
+      studioConfig.actualP1VaultBalanceRp !== null &&
+      studioConfig.actualP1VaultBalanceRp !== undefined &&
+      !Number.isNaN(Number(studioConfig.actualP1VaultBalanceRp));
+    const closedLockedP1Total = hasExplicitP1Override
+      ? Math.max(0, Math.round(Number(studioConfig.actualP1VaultBalanceRp)))
+      : userId === 1
+        ? manualP1Total
+        : horizonPeriodsSource
+            .filter(
+              (s: any) =>
+                s.status === 'LOCKED' &&
+                s.year * 12 + s.month <= selectedYmVal &&
+                Math.round(s.actualSavings ?? 0) > 0,
+            )
+            .reduce((sum: number, s: any) => sum + Math.round(s.actualSavings ?? 0), 0);
+    const activePeriodP1 =
+      activeSnap.status === 'DRAFT' ? Math.max(0, Math.round(activeSnap.actualSavings ?? 0)) : 0;
+
+    const policyContainer = (config?.financialPolicyJson as any) ?? {};
+    const savedCheckin = policyContainer?.walletCheckins?.[`${year}-${month}`];
+    const activeLiquidCash =
+      savedCheckin?.freeSpendableCash !== undefined
+        ? Math.max(0, Math.round(Number(savedCheckin.freeSpendableCash) || 0))
+        : Math.max(0, Math.round(pacing.remainingBudget ?? 0));
+
+    const ledgerAccounts = [
+      ...(closedLockedP1Total > 0
+        ? [
+            {
+              id: 'ledger_closed_p1',
+              name: 'Core Savings P1 (Closed Cycles)',
+              institution: 'Verified Snapshot Ledger',
+              accountType: 'SAVINGS_VAULT',
+              balanceRp: closedLockedP1Total,
+              annualYieldPct: 0,
+              includeInRunway: true,
+              isPrimaryPayroll: false,
+            },
+          ]
+        : []),
+      ...(activePeriodP1 > 0
+        ? [
+            {
+              id: 'ledger_active_p1',
+              name: `Active Cycle P1 Reserve (${String(month).padStart(2, '0')}/${year})`,
+              institution: 'Active Period Waterfall',
+              accountType: 'SAVINGS_VAULT',
+              balanceRp: activePeriodP1,
+              annualYieldPct: 0,
+              includeInRunway: true,
+              isPrimaryPayroll: false,
+            },
+          ]
+        : []),
+      {
+        id: 'ledger_liquid_cash',
+        name: savedCheckin ? 'Verified Wallet Check-In Cash' : 'Active Living Cash Remaining',
+        institution: 'Operational Living Pool',
+        accountType: 'CASH_WALLET',
+        balanceRp: activeLiquidCash,
+        annualYieldPct: 0,
+        includeInRunway: true,
+        isPrimaryPayroll: true,
+      },
+    ];
+
+    const effectiveAssetAccounts = studioConfig.enableExternalAssetPortfolio
+      ? [...ledgerAccounts, ...studioConfig.assetAccountsTable]
+      : ledgerAccounts;
+
+    const p1VaultBalance = effectiveAssetAccounts
+      .filter((a) => a.accountType === 'SAVINGS_VAULT')
+      .reduce((s, a) => s + Math.round(a.balanceRp || 0), 0);
+
+    const liquidAssetsStart = effectiveAssetAccounts
+      .filter((a) => a.includeInRunway || a.accountType !== 'SAVINGS_VAULT')
+      .reduce((s, a) => s + Math.round(a.balanceRp || 0), 0);
+
+    // Exclude P1_VAULT_REFUND and already-matured contracts prior to selected (month, year)
+    const activePlans = matrix?.activeInstallmentPlans ?? [];
+    const optContracts = activePlans
+      .filter((p: any) => {
+        if (p.category === 'P1_VAULT_REFUND') return false;
+        if (Math.round(p.remainingPrincipal ?? 0) <= 0) return false;
+        return p.payoffYear * 12 + p.payoffMonth >= selectedYmVal;
+      })
+      .map((p: any) => {
+        const titleLower = String(p.title || '').toLowerCase();
+        const inst =
+          p.category === 'PERSONAL_DEBT' || titleLower.includes('spinjam')
+            ? 'SPINJAM'
+            : p.category === 'CREDIT_CARD'
+              ? 'CREDIT_CARD'
+              : 'SPAYLATER';
+        const instRule = studioConfig.instrumentsTable.find((r) =>
+          inst === 'SPINJAM' ? r.type === 'CASH_LOAN' : r.type === inst,
+        );
+        const apr =
+          instRule?.monthlyInterestPct ??
+          (inst === 'SPINJAM' ? 3.95 : inst === 'CREDIT_CARD' ? 1.75 : 2.95);
+        const remSlices = Math.max(
+          1,
+          p.payoffYear * 12 + p.payoffMonth - selectedYmVal + 1,
+        );
+        const remPrincipalFromPeriod = Math.round(p.monthlyInstallment * remSlices);
+        return {
+          id: String(p.id),
+          name: String(p.title),
+          instrument: inst,
+          monthlyInstallmentRp: Math.round(p.monthlyInstallment),
+          remainingMonths: remSlices,
+          remainingBalanceRp: Math.min(Math.round(p.remainingPrincipal), remPrincipalFromPeriod),
+          monthlyInterestPct: apr,
+          payoffMonth: p.payoffMonth,
+          payoffYear: p.payoffYear,
+          payoffLabel: formatHybridPeriodLabel(p.payoffMonth, p.payoffYear),
+        };
+      });
+
+    const feItems = pacing.fixedEssentialsRealization?.items ?? [];
+    const spentByCat = (cat: string) => feItems.find((i) => i.category === cat)?.spent ?? 0;
+    const slotSpentMap: Record<string, number> = {
+      transport: spentByCat('TRANSPORT'),
+      internet: spentByCat('INTERNET'),
+      vape: spentByCat('VAPE'),
+      haircut: spentByCat('HAIRCUT'),
+    };
+    const slotTargetMap: Record<string, number> = {
+      transport: activeSnap.transport ?? 0,
+      internet: activeSnap.internet ?? 0,
+      vape: activeSnap.vape ?? 0,
+      haircut: activeSnap.haircut ?? 0,
+    };
+
+    const envelopeInputs = studioConfig.routineTemplatesTable
+      .filter((t) => t.active)
+      .map((t) => ({
+        id: t.id,
+        name: t.name,
+        allocatedRp: slotTargetMap[t.slotKey] ?? t.monthlyQuotaRp,
+        spentRp: slotSpentMap[t.slotKey] ?? 0,
+        rolloverPolicy: t.rolloverPolicy,
+      }));
+
+    const curPeriodKey = `${String(month).padStart(2, '0')}/${year}`;
+    const nextPeriodKey = `${String(nextYm.month).padStart(2, '0')}/${nextYm.year}`;
+    const curOverride = pcCfg.periodOverrides?.[curPeriodKey];
+    const nextOverride = pcCfg.periodOverrides?.[nextPeriodKey];
+    const isStartSnapConfirmed =
+      Boolean(activeSnap.isPayoutDateConfirmed) ||
+      (year === 2026 && month >= 11) ||
+      (year === 2027 && month === 1);
+    const isNextSnapConfirmed =
+      Boolean(nextSnap.isPayoutDateConfirmed) ||
+      (nextYm.year === 2026 && nextYm.month >= 11) ||
+      (nextYm.year === 2027 && nextYm.month === 1);
+
+    const explicitStart =
+      curOverride?.paydayDateIso ||
+      (isStartSnapConfirmed && activeSnap.payrollPayoutDate
+        ? new Date(activeSnap.payrollPayoutDate).toISOString().slice(0, 10)
+        : undefined);
+    const explicitNext =
+      nextOverride?.paydayDateIso ||
+      (isNextSnapConfirmed && nextSnap.payrollPayoutDate
+        ? new Date(nextSnap.payrollPayoutDate).toISOString().slice(0, 10)
+        : undefined);
+    const todayIso = new Date().toISOString().slice(0, 10);
+
+    const effectiveRdpuYield = studioConfig.enableExternalAssetPortfolio
+      ? pcCfg.rdpuAnnualYieldPct
+      : 0;
+
+    const formulaVariables = this.buildFormulaVariablesForSnapshot(
+      month,
+      year,
+      activeSnap,
+      config,
+      matrix,
+      pacing,
+      studioConfig,
+    );
+
+    const [
+      paycycle,
+      networth,
+      forecaster,
+      anomaly,
+      envelopes,
+      debtopt,
+      lifeenergy,
+      formulaEvaluation,
+    ] = await Promise.all([
+      this.goBridge.computePaycycleHorizon({
+        month,
+        year,
+        anchorDay: pcCfg.paydayAnchorDay,
+        payslipAnchorDay: pcCfg.payslipAnchorDay,
+        payslipShiftRule: pcCfg.payslipShiftRule,
+        reviewLagWorkingDays: pcCfg.reviewLagWorkingDays,
+        holidaysIso: pcCfg.holidayDatesIso,
+        explicitPayslipIso: curOverride?.payslipDateIso,
+        overrideNote: curOverride?.note,
+        shiftWeekendToFriday: pcCfg.shiftWeekendToFriday,
+        explicitStartIso: explicitStart,
+        explicitNextPaydayIso: explicitNext,
+        weekendMultiplier: pcCfg.weekendWeightMultiplier,
+        remainingBudgetRp: Math.max(0, Math.round(pacing.remainingBudget ?? 0)),
+        referenceDateIso: todayIso,
+      }),
+      this.goBridge.computeNetWorth({
+        accounts: effectiveAssetAccounts,
+        upcomingPeriods: upcomingPeriodsForNw,
+      }),
+      this.goBridge.runForecast({
+        startingLiquidAssetsRp: liquidAssetsStart,
+        startingP1VaultRp: p1VaultBalance,
+        emergencyFundTargetRp: pcCfg.emergencyFundTargetRp,
+        baselineDailyBurnRp: Math.max(30000, Math.round(pacing.baselineDailyRate || 55000)),
+        rdpuAnnualYieldPct: effectiveRdpuYield,
+        variableShockPercent: pcCfg.variableShockPercent,
+        periods: forecastPeriods,
+      }),
+      this.goBridge.evaluateAnomalies({
+        periodLabel: formatHybridPeriodLabel(month, year),
+        totalCycleDays: pacing.daysInCycle || 30,
+        elapsedDays: Math.max(1, (pacing.daysInCycle || 30) - (pacing.daysRemaining || 0)),
+        dailyLivingBudgetRp: Math.round(activeSnap.actualDailyOperational ?? activeSnap.dailyOperational ?? 0),
+        dailyLivingSpentRp: Math.round(pacing.totalDailySpent ?? 0),
+        baselineDailyRateRp: Math.round(pacing.baselineDailyRate ?? 50000),
+        cashTransactions: cashDeductions,
+        postCutoffItems,
+        recurringCharges,
+      }),
+      this.goBridge.evaluateEnvelopes({
+        liquidCashTotalRp: liquidAssetsStart,
+        dailyAverageBurnRp: Math.max(40000, Math.round(pacing.baselineDailyRate || 65000)),
+        monthlyInflowRp: Math.round(activeSnap.finalTotalIncome ?? 0),
+        cycleElapsedDays: Math.max(1, (pacing.daysInCycle || 30) - (pacing.daysRemaining || 0)),
+        cycleTotalDays: pacing.daysInCycle || 30,
+        envelopes: envelopeInputs,
+        sinkingFunds: pcCfg.sinkingFunds,
+      }),
+      this.goBridge.optimizeDebtPayoff({
+        contracts: optContracts,
+        extraLumpSumRp: Math.max(0, Math.round(extraLumpSumRp || 0)),
+      }),
+      this.goBridge.computeLifeEnergy({
+        netMonthlyIncomeRp: Math.round(activeSnap.netSalaryIncome ?? activeSnap.finalTotalIncome ?? 5904000),
+        workdaysPerMonth: Math.max(1, (pcCfg.workdaysPerWeek || 5) * 4),
+        workHoursPerDay: pcCfg.workHoursPerDay || 8,
+        dailyCommuteHours: pcCfg.dailyCommuteHours ?? 2,
+        monthlyWorkExpenseRp: Math.round(activeSnap.transport ?? 300000),
+        sampleAmountsRp: [35000, 150000, 350000, 1000000, Math.max(500000, Math.round(activeSnap.totalDeductions ?? 4017341))],
+      }),
+      this.goBridge.evaluateFormulaSuite({
+        variables: formulaVariables,
+        formulas: {
+          takeHomeSalary: pcCfg.formulas.takeHomeSalaryFormula,
+          proratedThr: pcCfg.formulas.proratedThrFormula,
+          waterfallAllocation: pcCfg.formulas.waterfallAllocationFormula,
+          debtSafeCeiling: pcCfg.formulas.debtSafeCeilingFormula,
+          dailySafeToSpend: pcCfg.formulas.dailySafeToSpendFormula,
+          trueHourlyWage: pcCfg.formulas.trueHourlyWageFormula,
+          forecasterFreedDebtToP1: pcCfg.formulas.forecasterFreedDebtToP1Formula,
+        },
+      }),
+    ]);
+
+    const curKeyStr = `${year}-${month}`;
+    const spinjamDebtAtPeriod = (matrix?.personalDebtRow?.cells?.[curKeyStr]?.items ?? [])
+      .filter((i: any) => i.category !== 'P1_VAULT_REFUND')
+      .reduce((s: number, i: any) => s + Math.round(i.monthlyAmount ?? 0), 0);
+    const paylaterDebtAtPeriod = Math.round(matrix?.payLaterRow?.cells?.[curKeyStr]?.amount ?? 0);
+    const firstPaylaterZero = upcomingPeriodsForNw.find((p) => p.payLaterDueRp === 0);
+    const paylaterFreedomLabel = firstPaylaterZero
+      ? firstPaylaterZero.label
+      : 'Apr 2027';
+
+    let dynamicMilestone = {
+      code: 'ALL_DEBT_FREE_P1_FOCUS',
+      targetDateLabel: 'Active P1 Focus',
+      remainingAmountRp: 0,
+      labelEn: 'Installment-Free · P1 Savings Focus',
+      labelId: 'Bebas Cicilan · Fokus Tabungan P1',
+      labelZh: '无分期负担 · 专注 P1 储蓄',
+    };
+    for (const rule of pcCfg.milestonePriorityOrder ?? [
+      'SPINJAM_ZERO',
+      'PAYLATER_INSTALLMENTS_ZERO',
+      'ALL_DEBT_FREE_P1_FOCUS',
+    ]) {
+      if (rule === 'SPINJAM_ZERO' && spinjamDebtAtPeriod > 0) {
+        dynamicMilestone = {
+          code: 'SPINJAM_ZERO',
+          targetDateLabel:
+            debtopt.spinjamFreedomLabel && debtopt.spinjamFreedomLabel !== 'Paid Off'
+              ? debtopt.spinjamFreedomLabel
+              : forecaster.spinjamFreedomDate,
+          remainingAmountRp: spinjamDebtAtPeriod,
+          labelEn: 'SPinjam Payoff Target',
+          labelId: 'Target Lunas SPinjam',
+          labelZh: 'SPinjam 清零目标',
+        };
+        break;
+      }
+      if (rule === 'PAYLATER_INSTALLMENTS_ZERO' && paylaterDebtAtPeriod > 0) {
+        dynamicMilestone = {
+          code: 'PAYLATER_INSTALLMENTS_ZERO',
+          targetDateLabel: paylaterFreedomLabel,
+          remainingAmountRp: paylaterDebtAtPeriod,
+          labelEn: 'PayLater Payoff Target',
+          labelId: 'Target Lunas Cicilan PayLater',
+          labelZh: 'PayLater 分期清零目标',
+        };
+        break;
+      }
+    }
+
+    return {
+      month,
+      year,
+      periodCode: `${String(month).padStart(2, '0')}/${year}`,
+      snapshotStatus: activeSnap.status,
+      studioConfig,
+      effectiveAssetAccounts,
+      dynamicMilestone,
+      formulaContext: {
+        variables: formulaVariables,
+        evaluation: formulaEvaluation,
+      },
+      paycycle,
+      networth,
+      forecaster,
+      anomaly,
+      envelopes,
+      debtopt,
+      lifeenergy,
+    };
+  }
+
+  private buildFormulaVariablesForSnapshot(
+    month: number,
+    year: number,
+    snap: any,
+    config: any,
+    matrix: any,
+    pacing: any,
+    studioConfig: any,
+  ): Record<string, number> {
+    const pcCfg = studioConfig.paycycleFormulaConfig;
+    const baseSalary = Math.round(config?.baseSalary ?? 5300000);
+    const workDays = Math.round(snap?.totalWorkingDays ?? 21);
+    const dailyAllowance = Math.round(config?.dailyAllowance ?? 25000);
+    const transportAllowance = Math.round(config?.laptopAllowance ?? 250000);
+    const fixedAdditions = Math.round(snap?.salaryAdjustment ?? 0);
+    const grossPay = baseSalary + workDays * dailyAllowance + transportAllowance + fixedAdditions;
+    const netSalary = Math.round(snap?.netSalaryIncome ?? 5904000);
+    const taxAndBpjs = Math.max(0, grossPay - netSalary);
+    const tenureMonths = month === 12 || month === 1 ? 8.83 : 12;
+    const thrAmount = Math.round(snap?.thrAmount ?? 0);
+    const netIncome = Math.round(snap?.finalTotalIncome ?? netSalary);
+
+    const k = `${year}-${month}`;
+    const paylaterDebt = Math.round(matrix?.payLaterRow?.cells?.[k]?.amount ?? 0);
+    const ccDebt = Math.round(matrix?.creditCardRow?.cells?.[k]?.amount ?? 0);
+    const personalItems = matrix?.personalDebtRow?.cells?.[k]?.items ?? [];
+    const spinjamDebt = personalItems
+      .filter((i: any) => i.category !== 'P1_VAULT_REFUND')
+      .reduce((s: number, i: any) => s + Math.round(i.monthlyAmount ?? 0), 0);
+    const otherDebt = personalItems
+      .filter((i: any) => i.category === 'P1_VAULT_REFUND')
+      .reduce((s: number, i: any) => s + Math.round(i.monthlyAmount ?? 0), 0);
+    const totalDebt = Math.round(
+      matrix?.totalsPerMonth?.[k] ?? snap?.totalDeductions ?? paylaterDebt + ccDebt + spinjamDebt + otherDebt,
+    );
+
+    const routineBills = Math.round(
+      (snap?.transport ?? 0) + (snap?.internet ?? 0) + (snap?.vape ?? 0) + (snap?.haircut ?? 0),
+    );
+    const livingBudget = Math.round(snap?.actualDailyOperational ?? snap?.dailyOperational ?? 0);
+    const p1Floor = Math.round(pcCfg.p1TargetFloorRp ?? 1000000);
+    const p1Savings = Math.round(snap?.actualSavings ?? 0);
+    const p2Reward = Math.round(snap?.selfReward ?? 0);
+    const cycleDays = pacing?.daysInCycle || 30;
+    const remainingDays = pacing?.daysRemaining ?? cycleDays;
+    const elapsedDays = Math.max(0, cycleDays - remainingDays);
+
+    return {
+      BASE_SALARY: baseSalary,
+      WORK_DAYS: workDays,
+      DAILY_ALLOWANCE: dailyAllowance,
+      TRANSPORT_ALLOWANCE: transportAllowance,
+      FIXED_ADDITIONS: fixedAdditions,
+      GROSS_PAY: grossPay,
+      TAX_AND_BPJS: taxAndBpjs,
+      NET_SALARY: netSalary,
+      TENURE_MONTHS: tenureMonths,
+      THR_MULTIPLIER:
+        month === 12 || month === 1 ? Math.round((tenureMonths / 12) * 1000) / 1000 : 0,
+      THR_AMOUNT: thrAmount,
+      NET_INCOME: netIncome,
+      PAYLATER_DEBT: paylaterDebt,
+      CC_DEBT: ccDebt,
+      SPINJAM_DEBT: spinjamDebt,
+      OTHER_DEBT: otherDebt,
+      TOTAL_DEBT: totalDebt,
+      ROUTINE_BILLS: routineBills,
+      LIVING_BUDGET: livingBudget,
+      P1_FLOOR: p1Floor,
+      P1_SAVINGS: p1Savings,
+      P2_REWARD: p2Reward,
+      ELAPSED_DAYS: elapsedDays,
+      CYCLE_DAYS: cycleDays,
+      REMAINING_DAYS: remainingDays,
+      WEEKEND_WEIGHT: pcCfg.weekendWeightMultiplier ?? 1.5,
+      WORK_DAYS_PER_WEEK: pcCfg.workdaysPerWeek ?? 5,
+      WORK_HOURS_PER_DAY: pcCfg.workHoursPerDay ?? 8,
+      COMMUTE_HOURS_PER_DAY: pcCfg.dailyCommuteHours ?? 2,
+      OPTIMAL_DSR_PCT: (config?.financialPolicyJson as any)?.optimalDebtRatioPercent ?? 20,
+      MAX_SAFE_DSR_PCT: (config?.financialPolicyJson as any)?.maxSafeDebtRatioPercent ?? 35,
+    };
+  }
+
+  async evaluateFormulaSuiteForUser(
+    month: number,
+    year: number,
+    formulas: Record<string, string>,
+    overrideVariables?: Record<string, number>,
+    userId: number = 1,
+  ) {
+    const bundle = await this.getIntelligenceBundle(month, year, userId);
+    const vars = {
+      ...(bundle.formulaContext?.variables ?? {}),
+      ...(overrideVariables ?? {}),
+    };
+    const evaluation = await this.goBridge.evaluateFormulaSuite({
+      variables: vars,
+      formulas,
+    });
+    return { variables: vars, evaluation };
+  }
+
+  async parseStatementForUser(
+    dto: { rawText: string; defaultMethod?: string; defaultYear?: number },
+    userId: number = 1,
+  ) {
+    const def = getPayrollPeriodForDate();
+    const [config, existingTxs, lineItems, allSnaps] = await Promise.all([
+      this.prisma.globalConfig.findFirst({ where: { userId } }),
+      this.listTransactions(def.month, def.year, userId),
+      this.prisma.liabilityLineItem.findMany({
+        where: { userId },
+        take: 100,
+        orderBy: { id: 'desc' },
+      }),
+      this.prisma.monthlySnapshot.findMany({
+        where: { userId },
+        select: { month: true, year: true, status: true },
+        orderBy: [{ year: 'asc' }, { month: 'asc' }],
+      }),
+    ]);
+
+    const lockedPeriodCodes: string[] = [];
+    let latestLockedIdx = -1;
+    let latestLockedMonth = def.month;
+    let latestLockedYear = def.year;
+    for (const s of allSnaps) {
+      const code = `${String(s.month).padStart(2, '0')}/${s.year}`;
+      if (s.status === 'LOCKED') {
+        lockedPeriodCodes.push(code);
+        const idx = s.year * 12 + s.month;
+        if (idx > latestLockedIdx) {
+          latestLockedIdx = idx;
+          latestLockedMonth = s.month;
+          latestLockedYear = s.year;
+        }
+      }
+    }
+    let earliestOpenMonth = def.month;
+    let earliestOpenYear = def.year;
+    let foundOpen = false;
+    for (const s of allSnaps) {
+      const idx = s.year * 12 + s.month;
+      if (s.status !== 'LOCKED' && (latestLockedIdx < 0 || idx > latestLockedIdx)) {
+        earliestOpenMonth = s.month;
+        earliestOpenYear = s.year;
+        foundOpen = true;
+        break;
+      }
+    }
+    if (!foundOpen && latestLockedIdx >= 0) {
+      const nextOpen = addHybridMonths(latestLockedMonth, latestLockedYear, 1);
+      earliestOpenMonth = nextOpen.month;
+      earliestOpenYear = nextOpen.year;
+    }
+
+    const studioConfig = resolveStudioConfig(userId, config?.formulaParamsJson, config);
+    const existingItems = [
+      ...existingTxs.map((t: any) => ({
+        id: Number(t.id),
+        label: String(t.label ?? ''),
+        amountRp: Math.round(Number(t.amount ?? 0)),
+        dateIso: new Date(t.date).toISOString().slice(0, 10),
+        instrument: 'CASH',
+      })),
+      ...lineItems.map((li: any) => ({
+        id: li.id,
+        label: li.title,
+        amountRp: Math.round(li.monthlyAmount),
+        dateIso: li.createdAt ? new Date(li.createdAt).toISOString().slice(0, 10) : '',
+        instrument: li.category === 'PAYLATER' ? 'PAYLATER' : 'PERSONAL_DEBT',
+      })),
+    ];
+
+    return this.goBridge.parseStatementBatch({
+      rawText: dto.rawText,
+      defaultMethod: dto.defaultMethod || 'CASH',
+      anchorDay: studioConfig.paycycleFormulaConfig.paydayAnchorDay,
+      cutoffRules: studioConfig.instrumentsTable.map((i) => ({
+        id: i.id,
+        name: i.name,
+        type: i.type,
+        cutoffDay: i.cutoffDay,
+        dueDay: i.dueDay,
+        dueRule: i.dueRule,
+        monthlyInterestPct: i.monthlyInterestPct,
+        adminFeePct: i.adminFeePct,
+        active: i.active,
+      })),
+      existingItems,
+      defaultYear: dto.defaultYear ?? def.year,
+      lockedPeriodCodes,
+      earliestOpenMonth,
+      earliestOpenYear,
+    });
   }
 }

@@ -7,6 +7,7 @@ import {
   buildDefaultFinancialPolicy,
 } from '../calculator/modular-engine';
 import { ALL_MODULE_KEYS, getLifeStagePresetDefaults } from '../auth/auth.types';
+import { resolveStudioConfig } from './studio.defaults';
 
 @Injectable()
 export class ConfigSelectors {
@@ -82,6 +83,8 @@ export class ConfigSelectors {
     const uiDensityMode =
       existing.uiDensityMode || presetDefaults.uiDensityMode || 'COMMAND_COCKPIT';
 
+    const studioConfig = resolveStudioConfig(userId, existing.formulaParamsJson, existing);
+
     return {
       ...existing,
       lifeStagePreset,
@@ -92,6 +95,7 @@ export class ConfigSelectors {
       allocationBuckets,
       surplusSplitRules,
       financialPolicy,
+      studioConfig,
     };
   }
 

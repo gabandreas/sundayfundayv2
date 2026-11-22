@@ -48,4 +48,18 @@ export class CreateTransactionDto {
   @IsOptional()
   @IsBoolean()
   isOperationalRefund?: boolean;
+
+  @IsOptional()
+  @IsEnum(['CASH', 'PAYLATER', 'CC'])
+  paymentMethod?: 'CASH' | 'PAYLATER' | 'CC';
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(24)
+  paylaterTenor?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  holdPastCutoff?: boolean;
 }

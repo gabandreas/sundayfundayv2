@@ -36,14 +36,21 @@ export class ConfigController {
     return this.configService.upsertConfig(dto, userId);
   }
 
+  @Patch('studio')
+  updateStudioConfig(@Body() body: any, @Req() req?: any) {
+    const userId = getUserIdOrThrow(req);
+    return this.configService.updateStudioConfig(body, userId);
+  }
+
   @Post('simulate-rules')
   simulateRules(@Body() dto: SimulateRulesDto) {
     return this.configService.simulateModularRules(dto);
   }
 
   @Post('restore-defaults')
-  restoreDefaults() {
-    return this.configService.restoreDefaultRules();
+  restoreDefaults(@Req() req?: any) {
+    const userId = getUserIdOrThrow(req);
+    return this.configService.restoreDefaultRules(userId);
   }
 
   @Post('sync-to-period')
@@ -100,8 +107,9 @@ export class ConfigController {
   // ─────────────────────────────────────────────
 
   @Post('reset-sandbox')
-  resetSandbox() {
-    return this.configService.resetSandbox();
+  resetSandbox(@Req() req?: any) {
+    const userId = getUserIdOrThrow(req);
+    return this.configService.resetSandbox(userId);
   }
 
   @Get('routine-categories')

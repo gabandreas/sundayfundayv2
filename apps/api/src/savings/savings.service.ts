@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../audit/audit-log.service';
@@ -16,6 +17,7 @@ import {
   SavingsTransactionType,
 } from './dto/create-savings-transaction.dto';
 import { formatPeriodVaultLabel } from './savings.utils';
+import { getPayrollPeriodForDate } from '../calculator/pacing';
 
 @Injectable()
 export class SavingsService {
@@ -29,7 +31,7 @@ export class SavingsService {
    * Amount is stored signed: positive for TOPUP, negative for WITHDRAWAL.
    * The caller provides a positive magnitude; this service applies the sign.
    */
-  async createTransaction(dto: CreateSavingsTransactionDto) {
+  async createTransaction(dto: CreateSavingsTransactionDto, userId: number = 1) {
     const signedAmount =
       dto.type === SavingsTransactionType.TOPUP ? dto.amount : -dto.amount;
 
@@ -46,6 +48,7 @@ export class SavingsService {
 
     const created = await this.prisma.savingsManualTransaction.create({
       data: {
+        userId,
         label: finalLabel,
         amount: signedAmount,
         instrumentType,
@@ -54,20 +57,21 @@ export class SavingsService {
     });
 
     const isWithdrawal = dto.type === SavingsTransactionType.WITHDRAWAL;
+    const txPeriod = getPayrollPeriodForDate(txDate);
     await this.auditLogService.record({
       action: isWithdrawal ? 'SAVINGS_WITHDRAWAL' : 'SAVINGS_TOPUP',
       category: AuditCategory.SAVINGS,
       summary: `${isWithdrawal ? 'Withdrawal' : 'Top-up'} of Rp ${dto.amount} (${instrumentType}) from/to savings: "${finalLabel}"`,
       details: `Savings transaction #${created.id}, instrument: ${instrumentType}`,
-      month: dto.periodMonth ?? txDate.getMonth() + 1,
-      year: dto.periodYear ?? txDate.getFullYear(),
+      month: dto.periodMonth ?? txPeriod.month,
+      year: dto.periodYear ?? txPeriod.year,
       severity: isWithdrawal ? AuditSeverity.WARNING : AuditSeverity.INFO,
     });
 
     return created;
   }
 
-  async rebalanceInstrument(dto: RebalanceSavingsDto) {
+  async rebalanceInstrument(dto: RebalanceSavingsDto, userId: number = 1) {
     if (dto.fromInstrument === dto.toInstrument) {
       throw new BadRequestException(
         'Source and destination instruments must be different',
@@ -79,7 +83,9 @@ export class SavingsService {
       throw new BadRequestException('Rebalance amount must be greater than Rp 0');
     }
 
-    const allTxs = await this.prisma.savingsManualTransaction.findMany();
+    const allTxs = await this.prisma.savingsManualTransaction.findMany({
+      where: { userId },
+    });
     const fromBalance = allTxs
       .filter(
         (t) =>
@@ -108,6 +114,7 @@ export class SavingsService {
     const [debitTx, creditTx] = await this.prisma.$transaction([
       this.prisma.savingsManualTransaction.create({
         data: {
+          userId,
           label: `Internal Vault Rebalance: ${fromName} to ${toName}${customSuffix}`,
           amount: -amount,
           instrumentType: dto.fromInstrument,
@@ -116,6 +123,7 @@ export class SavingsService {
       }),
       this.prisma.savingsManualTransaction.create({
         data: {
+          userId,
           label: `Internal Vault Rebalance: ${fromName} to ${toName}${customSuffix}`,
           amount,
           instrumentType: dto.toInstrument,
@@ -124,13 +132,14 @@ export class SavingsService {
       }),
     ]);
 
+    const nowPeriod = getPayrollPeriodForDate(now);
     await this.auditLogService.record({
       action: 'SAVINGS_REBALANCE',
       category: AuditCategory.SAVINGS,
       summary: `Rebalanced Rp ${amount.toLocaleString('id-ID')} from ${fromName} to ${toName}`,
       details: `Debit #${debitTx.id}, Credit #${creditTx.id}`,
-      month: now.getMonth() + 1,
-      year: now.getFullYear(),
+      month: nowPeriod.month,
+      year: nowPeriod.year,
       severity: AuditSeverity.INFO,
     });
 
@@ -143,12 +152,15 @@ export class SavingsService {
     };
   }
 
-  async deleteTransaction(id: number) {
+  async deleteTransaction(id: number, userId: number = 1) {
     const existing = await this.prisma.savingsManualTransaction.findUnique({
       where: { id },
     });
     if (!existing) {
       throw new NotFoundException(`Savings transaction #${id} not found`);
+    }
+    if (existing.userId !== userId) {
+      throw new ForbiddenException('Access denied to savings transaction');
     }
 
     return this.prisma.savingsManualTransaction.delete({ where: { id } });
@@ -157,16 +169,19 @@ export class SavingsService {
   /**
    * 1-Click Period Deposit Confirmation from Monthly Savings Accumulation Ledger
    */
-  async confirmPeriodDeposit(dto: {
-    month?: number;
-    periodMonth?: number;
-    year?: number;
-    periodYear?: number;
-    amount: number;
-    destination?: string;
-    instrumentType?: SavingsInstrumentType;
-    note?: string;
-  }) {
+  async confirmPeriodDeposit(
+    dto: {
+      month?: number;
+      periodMonth?: number;
+      year?: number;
+      periodYear?: number;
+      amount: number;
+      destination?: string;
+      instrumentType?: SavingsInstrumentType;
+      note?: string;
+    },
+    userId: number = 1,
+  ) {
     const month = dto.month ?? dto.periodMonth;
     const year = dto.year ?? dto.periodYear;
     if (!month || !year) {
@@ -182,29 +197,35 @@ export class SavingsService {
         ? SavingsInstrumentType.INVESTMENT_RDPU
         : SavingsInstrumentType.LIQUID_CASH);
 
-    return this.createTransaction({
-      type: SavingsTransactionType.TOPUP,
-      amount: dto.amount,
-      label: dto.note ? `${dto.note} (${month}/${year})` : `P1 Savings Transfer (${month}/${year})`,
-      date: new Date().toISOString(),
-      instrumentType,
-      periodMonth: month,
-      periodYear: year,
-    });
+    return this.createTransaction(
+      {
+        type: SavingsTransactionType.TOPUP,
+        amount: dto.amount,
+        label: dto.note ? `${dto.note} (${month}/${year})` : `P1 Savings Transfer (${month}/${year})`,
+        date: new Date().toISOString(),
+        instrumentType,
+        periodMonth: month,
+        periodYear: year,
+      },
+      userId,
+    );
   }
 
   // -------------------------------------------------------------------------
   // Savings Goals CRUD
   // -------------------------------------------------------------------------
 
-  async createGoal(dto: {
-    name: string;
-    targetAmount: number;
-    targetMonth: number;
-    targetYear: number;
-    category?: string;
-    currentAllocatedAmount?: number;
-  }) {
+  async createGoal(
+    dto: {
+      name: string;
+      targetAmount: number;
+      targetMonth: number;
+      targetYear: number;
+      category?: string;
+      currentAllocatedAmount?: number;
+    },
+    userId: number = 1,
+  ) {
     if (!dto.name?.trim()) {
       throw new BadRequestException('Goal name is required');
     }
@@ -214,6 +235,7 @@ export class SavingsService {
 
     const created = await this.prisma.savingsGoal.create({
       data: {
+        userId,
         name: dto.name.trim(),
         targetAmount: dto.targetAmount,
         targetMonth: dto.targetMonth,
@@ -248,12 +270,16 @@ export class SavingsService {
       currentAllocatedAmount?: number;
       isCompleted?: boolean;
     },
+    userId: number = 1,
   ) {
     const existing = await this.prisma.savingsGoal.findUnique({
       where: { id },
     });
     if (!existing) {
       throw new NotFoundException(`Savings goal #${id} not found`);
+    }
+    if (existing.userId !== userId) {
+      throw new ForbiddenException('Access denied to savings goal');
     }
 
     const updated = await this.prisma.savingsGoal.update({
@@ -294,17 +320,20 @@ export class SavingsService {
     return updated;
   }
 
-  async saveWealthTarget(dto: {
-    targetAmount: number;
-    targetMonth: number;
-    targetYear: number;
-    targetBase?: string;
-  }) {
+  async saveWealthTarget(
+    dto: {
+      targetAmount: number;
+      targetMonth: number;
+      targetYear: number;
+      targetBase?: string;
+    },
+    userId: number = 1,
+  ) {
     if (dto.targetAmount <= 0) {
       throw new BadRequestException('Target wealth amount must be greater than Rp 0');
     }
     const updatedConfig = await this.prisma.globalConfig.update({
-      where: { userId: 1 },
+      where: { userId },
       data: {
         targetWealthAmount: dto.targetAmount,
         targetWealthMonth: dto.targetMonth,
@@ -324,12 +353,15 @@ export class SavingsService {
     return updatedConfig;
   }
 
-  async deleteGoal(id: number) {
+  async deleteGoal(id: number, userId: number = 1) {
     const existing = await this.prisma.savingsGoal.findUnique({
       where: { id },
     });
     if (!existing) {
       throw new NotFoundException(`Savings goal #${id} not found`);
+    }
+    if (existing.userId !== userId) {
+      throw new ForbiddenException('Access denied to savings goal');
     }
 
     const deleted = await this.prisma.savingsGoal.delete({ where: { id } });

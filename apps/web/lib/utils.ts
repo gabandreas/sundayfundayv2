@@ -253,16 +253,16 @@ export function getDefaultPayrollPeriod(
   let year: number;
 
   if (calDay >= cycleTransitionDay) {
-    month = calMonth;
-    year = calYear;
-  } else {
-    if (calMonth === 1) {
-      month = 12;
-      year = calYear - 1;
+    if (calMonth === 12) {
+      month = 1;
+      year = calYear + 1;
     } else {
-      month = calMonth - 1;
+      month = calMonth + 1;
       year = calYear;
     }
+  } else {
+    month = calMonth;
+    year = calYear;
   }
 
   // Application launch boundary clamp: July 2026

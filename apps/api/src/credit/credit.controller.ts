@@ -25,7 +25,18 @@ import { UpdateCreditUsageLimitDto } from './dto/update-credit-usage-limit.dto';
 import { CreateKillSwitchDto } from './dto/create-kill-switch.dto';
 import { UpdateKillSwitchDto } from './dto/update-kill-switch.dto';
 import { UpdateKillSwitchNotificationConfigDto } from './dto/update-kill-switch-notification-config.dto';
+import { CreateLiabilityLineItemDto } from './dto/create-liability-line-item.dto';
+import { ShiftLiabilityLineItemDto } from './dto/shift-liability-line-item.dto';
+import {
+  CreateBridgeLoanDto,
+  AccelerateBridgeLoanDto,
+} from './dto/create-bridge-loan.dto';
+import {
+  SettleBulkLineItemsDto,
+  SettleLineItemDto,
+} from './dto/settle-line-items.dto';
 import { getUserIdOrThrow } from '../auth/auth.utils';
+import { getPayrollPeriodForDate } from '../calculator/pacing';
 
 @Controller('api/credit')
 export class CreditController {
@@ -75,7 +86,7 @@ export class CreditController {
     @Query('count') count?: string,
     @Req() req?: any,
   ) {
-    const sm = startMonth ? parseInt(startMonth, 10) : 7;
+    const sm = startMonth ? parseInt(startMonth, 10) : 10;
     const sy = startYear ? parseInt(startYear, 10) : 2026;
     const c = count ? parseInt(count, 10) : 12;
     const userId = getUserIdOrThrow(req);
@@ -253,9 +264,9 @@ export class CreditController {
     @Query('year') yearStr?: string,
     @Req() req?: any,
   ) {
-    const now = new Date();
-    const month = monthStr ? parseInt(monthStr, 10) : now.getMonth() + 1;
-    const year = yearStr ? parseInt(yearStr, 10) : now.getFullYear();
+    const defaultPeriod = getPayrollPeriodForDate();
+    const month = monthStr ? parseInt(monthStr, 10) : defaultPeriod.month;
+    const year = yearStr ? parseInt(yearStr, 10) : defaultPeriod.year;
 
     if (!month || !year || month < 1 || month > 12) {
       throw new BadRequestException(
@@ -268,8 +279,9 @@ export class CreditController {
   }
 
   @Patch('usage-limit')
-  async updateCreditUsageLimit(@Body() dto: UpdateCreditUsageLimitDto) {
-    return this.creditService.updateCreditUsageLimit(dto);
+  async updateCreditUsageLimit(@Body() dto: UpdateCreditUsageLimitDto, @Req() req?: any) {
+    const userId = getUserIdOrThrow(req);
+    return this.creditService.updateCreditUsageLimit(dto, userId);
   }
 
   // -------------------------------------------------------------------------
@@ -320,5 +332,116 @@ export class CreditController {
   ) {
     const userId = getUserIdOrThrow(req);
     return this.creditService.updateKillSwitch(id, dto, userId);
+  }
+
+  // -------------------------------------------------------------------------
+  // Itemized Matrix Sub-Ledger, Cutoff Shifter & Bridge Loan Endpoints
+  // -------------------------------------------------------------------------
+
+  @Get('installment-plans')
+  async listInstallmentPlans(@Req() req?: any) {
+    const userId = getUserIdOrThrow(req);
+    return this.creditSelectors.listInstallmentPlans(userId);
+  }
+
+  @Get('line-items')
+  async listLineItems(
+    @Query('month') monthStr?: string,
+    @Query('year') yearStr?: string,
+    @Query('category') category?: string,
+    @Req() req?: any,
+  ) {
+    const m = monthStr ? parseInt(monthStr, 10) : undefined;
+    const y = yearStr ? parseInt(yearStr, 10) : undefined;
+    const userId = getUserIdOrThrow(req);
+    return this.creditSelectors.listLineItems(m, y, category, userId);
+  }
+
+  @Post('line-items')
+  async createLineItem(
+    @Body() dto: CreateLiabilityLineItemDto,
+    @Req() req?: any,
+  ) {
+    const userId = getUserIdOrThrow(req);
+    return this.creditService.createLineItemSchedule(dto, userId);
+  }
+
+  @Post('line-items/:id/shift')
+  async shiftLineItem(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ShiftLiabilityLineItemDto,
+    @Req() req?: any,
+  ) {
+    const userId = getUserIdOrThrow(req);
+    return this.creditService.shiftLineItem(id, dto, userId);
+  }
+
+  @Patch('line-items/settle-bulk')
+  async settleBulkLineItems(
+    @Body() dto: SettleBulkLineItemsDto,
+    @Req() req?: any,
+  ) {
+    const userId = getUserIdOrThrow(req);
+    return this.creditService.settleBulkLineItems(dto, userId);
+  }
+
+  @Patch('line-items/:id/settle')
+  async toggleLineItemSettled(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: SettleLineItemDto,
+    @Req() req?: any,
+  ) {
+    const userId = getUserIdOrThrow(req);
+    if (dto?.settlementState) {
+      return this.creditService.setLineItemSettlementState(
+        id,
+        dto.settlementState,
+        userId,
+      );
+    }
+    return this.creditService.toggleLineItemSettled(
+      id,
+      Boolean(dto?.isSettled),
+      userId,
+    );
+  }
+
+  @Patch('line-items/:id/settlement-state')
+  async updateLineItemSettlementState(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: SettleLineItemDto,
+    @Req() req?: any,
+  ) {
+    const userId = getUserIdOrThrow(req);
+    const state =
+      dto?.settlementState ?? (dto?.isSettled ? 'PAID' : 'UNPAID');
+    return this.creditService.setLineItemSettlementState(id, state, userId);
+  }
+
+  @Delete('line-items/:id')
+  async deleteLineItem(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req?: any,
+  ) {
+    const userId = getUserIdOrThrow(req);
+    return this.creditService.deleteLineItem(id, userId);
+  }
+
+  @Post('bridge-loan')
+  async createBridgeLoan(
+    @Body() dto: CreateBridgeLoanDto,
+    @Req() req?: any,
+  ) {
+    const userId = getUserIdOrThrow(req);
+    return this.creditService.createBridgeLoan(dto, userId);
+  }
+
+  @Post('bridge-loan/accelerate')
+  async accelerateBridgeLoan(
+    @Body() dto: AccelerateBridgeLoanDto,
+    @Req() req?: any,
+  ) {
+    const userId = getUserIdOrThrow(req);
+    return this.creditService.accelerateBridgeLoan(dto, userId);
   }
 }

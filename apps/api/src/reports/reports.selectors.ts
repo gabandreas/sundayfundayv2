@@ -3,6 +3,11 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditSelectors } from '../audit/audit.selectors';
 import { AuditService } from '../audit/audit.service';
 import { CreditSelectors } from '../credit/credit.selectors';
+import { GoBridgeService, WithEngineMeta } from '../calculator/go-bridge.service';
+import {
+  ExecutiveHorizonResult,
+  formatHybridPeriodLabel,
+} from '../calculator/hybrid-engine';
 import {
   SnapshotStatus,
   TransactionType,
@@ -65,6 +70,7 @@ export class ReportsSelectors {
     private readonly auditSelectors: AuditSelectors,
     private readonly auditService: AuditService,
     private readonly creditSelectors: CreditSelectors,
+    private readonly goBridge: GoBridgeService,
   ) {}
 
   /**
@@ -99,14 +105,15 @@ export class ReportsSelectors {
           budgetRevisions: { orderBy: { createdAt: 'asc' } },
         },
       }),
-      this.auditSelectors.listHistoricalSnapshots(),
+      this.auditSelectors.listHistoricalSnapshots(userId),
       this.prisma.savingsManualTransaction.findMany({
         where: { userId },
         orderBy: { date: 'asc' },
       }),
-      this.creditSelectors.getLiabilityMatrix(month, year, userId),
+      this.creditSelectors.getLiabilityMatrix(month, year, 12, userId),
       this.prisma.auditLog.findMany({
         where: {
+          userId,
           action: {
             in: [
               'BUDGET_TARGET_REVISED',
@@ -133,11 +140,13 @@ export class ReportsSelectors {
         },
         orderBy: { id: 'asc' },
       }),
-      this.prisma.creditContract.findMany({
-        where: { isActive: true },
-        orderBy: { id: 'asc' },
-      }),
-      this.auditService.getFullReport(),
+      userId === 2
+        ? Promise.resolve([])
+        : this.prisma.creditContract.findMany({
+            where: { isActive: true },
+            orderBy: { id: 'asc' },
+          }),
+      this.auditService.getFullReport(userId),
     ]);
 
     if (!config) {
@@ -379,8 +388,14 @@ export class ReportsSelectors {
       currentTargets.vape +
       currentTargets.haircut;
 
-    const waterfall = calculateWaterfall({
-      finalTotalIncome: payroll.finalTotalIncome,
+    const bridgeInflow = Math.max(
+      0,
+      Math.round(selectedSnapshot?.bridgeInflowAmount ?? 0),
+    );
+    const totalPoolIncome = payroll.finalTotalIncome + bridgeInflow;
+
+    const rawWaterfall = calculateWaterfall({
+      finalTotalIncome: totalPoolIncome,
       totalDeductions,
       savingsTarget: currentTargets.savings,
       selfRewardTarget: currentTargets.selfRewardTarget,
@@ -388,6 +403,23 @@ export class ReportsSelectors {
       fixedExpenses: fixedEssentialsRevised,
       bufferPocket: currentTargets.bufferPocket,
     });
+
+    const waterfall = selectedSnapshot?.isManualOverride
+      ? {
+          ...rawWaterfall,
+          actualDailyOperational:
+            selectedSnapshot.actualDailyOperational ??
+            rawWaterfall.actualDailyOperational,
+          actualSavings:
+            selectedSnapshot.actualSavings ?? rawWaterfall.actualSavings,
+          actualSelfReward:
+            selectedSnapshot.selfReward ?? rawWaterfall.actualSelfReward,
+          selfReward: selectedSnapshot.selfReward ?? rawWaterfall.selfReward,
+          deficitUncovered:
+            selectedSnapshot.deficitUncovered ?? rawWaterfall.deficitUncovered,
+          isDeficit: (selectedSnapshot.deficitUncovered ?? 0) > 0,
+        }
+      : rawWaterfall;
 
     const allocationDiffRows = buildAllocationDiffRows({
       globalDefaults: {
@@ -444,7 +476,7 @@ export class ReportsSelectors {
     const nextMonth = month === 12 ? 1 : month + 1;
     const nextYear = month === 12 ? year + 1 : year;
     const nextSnapshot = await this.prisma.monthlySnapshot.findUnique({
-      where: { userId_month_year: { userId: 1, month: nextMonth, year: nextYear } },
+      where: { userId_month_year: { userId, month: nextMonth, year: nextYear } },
     });
 
     const startNorm = normalizeDate(cycleStartDate);
@@ -748,7 +780,7 @@ export class ReportsSelectors {
     const periodLabel = formatReportPeriodLabel(month, year);
     const driversAndSpikes = buildMoneyDriversAndSpikes({
       periodLabel,
-      finalTotalIncome: payroll.finalTotalIncome,
+      finalTotalIncome: totalPoolIncome,
       paylaterBills,
       creditCardBills,
       personalDebtBills,
@@ -779,7 +811,7 @@ export class ReportsSelectors {
       waterfall.actualSavings +
       waterfall.actualSelfReward -
       waterfall.deficitUncovered;
-    const incomeDenom = Math.max(1, payroll.finalTotalIncome);
+    const incomeDenom = Math.max(1, totalPoolIncome);
 
     let vaultTransferStatus:
       | 'TRANSFERRED'
@@ -893,9 +925,13 @@ export class ReportsSelectors {
       },
       moneyCycle: {
         kpis: {
-          totalMoneyIn: payroll.finalTotalIncome,
+          totalMoneyIn: totalPoolIncome,
           netPaycheck: payroll.netSalaryIncome,
-          extraInflow: payroll.thrAmount + payroll.bonusAmount + extraIncome,
+          extraInflow:
+            payroll.thrAmount +
+            payroll.bonusAmount +
+            extraIncome +
+            bridgeInflow,
           totalDebtAndBillsPaid: totalCreditBills,
           debtShareOfIncomePercent:
             Math.round((totalCreditBills / incomeDenom) * 1000) / 10,
@@ -1130,6 +1166,7 @@ export class ReportsSelectors {
       scopedSnapshots.map((s) => `${s.month}/${s.year}`),
     );
     const allRevisions = await this.prisma.budgetRevision.findMany({
+      where: { snapshot: { userId } },
       orderBy: { createdAt: 'desc' },
     });
 
@@ -1181,6 +1218,122 @@ export class ReportsSelectors {
 
     const liquidityForecast = await this.getLiquidityForecast(month, year, 3, userId);
 
+    const historyMatrix = await this.creditSelectors.getLiabilityMatrix(
+      7,
+      2026,
+      24,
+      userId,
+    );
+    const allMatrixLineItems = Object.values(historyMatrix.lineItemsPerMonth ?? {})
+      .flat()
+      .sort((a, b) => a.year - b.year || a.month - b.month || a.id - b.id);
+    const creditCardScheduleItems = (historyMatrix.columns ?? []).flatMap((col) => {
+      const cell = historyMatrix.creditCardRow.cells[col.key];
+      const items = cell?.items ?? [];
+      return items.map((cc) => ({
+        id: cc.id,
+        periodMonth: col.month,
+        periodYear: col.year,
+        periodLabel: formatReportPeriodLabel(col.month, col.year),
+        label: cc.label,
+        chargeType: cc.chargeType,
+        amount: cc.amount,
+        sliceBadge: cc.sliceBadge,
+        endedAtLabel: cc.endedAtLabel,
+        dueDateIso: cc.dueDateIso,
+        settlementState: cc.settlementState,
+        isSettled: cc.isSettled,
+      }));
+    });
+    const activeContractsSummary = (historyMatrix.activeInstallmentPlans ?? []).map(
+      (p) => ({
+        id: p.id,
+        source: p.source,
+        category: p.category,
+        title: p.title,
+        merchantOrPlatform: p.merchantOrPlatform,
+        principalAmount: Math.round(p.principalAmount),
+        monthlyInstallment: Math.round(p.monthlyInstallment),
+        totalTenor: p.totalTenor,
+        remainingPrincipal: Math.round(p.remainingPrincipal),
+        payoffMonth: p.payoffMonth,
+        payoffYear: p.payoffYear,
+        payoffDateLabel: p.payoffDateLabel,
+      }),
+    );
+
+    const rawHorizonPeriods = comparativeStatement.periods.map((p) => ({
+      month: p.month,
+      year: p.year,
+      periodLabel: formatHybridPeriodLabel(p.month, p.year),
+      finalTotalIncome: Math.round(p.finalTotalIncome),
+      totalDebt: Math.round(p.creditBillsAmount),
+      fixedEssentials: Math.round(p.fixedEssentialsAmount),
+      actualDailyOperational: Math.round(p.actualDailyOperational),
+      bufferPocket: Math.round(p.bufferPocketAmount),
+      actualSavings: Math.round(p.actualSavings),
+      selfReward: Math.round(p.selfReward),
+      deficitUncovered: Math.round(p.deficitUncovered),
+      daysInCycle: 30,
+    }));
+    const hasSelectedInHorizon = rawHorizonPeriods.some(
+      (p) => p.month === month && p.year === year,
+    );
+    const periodHorizonInputs = hasSelectedInHorizon
+      ? rawHorizonPeriods
+      : [
+          ...rawHorizonPeriods,
+          {
+            month,
+            year,
+            periodLabel: formatHybridPeriodLabel(month, year),
+            finalTotalIncome: Math.round(closingStatement.moneyCycle.kpis.totalMoneyIn),
+            totalDebt: Math.round(closingStatement.upfrontAndWaterfall.totalCreditBills),
+            fixedEssentials: Math.round(closingStatement.upfrontAndWaterfall.fixedEssentialsActual),
+            actualDailyOperational: Math.round(closingStatement.upfrontAndWaterfall.actualDailyOperational),
+            bufferPocket: Math.round(closingStatement.upfrontAndWaterfall.actualBufferPocket),
+            actualSavings: Math.round(closingStatement.upfrontAndWaterfall.actualSavings),
+            selfReward: Math.round(closingStatement.upfrontAndWaterfall.actualSelfReward),
+            deficitUncovered: Math.round(closingStatement.upfrontAndWaterfall.deficitUncovered),
+            daysInCycle: Math.max(1, closingStatement.moneyCycle.dailyLiving.daysInCycle || 30),
+          },
+        ];
+    const contractHorizonInputs = (historyMatrix.activeInstallmentPlans ?? []).map((p) => ({
+      id: p.id,
+      title: p.title,
+      category: p.category,
+      merchantOrPlatform: p.merchantOrPlatform,
+      monthlyInstallment: Math.round(p.monthlyInstallment),
+      principalAmount: Math.round(p.principalAmount),
+      remainingPrincipal: Math.round(p.remainingPrincipal),
+      remainingSlices:
+        p.monthlyInstallment > 0
+          ? Math.max(1, Math.round(p.remainingPrincipal / p.monthlyInstallment))
+          : 1,
+      totalTenor: p.totalTenor,
+      payoffMonth: p.payoffMonth,
+      payoffYear: p.payoffYear,
+      payoffDateLabel: p.payoffDateLabel,
+    }));
+
+    const horizonMetrics = await this.goBridge.buildExecutiveHorizon({
+      selectedMonth: month,
+      selectedYear: year,
+      periods: periodHorizonInputs,
+      contracts: contractHorizonInputs,
+    });
+
+    const selectedKey = `${year}-${month}`;
+    const settlementTotalsForSelectedPeriod =
+      historyMatrix.settlementSummaryPerMonth?.[selectedKey] ??
+      liabilityMatrix.settlementSummaryPerMonth?.[selectedKey] ?? {
+        totalDue: Math.round(closingStatement.upfrontAndWaterfall.totalCreditBills),
+        paidAmount: 0,
+        reservedAmount: 0,
+        unpaidAmount: Math.round(closingStatement.upfrontAndWaterfall.totalCreditBills),
+        bankHoldNeeded: Math.round(closingStatement.upfrontAndWaterfall.totalCreditBills),
+      };
+
     return {
       selectedMonth: month,
       selectedYear: year,
@@ -1195,7 +1348,52 @@ export class ReportsSelectors {
         recentGovernanceLogs,
       },
       liquidityForecast,
+      liabilityLineItems: allMatrixLineItems.map((li) => ({
+        id: li.id,
+        month: li.month,
+        year: li.year,
+        periodLabel: formatReportPeriodLabel(li.month, li.year),
+        category: li.category,
+        title: li.title,
+        merchantOrPlatform: li.merchantOrPlatform,
+        principalAmount: Math.round(li.principalAmount),
+        monthlyAmount: Math.round(li.monthlyAmount),
+        tenorMonths: li.tenorMonths,
+        installmentIndex: li.installmentIndex,
+        dueDay: li.dueDay,
+        dueDateIso: li.dueDateIso,
+        settlementState: li.settlementState,
+        isSettled: li.isSettled,
+        parentContractId: li.parentContractId,
+        notes: li.notes,
+      })),
+      creditCardScheduleItems,
+      activeContractsSummary,
+      settlementTotalsForSelectedPeriod,
+      horizonMetrics,
     };
+  }
+
+  async getExecutiveHorizon(
+    month: number,
+    year: number,
+    scope: ReportScope = 'all',
+    userId: number = 1,
+  ): Promise<WithEngineMeta<ExecutiveHorizonResult>> {
+    const report = await this.getExecutiveReport(month, year, scope, userId);
+    if (report.horizonMetrics) {
+      return {
+        ...report.horizonMetrics,
+        engineSource:
+          (report.horizonMetrics as any).engineSource ?? 'TS_MIRROR',
+      };
+    }
+    return this.goBridge.buildExecutiveHorizon({
+      selectedMonth: month,
+      selectedYear: year,
+      periods: [],
+      contracts: [],
+    });
   }
 
   /**
@@ -1224,10 +1422,12 @@ export class ReportsSelectors {
         include: { transactions: true },
         orderBy: [{ year: 'asc' }, { month: 'asc' }],
       }),
-      this.prisma.creditContract.findMany({
-        where: { isActive: true },
-        orderBy: { id: 'asc' },
-      }),
+      userId === 2
+        ? Promise.resolve([])
+        : this.prisma.creditContract.findMany({
+            where: { isActive: true },
+            orderBy: { id: 'asc' },
+          }),
       this.prisma.scheduledBill.findMany({
         where: { isActive: true },
         orderBy: { id: 'asc' },

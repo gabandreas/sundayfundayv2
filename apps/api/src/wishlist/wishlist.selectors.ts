@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { WishlistItem, WishlistStatus } from '@prisma/client';
 
@@ -6,9 +6,12 @@ import { WishlistItem, WishlistStatus } from '@prisma/client';
 export class WishlistSelectors {
   constructor(private readonly prisma: PrismaService) {}
 
-  async listItems(status?: WishlistStatus): Promise<WishlistItem[]> {
+  async listItems(status?: WishlistStatus, userId: number = 1): Promise<WishlistItem[]> {
     return this.prisma.wishlistItem.findMany({
-      where: status !== undefined ? { status } : undefined,
+      where: {
+        userId,
+        ...(status !== undefined ? { status } : {}),
+      },
       orderBy: [
         { priority: 'desc' },
         { createdAt: 'desc' },
@@ -16,7 +19,11 @@ export class WishlistSelectors {
     });
   }
 
-  async getItemById(id: number): Promise<WishlistItem | null> {
-    return this.prisma.wishlistItem.findUnique({ where: { id } });
+  async getItemById(id: number, userId?: number): Promise<WishlistItem | null> {
+    const item = await this.prisma.wishlistItem.findUnique({ where: { id } });
+    if (item && userId !== undefined && item.userId !== userId) {
+      throw new ForbiddenException('Access denied to wishlist item');
+    }
+    return item;
   }
 }

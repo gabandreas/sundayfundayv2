@@ -5,6 +5,11 @@ import {
   calculateWaterfall,
 } from './waterfall';
 import { calculateDailyPacing } from './pacing';
+import {
+  evaluateModularEngine,
+  buildDefaultPayrollRules,
+  buildDefaultAllocationBuckets,
+} from './modular-engine';
 
 describe('waterfall calculator (2-priority structure)', () => {
   describe('normal surplus case with 2-priority allocation and surplus overflow', () => {
@@ -112,8 +117,8 @@ describe('waterfall calculator (2-priority structure)', () => {
     });
   });
 
-  describe('deficit branch (availableFunds < 0)', () => {
-    it('flags deficit, zeroes waterfall allocations, and sets survivalPocket to essentialAndOperational (need)', () => {
+  describe('deficit branch (availableFunds < 0) & Proportional Living Cash Law', () => {
+    it('flags deficit, funds proportional living cash from remaining cash after debt & routine, and zeroes P1/P2', () => {
       const input = {
         finalTotalIncome: 5000000,
         fixedExpenses: 1000000,
@@ -123,22 +128,66 @@ describe('waterfall calculator (2-priority structure)', () => {
         savingsTarget: 1000000,
       };
 
-      // essentialAndOperational = 1,000,000 + 3,000,000 = 4,000,000
-      // availableFunds = 5,000,000 - 4,000,000 - 0 - 2,000,000 = -1,000,000
+      // Debt (2,000,000) + Routine (1,000,000) = 3,000,000 -> AvailableForLiving = 2,000,000
+      // FundedLivingCash = min(3,000,000, 2,000,000) = 2,000,000
+      // Shortfall = 1,000,000
       const result = calculateWaterfall(input);
 
       expect(result.availableFunds).toBe(-1000000);
       expect(result.isDeficit).toBe(true);
       expect(result.deficitUncovered).toBe(1000000);
 
-      // Waterfall allocations fail
-      expect(result.actualDailyOperational).toBe(0);
+      // Proportional Living Cash is preserved (NOT collapsed to 0!), while P1/P2 are zeroed
+      expect(result.actualDailyOperational).toBe(2000000);
       expect(result.actualSavings).toBe(0);
       expect(result.selfReward).toBe(0);
       expect(result.actualSelfReward).toBe(0);
 
-      // survivalPocket reflects essentialAndOperational (baseline NEED)
-      expect(result.survivalPocket).toBe(4000000);
+      // survivalPocket reflects FundedLivingCash + fixedExpenses = 2,000,000 + 1,000,000 = 3,000,000
+      expect(result.survivalPocket).toBe(3000000);
+    });
+
+    it('matches User #1 NOV 2026 organic proportional allocation (Rp 83.341 shortfall -> Rp 1.416.659 living cash)', () => {
+      const result = calculateWaterfall({
+        finalTotalIncome: 5904000,
+        fixedExpenses: 300000,
+        dailyOperationalTarget: 1500000,
+        bufferPocket: 0,
+        totalDeductions: 4187341,
+        savingsTarget: 500000,
+      });
+
+      expect(result.isDeficit).toBe(true);
+      expect(result.actualDailyOperational).toBe(1416659);
+      expect(result.deficitUncovered).toBe(83341);
+      expect(result.actualSavings).toBe(0);
+      expect(result.selfReward).toBe(0);
+      expect(result.survivalPocket).toBe(1716659);
+      // Conservation Eq 1 & Eq 2
+      expect(4187341 + 300000 + result.actualDailyOperational + result.actualSavings + result.selfReward).toBe(5904000);
+      expect(5904000 + result.deficitUncovered).toBe(4187341 + 300000 + 1500000 + result.actualSavings + result.selfReward);
+    });
+
+    it('collapses actualDailyOperational to 0 ONLY when Debt + Routine >= NetIncome', () => {
+      const extreme = calculateWaterfall({
+        finalTotalIncome: 4400000,
+        fixedExpenses: 300000,
+        dailyOperationalTarget: 1500000,
+        totalDeductions: 4200000,
+        savingsTarget: 500000,
+      });
+      expect(extreme.actualDailyOperational).toBe(0);
+      expect(extreme.deficitUncovered).toBe(1600000);
+
+      const oneRpShort = calculateWaterfall({
+        finalTotalIncome: 5999999,
+        fixedExpenses: 300000,
+        dailyOperationalTarget: 1500000,
+        totalDeductions: 4200000,
+        savingsTarget: 500000,
+      });
+      expect(oneRpShort.actualDailyOperational).toBe(1499999);
+      expect(oneRpShort.deficitUncovered).toBe(1);
     });
   });
 
@@ -447,6 +496,91 @@ describe('waterfall calculator (2-priority structure)', () => {
       expect(result.actualSavings).toBe(1000000);
       expect(result.selfReward).toBe(0);
       expect(result.isDeficit).toBe(false);
+    });
+  });
+
+  describe('Manual Override Transparent Deficit Surfacing (evaluateModularEngine)', () => {
+    it('surfaces Rp 369,145 deficit on 11/2026 manual override while protecting Rp 1,500,000 Daily Operational', () => {
+      const novRules = buildDefaultPayrollRules(25000, 250000);
+      const novBuckets = buildDefaultAllocationBuckets({
+        transport: 300000,
+        internet: 0,
+        vape: 0,
+        haircut: 0,
+        dailyOperational: 1500000,
+        savings: 1000000,
+        bufferPocket: 0,
+      });
+
+      const result = evaluateModularEngine({
+        baseSalary: 5300000,
+        salaryAdjustment: 0,
+        totalWorkingDays: 21, // 5,300,000 - 159,000 BPJS + 250,000 laptop + 525,000 attendance = 5,916,000; test exact via cafeteria 12,000 -> 5,904,000
+        dailyAllowance: 25000,
+        cafeteriaDeduction: 12000,
+        thrAmount: 0,
+        bonusAmount: 0,
+        extraIncome: 0,
+        bridgeInflowAmount: 0,
+        month: 11,
+        year: 2026,
+        cycleDays: 31,
+        totalCreditBills: 4473145,
+        totalDeductions: 4473145,
+        payrollRules: novRules,
+        allocationBuckets: novBuckets,
+        isManualOverride: true,
+        lockedP1: 0,
+        lockedP2: 0,
+      });
+
+      expect(result.payroll.finalTotalIncome).toBe(5904000);
+      expect(result.waterfall.actualDailyOperational).toBe(1500000);
+      expect(result.waterfall.actualSavings).toBe(0);
+      expect(result.waterfall.selfReward).toBe(0);
+      expect(result.waterfall.deficitUncovered).toBe(369145);
+      expect(result.waterfall.isDeficit).toBe(true);
+    });
+
+    it('keeps deficitUncovered = 0 when 10/2026 manual override balances exactly against Net Income + Bridge', () => {
+      const octRules = buildDefaultPayrollRules(25000, 250000);
+      const octBuckets = buildDefaultAllocationBuckets({
+        transport: 200000,
+        internet: 200000,
+        vape: 0,
+        haircut: 0,
+        dailyOperational: 1720316,
+        savings: 6341,
+        bufferPocket: 0,
+      });
+
+      const result = evaluateModularEngine({
+        baseSalary: 5300000,
+        salaryAdjustment: 0,
+        totalWorkingDays: 20, // 5,300,000 - 159,000 + 250,000 + 500,000 = 5,891,000 (+ 900,000 bridge = 6,791,000)
+        dailyAllowance: 25000,
+        cafeteriaDeduction: 0,
+        thrAmount: 0,
+        bonusAmount: 0,
+        extraIncome: 0,
+        bridgeInflowAmount: 900000,
+        month: 10,
+        year: 2026,
+        cycleDays: 30,
+        totalCreditBills: 4414343,
+        totalDeductions: 4414343,
+        payrollRules: octRules,
+        allocationBuckets: octBuckets,
+        isManualOverride: true,
+        lockedP1: 6341,
+        lockedP2: 250000,
+      });
+
+      expect(result.waterfall.actualDailyOperational).toBe(1720316);
+      expect(result.waterfall.actualSavings).toBe(6341);
+      expect(result.waterfall.selfReward).toBe(250000);
+      expect(result.waterfall.deficitUncovered).toBe(0);
+      expect(result.waterfall.isDeficit).toBe(false);
     });
   });
 });

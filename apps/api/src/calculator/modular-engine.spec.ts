@@ -603,5 +603,189 @@ describe('Modular Formula, Dynamic Bucket & Policy Engine', () => {
       expect(dailyOpBucket?.loggedSpend).toBe(1120316);
       expect(dailyOpBucket?.remainingBudget).toBe(-100000);
     });
+
+    it('preserves locked physical cash allocations and surfaces uncovered deficit when isManualOverride is true despite mid-cycle PayLater Debt Matrix growth', () => {
+      const result = evaluateModularEngine({
+        ...baseSnapshotInput,
+        extraIncome: 900000,
+        totalDeductions: 4913343,
+        totalCreditBills: 4913343,
+        isManualOverride: true,
+        lockedP1: 6341,
+        lockedP2: 250000,
+        allocationBuckets: [
+          ...baseSnapshotInput.allocationBuckets.filter(
+            (b) => b.id !== 'daily_operational' && b.id !== 'transport' && b.id !== 'internet' && b.id !== 'vape' && b.id !== 'haircut',
+          ),
+          {
+            id: 'transport',
+            label: 'Transport',
+            group: 'FIXED_ESSENTIAL' as const,
+            priorityTier: 0,
+            formulaType: 'FIXED_AMOUNT' as const,
+            value: 200000,
+            isActive: true,
+          },
+          {
+            id: 'internet',
+            label: 'Nov 25 Bill',
+            group: 'FIXED_ESSENTIAL' as const,
+            priorityTier: 0,
+            formulaType: 'FIXED_AMOUNT' as const,
+            value: 200000,
+            isActive: true,
+          },
+          {
+            id: 'daily_operational',
+            label: 'Daily Living',
+            group: 'DAILY_OPERATIONAL' as const,
+            priorityTier: 0,
+            formulaType: 'FIXED_AMOUNT' as const,
+            value: 1720316,
+            isActive: true,
+          },
+          {
+            id: 'self_reward',
+            label: 'Self-Reward',
+            group: 'SELF_REWARD_P2' as const,
+            priorityTier: 2,
+            formulaType: 'REMAINDER_OVERFLOW' as const,
+            value: 250000,
+            isActive: true,
+          },
+        ],
+      });
+
+      // Mid-cycle debt growth under a locked manual override surfaces as uncovered deficit without mutating locked physical cash
+      expect(result.waterfall.deficitUncovered).toBe(499000);
+      expect(result.waterfall.actualDailyOperational).toBe(1720316);
+      expect(result.waterfall.survivalPocket).toBe(2120316);
+      expect(result.waterfall.actualSavings).toBe(6341);
+      expect(result.waterfall.actualSelfReward).toBe(250000);
+    });
+
+    it('funds waterfall with bridgeInflowAmount without polluting payroll.finalTotalIncome or extraIncome', () => {
+      // Base 5,300,000 - BPJS 159,000 + Laptop 250,000 + Attendance (20 * 25,000 = 500,000) = 5,891,000
+      // Bridge loan inflow: 900,000 -> total pool = 6,791,000
+      // Obligations: 4,414,343 debt + 400,000 routine + 1,720,316 daily ops = 6,534,659
+      // Remaining: 256,341 -> P1 Savings (target 500,000 capped or locked 6,341) + P2 (250,000)
+      const bridgeResult = evaluateModularEngine({
+        baseSalary: 5300000,
+        salaryAdjustment: 0,
+        totalWorkingDays: 20,
+        dailyAllowance: 25000,
+        cafeteriaDeduction: 0,
+        thrAmount: 0,
+        bonusAmount: 0,
+        extraIncome: 0,
+        bridgeInflowAmount: 900000,
+        month: 10,
+        year: 2026,
+        cycleDays: 30,
+        totalCreditBills: 4414343,
+        totalDeductions: 4414343,
+        isManualOverride: true,
+        lockedP1: 6341,
+        lockedP2: 250000,
+        allocationBuckets: [
+          {
+            id: 'transport',
+            label: 'Transport',
+            group: 'FIXED_ESSENTIAL' as const,
+            priorityTier: 0,
+            formulaType: 'FIXED_AMOUNT' as const,
+            value: 200000,
+            isActive: true,
+          },
+          {
+            id: 'internet',
+            label: 'Nov 25 Bill',
+            group: 'FIXED_ESSENTIAL' as const,
+            priorityTier: 0,
+            formulaType: 'FIXED_AMOUNT' as const,
+            value: 200000,
+            isActive: true,
+          },
+          {
+            id: 'daily_operational',
+            label: 'Daily Living',
+            group: 'DAILY_OPERATIONAL' as const,
+            priorityTier: 0,
+            formulaType: 'FIXED_AMOUNT' as const,
+            value: 1720316,
+            isActive: true,
+          },
+          {
+            id: 'core_savings',
+            label: 'Priority 1 Savings',
+            group: 'SAVINGS_P1' as const,
+            priorityTier: 1,
+            formulaType: 'FIXED_AMOUNT' as const,
+            value: 500000,
+            isActive: true,
+          },
+          {
+            id: 'self_reward',
+            label: 'Self-Reward',
+            group: 'SELF_REWARD_P2' as const,
+            priorityTier: 2,
+            formulaType: 'REMAINDER_OVERFLOW' as const,
+            value: 250000,
+            isActive: true,
+          },
+        ],
+      });
+
+      expect(bridgeResult.payroll.finalTotalIncome).toBe(5891000);
+      expect(bridgeResult.waterfall.availableFunds).toBe(256341);
+      expect(bridgeResult.waterfall.actualDailyOperational).toBe(1720316);
+      expect(bridgeResult.waterfall.actualSavings).toBe(6341);
+      expect(bridgeResult.waterfall.actualSelfReward).toBe(250000);
+      expect(bridgeResult.waterfall.deficitUncovered).toBe(0);
+      expect(bridgeResult.waterfall.isDeficit).toBe(false);
+    });
+
+    it('funds proportional living cash on NOV 2026 shortfall without all-or-nothing cliff collapse', () => {
+      const novRules = buildDefaultPayrollRules(25000, 250000);
+      const novBuckets = buildDefaultAllocationBuckets({
+        transport: 300000,
+        internet: 0,
+        vape: 0,
+        haircut: 0,
+        dailyOperational: 1500000,
+        savings: 500000,
+        bufferPocket: 0,
+      });
+
+      const res = evaluateModularEngine({
+        baseSalary: 5300000,
+        salaryAdjustment: 0,
+        totalWorkingDays: 21,
+        dailyAllowance: 25000,
+        cafeteriaDeduction: 12000,
+        month: 11,
+        year: 2026,
+        cycleDays: 30,
+        totalCreditBills: 4187341,
+        totalDeductions: 4187341,
+        payrollRules: novRules,
+        allocationBuckets: novBuckets,
+        isManualOverride: false,
+      });
+
+      expect(res.payroll.finalTotalIncome).toBe(5904000);
+      expect(res.waterfall.isDeficit).toBe(true);
+      expect(res.waterfall.actualDailyOperational).toBe(1416659);
+      expect(res.waterfall.deficitUncovered).toBe(83341);
+      expect(res.waterfall.actualSavings).toBe(0);
+      expect(res.waterfall.actualSelfReward).toBe(0);
+      expect(res.waterfall.survivalPocket).toBe(1716659);
+
+      const livingBucket = res.bucketRealizations.find(
+        (b) => b.bucketId === 'daily_operational',
+      );
+      expect(livingBucket?.fundedAmount).toBe(1416659);
+      expect(livingBucket?.revisedTarget).toBe(1500000);
+    });
   });
 });

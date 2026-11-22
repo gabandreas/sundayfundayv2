@@ -3,6 +3,7 @@ import { PacingResult } from './pacing';
 import { AuditFlag } from './discipline';
 import { ExecutiveLiquidityForecastReport } from './forecasting';
 import { FixedEssentialsRealizationSummary } from './waterfall';
+import { ExecutiveHorizonResult } from './hybrid-engine';
 
 export type ReportScope = 'all' | 'locked';
 
@@ -396,6 +397,56 @@ export interface BudgetRevisionAndDisciplineDossier {
   recentGovernanceLogs: DossierGovernanceLogItem[];
 }
 
+export interface ReportLiabilityLineItem {
+  id: number;
+  month: number;
+  year: number;
+  periodLabel: string;
+  category: string;
+  title: string;
+  merchantOrPlatform: string;
+  principalAmount: number;
+  monthlyAmount: number;
+  tenorMonths: number;
+  installmentIndex: number;
+  dueDay: number;
+  dueDateIso: string;
+  settlementState: 'UNPAID' | 'RESERVED' | 'PAID';
+  isSettled: boolean;
+  parentContractId: string | null;
+  notes: string | null;
+}
+
+export interface ReportCreditCardScheduleItem {
+  id: number;
+  periodMonth: number;
+  periodYear: number;
+  periodLabel: string;
+  label: string;
+  chargeType: string;
+  amount: number;
+  sliceBadge: string | null;
+  endedAtLabel: string | null;
+  dueDateIso: string;
+  settlementState: 'UNPAID' | 'RESERVED' | 'PAID';
+  isSettled: boolean;
+}
+
+export interface ReportActiveContractSummary {
+  id: string;
+  source: string;
+  category: string;
+  title: string;
+  merchantOrPlatform: string;
+  principalAmount: number;
+  monthlyInstallment: number;
+  totalTenor: number;
+  remainingPrincipal: number;
+  payoffMonth: number;
+  payoffYear: number;
+  payoffDateLabel: string;
+}
+
 export interface ExecutiveReportPayload {
   selectedMonth: number;
   selectedYear: number;
@@ -406,6 +457,17 @@ export interface ExecutiveReportPayload {
   amortizationSchedule: LiabilityAmortizationSchedule;
   dossier: BudgetRevisionAndDisciplineDossier;
   liquidityForecast: ExecutiveLiquidityForecastReport;
+  liabilityLineItems?: ReportLiabilityLineItem[];
+  creditCardScheduleItems?: ReportCreditCardScheduleItem[];
+  activeContractsSummary?: ReportActiveContractSummary[];
+  settlementTotalsForSelectedPeriod?: {
+    totalDue: number;
+    paidAmount: number;
+    reservedAmount: number;
+    unpaidAmount: number;
+    bankHoldNeeded: number;
+  };
+  horizonMetrics?: ExecutiveHorizonResult;
 }
 
 const SHORT_MONTHS = [

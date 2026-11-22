@@ -1,4 +1,112 @@
-import { CreditCardChargeType } from '@prisma/client';
+import { CreditCardChargeType, LiabilityCategory } from '@prisma/client';
+import {
+  getJakartaDateParts,
+  SPAYLATER_DUE_DAY,
+  CC_DUE_DAY,
+  PERSONAL_DEBT_DUE_DAY,
+} from '../calculator/pacing';
+
+export const MANUAL_UNPAID_MARKER = '[MANUAL_UNPAID]';
+
+export interface ObligationSettlementResult {
+  isSettled: boolean;
+  isAutoSettled: boolean;
+  isPastDueDate: boolean;
+  dueDateIso: string;
+  dueMonth: number;
+  dueYear: number;
+  dueDay: number;
+}
+
+export function getDefaultDueDayForCategory(
+  category: LiabilityCategory | string,
+  configuredCcDueDay: number = CC_DUE_DAY,
+): number {
+  if (category === 'CREDIT_CARD' || category === 'CC_TRANSACTION') {
+    return configuredCcDueDay;
+  }
+  if (category === LiabilityCategory.PERSONAL_DEBT || category === 'PERSONAL_DEBT') {
+    return PERSONAL_DEBT_DUE_DAY;
+  }
+  return SPAYLATER_DUE_DAY;
+}
+
+export function stripManualUnpaidMarker(notes?: string | null): string | null {
+  if (!notes) return null;
+  const cleaned = notes.replace(/\[MANUAL_UNPAID(?::\d{4}-\d{1,2})?\]/g, '').trim();
+  return cleaned.length > 0 ? cleaned : null;
+}
+
+export function setManualUnpaidMarker(
+  notes: string | null | undefined,
+  manualUnpaid: boolean,
+  periodScope?: string,
+): string | null {
+  const cleaned = stripManualUnpaidMarker(notes);
+  if (!manualUnpaid) {
+    return cleaned;
+  }
+  const tag = periodScope ? `[MANUAL_UNPAID:${periodScope}]` : MANUAL_UNPAID_MARKER;
+  return cleaned ? `${cleaned} ${tag}` : tag;
+}
+
+/**
+ * Evaluates settlement status deterministically without mutating DB state on read.
+ * Under the payday-to-bill cycle convention, obligations for period M/YYYY are due
+ * on `dueDay` of calendar month M+1 in Asia/Jakarta (WIB). Once Jakarta wall-clock
+ * date >= dueDate, items are surfaced as Auto-Paid unless explicitly overridden Unpaid.
+ */
+export function evaluateObligationSettlement(params: {
+  periodMonth: number;
+  periodYear: number;
+  dueDay: number;
+  dbIsSettled: boolean;
+  notes?: string | null;
+  now?: Date;
+  periodScope?: string;
+}): ObligationSettlementResult {
+  const dueMonth = params.periodMonth;
+  const dueYear = params.periodYear;
+  const lastDayOfDueMonth = new Date(Date.UTC(dueYear, dueMonth, 0)).getUTCDate();
+  const clampedDueDay = Math.min(Math.max(1, Math.round(params.dueDay)), lastDayOfDueMonth);
+
+  const dueDateIso = `${dueYear}-${String(dueMonth).padStart(2, '0')}-${String(clampedDueDay).padStart(2, '0')}`;
+  const jkt = getJakartaDateParts(params.now);
+
+  const isPastDueDate =
+    jkt.year > dueYear ||
+    (jkt.year === dueYear &&
+      (jkt.month > dueMonth || (jkt.month === dueMonth && jkt.day >= clampedDueDay)));
+
+  const hasManualUnpaid = params.periodScope
+    ? Boolean(params.notes?.includes(`[MANUAL_UNPAID:${params.periodScope}]`))
+    : Boolean(params.notes?.includes(MANUAL_UNPAID_MARKER));
+
+  if (hasManualUnpaid) {
+    return {
+      isSettled: false,
+      isAutoSettled: false,
+      isPastDueDate,
+      dueDateIso,
+      dueMonth,
+      dueYear,
+      dueDay: clampedDueDay,
+    };
+  }
+
+  const isSettled = Boolean(params.dbIsSettled) || isPastDueDate;
+  const isAutoSettled = !params.dbIsSettled && isPastDueDate;
+
+  return {
+    isSettled,
+    isAutoSettled,
+    isPastDueDate,
+    dueDateIso,
+    dueMonth,
+    dueYear,
+    dueDay: clampedDueDay,
+  };
+}
 
 export interface CreditCardDueLike {
   amount: number;
@@ -216,4 +324,57 @@ export function calculateCardInstallmentProgress(
     canSettleEarly:
       card.status !== 'CANCELLED' && remainingSlicesIncludingTarget > 0,
   };
+}
+
+export const RESERVED_MARKER = '[RESERVED]';
+
+export function hasReservedMarker(
+  notes: string | null | undefined,
+  periodScope?: string,
+): boolean {
+  if (!notes) return false;
+  if (periodScope && notes.includes(`[RESERVED:${periodScope}]`)) {
+    return true;
+  }
+  return notes.includes(RESERVED_MARKER);
+}
+
+export function stripReservedMarker(notes: string | null | undefined): string | null {
+  if (!notes) return null;
+  const cleaned = notes.replace(/\[RESERVED(?::\d{4}-\d{1,2})?\]/g, '').trim();
+  return cleaned.length > 0 ? cleaned : null;
+}
+
+export function setReservedMarker(
+  notes: string | null | undefined,
+  reserved: boolean,
+  periodScope?: string,
+): string | null {
+  const base = stripReservedMarker(notes);
+  if (!reserved) return base;
+  const tag = periodScope ? `[RESERVED:${periodScope}]` : RESERVED_MARKER;
+  return base ? `${base} ${tag}` : tag;
+}
+
+export function stripAllSettlementMarkers(
+  notes: string | null | undefined,
+): string | null {
+  if (!notes) return null;
+  const cleaned = notes
+    .replace(/\[MANUAL_UNPAID(?::\d{4}-\d{1,2})?\]/g, '')
+    .replace(/\[RESERVED(?::\d{4}-\d{1,2})?\]/g, '')
+    .trim();
+  return cleaned.length > 0 ? cleaned : null;
+}
+
+export type DerivedBillSettlementState = 'UNPAID' | 'RESERVED' | 'PAID';
+
+export function resolveBillSettlementState(params: {
+  isSettled: boolean;
+  notes: string | null | undefined;
+  periodScope?: string;
+}): DerivedBillSettlementState {
+  if (params.isSettled) return 'PAID';
+  if (hasReservedMarker(params.notes, params.periodScope)) return 'RESERVED';
+  return 'UNPAID';
 }

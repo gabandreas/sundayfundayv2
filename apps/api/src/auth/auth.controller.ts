@@ -2,6 +2,7 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
   Body,
   Req,
   UseGuards,
@@ -14,8 +15,9 @@ import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { VerifyPasswordDto } from './dto/verify-password.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { CurrentUser } from './current-user.decorator';
-import { extractClientIp } from './auth.utils';
+import { extractClientIp, getUserIdOrThrow } from './auth.utils';
 
 @Controller('api/auth')
 export class AuthController {
@@ -37,7 +39,7 @@ export class AuthController {
     @Body() dto: VerifyPasswordDto,
     @Req() req: Request,
   ) {
-    const userId = (req as any).user?.id || (req as any).userId;
+    const userId = getUserIdOrThrow(req);
     const clientIp = extractClientIp(req);
     return this.authService.verifyPassword(userId, dto.password, clientIp);
   }
@@ -69,12 +71,18 @@ export class AuthController {
   }
 
   @Get('me')
-  async getMe(@CurrentUser() user: any, @Req() req: any) {
-    const userId = user?.id || req.userId || (process.env.NODE_ENV === 'test' ? 1 : null);
-    if (!userId) {
-      throw new UnauthorizedException('No active session.');
-    }
+  async getMe(@CurrentUser() _user: any, @Req() req: any) {
+    const userId = getUserIdOrThrow(req);
     return this.authService.getMe(userId);
+  }
+
+  @Patch('profile')
+  async updateProfile(
+    @Body() dto: UpdateProfileDto,
+    @Req() req: any,
+  ) {
+    const userId = getUserIdOrThrow(req);
+    return this.authService.updateProfile(userId, dto);
   }
 
   @Post('reset-demo')

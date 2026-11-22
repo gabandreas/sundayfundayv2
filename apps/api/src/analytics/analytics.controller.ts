@@ -1,6 +1,7 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query, Req } from '@nestjs/common';
 import { AnalyticsSelectors } from './analytics.selectors';
 import { AnalyticsReportResult, AnalyticsScope } from '../calculator/analytics';
+import { getUserIdOrThrow } from '../auth/auth.utils';
 
 @Controller('api/analytics')
 export class AnalyticsController {
@@ -9,9 +10,11 @@ export class AnalyticsController {
   @Get()
   async getAnalytics(
     @Query('scope') scope?: string,
+    @Req() req?: any,
   ): Promise<AnalyticsReportResult> {
     const normalizedScope: AnalyticsScope =
       scope === 'locked' ? 'locked' : 'all';
-    return this.analyticsSelectors.getAnalyticsReport(normalizedScope);
+    const userId = getUserIdOrThrow(req);
+    return this.analyticsSelectors.getAnalyticsReport(normalizedScope, userId);
   }
 }
