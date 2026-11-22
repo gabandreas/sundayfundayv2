@@ -14,6 +14,7 @@ import { OnboardingWizardModal } from "@/components/onboarding/OnboardingWizardM
 import { CustomRuleRequestModal } from "@/components/shell/CustomRuleRequestModal";
 import { ProfileSettingsModal } from "@/components/shell/ProfileSettingsModal";
 import { MarqueeCoPilotDrawer } from "@/components/marquee/MarqueeCoPilotDrawer";
+import { MarqueeFloatingLauncher } from "@/components/marquee/MarqueeFloatingLauncher";
 import { BrandMark } from "@/components/primitives/BrandMark";
 import { TopProgressBar } from "./TopProgressBar";
 
@@ -127,6 +128,10 @@ function AppShellProtected({ children }: { children: React.ReactNode }) {
             <OnboardingWizardModal />
             <CustomRuleRequestModal />
             <ProfileSettingsModal />
+            <MarqueeFloatingLauncher
+              isOpen={isMarqueeOpen}
+              onToggle={() => setIsMarqueeOpen((prev) => !prev)}
+            />
             <MarqueeCoPilotDrawer
               isOpen={isMarqueeOpen}
               onClose={() => setIsMarqueeOpen(false)}

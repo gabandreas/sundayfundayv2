@@ -8,11 +8,17 @@ import { MarqueeController } from './marquee.controller';
 import { MarqueeService } from './marquee.service';
 import { MarqueeToolsService } from './marquee-tools.service';
 import { MarqueeLlmService } from './marquee-llm.service';
+import { MarqueeContextHydrator } from './marquee-context.service';
 
 @Module({
   imports: [PrismaModule, SnapshotsModule, FinanceModule, CreditModule, SavingsModule],
   controllers: [MarqueeController],
-  providers: [MarqueeService, MarqueeToolsService, MarqueeLlmService],
-  exports: [MarqueeService, MarqueeToolsService],
+  providers: [
+    MarqueeService,
+    MarqueeToolsService,
+    MarqueeLlmService,
+    MarqueeContextHydrator,
+  ],
+  exports: [MarqueeService, MarqueeToolsService, MarqueeContextHydrator],
 })
 export class MarqueeModule {}

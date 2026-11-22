@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
 import { Send, X, ArrowUpRight } from "lucide-react";
 import { MarqueeMark } from "@/components/primitives/MarqueeMark";
 import { MarqueeChatResponse, sendMarqueeChat } from "@/lib/api";
@@ -24,8 +25,10 @@ interface ChatMessageItem {
 const QUICK_PROMPTS = [
   "Safe to spend today?",
   "Log kopi kenangan 34k",
+  "Split my 3.4jt Natal THR bonus",
+  "Compare 11/2026 vs 12/2026 variance",
   "Cek sisa cicilan aktif SPinjam",
-  "Simulasi pelunasan 1jt",
+  "Formula net_income - total_debt - living_pool",
 ];
 
 function isPointInsideRect(x: number, y: number, rect: DOMRect): boolean {
@@ -37,6 +40,10 @@ export function MarqueeCoPilotDrawer({ isOpen, onClose }: MarqueeCoPilotDrawerPr
   const inputRef = useRef<HTMLInputElement | null>(null);
   const pointerDownInsideRef = useRef<boolean>(true);
   const scrollEndRef = useRef<HTMLDivElement | null>(null);
+
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const activeSubTab = searchParams?.get("sub") ?? null;
 
   const { month, year, refreshPeriod } = usePeriod();
   const { locale } = useLanguage();
@@ -80,6 +87,8 @@ export function MarqueeCoPilotDrawer({ isOpen, onClose }: MarqueeCoPilotDrawerPr
         month,
         year,
         locale,
+        activeRoute: pathname || "/",
+        activeSubTab,
       });
       setMessages((prev) => [
         ...prev,
@@ -106,6 +115,8 @@ export function MarqueeCoPilotDrawer({ isOpen, onClose }: MarqueeCoPilotDrawerPr
         month,
         year,
         locale,
+        activeRoute: pathname || "/",
+        activeSubTab,
       });
       if (committed) {
         setMessages((prev) => [
@@ -123,6 +134,8 @@ export function MarqueeCoPilotDrawer({ isOpen, onClose }: MarqueeCoPilotDrawerPr
       setConfirmingId(null);
     }
   };
+
+  const periodTag = `${String(month).padStart(2, "0")}/${year}`;
 
   return (
     <dialog
@@ -149,17 +162,18 @@ export function MarqueeCoPilotDrawer({ isOpen, onClose }: MarqueeCoPilotDrawerPr
     >
       {/* Header */}
       <div className="px-4 py-3.5 border-b border-border flex items-center justify-between gap-2 shrink-0 bg-canvas">
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-center gap-2.5 min-w-0">
           <MarqueeMark className="w-4 h-4 text-delta-positive shrink-0" />
           <div className="min-w-0">
             <h2
               id="marquee-drawer-title"
               className="text-xs font-semibold text-text-primary truncate"
             >
-              Marquee AI Co-Pilot (Alt+M)
+              Marquee Financial Co-Pilot
             </h2>
             <p className="text-[10px] font-mono text-text-tertiary truncate">
-              Deterministic Tier 1 NLU + Bring-Your-Own-Key LLM
+              Context: {periodTag} · {pathname || "/"}
+              {activeSubTab ? `?sub=${activeSubTab}` : ""}
             </p>
           </div>
         </div>
@@ -188,18 +202,18 @@ export function MarqueeCoPilotDrawer({ isOpen, onClose }: MarqueeCoPilotDrawerPr
       <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-surface">
         {messages.length === 0 ? (
           <div className="space-y-3">
-            <div className="rounded border border-border-subtle bg-surface-subtle/50 p-3 text-xs text-text-secondary space-y-1.5">
+            <div className="border-b border-border-subtle pb-3 text-xs text-text-secondary space-y-1">
               <div className="font-semibold text-text-primary">
-                Deterministic Financial Assistant (EN / ID / ZH)
+                Grounded in your live {periodTag} ledger (EN / ID / ZH)
               </div>
               <p className="text-[11px] text-text-tertiary leading-relaxed">
-                Ask for live pacing, upcoming due bills, affordability simulations, or capture expenses in natural Rupiah shorthand (e.g. &quot;log kopi 35k&quot; or &quot;catat spaylater 900rb 3x&quot;).
+                Check daily pacing, test SPayLater 15th / Card 20th cutoffs, plan your THR split, compare period variance, or stage expenses in Rupiah shorthand (&quot;log kopi 35k&quot;, &quot;catat spaylater 900rb 3x&quot;).
               </p>
             </div>
 
             <div className="space-y-1.5">
               <div className="text-[10px] font-mono uppercase text-text-tertiary">
-                Quick Prompts
+                Suggested Commands
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {QUICK_PROMPTS.map((q) => (

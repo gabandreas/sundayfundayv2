@@ -6400,7 +6400,13 @@ export async function evaluateFormulaSuiteApi(payload: {
 // MARQUEE 3-TIER DETERMINISTIC AI CO-PILOT APIS (/api/marquee)
 // ============================================================================
 
-export type MarqueeAiProvider = "TIER1_ONLY" | "GEMINI" | "GROQ";
+export type MarqueeAiProvider =
+  | "TIER1_ONLY"
+  | "GEMINI"
+  | "GROQ"
+  | "DEEPSEEK"
+  | "OPENCODE"
+  | "AUTO";
 
 export interface MarqueeCardItem {
   label: string;
@@ -6426,9 +6432,23 @@ export interface MarqueeChatResponse {
   summary: string;
   cards: MarqueeCardItem[];
   pendingAction?: MarqueePendingAction;
-  tierUsed: "TIER1_NLU" | "TIER2_GEMINI" | "TIER2_GROQ" | "CONFIRMED_EXECUTION";
+  tierUsed:
+    | "TIER1_NLU"
+    | "TIER2_GEMINI"
+    | "TIER2_GROQ"
+    | "TIER2_DEEPSEEK"
+    | "TIER2_OPENCODE"
+    | "CONFIRMED_EXECUTION";
   model: string;
   locale: "en" | "id" | "zh";
+  hydratedContext?: {
+    periodTag: string;
+    cycleTemporalState: "PRE_PAYDAY" | "ACTIVE" | "COMPLETED";
+    cycleDateLabel: string;
+    activeRoute: string;
+    activeSubTab: string | null;
+    canonicalDueDays: number[];
+  };
   data?: Record<string, unknown>;
 }
 
@@ -6438,6 +6458,13 @@ export interface MarqueeConfigResponse {
   geminiKeyPreview: string;
   hasGroqKey: boolean;
   groqKeyPreview: string;
+  hasDeepseekKey: boolean;
+  deepseekKeyPreview: string;
+  deepseekModel: "deepseek-chat" | "deepseek-reasoner";
+  hasOpencodeKey: boolean;
+  opencodeKeyPreview: string;
+  opencodeBaseUrl: string;
+  opencodeModel: string;
   hasWebhookToken: boolean;
   webhookTokenPreview: string;
   webhookEnabled: boolean;
@@ -6452,6 +6479,8 @@ export async function sendMarqueeChat(payload: {
   month?: number;
   year?: number;
   locale?: "en" | "id" | "zh";
+  activeRoute?: string;
+  activeSubTab?: string | null;
 }): Promise<MarqueeChatResponse | null> {
   try {
     const res = await fetch(`${API_URL}/api/marquee/chat`, {
@@ -6485,6 +6514,11 @@ export async function updateMarqueeConfig(payload: {
   provider?: MarqueeAiProvider;
   geminiApiKey?: string | null;
   groqApiKey?: string | null;
+  deepseekApiKey?: string | null;
+  deepseekModel?: "deepseek-chat" | "deepseek-reasoner";
+  opencodeApiKey?: string | null;
+  opencodeBaseUrl?: string | null;
+  opencodeModel?: string | null;
   webhookEnabled?: boolean;
 }): Promise<MarqueeConfigResponse | null> {
   try {

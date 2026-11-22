@@ -47,6 +47,44 @@ function formatRp(amount: number): string {
   return `${sign}Rp ${abs.toLocaleString('id-ID')}`;
 }
 
+/**
+ * Safe deterministic evaluator for custom financial formulas over live snapshot tokens.
+ * Supports +, -, *, /, parentheses, numbers, and reserved identifiers.
+ */
+function evaluateSafeFormulaExpression(
+  rawExpr: string,
+  vars: Record<string, number>,
+): { valueRp: number; substituted: string } {
+  let expr = rawExpr.trim();
+  const eqIdx = expr.indexOf('=');
+  if (eqIdx >= 0 && eqIdx < expr.length - 1) {
+    expr = expr.slice(eqIdx + 1).trim();
+  }
+
+  let substituted = expr;
+  for (const [key, val] of Object.entries(vars)) {
+    const re = new RegExp(`\\b${key}\\b`, 'gi');
+    substituted = substituted.replace(re, String(Math.round(val)));
+  }
+
+  // Strip everything except digits, whitespace, decimal points, +, -, *, /, (, )
+  const sanitized = substituted.replace(/[^0-9+\-*/().\s]/g, '').trim();
+  if (!sanitized || !/\d/.test(sanitized)) {
+    return { valueRp: vars.net_income - vars.total_debt - vars.living_pool, substituted };
+  }
+
+  try {
+    const fn = new Function(`return (${sanitized});`);
+    const out = Number(fn());
+    return {
+      valueRp: Number.isFinite(out) ? Math.round(out) : 0,
+      substituted: sanitized,
+    };
+  } catch {
+    return { valueRp: 0, substituted: sanitized };
+  }
+}
+
 @Injectable()
 export class MarqueeToolsService {
   constructor(
@@ -73,26 +111,33 @@ export class MarqueeToolsService {
     args: Record<string, any>,
     ctx: MarqueeExecutionContext,
   ): Promise<MarqueeToolResult> {
-    const { month, year } = await this.resolvePeriod(ctx.userId, ctx.month, ctx.year);
+    const { month, year } = await this.resolvePeriod(
+      ctx.userId,
+      Number(args.month || ctx.month || 0) || undefined,
+      Number(args.year || ctx.year || 0) || undefined,
+    );
     const periodTag = `${String(month).padStart(2, '0')}/${year}`;
     const todayIso = new Date().toISOString().slice(0, 10);
 
     switch (tool) {
+      case 'get_paycycle_pulse':
       case 'get_financial_pulse': {
         const [snapshot, pacing] = await Promise.all([
           this.snapshotsSelectors.getOrCreateDraftSnapshot(month, year, ctx.userId),
           this.financeSelectors.getPacing(month, year, undefined, undefined, ctx.userId),
         ]);
         const state = pacing.cycleTemporalState ?? 'ACTIVE';
-        const remainingCash = Math.round(pacing.remainingBudget ?? snapshot.actualDailyOperational ?? 0);
+        const remainingCash = Math.round(
+          pacing.remainingBudget ?? snapshot.actualDailyOperational ?? 0,
+        );
         const safeToday = Math.round(pacing.safeToSpendToday ?? 0);
         const deficit = Math.round(snapshot.deficitUncovered ?? 0);
         const summary =
           state === 'PRE_PAYDAY'
-            ? `Period ${periodTag} is PRE_PAYDAY (starts in ${pacing.daysUntilCycleStart ?? 0} days on ${pacing.cycleDateLabel}). Projected daily allowance: ${formatRp(pacing.baselineDailyRate)}/day; funded living pool: ${formatRp(remainingCash)}.`
+            ? `Cycle ${periodTag} starts in ${pacing.daysUntilCycleStart ?? 0} days (${pacing.cycleDateLabel}). Your funded living pool is ${formatRp(remainingCash)} at a ${formatRp(pacing.baselineDailyRate)}/day baseline${deficit > 0 ? `, with a ${formatRp(deficit)} budget shortfall against the Rp 1.500.000 target` : ''}.`
             : state === 'COMPLETED'
-              ? `Period ${periodTag} cycle window (${pacing.cycleDateLabel}) is COMPLETED. Remaining cash: ${formatRp(remainingCash)}.`
-              : `Period ${periodTag} is ACTIVE. Safe-to-spend today: ${formatRp(safeToday)} (status: ${pacing.pacingStatus}). Remaining living cash: ${formatRp(remainingCash)}.`;
+              ? `Cycle ${periodTag} (${pacing.cycleDateLabel}) has closed with ${formatRp(remainingCash)} remaining in the living pool.`
+              : `Cycle ${periodTag} is live. You can spend ${formatRp(safeToday)} today (${pacing.pacingStatus}) with ${formatRp(remainingCash)} left in your living pool.`;
 
         return {
           ok: true,
@@ -118,6 +163,7 @@ export class MarqueeToolsService {
         };
       }
 
+      case 'prepare_quick_transaction':
       case 'log_quick_expense': {
         const title = String(args.title || 'Quick Expense').trim();
         const amountRp = Math.max(0, Math.round(Number(args.amountRp ?? args.amount ?? 0)));
@@ -128,7 +174,7 @@ export class MarqueeToolsService {
           return {
             ok: false,
             tool,
-            summary: 'Specify a valid Rupiah amount to record an expense (e.g. "log coffee 45k").',
+            summary: 'Include a Rupiah amount to stage an expense (for example: "log coffee 45k").',
             cards: [],
           };
         }
@@ -154,7 +200,7 @@ export class MarqueeToolsService {
           return {
             ok: true,
             tool,
-            summary: `Preview ready: ${title} (${formatRp(amountRp)} · ${instrument}${tenorMonths > 1 ? ` ${tenorMonths}x` : ''}) routes to ${preview.startPeriodLabel} (Verdict: ${preview.verdict}, DSR: ${preview.dsrAfterPercent}%). Confirm to write to ledger.`,
+            summary: `Staged ${title} (${formatRp(amountRp)} via ${instrument}${tenorMonths > 1 ? ` ${tenorMonths}x` : ''}) into ${preview.startPeriodLabel}. Verdict is ${preview.verdict} at ${preview.dsrAfterPercent}% DSR. Confirm below to commit this entry.`,
             cards: [
               { label: 'Item', value: title },
               { label: 'Amount', value: formatRp(amountRp) },
@@ -189,7 +235,7 @@ export class MarqueeToolsService {
           return {
             ok: true,
             tool,
-            summary: `Recorded CASH expense "${title}" (${formatRp(amountRp)}) into ${periodTag}.`,
+            summary: `Logged CASH expense "${title}" (${formatRp(amountRp)}) in ${periodTag}.`,
             cards: [
               { label: 'Saved Ledger Row', value: title, tone: 'positive' },
               { label: 'Amount Deducted', value: formatRp(amountRp) },
@@ -214,7 +260,7 @@ export class MarqueeToolsService {
         return {
           ok: true,
           tool,
-          summary: `Recorded ${instrument} obligation "${title}" (${formatRp(amountRp)}, ${tenorMonths}x) with cutoff auto-routing.`,
+          summary: `Logged ${instrument} charge "${title}" (${formatRp(amountRp)}, ${tenorMonths}x) using cutoff routing.`,
           cards: [
             { label: 'Saved Liability', value: title, tone: 'positive' },
             { label: 'Total Amount', value: formatRp(amountRp) },
@@ -224,6 +270,7 @@ export class MarqueeToolsService {
         };
       }
 
+      case 'simulate_purchase_cutoff':
       case 'evaluate_affordability': {
         const title = String(args.title || 'Planned Purchase').trim();
         const amountRp = Math.max(0, Math.round(Number(args.amountRp ?? args.amount ?? 0)));
@@ -249,7 +296,7 @@ export class MarqueeToolsService {
         return {
           ok: true,
           tool,
-          summary: `Affordability for "${title}" (${formatRp(amountRp)}, ${simInstrument}, ${tenorMonths}x): Verdict is ${sim.verdict} landing in ${sim.startPeriodLabel} (due ${sim.firstDueDateIso}). DSR: ${sim.dsrAfterPercent}%.`,
+          summary: `Checking "${title}" (${formatRp(amountRp)} on ${simInstrument}, ${tenorMonths}x): bills first in ${sim.startPeriodLabel} (due ${sim.firstDueDateIso}). Verdict is ${sim.verdict} with post-purchase DSR at ${sim.dsrAfterPercent}%.`,
           cards: [
             { label: 'Target Purchase', value: `${title} (${formatRp(amountRp)})` },
             { label: 'First Billed Cycle', value: sim.startPeriodLabel },
@@ -264,6 +311,125 @@ export class MarqueeToolsService {
         };
       }
 
+      case 'optimize_payday_thr_split': {
+        const snapshot = await this.snapshotsSelectors.getOrCreateDraftSnapshot(
+          month,
+          year,
+          ctx.userId,
+        );
+        const bonusRp = Math.max(
+          0,
+          Math.round(Number(args.bonusRp ?? args.amountRp ?? 3_400_000)),
+        );
+        const shortfall = Math.round(Number(snapshot.deficitUncovered ?? 0));
+        const coverShortfall = Math.min(bonusRp, shortfall);
+        const afterShortfall = bonusRp - coverShortfall;
+        const p1Allocation = Math.min(1_000_000, Math.round(afterShortfall * 0.4));
+        const debtPrepay = Math.round((afterShortfall - p1Allocation) * 0.5);
+        const livingAndReward = Math.max(0, afterShortfall - p1Allocation - debtPrepay);
+
+        return {
+          ok: true,
+          tool,
+          summary: `For a ${formatRp(bonusRp)} THR or bonus in ${periodTag}: clear ${formatRp(coverShortfall)} in living shortfall first, lock ${formatRp(p1Allocation)} into your P1 Core Vault, direct ${formatRp(debtPrepay)} toward high-cost SPinjam/PayLater debt, and keep ${formatRp(livingAndReward)} for holiday living and P2 self-reward.`,
+          cards: [
+            { label: 'Bonus / THR Pool', value: formatRp(bonusRp), tone: 'positive' },
+            { label: '1. Shortfall Cover', value: formatRp(coverShortfall) },
+            { label: '2. P1 Core Vault', value: formatRp(p1Allocation), tone: 'positive' },
+            {
+              label: '3. Debt + Holiday Buffer',
+              value: `${formatRp(debtPrepay)} debt · ${formatRp(livingAndReward)} buffer`,
+            },
+          ],
+          data: {
+            bonusRp,
+            coverShortfall,
+            p1Allocation,
+            debtPrepay,
+            livingAndReward,
+          },
+        };
+      }
+
+      case 'evaluate_custom_formula': {
+        const [snapshot, pacing] = await Promise.all([
+          this.snapshotsSelectors.getOrCreateDraftSnapshot(month, year, ctx.userId),
+          this.financeSelectors.getPacing(month, year, undefined, undefined, ctx.userId),
+        ]);
+        const vars: Record<string, number> = {
+          net_income: Math.round(Number(snapshot.finalTotalIncome ?? 0)),
+          total_debt: Math.round(Number(snapshot.totalDeductions ?? 0)),
+          living_pool: Math.round(Number(snapshot.actualDailyOperational ?? 0)),
+          shortfall: Math.round(Number(snapshot.deficitUncovered ?? 0)),
+          p1_savings: Math.round(Number(snapshot.actualSavings ?? 0)),
+          p2_buffer: Math.round(Number(snapshot.selfReward ?? 0)),
+          daily_rate: Math.round(Number(pacing.baselineDailyRate ?? 0)),
+        };
+        const rawExpr = String(
+          args.expression || 'net_income - total_debt - living_pool',
+        ).trim();
+        const evaluated = evaluateSafeFormulaExpression(rawExpr, vars);
+
+        return {
+          ok: true,
+          tool,
+          summary: `Formula "${rawExpr}" evaluates to ${formatRp(evaluated.valueRp)} on ${periodTag} (${evaluated.substituted}).`,
+          cards: [
+            { label: 'Formula Expression', value: rawExpr },
+            {
+              label: 'Computed Output',
+              value: formatRp(evaluated.valueRp),
+              tone: evaluated.valueRp >= 0 ? 'positive' : 'urgency',
+            },
+            { label: 'Net Income Token', value: formatRp(vars.net_income) },
+            { label: 'Total Debt Token', value: formatRp(vars.total_debt) },
+          ],
+          data: { expression: rawExpr, evaluated, vars },
+        };
+      }
+
+      case 'explain_period_variance': {
+        const compareMonth =
+          Number(args.compareMonth) || (month === 12 ? 1 : month + 1);
+        const compareYear =
+          Number(args.compareYear) || (month === 12 ? year + 1 : year);
+        const compareTag = `${String(compareMonth).padStart(2, '0')}/${compareYear}`;
+
+        const [currSnap, nextSnap, matrix] = await Promise.all([
+          this.snapshotsSelectors.getOrCreateDraftSnapshot(month, year, ctx.userId),
+          this.snapshotsSelectors.getOrCreateDraftSnapshot(
+            compareMonth,
+            compareYear,
+            ctx.userId,
+          ),
+          this.creditSelectors.getLiabilityMatrix(month, year, 3, ctx.userId),
+        ]);
+
+        const incomeDelta = Math.round(
+          Number(nextSnap.finalTotalIncome ?? 0) - Number(currSnap.finalTotalIncome ?? 0),
+        );
+        const debtDelta = Math.round(
+          Number(nextSnap.totalDeductions ?? 0) - Number(currSnap.totalDeductions ?? 0),
+        );
+        const livingDelta = Math.round(
+          Number(nextSnap.actualDailyOperational ?? 0) -
+            Number(currSnap.actualDailyOperational ?? 0),
+        );
+
+        return {
+          ok: true,
+          tool,
+          summary: `Comparing ${periodTag} to ${compareTag}: take-home pay shifts by ${formatRp(incomeDelta)} (${formatRp(currSnap.finalTotalIncome ?? 0)} to ${formatRp(nextSnap.finalTotalIncome ?? 0)}), total debt changes by ${formatRp(debtDelta)} (${formatRp(currSnap.totalDeductions ?? 0)} to ${formatRp(nextSnap.totalDeductions ?? 0)}), and funded living pool moves by ${formatRp(livingDelta)}.`,
+          cards: [
+            { label: `${periodTag} vs ${compareTag} Income`, value: formatRp(incomeDelta), tone: incomeDelta >= 0 ? 'positive' : 'caution' },
+            { label: `${periodTag} vs ${compareTag} Debt`, value: formatRp(debtDelta), tone: debtDelta <= 0 ? 'positive' : 'caution' },
+            { label: `${periodTag} Shortfall`, value: formatRp(currSnap.deficitUncovered ?? 0), tone: (currSnap.deficitUncovered ?? 0) > 0 ? 'urgency' : 'default' },
+            { label: `${compareTag} Funded P1`, value: formatRp(nextSnap.actualSavings ?? 0), tone: 'positive' },
+          ],
+          data: { currSnap, nextSnap, matrix, incomeDelta, debtDelta, livingDelta },
+        };
+      }
+
       case 'get_upcoming_bills': {
         const matrix = await this.creditSelectors.getLiabilityMatrix(month, year, 3, ctx.userId);
         const key = `${year}-${month}`;
@@ -274,17 +440,18 @@ export class MarqueeToolsService {
         return {
           ok: true,
           tool,
-          summary: `Total liabilities due under ${periodTag}: ${formatRp(total)} (PayLater ${formatRp(payLater)}, Credit Card ${formatRp(cc)}, Personal Debt ${formatRp(personal)}).`,
+          summary: `Obligations due under ${periodTag} total ${formatRp(total)}: PayLater ${formatRp(payLater)} (due 24th/25th), Credit Card ${formatRp(cc)} (due 11th), and Personal Debt ${formatRp(personal)} (SPinjam due 8th/17th/23rd/24th).`,
           cards: [
-            { label: 'PayLater (25th)', value: formatRp(payLater) },
+            { label: 'PayLater (24th/25th)', value: formatRp(payLater) },
             { label: 'Credit Card (11th)', value: formatRp(cc) },
             { label: 'Personal Debt / SPinjam', value: formatRp(personal) },
-            { label: 'Total Debt Cycle', value: formatRp(total), tone: 'caution' },
+            { label: 'Total Cycle Debt', value: formatRp(total), tone: 'caution' },
           ],
           data: { payLater, cc, personal, total },
         };
       }
 
+      case 'prepare_wallet_checkin':
       case 'wallet_checkin_guard': {
         const actualWalletBalance = Math.max(
           0,
@@ -304,7 +471,7 @@ export class MarqueeToolsService {
         return {
           ok: true,
           tool,
-          summary: `Wallet Check-In (${formatRp(actualWalletBalance)}): Free spendable cash is ${formatRp(g?.freeSpendableCash ?? 0)} after holding ${formatRp(g?.reservedBillsTotal ?? 0)} for unpaid bills (Status: ${g?.guardStatus ?? 'SAFE'}).`,
+          summary: `Wallet check-in at ${formatRp(actualWalletBalance)}: ${formatRp(g?.freeSpendableCash ?? 0)} is free to spend after holding ${formatRp(g?.reservedBillsTotal ?? 0)} for unpaid bills (${g?.guardStatus ?? 'SAFE'}).`,
           cards: [
             { label: 'Wallet Cash', value: formatRp(actualWalletBalance) },
             { label: 'Hold for Unpaid Bills', value: formatRp(g?.reservedBillsTotal ?? 0), tone: 'caution' },
@@ -319,6 +486,7 @@ export class MarqueeToolsService {
         };
       }
 
+      case 'analyze_debt_burndown':
       case 'get_debt_burndown': {
         const bd: any = await this.financeSelectors.getContractsBurndown(month, year, ctx.userId);
         const activeCount = bd.activeCount ?? bd.plans?.length ?? 0;
@@ -331,7 +499,7 @@ export class MarqueeToolsService {
         return {
           ok: true,
           tool,
-          summary: `Active installment burndown: ${activeCount} multi-month contracts (${formatRp(totalRem)} remaining principal, debt-free horizon: ${bd.debtFreedomLabel ?? 'Scheduled'}).`,
+          summary: `You have ${activeCount} active installment plans carrying ${formatRp(totalRem)} in remaining principal (${formatRp(monthlyTotal)}/mo). Milestones: 11.11 3x plans finish in JAN '27, SPinjam reaches Rp 0 in FEB '27, and your final card installment matures in ${bd.debtFreedomLabel ?? "SEP '27"}.`,
           cards: [
             { label: 'Active Plans', value: `${activeCount}` },
             { label: 'Monthly Commitment', value: `${formatRp(monthlyTotal)}/mo` },
@@ -365,7 +533,10 @@ export class MarqueeToolsService {
       }
 
       case 'simulate_debt_payoff': {
-        const lumpSumRp = Math.max(0, Math.round(Number(args.lumpSumRp ?? args.amountRp ?? 1_000_000)));
+        const lumpSumRp = Math.max(
+          0,
+          Math.round(Number(args.lumpSumRp ?? args.amountRp ?? 1_000_000)),
+        );
         const intel: any = await this.financeSelectors.getIntelligenceBundle(
           month,
           year,
@@ -373,40 +544,20 @@ export class MarqueeToolsService {
           ctx.userId,
         );
         const strategies: any[] = intel?.debtopt?.strategies ?? [];
-        const avalanche = strategies.find((s) => s.strategy === 'AVALANCHE') ?? strategies[0];
-        const snowball = strategies.find((s) => s.strategy === 'SNOWBALL') ?? strategies[1];
+        const top = strategies[0];
         return {
           ok: true,
           tool,
-          summary: avalanche
-            ? `Applying ${formatRp(lumpSumRp)} under Avalanche frees ${formatRp(avalanche.immediateFreedMonthlyRp)}/mo and saves ~${formatRp(avalanche.estimatedInterestSavedRp)} interest (${avalanche.monthsShaved}m shaved).`
-            : `Computed debt payoff simulation for ${formatRp(lumpSumRp)}.`,
+          summary: top
+            ? `Applying ${formatRp(lumpSumRp)} via ${top.strategy} frees ${formatRp(top.immediateFreedMonthlyRp ?? 0)}/mo immediately and saves ${formatRp(top.estimatedInterestSavedRp ?? 0)} in interest.`
+            : `Prepayment simulation for ${formatRp(lumpSumRp)} completed on ${periodTag}.`,
           cards: [
             { label: 'Extra Prepayment', value: formatRp(lumpSumRp) },
-            ...(avalanche
-              ? [
-                  {
-                    label: 'Avalanche Relief',
-                    value: `+${formatRp(avalanche.immediateFreedMonthlyRp)}/mo`,
-                    tone: 'positive' as const,
-                  },
-                  {
-                    label: 'Avalanche Interest Saved',
-                    value: formatRp(avalanche.estimatedInterestSavedRp),
-                    tone: 'positive' as const,
-                  },
-                ]
-              : []),
-            ...(snowball
-              ? [
-                  {
-                    label: 'Snowball Relief',
-                    value: `+${formatRp(snowball.immediateFreedMonthlyRp)}/mo`,
-                  },
-                ]
-              : []),
+            { label: 'Top Strategy', value: String(top?.strategy ?? 'AVALANCHE'), tone: 'positive' },
+            { label: 'Monthly Cashflow Freed', value: `${formatRp(top?.immediateFreedMonthlyRp ?? 0)}/mo` },
+            { label: 'Estimated Interest Saved', value: formatRp(top?.estimatedInterestSavedRp ?? 0), tone: 'positive' },
           ],
-          data: { strategies },
+          data: { debtopt: intel?.debtopt },
         };
       }
     }

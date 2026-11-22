@@ -15,7 +15,10 @@ function collectFiles(dir: string, exts: string[]): string[] {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
       results.push(...collectFiles(full, exts));
-    } else if (exts.some((ext) => entry.name.endsWith(ext))) {
+    } else if (
+      !entry.name.endsWith('.spec.ts') &&
+      exts.some((ext) => entry.name.endsWith(ext))
+    ) {
       results.push(full);
     }
   }

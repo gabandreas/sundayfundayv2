@@ -1,4 +1,14 @@
 export type MarqueeToolName =
+  // 8 Canonical Tool Names
+  | 'get_paycycle_pulse'
+  | 'simulate_purchase_cutoff'
+  | 'optimize_payday_thr_split'
+  | 'analyze_debt_burndown'
+  | 'evaluate_custom_formula'
+  | 'prepare_quick_transaction'
+  | 'prepare_wallet_checkin'
+  | 'explain_period_variance'
+  // Legacy Aliases (preserved 1:1 for backward compatibility)
   | 'get_financial_pulse'
   | 'log_quick_expense'
   | 'evaluate_affordability'
@@ -18,6 +28,7 @@ export interface MarqueeParsedIntent {
   title?: string;
   instrument: MarqueeInstrument;
   tenorMonths: number;
+  expression?: string;
   confidence: number;
 }
 
@@ -134,6 +145,47 @@ export function parseMarqueeIntent(message: string): MarqueeParsedIntent {
   const instrument = detectInstrument(message);
   const title = extractTitleFromMessage(message);
 
+  // 0A. THR / Bonus / Payday Split optimization
+  if (/\b(thr|bonus|natal|lebaran|split\s*bonus|alokasi\s*thr|年终奖|奖金)\b/.test(lower)) {
+    return {
+      tool: 'optimize_payday_thr_split',
+      locale,
+      amountRp: amountRp ?? 3_400_000,
+      instrument,
+      tenorMonths,
+      confidence: 0.94,
+    };
+  }
+
+  // 0B. Custom formula evaluation
+  if (
+    /\b(formula|evaluate|net_income|total_debt|living_pool|shortfall|p1_savings|p2_buffer|daily_rate)\b/.test(
+      lower,
+    )
+  ) {
+    return {
+      tool: 'evaluate_custom_formula',
+      locale,
+      amountRp,
+      instrument,
+      tenorMonths,
+      expression: message,
+      confidence: 0.93,
+    };
+  }
+
+  // 0C. Period variance / shortfall comparison
+  if (/\b(variance|selisih|bedanya|compare\s*period|why\s*shortfall|kenapa\s*defisit|对比|差异)\b/.test(lower)) {
+    return {
+      tool: 'explain_period_variance',
+      locale,
+      amountRp,
+      instrument,
+      tenorMonths,
+      confidence: 0.92,
+    };
+  }
+
   // 1. Debt payoff optimizer simulation
   if (
     /(snowball|avalanche|early\s*payoff|pelunasan|lunasin|percepat|prepay|提前还款|雪崩|雪球)/.test(
@@ -195,7 +247,12 @@ export function parseMarqueeIntent(message: string): MarqueeParsedIntent {
   }
 
   // 5. Debt burndown / active contracts
-  if (/(burndown|installments?|contracts?|spinjam|bridge\s*loan|cicilan|utang\s*aktif|分期|债务)/.test(lower) && !amountRp) {
+  if (
+    /(burndown|installments?|contracts?|spinjam|bridge\s*loan|cicilan|utang\s*aktif|分期|债务)/.test(
+      lower,
+    ) &&
+    !amountRp
+  ) {
     return {
       tool: 'get_debt_burndown',
       locale,

@@ -39,6 +39,11 @@ export class MarqueeController {
       provider?: MarqueeAiProvider;
       geminiApiKey?: string | null;
       groqApiKey?: string | null;
+      deepseekApiKey?: string | null;
+      deepseekModel?: 'deepseek-chat' | 'deepseek-reasoner';
+      opencodeApiKey?: string | null;
+      opencodeBaseUrl?: string | null;
+      opencodeModel?: string | null;
       webhookEnabled?: boolean;
     },
     @Req() req?: any,

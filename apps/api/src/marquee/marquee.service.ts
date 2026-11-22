@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Optional, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   decryptSecret,
@@ -15,6 +15,10 @@ import {
   MarqueeToolResult,
   MarqueeToolsService,
 } from './marquee-tools.service';
+import {
+  MarqueeContextHydrator,
+  MarqueeFinancialContext,
+} from './marquee-context.service';
 
 export interface StoredMarqueeConfig {
   provider?: MarqueeAiProvider;
@@ -22,6 +26,13 @@ export interface StoredMarqueeConfig {
   geminiKeyPreview?: string;
   groqApiKeyEnc?: string;
   groqKeyPreview?: string;
+  deepseekApiKeyEnc?: string;
+  deepseekKeyPreview?: string;
+  deepseekModel?: 'deepseek-chat' | 'deepseek-reasoner';
+  opencodeApiKeyEnc?: string;
+  opencodeKeyPreview?: string;
+  opencodeBaseUrl?: string;
+  opencodeModel?: string;
   webhookTokenHash?: string;
   webhookTokenPreview?: string;
   webhookEnabled?: boolean;
@@ -34,6 +45,13 @@ export interface MarqueeConfigResponse {
   geminiKeyPreview: string;
   hasGroqKey: boolean;
   groqKeyPreview: string;
+  hasDeepseekKey: boolean;
+  deepseekKeyPreview: string;
+  deepseekModel: 'deepseek-chat' | 'deepseek-reasoner';
+  hasOpencodeKey: boolean;
+  opencodeKeyPreview: string;
+  opencodeBaseUrl: string;
+  opencodeModel: string;
   hasWebhookToken: boolean;
   webhookTokenPreview: string;
   webhookEnabled: boolean;
@@ -48,12 +66,28 @@ export interface MarqueeChatRequestDto {
   month?: number;
   year?: number;
   locale?: 'en' | 'id' | 'zh';
+  activeRoute?: string;
+  activeSubTab?: string | null;
 }
 
 export interface MarqueeChatResponse extends MarqueeToolResult {
-  tierUsed: 'TIER1_NLU' | 'TIER2_GEMINI' | 'TIER2_GROQ' | 'CONFIRMED_EXECUTION';
+  tierUsed:
+    | 'TIER1_NLU'
+    | 'TIER2_GEMINI'
+    | 'TIER2_GROQ'
+    | 'TIER2_DEEPSEEK'
+    | 'TIER2_OPENCODE'
+    | 'CONFIRMED_EXECUTION';
   model: string;
   locale: 'en' | 'id' | 'zh';
+  hydratedContext?: {
+    periodTag: string;
+    cycleTemporalState: 'PRE_PAYDAY' | 'ACTIVE' | 'COMPLETED';
+    cycleDateLabel: string;
+    activeRoute: string;
+    activeSubTab: string | null;
+    canonicalDueDays: number[];
+  };
 }
 
 @Injectable()
@@ -62,6 +96,7 @@ export class MarqueeService {
     private readonly prisma: PrismaService,
     private readonly toolsService: MarqueeToolsService,
     private readonly llmService: MarqueeLlmService,
+    @Optional() private readonly contextHydrator?: MarqueeContextHydrator,
   ) {}
 
   private extractStoredConfig(financialPolicyJson: any): StoredMarqueeConfig {
@@ -79,6 +114,13 @@ export class MarqueeService {
       geminiKeyPreview: stored.geminiKeyPreview ?? '',
       hasGroqKey: Boolean(stored.groqApiKeyEnc),
       groqKeyPreview: stored.groqKeyPreview ?? '',
+      hasDeepseekKey: Boolean(stored.deepseekApiKeyEnc),
+      deepseekKeyPreview: stored.deepseekKeyPreview ?? '',
+      deepseekModel: stored.deepseekModel ?? 'deepseek-chat',
+      hasOpencodeKey: Boolean(stored.opencodeApiKeyEnc),
+      opencodeKeyPreview: stored.opencodeKeyPreview ?? '',
+      opencodeBaseUrl: stored.opencodeBaseUrl || 'https://api.opencode.ai/v1',
+      opencodeModel: stored.opencodeModel || 'opencode-chat',
       hasWebhookToken: Boolean(stored.webhookTokenHash),
       webhookTokenPreview: stored.webhookTokenPreview ?? '',
       webhookEnabled: stored.webhookEnabled ?? true,
@@ -93,6 +135,11 @@ export class MarqueeService {
       provider?: MarqueeAiProvider;
       geminiApiKey?: string | null;
       groqApiKey?: string | null;
+      deepseekApiKey?: string | null;
+      deepseekModel?: 'deepseek-chat' | 'deepseek-reasoner';
+      opencodeApiKey?: string | null;
+      opencodeBaseUrl?: string | null;
+      opencodeModel?: string | null;
       webhookEnabled?: boolean;
     },
   ): Promise<MarqueeConfigResponse> {
@@ -111,6 +158,17 @@ export class MarqueeService {
     }
     if (dto.webhookEnabled !== undefined) {
       nextStored.webhookEnabled = Boolean(dto.webhookEnabled);
+    }
+    if (dto.deepseekModel === 'deepseek-chat' || dto.deepseekModel === 'deepseek-reasoner') {
+      nextStored.deepseekModel = dto.deepseekModel;
+    }
+    if (dto.opencodeBaseUrl !== undefined) {
+      const cleanUrl = String(dto.opencodeBaseUrl ?? '').trim();
+      nextStored.opencodeBaseUrl = cleanUrl || 'https://api.opencode.ai/v1';
+    }
+    if (dto.opencodeModel !== undefined) {
+      const cleanModel = String(dto.opencodeModel ?? '').trim();
+      nextStored.opencodeModel = cleanModel || 'opencode-chat';
     }
 
     if (dto.geminiApiKey !== undefined) {
@@ -132,6 +190,28 @@ export class MarqueeService {
       } else {
         nextStored.groqApiKeyEnc = encryptSecret(clean);
         nextStored.groqKeyPreview = maskSecretPreview(clean);
+      }
+    }
+
+    if (dto.deepseekApiKey !== undefined) {
+      const clean = String(dto.deepseekApiKey ?? '').trim();
+      if (!clean) {
+        delete nextStored.deepseekApiKeyEnc;
+        delete nextStored.deepseekKeyPreview;
+      } else {
+        nextStored.deepseekApiKeyEnc = encryptSecret(clean);
+        nextStored.deepseekKeyPreview = maskSecretPreview(clean);
+      }
+    }
+
+    if (dto.opencodeApiKey !== undefined) {
+      const clean = String(dto.opencodeApiKey ?? '').trim();
+      if (!clean) {
+        delete nextStored.opencodeApiKeyEnc;
+        delete nextStored.opencodeKeyPreview;
+      } else {
+        nextStored.opencodeApiKeyEnc = encryptSecret(clean);
+        nextStored.opencodeKeyPreview = maskSecretPreview(clean);
       }
     }
 
@@ -212,10 +292,9 @@ export class MarqueeService {
   async chat(userId: number, dto: MarqueeChatRequestDto): Promise<MarqueeChatResponse> {
     const message = String(dto.message ?? '').trim();
 
-    // Direct confirmation execution bypasses ambiguity and commits the previewed action deterministically
     if (dto.confirm && dto.pendingAction?.type === 'CONFIRM_EXPENSE') {
       const p = dto.pendingAction.payload;
-      const result = await this.toolsService.executeTool('log_quick_expense', p, {
+      const result = await this.toolsService.executeTool('prepare_quick_transaction', p, {
         userId,
         confirm: true,
         month: dto.month ?? p.month,
@@ -232,12 +311,29 @@ export class MarqueeService {
     const parsedTier1 = parseMarqueeIntent(message || 'financial pulse');
     const locale = dto.locale ?? parsedTier1.locale;
 
+    let hydrated: MarqueeFinancialContext | undefined;
+    if (this.contextHydrator && typeof this.contextHydrator.hydrateForUser === 'function') {
+      try {
+        hydrated = await this.contextHydrator.hydrateForUser(userId, {
+          month: dto.month,
+          year: dto.year,
+          activeRoute: dto.activeRoute,
+          activeSubTab: dto.activeSubTab,
+          locale,
+        });
+      } catch {
+        hydrated = undefined;
+      }
+    }
+
     const cfg = await this.prisma.globalConfig.findFirst({ where: { userId } });
     const stored = this.extractStoredConfig(cfg?.financialPolicyJson);
     const provider: MarqueeAiProvider = stored.provider ?? 'TIER1_ONLY';
 
     let geminiApiKey = process.env.GEMINI_API_KEY || undefined;
     let groqApiKey = process.env.GROQ_API_KEY || undefined;
+    let deepseekApiKey = process.env.DEEPSEEK_API_KEY || undefined;
+    let opencodeApiKey = process.env.OPENCODE_API_KEY || undefined;
 
     if (stored.geminiApiKeyEnc) {
       try {
@@ -253,6 +349,20 @@ export class MarqueeService {
         groqApiKey = undefined;
       }
     }
+    if (stored.deepseekApiKeyEnc) {
+      try {
+        deepseekApiKey = decryptSecret(stored.deepseekApiKeyEnc);
+      } catch {
+        deepseekApiKey = undefined;
+      }
+    }
+    if (stored.opencodeApiKeyEnc) {
+      try {
+        opencodeApiKey = decryptSecret(stored.opencodeApiKeyEnc);
+      } catch {
+        opencodeApiKey = undefined;
+      }
+    }
 
     let selectedTool = parsedTier1.tool;
     let selectedArgs: Record<string, any> = {
@@ -260,29 +370,38 @@ export class MarqueeService {
       amountRp: parsedTier1.amountRp,
       instrument: parsedTier1.instrument,
       tenorMonths: parsedTier1.tenorMonths,
+      expression: parsedTier1.expression,
     };
     let tierUsed: MarqueeChatResponse['tierUsed'] = 'TIER1_NLU';
     let model = 'tier1-deterministic-nlu';
 
-    if (provider !== 'TIER1_ONLY' && (geminiApiKey || groqApiKey)) {
+    const hasAnyKey = Boolean(
+      geminiApiKey || groqApiKey || deepseekApiKey || opencodeApiKey,
+    );
+
+    if (provider !== 'TIER1_ONLY' && hasAnyKey) {
       const resolved = await this.llmService.resolveWithProvider({
         provider,
         geminiApiKey,
         groqApiKey,
+        deepseekApiKey,
+        deepseekModel: stored.deepseekModel ?? 'deepseek-chat',
+        opencodeApiKey,
+        opencodeBaseUrl: stored.opencodeBaseUrl || 'https://api.opencode.ai/v1',
+        opencodeModel: stored.opencodeModel || 'opencode-chat',
+        systemContextPrompt: hydrated?.systemPrompt,
         message,
         tier1Fallback: parsedTier1,
       });
 
-      if (resolved && resolved.usedProvider === 'GEMINI') {
+      if (resolved && resolved.usedProvider !== 'TIER1_ONLY') {
         selectedTool = resolved.tool;
         selectedArgs = { ...selectedArgs, ...resolved.args };
-        tierUsed = 'TIER2_GEMINI';
         model = resolved.model;
-      } else if (resolved && resolved.usedProvider === 'GROQ') {
-        selectedTool = resolved.tool;
-        selectedArgs = { ...selectedArgs, ...resolved.args };
-        tierUsed = 'TIER2_GROQ';
-        model = resolved.model;
+        if (resolved.usedProvider === 'DEEPSEEK') tierUsed = 'TIER2_DEEPSEEK';
+        else if (resolved.usedProvider === 'OPENCODE') tierUsed = 'TIER2_OPENCODE';
+        else if (resolved.usedProvider === 'GEMINI') tierUsed = 'TIER2_GEMINI';
+        else if (resolved.usedProvider === 'GROQ') tierUsed = 'TIER2_GROQ';
       }
     }
 
@@ -298,6 +417,16 @@ export class MarqueeService {
       tierUsed,
       model,
       locale,
+      hydratedContext: hydrated
+        ? {
+            periodTag: hydrated.activePeriod.periodTag,
+            cycleTemporalState: hydrated.activePeriod.cycleTemporalState,
+            cycleDateLabel: hydrated.activePeriod.cycleDateLabel,
+            activeRoute: hydrated.uiContext.activeRoute,
+            activeSubTab: hydrated.uiContext.activeSubTab,
+            canonicalDueDays: hydrated.dueDayCalendar.canonicalDueDays,
+          }
+        : undefined,
     };
   }
 }

@@ -15,6 +15,11 @@ export function MarqueeAiSettingsPanel() {
   const [provider, setProvider] = useState<MarqueeAiProvider>("TIER1_ONLY");
   const [geminiKey, setGeminiKey] = useState("");
   const [groqKey, setGroqKey] = useState("");
+  const [deepseekKey, setDeepseekKey] = useState("");
+  const [deepseekModel, setDeepseekModel] = useState<"deepseek-chat" | "deepseek-reasoner">("deepseek-chat");
+  const [opencodeKey, setOpencodeKey] = useState("");
+  const [opencodeBaseUrl, setOpencodeBaseUrl] = useState("https://api.opencode.ai/v1");
+  const [opencodeModel, setOpencodeModel] = useState("opencode-chat");
   const [webhookEnabled, setWebhookEnabled] = useState(true);
   const [rawTokenOnce, setRawTokenOnce] = useState<string | null>(null);
   const [copiedToken, setCopiedToken] = useState(false);
@@ -28,6 +33,9 @@ export function MarqueeAiSettingsPanel() {
         setConfig(res);
         setProvider(res.provider);
         setWebhookEnabled(res.webhookEnabled);
+        if (res.deepseekModel) setDeepseekModel(res.deepseekModel);
+        if (res.opencodeBaseUrl) setOpencodeBaseUrl(res.opencodeBaseUrl);
+        if (res.opencodeModel) setOpencodeModel(res.opencodeModel);
       }
     });
   }, []);
@@ -39,14 +47,21 @@ export function MarqueeAiSettingsPanel() {
     const res = await updateMarqueeConfig({
       provider,
       webhookEnabled,
+      deepseekModel,
+      opencodeBaseUrl: opencodeBaseUrl.trim() || "https://api.opencode.ai/v1",
+      opencodeModel: opencodeModel.trim() || "opencode-chat",
       ...(geminiKey.trim() ? { geminiApiKey: geminiKey.trim() } : {}),
       ...(groqKey.trim() ? { groqApiKey: groqKey.trim() } : {}),
+      ...(deepseekKey.trim() ? { deepseekApiKey: deepseekKey.trim() } : {}),
+      ...(opencodeKey.trim() ? { opencodeApiKey: opencodeKey.trim() } : {}),
     });
     setSaving(false);
     if (res) {
       setConfig(res);
       setGeminiKey("");
       setGroqKey("");
+      setDeepseekKey("");
+      setOpencodeKey("");
       setFeedback("Marquee AI configuration encrypted with AES-256-GCM and saved.");
     } else {
       setFeedback("Failed to save Marquee AI configuration.");
@@ -94,7 +109,7 @@ export function MarqueeAiSettingsPanel() {
               Marquee AI Provider &amp; Encrypted BYOK Storage
             </h3>
             <p className="text-xs text-text-tertiary mt-0.5">
-              Tier 1 deterministic NLU always runs locally in-process; optionally enable Tier 2 LLM routing with AES-256-GCM encrypted keys.
+              Tier 1 deterministic NLU always runs in-process; enable DeepSeek, OpenCode, Gemini 3.8 Flash, or Groq Llama 3.3 70B with AES-256-GCM encrypted keys.
             </p>
           </div>
           <span className="inline-flex items-center gap-1.5 text-[11px] font-mono text-delta-positive">
@@ -107,9 +122,14 @@ export function MarqueeAiSettingsPanel() {
           {(
             [
               {
-                key: "TIER1_ONLY",
-                title: "Tier 1 Deterministic NLU",
-                desc: "Zero-latency offline EN/ID/ZH parser. Zero external API calls.",
+                key: "DEEPSEEK",
+                title: "Tier 2 · DeepSeek (V3 / R1)",
+                desc: "Native DeepSeek tool calling (deepseek-chat or deepseek-reasoner) with full ledger hydration.",
+              },
+              {
+                key: "OPENCODE",
+                title: "Tier 2 · OpenCode Compatible",
+                desc: "OpenCode Zen / OpenAI-compatible tool router with configurable base endpoint and model.",
               },
               {
                 key: "GEMINI",
@@ -119,7 +139,17 @@ export function MarqueeAiSettingsPanel() {
               {
                 key: "GROQ",
                 title: "Tier 2 · Groq Llama 3.3 70B",
-                desc: "Uses llama-3.3-70b-versatile tool calling with Tier 1 fallback.",
+                desc: "Low-latency llama-3.3-70b-versatile tool calling with Tier 1 fallback.",
+              },
+              {
+                key: "AUTO",
+                title: "Auto Cascade (Multi-Provider)",
+                desc: "Tries DeepSeek -> OpenCode -> Gemini -> Groq -> Tier 1 NLU automatically.",
+              },
+              {
+                key: "TIER1_ONLY",
+                title: "Tier 1 Deterministic NLU",
+                desc: "Zero-latency offline EN/ID/ZH parser. Zero external API calls.",
               },
             ] as const
           ).map((opt) => (
@@ -139,7 +169,71 @@ export function MarqueeAiSettingsPanel() {
           ))}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+        {/* DeepSeek & OpenCode Credentials */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs pt-2 border-t border-border-subtle">
+          <div className="space-y-2">
+            <label htmlFor="marquee-deepseek-key" className="block font-medium text-text-secondary">
+              DeepSeek API Key ({config?.hasDeepseekKey ? `Saved: ${config.deepseekKeyPreview}` : "Not set"})
+            </label>
+            <input
+              id="marquee-deepseek-key"
+              type="password"
+              value={deepseekKey}
+              onChange={(e) => setDeepseekKey(e.target.value)}
+              placeholder={config?.hasDeepseekKey ? "Enter new key to replace saved key" : "sk-..."}
+              className="w-full bg-canvas border border-border rounded px-3 py-2 font-mono text-xs text-text-primary"
+            />
+            <div className="flex items-center gap-2 pt-1">
+              <span className="text-[11px] font-mono text-text-tertiary">Model:</span>
+              <select
+                aria-label="DeepSeek Model"
+                value={deepseekModel}
+                onChange={(e) =>
+                  setDeepseekModel(e.target.value as "deepseek-chat" | "deepseek-reasoner")
+                }
+                className="bg-canvas border border-border rounded px-2 py-1 font-mono text-[11px] text-text-primary"
+              >
+                <option value="deepseek-chat">deepseek-chat (DeepSeek-V3)</option>
+                <option value="deepseek-reasoner">deepseek-reasoner (DeepSeek-R1)</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="marquee-opencode-key" className="block font-medium text-text-secondary">
+              OpenCode API Key ({config?.hasOpencodeKey ? `Saved: ${config.opencodeKeyPreview}` : "Not set"})
+            </label>
+            <input
+              id="marquee-opencode-key"
+              type="password"
+              value={opencodeKey}
+              onChange={(e) => setOpencodeKey(e.target.value)}
+              placeholder={config?.hasOpencodeKey ? "Enter new key to replace saved key" : "oc-..."}
+              className="w-full bg-canvas border border-border rounded px-3 py-2 font-mono text-xs text-text-primary"
+            />
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <input
+                type="text"
+                aria-label="OpenCode Base URL"
+                value={opencodeBaseUrl}
+                onChange={(e) => setOpencodeBaseUrl(e.target.value)}
+                placeholder="https://api.opencode.ai/v1"
+                className="bg-canvas border border-border rounded px-2 py-1 font-mono text-[11px] text-text-primary"
+              />
+              <input
+                type="text"
+                aria-label="OpenCode Model"
+                value={opencodeModel}
+                onChange={(e) => setOpencodeModel(e.target.value)}
+                placeholder="opencode-chat"
+                className="bg-canvas border border-border rounded px-2 py-1 font-mono text-[11px] text-text-primary"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Gemini & Groq Credentials */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs pt-2 border-t border-border-subtle">
           <div className="space-y-1.5">
             <label htmlFor="marquee-gemini-key" className="block font-medium text-text-secondary">
               Gemini API Key ({config?.hasGeminiKey ? `Saved: ${config.geminiKeyPreview}` : "Not set"})
