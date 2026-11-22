@@ -685,13 +685,13 @@ export function NetWorthReservoirsPanel({
               <tbody className="divide-y divide-border-subtle font-mono">
                 {nw.trajectory.map((pt) => (
                   <tr key={pt.label}>
-                    <td className="px-2.5 py-1.5 text-text-primary">{pt.label}</td>
-                    <td className="px-2.5 py-1.5 tabular-nums">{formatRupiah(pt.projectedAssetsRp, isAmountsMasked)}</td>
-                    <td className="px-2.5 py-1.5 text-delta-negative tabular-nums">
+                    <td className="px-2.5 py-1.5 text-text-primary whitespace-nowrap">{pt.label}</td>
+                    <td className="px-2.5 py-1.5 tabular-nums whitespace-nowrap">{formatRupiah(pt.projectedAssetsRp, isAmountsMasked)}</td>
+                    <td className="px-2.5 py-1.5 text-delta-negative tabular-nums whitespace-nowrap">
                       {formatRupiah(pt.remainingDebtRp, isAmountsMasked)}
                     </td>
                     <td
-                      className={`px-2.5 py-1.5 text-right font-semibold tabular-nums ${
+                      className={`px-2.5 py-1.5 text-right font-semibold tabular-nums whitespace-nowrap ${
                         pt.netWorthRp >= 0 ? "text-delta-positive" : "text-delta-negative"
                       }`}
                     >

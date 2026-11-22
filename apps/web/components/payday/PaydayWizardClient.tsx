@@ -306,7 +306,7 @@ export function PaydayWizardClient({
           <div className="flex items-center justify-between pt-1">
             <span className="text-xs text-text-tertiary">
               {isCycleLocked
-                ? "Cycle locked â€” calculations frozen."
+                ? "Cycle locked - calculations frozen."
                 : "Verify attendance days and THR/bonus adjustments before paying bills."}
             </span>
             <button

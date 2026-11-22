@@ -450,7 +450,7 @@ export function ActiveContractsHub({
     {
       key: "PERSONAL_SPINJAM",
       title: "1. Personal & Bridge Loans (Priority Interest)",
-      subtitle: "Carries active compounding interest (~2.95%â€“3.5%/mo) â€” clear these first before 0% promos.",
+      subtitle: "Carries active compounding interest (~2.95%-3.5%/mo) - clear these first before 0% promos.",
       plans: enrichedPlans.filter((p) => p.group === "PERSONAL_SPINJAM"),
     },
     {

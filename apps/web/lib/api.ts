@@ -4576,7 +4576,7 @@ export const LIFE_STAGE_PRESET_CATALOG: LifeStagePresetMeta[] = [
     ageRange: "Ages 24–40",
     subtitle: "Full-suite ERP with corporate payroll, credit card & PayLater matrix, savings vault, and audit.",
     formulaEngineType: "DEBT_FIRST_WATERFALL",
-    formulaLabel: "Debt-First Waterfall (Bills -> Routine -> P1 Savings -> P2 Reward)",
+    formulaLabel: "Debt-First Waterfall (Bills -> Routine -> Core Savings -> Flexible Surplus)",
     uiDensityMode: "COMMAND_COCKPIT",
     enabledModules: [...ALL_MODULE_KEYS],
     routineCategories: [
@@ -6706,10 +6706,7 @@ export async function saveSavingsPockets(
   try {
     const res = await fetch(`${API_URL}/api/savings/pockets`, {
       method: "PUT",
-      headers: {
-        ...(await getAuthHeaders()),
-        "Content-Type": "application/json",
-      },
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({ pockets }),
     });
     const body = await res.json().catch(() => ({}));
@@ -6731,10 +6728,7 @@ export async function changeAccountPassword(payload: {
   try {
     const res = await fetch(`${API_URL}/api/auth/change-password`, {
       method: "POST",
-      headers: {
-        ...(await getAuthHeaders()),
-        "Content-Type": "application/json",
-      },
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(payload),
     });
     const body = await res.json().catch(() => ({}));
@@ -6811,10 +6805,7 @@ export async function simulateScenario(
   try {
     const res = await fetch(`${API_URL}/api/finance/scenarios/simulate`, {
       method: "POST",
-      headers: {
-        ...(await getAuthHeaders()),
-        "Content-Type": "application/json",
-      },
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(payload),
     });
     const body = await res.json().catch(() => ({}));

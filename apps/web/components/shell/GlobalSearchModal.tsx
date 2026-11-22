@@ -475,7 +475,7 @@ export function GlobalSearchModal() {
                         </div>
                         {parsedSmart.kind !== "WALLET_CHECKIN" && smartCutoffPreview && (
                           <div className="text-[11px] font-mono text-text-secondary">
-                            Routed: <strong className="text-text-primary">{smartCutoffPreview.startPeriodLabel}</strong> · 1st Due {smartCutoffPreview.firstDueDateIso} · DSR {smartCutoffPreview.dsrBeforePercent}% â†’ {smartCutoffPreview.dsrAfterPercent}% ({smartCutoffPreview.verdict})
+                            Routed: <strong className="text-text-primary">{smartCutoffPreview.startPeriodLabel}</strong> · 1st Due {smartCutoffPreview.firstDueDateIso} · DSR {smartCutoffPreview.dsrBeforePercent}% → {smartCutoffPreview.dsrAfterPercent}% ({smartCutoffPreview.verdict})
                           </div>
                         )}
                         {parsedSmart.kind === "WALLET_CHECKIN" && smartWalletPreview?.guard && (
@@ -547,7 +547,7 @@ export function GlobalSearchModal() {
                 <div className="flex items-center gap-2 text-xs font-mono text-emerald-400 shrink-0">
                   <span className="text-[11px] text-text-tertiary hidden sm:inline">Jump to studio</span>
                   <kbd className="px-2 py-0.5 text-[10px] bg-emerald-900/50 border border-emerald-500/30 rounded text-emerald-300">
-                    Enter â†µ
+                    Enter ↵
                   </kbd>
                 </div>
               </button>

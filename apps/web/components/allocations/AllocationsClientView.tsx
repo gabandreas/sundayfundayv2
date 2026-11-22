@@ -185,7 +185,7 @@ export function AllocationsClientView({
       label: "Liabilities & Deductions",
       amount: totalDeductions,
       color: "#e06c53",
-      priority: "Upfront â€” Debt & Card Bills",
+      priority: "Upfront - Debt & Card Bills",
     },
     {
       id: "survival",
@@ -195,8 +195,8 @@ export function AllocationsClientView({
       color: "#10b78d",
       priority:
         deficitUncovered > 0
-          ? "Upfront â€” Baseline Living Need"
-          : "Upfront â€” Essentials + Living Base",
+          ? "Upfront - Baseline Living Need"
+          : "Upfront - Essentials + Living Base",
     },
     {
       id: "savings",

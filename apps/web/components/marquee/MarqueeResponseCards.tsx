@@ -71,7 +71,7 @@ function FormattedProse({ text }: { text: string }) {
       continue;
     }
 
-    const bulletMatch = trimmed.match(/^[-*â€¢]\s+(.*)$/);
+    const bulletMatch = trimmed.match(/^[-*·]\s+(.*)$/);
     const orderedMatch = trimmed.match(/^\d+\.\s+(.*)$/);
     if (bulletMatch || orderedMatch) {
       const ordered = Boolean(orderedMatch);

@@ -413,7 +413,7 @@ export function ReportsClientView({
         />
 
         <MetricCard
-          label={`${t("reports.kpi.netSaved")} (${cs.periodLabel})`}
+          label={`${t("reports.kpi.netSaved")} · ${cs.periodLabel}`}
           value={
             uw.isDeficit
               ? `-${formatIDR(uw.deficitUncovered)}`
@@ -622,7 +622,7 @@ export function ReportsClientView({
                           >
                             {s.deltaAmount > 0 ? "+" : ""}
                             {formatIDR(s.deltaAmount)} (
-                            {formatIDR(s.previousAmount)} â†’{" "}
+                            {formatIDR(s.previousAmount)} →{" "}
                             {formatIDR(s.currentAmount)})
                           </span>
                         </div>
@@ -902,7 +902,7 @@ export function ReportsClientView({
                 )}
                 <div className="px-5 py-2.5 flex items-center justify-between">
                   <span className="text-text-secondary">
-                    Attendance Allowance ({p.totalWorkingDays} days Ã—{" "}
+                    Attendance Allowance ({p.totalWorkingDays} days ×{" "}
                     {formatIDR(p.dailyAllowance)} · {cs.workingDaysWindowLabel})
                   </span>
                   <span className="font-mono text-positive">
@@ -1111,7 +1111,7 @@ export function ReportsClientView({
                             {cc.chargeTypeLabel}
                           </td>
                           <td className="py-2 px-3 font-mono text-text-secondary">
-                            {cc.sliceBadge ?? "â€”"}
+                            {cc.sliceBadge ?? "-"}
                             {cc.endedAtLabel
                               ? ` · Ends ${cc.endedAtLabel}`
                               : ""}
@@ -1843,14 +1843,14 @@ export function ReportsClientView({
                           ))}
                           {m.activeInstallmentSlices.length === 0 &&
                             m.activeSubscriptions.length === 0 && (
-                              <span className="text-text-tertiary">â€”</span>
+                              <span className="text-text-tertiary">-</span>
                             )}
                         </div>
                       </td>
                       <td className="py-2.5 px-4 font-mono text-[11px] text-positive">
                         {m.droppingOffAfterThisMonth.length > 0
                           ? m.droppingOffAfterThisMonth.join(", ")
-                          : "â€”"}
+                          : "-"}
                       </td>
                     </tr>
                   ))}

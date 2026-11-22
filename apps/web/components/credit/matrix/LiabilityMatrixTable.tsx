@@ -443,7 +443,7 @@ export function LiabilityMatrixTable({
                       ) : (
                         <div className="py-1 px-1.5">
                           <span className="font-mono text-[11px] text-text-tertiary/40 select-none">
-                            â€”
+                            -
                           </span>
                         </div>
                       )}
@@ -561,7 +561,7 @@ export function LiabilityMatrixTable({
               Active Multi-Month Installment Plans in {currentCol.label} ({activePeriodPlans.length})
             </h3>
             <p className="text-[11px] font-sans text-text-tertiary mt-0.5">
-              Only installment schedules carrying an active slice in {currentCol.label} â€” already included in totals above.
+              Only installment schedules carrying an active slice in {currentCol.label} - already included in totals above.
             </p>
           </div>
           <span className="text-[11px] font-mono tabular-nums text-text-secondary whitespace-nowrap">

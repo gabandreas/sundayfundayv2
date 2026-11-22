@@ -1023,7 +1023,7 @@ export function AssetAccountsTableCard({ initialConfig }: { initialConfig?: Modu
     setSavedMsg(
       enableExternal
         ? "External asset portfolio enabled & synced with Cash & Savings vs. Debt."
-        : "External asset portfolio disabled â€” balances derive strictly from ledger snapshots.",
+        : "External asset portfolio disabled - balances derive strictly from ledger snapshots.",
     );
     setSaving(false);
   };

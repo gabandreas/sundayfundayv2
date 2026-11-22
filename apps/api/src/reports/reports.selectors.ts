@@ -824,17 +824,17 @@ export class ReportsSelectors {
       | 'PARTIAL'
       | 'PENDING'
       | 'NO_SAVINGS_FUNDED' = 'NO_SAVINGS_FUNDED';
-    let vaultTransferLabel = 'No P1 Savings Funded';
+    let vaultTransferLabel = 'No Core Savings Funded';
     if (waterfall.actualSavings > 0) {
       if (realizedVaultDeposit >= waterfall.actualSavings) {
         vaultTransferStatus = 'TRANSFERRED';
-        vaultTransferLabel = 'Transferred to Vault';
+        vaultTransferLabel = 'Transferred to Savings';
       } else if (realizedVaultDeposit > 0) {
         vaultTransferStatus = 'PARTIAL';
-        vaultTransferLabel = 'Partially Transferred to Vault';
+        vaultTransferLabel = 'Partially Transferred to Savings';
       } else {
         vaultTransferStatus = 'PENDING';
-        vaultTransferLabel = 'Pending Vault Transfer';
+        vaultTransferLabel = 'Pending Savings Transfer';
       }
     }
 
@@ -871,8 +871,8 @@ export class ReportsSelectors {
           : 'Breakeven Period: All Upfront Bills & Living Costs Covered';
     const verdictDescription =
       verdictStatus === 'DEFICIT'
-        ? 'Total upfront debt bills and living obligations exceeded your Money In this month. Core Savings (P1) and Self-Reward (P2) were paused at Rp 0.'
-        : `All upfront debt bills and living pools were funded in full, leaving Rp ${waterfall.actualSavings.toLocaleString('id-ID')} for Core Savings (P1) and Rp ${waterfall.actualSelfReward.toLocaleString('id-ID')} for Self-Reward / Leftover (P2).`;
+        ? 'Total upfront debt bills and living obligations exceeded your Money In this month. Core Savings and Flexible Surplus allocations were paused at Rp 0.'
+        : `All upfront debt bills and living pools were funded in full, leaving Rp ${waterfall.actualSavings.toLocaleString('id-ID')} for Core Savings and Rp ${waterfall.actualSelfReward.toLocaleString('id-ID')} for Flexible Surplus.`;
 
     const closingStatement = {
       month,

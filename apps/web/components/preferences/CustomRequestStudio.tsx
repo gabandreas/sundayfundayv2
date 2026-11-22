@@ -226,7 +226,7 @@ export function CustomRequestStudio({ initialRequests }: CustomRequestStudioProp
         </div>
 
         <span className="text-[10px] font-mono px-2 py-0.5 rounded border border-border-subtle bg-surface-subtle text-text-tertiary uppercase">
-          {profileMode}
+          {isSuperadmin ? "Custom Account" : "Standard Plan"}
         </span>
       </div>
 

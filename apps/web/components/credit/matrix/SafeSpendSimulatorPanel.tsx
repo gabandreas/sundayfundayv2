@@ -340,7 +340,7 @@ export function SafeSpendSimulatorPanel({
               </div>
               <div className="text-xs font-sans">{cutoffAdvice.advice}</div>
               <div className="text-[10px] font-mono opacity-85 tabular-nums">
-                DSR: {cutoffAdvice.dsrBeforePercent}% â†’ {cutoffAdvice.dsrAfterPercent}% (Next cycle: {cutoffAdvice.nextDsrAfterPercent}%) · First Slice: {formatRp(cutoffAdvice.monthlySliceFirst)}
+                DSR: {cutoffAdvice.dsrBeforePercent}% → {cutoffAdvice.dsrAfterPercent}% (Next cycle: {cutoffAdvice.nextDsrAfterPercent}%) · First Slice: {formatRp(cutoffAdvice.monthlySliceFirst)}
               </div>
             </div>
           </div>

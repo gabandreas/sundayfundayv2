@@ -380,7 +380,7 @@ export function SmtpControlPanel({
                   ? `Verified Live SMTP (${hostDisplay}:${portDisplay}${emailStatus?.fallbackUsed ? " STARTTLS" : ""})`
                   : isAuthError
                     ? `SMTP Auth / Connection Error (${hostDisplay}:${portDisplay})`
-                    : "Preview / Dry-Run Mode â€” App Password Unset"}
+                    : "Preview / Dry-Run Mode - App Password Unset"}
               </span>
             </div>
             <p className="text-xs font-sans text-text-tertiary mt-1">

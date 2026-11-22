@@ -396,8 +396,8 @@ export function buildDefaultStudioConfig(
           },
           {
             id: 'acc_sb_p1',
-            name: 'Core Savings P1 Vault Demo',
-            institution: 'Internal P1 Reserve',
+            name: 'Core Savings Demo Account',
+            institution: 'Internal Reserve',
             accountType: 'SAVINGS_VAULT',
             balanceRp: 6_000_000,
             annualYieldPct: 4.75,

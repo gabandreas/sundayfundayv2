@@ -413,4 +413,49 @@ describe('System-Wide Anti-AI-Slop Visual Design, Temporal Chart Axis & Human Co
     expect(fs.existsSync(path.join(WEB_DIR, 'app', 'import', 'page.tsx'))).toBe(true);
     expect(fs.existsSync(path.join(WEB_DIR, 'app', 'scenarios', 'page.tsx'))).toBe(true);
   });
+
+  it('prevents Headers spread 401 bugs, compactly masks currency ("Rp •••••"), eliminates all Windows-1252 mojibake & backend/UI P1/enum leaks', () => {
+    const apiLib = fs.readFileSync(path.join(WEB_DIR, 'lib', 'api.ts'), 'utf8');
+    expect(apiLib).not.toMatch(/\.\.\.\s*\(?\s*await\s+getAuthHeaders/);
+    expect(apiLib).not.toContain('P1 Savings -> P2 Reward');
+
+    const utils = fs.readFileSync(path.join(WEB_DIR, 'lib', 'utils.ts'), 'utf8');
+    expect(utils).toContain('"Rp •••••"');
+    expect(utils).not.toContain('Rp •••••••');
+
+    const mojibakeRx = /[\u00c2\u00c3][\u0080-\u00bf]|\u00e2\u20ac|\u00e2\u2020\u2019|\u00c3\u2014/;
+    const scanRoots = [
+      ...collectFiles(path.join(WEB_DIR, 'app'), ['.ts', '.tsx']),
+      ...collectFiles(path.join(WEB_DIR, 'components'), ['.ts', '.tsx']),
+      ...collectFiles(path.join(WEB_DIR, 'lib'), ['.ts', '.tsx']),
+      ...collectFiles(path.join(REPO_ROOT, 'apps', 'api', 'src'), ['.ts']),
+    ];
+    for (const file of scanRoots) {
+      if (file.endsWith('.spec.ts')) continue;
+      const content = fs.readFileSync(file, 'utf8');
+      const rel = path.relative(REPO_ROOT, file);
+      expect({ file: rel, mojibake: content.match(mojibakeRx)?.[0] ?? null }).toEqual({
+        file: rel,
+        mojibake: null,
+      });
+    }
+
+    const leakChecks: Array<[string, RegExp]> = [
+      [path.join(WEB_DIR, 'components', 'savings', 'SavingsGoalsCard.tsx'), /\{goal\.category\}/],
+      [path.join(WEB_DIR, 'components', 'preferences', 'CustomRequestStudio.tsx'), /\{profileMode\}/],
+      [path.join(REPO_ROOT, 'apps', 'api', 'src', 'config', 'studio.defaults.ts'), /P1 Vault Demo|Internal P1 Reserve/],
+      [path.join(REPO_ROOT, 'apps', 'api', 'src', 'finance', 'finance.selectors.ts'), /Active Cycle P1 Reserve/],
+      [path.join(REPO_ROOT, 'apps', 'api', 'src', 'calculator', 'hybrid-engine.ts'), /Core Savings Transfer \(P1 Vault\)/],
+      [path.join(REPO_ROOT, 'apps', 'api', 'src', 'reports', 'reports.selectors.ts'), /No P1 Savings Funded|Core Savings \(P1\)/],
+      [path.join(REPO_ROOT, 'apps', 'api', 'src', 'calculator', 'analytics.ts'), /Funded P1 Savings/],
+    ];
+    for (const [file, rx] of leakChecks) {
+      const content = fs.readFileSync(file, 'utf8');
+      const rel = path.relative(REPO_ROOT, file);
+      expect({ file: rel, leak: content.match(rx)?.[0] ?? null }).toEqual({
+        file: rel,
+        leak: null,
+      });
+    }
+  });
 });

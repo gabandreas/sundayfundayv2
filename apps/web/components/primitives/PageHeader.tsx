@@ -26,8 +26,8 @@ export function PageHeader({
   const isDraft = status === "DRAFT";
 
   return (
-    <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 pb-4 border-b border-border-subtle">
-      <div className="min-w-0 flex-1 space-y-1">
+    <div className="flex flex-wrap items-start justify-between gap-4 pb-4 border-b border-border-subtle">
+      <div className="min-w-[260px] flex-1 space-y-1">
         <div className="flex flex-wrap items-center gap-2.5">
           {showBrand && <BrandMark size={20} className="shrink-0" />}
           <h1 className="text-lg sm:text-xl font-bold font-sans tracking-tight text-text-primary">

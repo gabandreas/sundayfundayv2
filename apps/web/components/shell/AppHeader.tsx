@@ -44,9 +44,9 @@ export function AppHeader({ onToggleMobileDrawer }: { onToggleMobileDrawer?: () 
   const title = keys ? t(keys.titleKey) : pathname.replace("/", "");
 
   return (
-    <header className="print-hidden relative z-30 h-14 border-b border-border bg-canvas/95 px-3 sm:px-6 lg:px-8 flex items-center justify-between gap-2 shrink-0 select-none">
+    <header className="print-hidden relative z-30 h-14 border-b border-border bg-canvas/95 px-3 sm:px-4 lg:px-5 flex items-center justify-between gap-2 shrink-0 select-none">
       {/* Left Zone: Route breadcrumb + Mobile Drawer Trigger + Mobile BrandMark */}
-      <div className="flex items-center gap-2 text-xs font-sans min-w-0 lg:min-w-[180px]">
+      <div className="flex items-center gap-1.5 text-xs font-sans min-w-0 shrink">
         {onToggleMobileDrawer && (
           <button
             type="button"
@@ -71,12 +71,12 @@ export function AppHeader({ onToggleMobileDrawer }: { onToggleMobileDrawer?: () 
       </div>
 
       {/* Center Zone: Quick Global Search Input */}
-      <div className="hidden md:flex flex-1 justify-center px-2 lg:px-4 min-w-0">
+      <div className="hidden md:flex flex-1 justify-center px-1 lg:px-2 min-w-0">
         <GlobalSearchModal />
       </div>
 
       {/* Right Zone: Privacy Toggle + Language + Guide + Period Capsule Navigator + Account Profile */}
-      <div className="flex items-center gap-1.5 sm:gap-2.5 justify-end min-w-0 lg:min-w-[280px] shrink-0">
+      <div className="flex items-center gap-1.5 sm:gap-2 justify-end min-w-0 shrink-0">
         <div className="hidden sm:flex items-center gap-1.5">
           <PrivacyEyeButton
             size="sm"

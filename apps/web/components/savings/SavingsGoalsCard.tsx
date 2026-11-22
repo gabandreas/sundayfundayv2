@@ -15,6 +15,19 @@ interface SavingsGoalsCardProps {
   avgMonthlySavings: number;
 }
 
+function formatGoalCategoryLabel(cat: string): string {
+  switch (cat) {
+    case "EMERGENCY_FUND":
+      return "Emergency Fund";
+    case "WISHLIST":
+      return "Wishlist Reserve";
+    case "SINKING_RESERVE":
+      return "Annual & Sinking";
+    default:
+      return "Custom Goal";
+  }
+}
+
 export function SavingsGoalsCard({
   goals,
   avgMonthlySavings,
@@ -173,7 +186,7 @@ export function SavingsGoalsCard({
                         {goal.name}
                       </h4>
                       <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface-subtle border border-border-subtle text-text-tertiary">
-                        {goal.category}
+                        {formatGoalCategoryLabel(goal.category)}
                       </span>
                       {goal.linkedWishlistItem && (
                         <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface-subtle border border-border text-text-secondary">

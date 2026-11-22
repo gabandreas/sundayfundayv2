@@ -270,9 +270,9 @@ export function MarqueeWorkspaceClient() {
                 Installment Payoff Milestones
               </div>
               <ul className="space-y-1 text-[11px] text-text-secondary font-mono">
-                <li>JAN &apos;27 â€” 11.11 3x plans complete (3/3)</li>
+                <li>JAN &apos;27 - 11.11 3x plans complete (3/3)</li>
                 <li>FEB &apos;27 — High-interest personal loan reaches Rp 0</li>
-                <li>SEP &apos;27 â€” Final 12x card plan matures</li>
+                <li>SEP &apos;27 - Final 12x card plan matures</li>
               </ul>
             </div>
 

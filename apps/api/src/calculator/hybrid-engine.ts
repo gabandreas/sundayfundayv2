@@ -742,7 +742,7 @@ export function simulateTimelineTs(req: TimelineSimulateRequest): TimelineSimula
             ? [
                 {
                   dateIso: req.thrDateIso || req.paylaterDueDateIso,
-                  label: 'Core Savings Transfer (P1 Vault)',
+                  label: 'Core Savings Transfer',
                   category: 'SAVINGS' as const,
                   amount: -Math.round(req.coreSavingsTarget),
                 },

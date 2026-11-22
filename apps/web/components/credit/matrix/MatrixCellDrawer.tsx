@@ -603,7 +603,7 @@ export function MatrixCellDrawer({
                 )}
               </div>
 
-              {/* Add Item / Installment Wizard â€” rendered directly at top under button */}
+              {/* Add Item / Installment Wizard - rendered directly at top under button */}
               {showAddForm && drawerMode === "itemized" && !isLocked && (
                 <form
                   onSubmit={handleAddSubmit}
@@ -796,7 +796,7 @@ export function MatrixCellDrawer({
                             <div className="text-text-tertiary truncate">
                               {cutoffPreview.slices
                                 .map((s) => `${s.periodLabel}: Rp ${s.amount.toLocaleString("id-ID")}`)
-                                .join(" â†’ ")}
+                                .join(" → ")}
                             </div>
                           )}
                         </div>

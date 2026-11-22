@@ -493,26 +493,26 @@ export function calculateAnalytics(
     ),
     buildCategory(
       'CORE_SAVINGS',
-      'Core Savings (P1)',
+      'Core Savings',
       totalActualSavingsAcrossPeriods,
       false,
       [
         {
           key: 'FUNDED_P1_SAVINGS',
-          label: 'Funded P1 Savings',
+          label: 'Funded Core Savings',
           amount: totalActualSavingsAcrossPeriods,
         },
       ],
     ),
     buildCategory(
       'SELF_REWARD_SURPLUS',
-      'Self-Reward & Surplus (P2)',
+      'Flexible Surplus',
       totalSelfRewardAcrossPeriods,
       false,
       [
         {
           key: 'FUNDED_P2_SURPLUS',
-          label: 'Funded P2 Surplus',
+          label: 'Funded Flexible Surplus',
           amount: totalSelfRewardAcrossPeriods,
         },
       ],

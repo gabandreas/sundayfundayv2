@@ -647,7 +647,7 @@ export default function AdminConsolePage() {
                       <div className="font-medium text-text-primary">{u.fullName}</div>
                       <div className="text-[11px] font-mono text-text-tertiary mt-0.5">
                         <span className="text-emerald-400/80">{u.accountName || "default"}</span> /{" "}
-                        <span className="text-text-secondary">{u.username || "â€”"}</span> · {u.email}
+                        <span className="text-text-secondary">{u.username || "-"}</span> · {u.email}
                       </div>
                     </td>
                     <td className="px-4 py-3.5">
@@ -730,7 +730,7 @@ export default function AdminConsolePage() {
               >
                 {users.map((u) => (
                   <option key={u.id} value={u.id}>
-                    #{u.id} â€” {u.fullName} ({u.role})
+                    #{u.id} - {u.fullName} ({u.role})
                   </option>
                 ))}
               </select>
@@ -742,7 +742,7 @@ export default function AdminConsolePage() {
               <div className="grid grid-cols-3 gap-5">
                 <div>
                   <label className="block text-xs font-medium text-text-secondary mb-1">
-                    Life-Stage Preset (Ages 20â€“70)
+                    Life-Stage Preset (Ages 20-70)
                   </label>
                   <select
                     value={selectedUserConfig.lifeStagePreset || "CORPORATE_PROFESSIONAL"}
@@ -1060,7 +1060,7 @@ export default function AdminConsolePage() {
                       <td className="px-4 py-3.5 font-mono text-text-primary">
                         {req.estimatedSetupFee
                           ? `Rp ${req.estimatedSetupFee.toLocaleString("id-ID")}`
-                          : "â€”"}
+                          : "-"}
                       </td>
                       <td className="px-4 py-3.5 text-right">
                         <button
@@ -1581,7 +1581,7 @@ export default function AdminConsolePage() {
 
               <div>
                 <label className="block text-xs font-medium text-text-secondary mb-1">
-                  Life-Stage Preset (Ages 20â€“70)
+                  Life-Stage Preset (Ages 20-70)
                 </label>
                 <select
                   value={createForm.lifeStagePreset}

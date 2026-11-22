@@ -569,7 +569,7 @@ export default function SqlStudioPage() {
                     <Play className="w-3 h-3 fill-white" />
                     <span>{isExecuting ? "Executing..." : "Run"}</span>
                     <kbd className="hidden sm:inline text-[9px] font-mono bg-emerald-700/60 px-1 py-0.2 rounded border border-emerald-400/30">
-                      Ctrl+â†µ
+                      Ctrl+↵
                     </kbd>
                   </button>
                 </>

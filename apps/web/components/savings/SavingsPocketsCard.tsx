@@ -316,7 +316,7 @@ export function SavingsPocketsCard({
                     inputMode="numeric"
                     value={
                       isAmountsMasked
-                        ? "•••••••"
+                        ? "•••••"
                         : formatCurrencyInput(pocket.allocatedRp || 0)
                     }
                     readOnly={isAmountsMasked}
@@ -336,7 +336,7 @@ export function SavingsPocketsCard({
                     inputMode="numeric"
                     value={
                       isAmountsMasked
-                        ? "•••••••"
+                        ? "•••••"
                         : formatCurrencyInput(pocket.targetRp || 0)
                     }
                     readOnly={isAmountsMasked}

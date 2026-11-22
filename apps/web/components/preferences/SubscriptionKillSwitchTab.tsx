@@ -382,7 +382,7 @@ export function SubscriptionKillSwitchTab({
       const text =
         sentChannels.length > 0
           ? `Notice sent via ${sentChannels.join(" & ")}`
-          : "Notice generated (preview mode â€” add Gmail App Password below to dispatch SMTP)";
+          : "Notice generated (preview mode - add Gmail App Password below to dispatch SMTP)";
       setReminderFeedback({ id: item.id, success: true, text });
       loadData();
     } else {
@@ -959,7 +959,7 @@ export function SubscriptionKillSwitchTab({
       >
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-border-subtle bg-surface-subtle">
           <h3 id="ks-notice-dialog-title" className="text-sm font-semibold text-text-primary">
-            Cancellation Notice â€” {previewingNoticeItem?.label || "Subscription"}
+            Cancellation Notice - {previewingNoticeItem?.label || "Subscription"}
           </h3>
           <button
             type="button"

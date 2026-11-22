@@ -85,7 +85,7 @@ export function MarqueeAiSettingsPanel() {
             }
           : prev,
       );
-      setFeedback("New headless X-Marquee-Token generated. Copy it now â€” only its SHA-256 hash is stored.");
+      setFeedback("New headless X-Marquee-Token generated. Copy it now - only its SHA-256 hash is stored.");
     }
   };
 

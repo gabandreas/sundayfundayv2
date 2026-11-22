@@ -840,7 +840,7 @@ export function SubscriptionsStudio({
                           {formatPeriodCode(tx.billingMonth, tx.billingYear)}
                           {tx.stoppedAtMonth && tx.stoppedAtYear && (
                             <span className="text-text-tertiary ml-1">
-                              â†’ {formatPeriodCode(tx.stoppedAtMonth, tx.stoppedAtYear)}
+                              → {formatPeriodCode(tx.stoppedAtMonth, tx.stoppedAtYear)}
                             </span>
                           )}
                         </td>
@@ -874,7 +874,7 @@ export function SubscriptionsStudio({
                               <ExternalLink className="w-3 h-3" />
                             </Link>
                           ) : (
-                            <span className="text-text-tertiary">â€”</span>
+                            <span className="text-text-tertiary">-</span>
                           )}
                         </td>
 

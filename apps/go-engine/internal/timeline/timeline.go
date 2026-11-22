@@ -175,7 +175,7 @@ func SimulateTimeline(req TimelineSimulateRequest) TimelineSimulateResult {
 			}
 			events = append(events, CashflowWaveInput{
 				DateIso:  saveDate,
-				Label:    "Core Savings Transfer (P1 Vault)",
+				Label:    "Core Savings Transfer",
 				Category: "SAVINGS",
 				Amount:   -req.CoreSavingsTarget,
 			})

@@ -1425,7 +1425,7 @@ export class FinanceSelectors {
         ? [
             {
               id: 'ledger_active_p1',
-              name: `Active Cycle P1 Reserve (${String(month).padStart(2, '0')}/${year})`,
+              name: `Active Cycle Core Savings (${String(month).padStart(2, '0')}/${year})`,
               institution: 'Active Period Waterfall',
               accountType: 'SAVINGS_VAULT',
               balanceRp: activePeriodP1,

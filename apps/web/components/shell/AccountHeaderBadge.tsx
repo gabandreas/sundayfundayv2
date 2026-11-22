@@ -130,7 +130,7 @@ export function AccountHeaderBadge() {
             onClick={handleResetDemo}
             disabled={isResetting}
             title="Reset demo sandbox to original sample values"
-            className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono rounded erp-callout-caution text-caution hover:bg-surface-hover transition-all active:scale-[0.98] disabled:opacity-50"
+            className="flex items-center gap-1 px-2 py-1 text-[11px] font-mono rounded erp-callout-caution text-caution hover:bg-surface-hover transition-all active:scale-[0.98] disabled:opacity-50 whitespace-nowrap shrink-0"
           >
             <RotateCcw
               className={`w-3 h-3 ${isResetting ? "animate-spin" : ""}`}
@@ -143,14 +143,14 @@ export function AccountHeaderBadge() {
         <button
           type="button"
           onClick={() => setIsOpen((prev) => !prev)}
-          className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded border border-border bg-surface hover:bg-surface-subtle transition-all active:scale-[0.98] text-left cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
+          className="flex items-center gap-1.5 px-2 py-1.5 rounded border border-border bg-surface hover:bg-surface-subtle transition-all active:scale-[0.98] text-left cursor-pointer max-w-[148px] shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
         >
           {/* Avatar Initial */}
           <div className="w-5 h-5 rounded-sm bg-surface-subtle border border-border-strong flex items-center justify-center text-[10px] font-mono font-semibold text-text-primary shrink-0">
             {getInitials(cleanName)}
           </div>
 
-          <span className="text-xs font-medium text-text-primary whitespace-nowrap">
+          <span className="text-xs font-medium text-text-primary truncate">
             {cleanName}
           </span>
 
