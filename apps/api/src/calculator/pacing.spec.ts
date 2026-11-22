@@ -376,18 +376,26 @@ describe('pacing calculator (payday-to-payday variable consumption cycles)', () 
       expect(parts.dayOfWeek).toBe(1);
     });
 
-    it('resolves Nov 15, 2026 into 10/2026 and transitions to 11/2026 on Nov 27', () => {
+    it('resolves Nov 15 & Nov 22, 2026 into 11/2026 (Nov consumption cycle) and transitions to 12/2026 on Nov 27', () => {
+      expect(getPayrollPeriodForDate(new Date('2026-10-28T00:00:00.000Z'))).toEqual({
+        month: 11,
+        year: 2026,
+      });
       expect(getPayrollPeriodForDate(new Date('2026-11-15T10:00:00.000Z'))).toEqual({
-        month: 10,
+        month: 11,
+        year: 2026,
+      });
+      expect(getPayrollPeriodForDate(new Date('2026-11-22T03:00:00.000Z'))).toEqual({
+        month: 11,
         year: 2026,
       });
       expect(getPayrollPeriodForDate(new Date('2026-11-26T16:00:00.000Z'))).toEqual({
-        month: 10,
+        month: 11,
         year: 2026,
       });
-      // 2026-11-26T18:00:00Z = 2026-11-27 01:00 WIB -> transitions to 11/2026
+      // 2026-11-26T18:00:00Z = 2026-11-27 01:00 WIB -> transitions to 12/2026 (Dec consumption cycle)
       expect(getPayrollPeriodForDate(new Date('2026-11-26T18:00:00.000Z'))).toEqual({
-        month: 11,
+        month: 12,
         year: 2026,
       });
     });
@@ -473,10 +481,10 @@ describe('pacing calculator (payday-to-payday variable consumption cycles)', () 
       expect(completed.weekendSafeRate).toBe(0);
     });
 
-    it('resolves smart default period to earliest open DRAFT cycle when current calendar cycle is LOCKED', () => {
-      const nov22Ref = new Date('2026-11-22T03:00:00.000Z'); // 22 Nov 2026 WIB -> calendar cycle 10/2026
+    it('resolves smart default period to 11/2026 (ACTIVE on Nov 22) when 11/2026 is DRAFT and skips when LOCKED', () => {
+      const nov22Ref = new Date('2026-11-22T03:00:00.000Z'); // 22 Nov 2026 WIB -> consumption cycle 11/2026
 
-      // Default strategy skips LOCKED 10/2026 -> opens 11/2026
+      // When 11/2026 is DRAFT (active today), lands directly on 11/2026
       expect(
         resolveDefaultActivePeriod({
           referenceDate: nov22Ref,
@@ -487,9 +495,9 @@ describe('pacing calculator (payday-to-payday variable consumption cycles)', () 
             { month: 12, year: 2026, status: 'DRAFT' },
           ],
         }),
-      ).toEqual({ month: 11, year: 2026, skippedLockedPeriod: true });
+      ).toEqual({ month: 11, year: 2026, skippedLockedPeriod: false });
 
-      // Skips multiple consecutive locked periods into 12/2026
+      // Skips LOCKED 11/2026 into 12/2026
       expect(
         resolveDefaultActivePeriod({
           referenceDate: nov22Ref,
@@ -502,29 +510,18 @@ describe('pacing calculator (payday-to-payday variable consumption cycles)', () 
         }),
       ).toEqual({ month: 12, year: 2026, skippedLockedPeriod: true });
 
-      // When calendar cycle is still DRAFT, stays on 10/2026
-      expect(
-        resolveDefaultActivePeriod({
-          referenceDate: nov22Ref,
-          strategy: 'EARLIEST_OPEN_ACTIVE',
-          snapshots: [
-            { month: 10, year: 2026, status: 'DRAFT' },
-            { month: 11, year: 2026, status: 'DRAFT' },
-          ],
-        }),
-      ).toEqual({ month: 10, year: 2026, skippedLockedPeriod: false });
-
-      // Explicit CALENDAR_WINDOW preference keeps 10/2026 even when LOCKED
+      // Explicit CALENDAR_WINDOW preference keeps 11/2026 even when LOCKED
       expect(
         resolveDefaultActivePeriod({
           referenceDate: nov22Ref,
           strategy: 'CALENDAR_WINDOW',
           snapshots: [
             { month: 10, year: 2026, status: 'LOCKED' },
-            { month: 11, year: 2026, status: 'DRAFT' },
+            { month: 11, year: 2026, status: 'LOCKED' },
+            { month: 12, year: 2026, status: 'DRAFT' },
           ],
         }),
-      ).toEqual({ month: 10, year: 2026, skippedLockedPeriod: false });
+      ).toEqual({ month: 11, year: 2026, skippedLockedPeriod: false });
     });
   });
 });

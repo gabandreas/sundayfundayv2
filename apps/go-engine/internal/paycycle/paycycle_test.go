@@ -3,9 +3,9 @@ package paycycle
 import "testing"
 
 func TestComputePaycycleHorizonWeekendShift(t *testing.T) {
-	// Nov 2026: Nov 27 2026 is Friday; Dec 27 2026 is Sunday -> shifts to Dec 25 Friday
+	// Period 12/2026 (Dec 2026 consumption & maturity): funded by Nov 27 2026 Friday; ends before Dec 25 2026 Friday (shifted from Dec 27 Sunday)
 	res := ComputePaycycleHorizon(HorizonRequest{
-		Month:                11,
+		Month:                12,
 		Year:                 2026,
 		AnchorDay:            27,
 		ShiftWeekendToFriday: true,
@@ -14,16 +14,19 @@ func TestComputePaycycleHorizonWeekendShift(t *testing.T) {
 		ReferenceDateIso:     "2026-11-27",
 	})
 	if res.PaydayIso != "2026-11-27" {
-		t.Fatalf("expected Nov 27 payday, got %s", res.PaydayIso)
+		t.Fatalf("expected Nov 27 payday funding 12/2026, got %s", res.PaydayIso)
 	}
 	if res.NextPaydayIso != "2026-12-25" {
 		t.Fatalf("expected Dec 25 Friday shift for Dec 27 Sunday, got %s", res.NextPaydayIso)
+	}
+	if res.MaturityMonth != 12 || res.MaturityYear != 2026 {
+		t.Fatalf("expected maturity 12/2026, got %02d/%d", res.MaturityMonth, res.MaturityYear)
 	}
 }
 
 func TestComputePaycycleHorizonWeighted(t *testing.T) {
 	req := HorizonRequest{
-		Month:                11,
+		Month:                12,
 		Year:                 2026,
 		AnchorDay:            27,
 		ShiftWeekendToFriday: true,
@@ -46,38 +49,48 @@ func TestComputePaycycleHorizonWeighted(t *testing.T) {
 }
 
 func TestRouteTransactionToPaycycleCutoffs(t *testing.T) {
-	// SPayLater Nov 14 -> matures Nov 25 -> funded by Oct 2026 (10/2026)
+	// SPayLater Nov 14 -> matures Nov 25 -> Period 11/2026 (Nov 2026)
 	plBefore := RouteTransactionToPaycycle(RouteTxRequest{
 		TxDateIso:      "2026-11-14",
 		InstrumentType: "PAYLATER",
 	})
-	if plBefore.TargetPeriodCode != "10/2026" || plBefore.CrossedCutoff {
-		t.Fatalf("expected 10/2026 pre-cutoff for Nov 14, got %+v", plBefore)
+	if plBefore.TargetPeriodCode != "11/2026" || plBefore.CrossedCutoff || plBefore.MaturityMonth != 11 {
+		t.Fatalf("expected 11/2026 pre-cutoff for Nov 14, got %+v", plBefore)
 	}
 
-	// SPayLater Nov 15 -> matures Dec 25 -> funded by Nov 2026 (11/2026)
+	// SPayLater Nov 15 -> matures Dec 25 -> Period 12/2026 (Dec 2026)
 	plAfter := RouteTransactionToPaycycle(RouteTxRequest{
 		TxDateIso:      "2026-11-15",
 		InstrumentType: "PAYLATER",
 	})
-	if plAfter.TargetPeriodCode != "11/2026" || !plAfter.CrossedCutoff {
-		t.Fatalf("expected 11/2026 post-cutoff for Nov 15, got %+v", plAfter)
+	if plAfter.TargetPeriodCode != "12/2026" || !plAfter.CrossedCutoff || plAfter.MaturityMonth != 12 {
+		t.Fatalf("expected 12/2026 post-cutoff for Nov 15, got %+v", plAfter)
 	}
 
-	// CC Nov 21 -> crossed 20th cutoff -> funded by Dec 2026 (12/2026)
+	// CC Nov 21 -> crossed 20th cutoff -> matures Jan 11 -> Period 01/2027 (Jan 2027)
 	ccAfter := RouteTransactionToPaycycle(RouteTxRequest{
 		TxDateIso:      "2026-11-21",
 		InstrumentType: "CREDIT_CARD",
 	})
-	if ccAfter.TargetPeriodCode != "12/2026" || !ccAfter.CrossedCutoff {
-		t.Fatalf("expected 12/2026 post-cutoff for Nov 21 CC, got %+v", ccAfter)
+	if ccAfter.TargetPeriodCode != "01/2027" || !ccAfter.CrossedCutoff || ccAfter.MaturityMonth != 1 || ccAfter.MaturityYear != 2027 {
+		t.Fatalf("expected 01/2027 post-cutoff for Nov 21 CC, got %+v", ccAfter)
+	}
+
+	// Cash Nov 18 (< 27th payday) -> Period 11/2026 (28 Oct - 26 Nov)
+	cashNov := RouteTransactionToPaycycle(RouteTxRequest{
+		TxDateIso:      "2026-11-18",
+		InstrumentType: "CASH",
+		AnchorDay:      27,
+	})
+	if cashNov.TargetPeriodCode != "11/2026" {
+		t.Fatalf("expected 11/2026 for Cash Nov 18, got %+v", cashNov)
 	}
 }
 
 func TestTwoStageCorporatePaycycleNov2026(t *testing.T) {
-	// Real Nov 2026 corporate payroll: Payslip drops Wed Nov 25 -> +2 working days review (Thu 26, Fri 27) -> Payday Fri Nov 27
+	// Period 12/2026 (Dec 2026): funded by Nov 2026 corporate payroll (Payslip Wed Nov 25 -> +2 working days -> Payday Fri Nov 27)
 	res := ComputePaycycleHorizon(HorizonRequest{
-		Month:                11,
+		Month:                12,
 		Year:                 2026,
 		PayslipAnchorDay:     25,
 		PayslipShiftRule:     "SHIFT_PREVIOUS_FRIDAY",
@@ -88,33 +101,37 @@ func TestTwoStageCorporatePaycycleNov2026(t *testing.T) {
 		ReferenceDateIso:     "2026-11-28",
 	})
 	if res.PayslipDropIso != "2026-11-25" {
-		t.Fatalf("expected Nov 25 payslip drop, got %s", res.PayslipDropIso)
+		t.Fatalf("expected Nov 25 payslip drop for 12/2026, got %s", res.PayslipDropIso)
 	}
 	if res.PaydayIso != "2026-11-27" {
-		t.Fatalf("expected Nov 27 payday (+2 working days), got %s", res.PaydayIso)
+		t.Fatalf("expected Nov 27 payday (+2 working days) for 12/2026, got %s", res.PaydayIso)
 	}
-	// Oct 2026: Oct 25 is Sunday -> SHIFT_PREVIOUS_FRIDAY gives Fri Oct 23 -> +2 working days (Mon 26, Tue 27) -> Tue Oct 27
-	oct := ComputePaycycleHorizon(HorizonRequest{
-		Month:                10,
+	// Period 11/2026 (Nov 2026 — ACTIVE on Nov 22): funded by Oct 2026 payroll (Oct 25 Sun -> Fri Oct 23 -> explicit override Oct 28 -> Next Payday Nov 27)
+	nov := ComputePaycycleHorizon(HorizonRequest{
+		Month:                11,
 		Year:                 2026,
 		PayslipAnchorDay:     25,
 		PayslipShiftRule:     "SHIFT_PREVIOUS_FRIDAY",
 		ReviewLagWorkingDays: 2,
 		ExplicitStartIso:     "2026-10-28",
 		OverrideNote:         "Corporate Oct Adjustment",
+		ReferenceDateIso:     "2026-11-22",
 	})
-	if oct.PayslipDropIso != "2026-10-23" {
-		t.Fatalf("expected Oct 23 Friday shift for Sun Oct 25 payslip, got %s", oct.PayslipDropIso)
+	if nov.PayslipDropIso != "2026-10-23" {
+		t.Fatalf("expected Oct 23 Friday shift for Sun Oct 25 payslip funding 11/2026, got %s", nov.PayslipDropIso)
 	}
-	if oct.PaydayIso != "2026-10-28" || !oct.OverrideApplied {
-		t.Fatalf("expected explicit Oct 28 override applied, got %+v", oct)
+	if nov.PaydayIso != "2026-10-28" || !nov.OverrideApplied || nov.NextPaydayIso != "2026-11-27" {
+		t.Fatalf("expected explicit Oct 28 -> Nov 27 for 11/2026, got %+v", nov)
+	}
+	if nov.CycleTemporalState != "ACTIVE" || nov.CurrentDayIndex != 26 || nov.TotalCycleDays != 30 || nov.RemainingDays != 5 {
+		t.Fatalf("expected 11/2026 ACTIVE Day 26 of 30 (5 days remaining) on Nov 22, got %+v", nov)
 	}
 }
 
 func TestHorizonThreeTemporalStatesPreActiveCompleted(t *testing.T) {
-	// 11/2026: Payslip Nov 25 -> Payday Nov 27 -> Next Payday Dec 28 (31 days)
+	// Period 12/2026 (Dec 2026): Payslip Nov 25 -> Payday Nov 27 -> Next Payday Dec 28 (31 days)
 	pre := ComputePaycycleHorizon(HorizonRequest{
-		Month:                11,
+		Month:                12,
 		Year:                 2026,
 		PayslipAnchorDay:     25,
 		PayslipShiftRule:     "SHIFT_PREVIOUS_FRIDAY",
@@ -135,7 +152,7 @@ func TestHorizonThreeTemporalStatesPreActiveCompleted(t *testing.T) {
 	}
 
 	active := ComputePaycycleHorizon(HorizonRequest{
-		Month:                11,
+		Month:                12,
 		Year:                 2026,
 		PayslipAnchorDay:     25,
 		PayslipShiftRule:     "SHIFT_PREVIOUS_FRIDAY",
@@ -153,7 +170,7 @@ func TestHorizonThreeTemporalStatesPreActiveCompleted(t *testing.T) {
 	}
 
 	done := ComputePaycycleHorizon(HorizonRequest{
-		Month:                11,
+		Month:                12,
 		Year:                 2026,
 		PayslipAnchorDay:     25,
 		PayslipShiftRule:     "SHIFT_PREVIOUS_FRIDAY",

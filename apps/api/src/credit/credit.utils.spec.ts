@@ -1,9 +1,37 @@
 import {
   calculateCardDueAmountForMonth,
   calculateCardInstallmentProgress,
+  evaluateObligationSettlement,
 } from './credit.utils';
 
 describe('credit.utils calculator', () => {
+  describe('evaluateObligationSettlement (Consumption & Bill-Maturity Month = Period M)', () => {
+    it('evaluates obligation due date directly in periodMonth/periodYear (dueMonth === periodMonth)', () => {
+      const novBill = evaluateObligationSettlement({
+        periodMonth: 11,
+        periodYear: 2026,
+        dueDay: 25,
+        dbIsSettled: false,
+        now: new Date('2026-11-22T03:00:00.000Z'),
+      });
+      expect(novBill.dueMonth).toBe(11);
+      expect(novBill.dueYear).toBe(2026);
+      expect(novBill.dueDateIso).toBe('2026-11-25');
+      expect(novBill.isPastDueDate).toBe(false);
+
+      const decBill = evaluateObligationSettlement({
+        periodMonth: 12,
+        periodYear: 2026,
+        dueDay: 11,
+        dbIsSettled: false,
+        now: new Date('2026-11-22T03:00:00.000Z'),
+      });
+      expect(decBill.dueMonth).toBe(12);
+      expect(decBill.dueYear).toBe(2026);
+      expect(decBill.dueDateIso).toBe('2026-12-11');
+    });
+  });
+
   describe('calculateCardDueAmountForMonth with RECURRING endedAtMonth/endedAtYear', () => {
     it('bills RECURRING charges from start month up through endedAtMonth/endedAtYear inclusive, and 0 afterward', () => {
       const recurringCard = {
