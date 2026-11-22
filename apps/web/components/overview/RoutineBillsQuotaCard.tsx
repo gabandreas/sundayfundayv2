@@ -339,51 +339,51 @@ export function RoutineBillsQuotaCard({
         {/* Categories Breakdown with 1-Click Quota Pills */}
         <div className="mt-4 pt-3 border-t border-border-subtle space-y-3.5">
           {/* Daily Food & Living Budget (Top Line Item) */}
-          <div className="p-2.5 rounded bg-surface-subtle border border-border-subtle flex items-center justify-between gap-2">
-            <div className="min-w-0">
-              <span className="text-[10px] text-text-tertiary uppercase font-semibold font-sans block">
+          <div className="p-2.5 rounded bg-surface-subtle border border-border-subtle space-y-1">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[10px] text-text-tertiary uppercase font-semibold font-sans">
                 {t("overview.dailyFoodLiving")}
               </span>
-              <span className="text-[10px] text-text-tertiary font-sans tabular-nums">
-                {snapshot &&
-                snapshot.dailyOperational > 0 &&
-                (snapshot.actualDailyOperational ?? snapshot.dailyOperational) <
-                  snapshot.dailyOperational
-                  ? `${t("overview.fundedOfTarget")}: ${formatIdr(
-                      snapshot.actualDailyOperational ?? 0
-                    )} / ${formatIdr(snapshot.dailyOperational)}`
-                  : "Monthly allowance"}
-              </span>
-            </div>
-            <div className="flex items-center gap-1.5 shrink-0">
-              <span className="font-mono text-xs font-semibold tabular-nums text-text-primary inline-flex items-center gap-1.5">
-                {formatIdr(snapshot?.dailyOperational ?? 0)}
-                {snapshot &&
-                  snapshot.dailyOperational > 0 &&
-                  (snapshot.actualDailyOperational ?? snapshot.dailyOperational) <
-                    snapshot.dailyOperational && (
-                  <span
-                    title={`${t("overview.fundedOfTarget")}: ${formatIdr(
-                      snapshot.actualDailyOperational ?? 0
-                    )} / ${formatIdr(snapshot.dailyOperational)}`}
-                    className="whitespace-nowrap shrink-0 text-[9px] font-mono px-1.5 py-0.5 rounded border border-[rgba(229,155,44,0.30)] text-caution bg-[rgba(229,155,44,0.08)] font-normal"
-                  >
-                    {(snapshot.actualDailyOperational ?? 0) > 0
-                      ? t("overview.partiallyFunded")
-                      : t("overview.unfunded")}
-                  </span>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="font-mono text-xs font-semibold tabular-nums text-text-primary inline-flex items-center gap-1.5 whitespace-nowrap">
+                  {formatIdr(snapshot?.dailyOperational ?? 0)}
+                  {snapshot &&
+                    snapshot.dailyOperational > 0 &&
+                    (snapshot.actualDailyOperational ?? snapshot.dailyOperational) <
+                      snapshot.dailyOperational && (
+                    <span
+                      title={`${t("overview.fundedOfTarget")}: ${formatIdr(
+                        snapshot.actualDailyOperational ?? 0
+                      )} / ${formatIdr(snapshot.dailyOperational)}`}
+                      className="whitespace-nowrap shrink-0 text-[9px] font-mono px-1.5 py-0.5 rounded border border-[rgba(229,155,44,0.30)] text-caution bg-[rgba(229,155,44,0.08)] font-normal"
+                    >
+                      {(snapshot.actualDailyOperational ?? 0) > 0
+                        ? t("overview.partiallyFunded")
+                        : t("overview.unfunded")}
+                    </span>
+                  )}
+                </span>
+                {snapshot && (
+                  <EditableTarget
+                    snapshotId={snapshot.id}
+                    category="DAILY_OPERATIONAL"
+                    categoryLabel="Daily Operational"
+                    currentValue={snapshot.dailyOperational}
+                    isLocked={isLocked}
+                    revisions={snapshot.budgetRevisions}
+                  />
                 )}
-              </span>
-              {snapshot && (
-                <EditableTarget
-                  snapshotId={snapshot.id}
-                  category="DAILY_OPERATIONAL"
-                  categoryLabel="Daily Operational"
-                  currentValue={snapshot.dailyOperational}
-                  isLocked={isLocked}
-                  revisions={snapshot.budgetRevisions}
-                />
-              )}
+              </div>
+            </div>
+            <div className="text-[10px] text-text-tertiary font-sans tabular-nums">
+              {snapshot &&
+              snapshot.dailyOperational > 0 &&
+              (snapshot.actualDailyOperational ?? snapshot.dailyOperational) <
+                snapshot.dailyOperational
+                ? `${t("overview.fundedOfTarget")}: ${formatIdr(
+                    snapshot.actualDailyOperational ?? 0
+                  )} / ${formatIdr(snapshot.dailyOperational)}`
+                : "Monthly allowance"}
             </div>
           </div>
 

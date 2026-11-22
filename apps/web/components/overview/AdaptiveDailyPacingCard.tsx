@@ -378,9 +378,9 @@ export function AdaptiveDailyPacingCard({
         </div>
 
         {/* Centerpiece Number (Newsreader Serif Display Signature) */}
-        <div className="mt-2 flex items-baseline justify-between gap-4">
-          <div>
-            <div className="whitespace-nowrap inline-flex items-baseline gap-2">
+        <div className="mt-2">
+          <div className="flex items-start justify-between gap-3">
+            <div className="whitespace-nowrap inline-flex items-baseline gap-2 min-w-0">
               <div className="font-serif text-[42px] leading-tight font-normal tracking-tight text-text-primary tabular-nums whitespace-nowrap">
                 {isPrePayday
                   ? formatIdr(pacing?.totalOperationalBudget ?? totalOperationalBudget)
@@ -390,77 +390,78 @@ export function AdaptiveDailyPacingCard({
               </div>
               <PrivacyEyeButton size="sm" />
             </div>
-            <div className="text-xs font-sans text-text-tertiary mt-0.5">
-              {isPrePayday ? (
-                <span>
-                  {formatIdr(pacing?.totalDailySpent ?? 0)} spent · Starts{" "}
-                  <strong className="text-text-secondary font-mono">{cyclePaydayFormatted || "on payday"}</strong> ·{" "}
-                  {t("overview.projectedDailyRate")}:{" "}
-                  <strong className="text-text-secondary font-mono">{formatIdr(weekdayRate)}/day</strong> weekday /{" "}
-                  <strong className="text-text-secondary font-mono">{formatIdr(weekendRate)}/day</strong> weekend
-                </span>
-              ) : isCompletedCycle ? (
-                <span>
-                  Final remaining operational balance ({pacing?.daysInCycle ?? 30} of {pacing?.daysInCycle ?? 30} days completed)
-                </span>
-              ) : isWeightedMode ? (
-                pacing?.isWeekendToday ? (
+
+            <div className="text-right text-xs font-sans text-text-tertiary shrink-0 pt-1.5">
+              <div className="whitespace-nowrap">
+                {isPrePayday ? (
                   <span>
-                    Sat–Sun rate:{" "}
-                    <strong className="text-text-secondary font-mono">
-                      {formatIdr(weekendRate)}/day
-                    </strong>{" "}
-                    (1.5x weekend)
+                    <span className="font-mono text-text-primary tabular-nums font-semibold">
+                      Day 0
+                    </span>{" "}
+                    of {pacing?.daysInCycle ?? 31} · {t("overview.prePaydayPlan")}
+                  </span>
+                ) : isCompletedCycle ? (
+                  <span>
+                    <span className="font-mono text-text-primary tabular-nums font-semibold">
+                      {pacing?.daysInCycle ?? 30}
+                    </span>{" "}
+                    / {pacing?.daysInCycle ?? 30} days
                   </span>
                 ) : (
                   <span>
-                    Mon–Fri rate:{" "}
-                    <strong className="text-text-secondary font-mono">
-                      {formatIdr(weekdayRate)}/day
-                    </strong>{" "}
-                    (standard weekday)
+                    <span className="font-mono text-text-primary tabular-nums font-semibold">
+                      {pacing?.daysRemaining ?? 30}
+                    </span>{" "}
+                    {t("overview.daysLeft")}
                   </span>
-                )
-              ) : (
-                <span>
-                  Target:{" "}
-                  <strong className="text-text-secondary font-mono">
-                    {formatIdr(pacing?.baselineDailyRate ?? 0)}/day
-                  </strong>{" "}
-                  (flat baseline)
-                </span>
-              )}
+                )}
+              </div>
+              <div className="text-[11px] font-mono tabular-nums text-text-tertiary mt-0.5 whitespace-nowrap">
+                {pacing?.cycleDateLabel || "Payday to Payday"}
+              </div>
             </div>
           </div>
 
-          <div className="text-right text-xs font-sans text-text-tertiary">
-            <div>
-              {isPrePayday ? (
+          <div className="text-xs font-sans text-text-tertiary mt-1">
+            {isPrePayday ? (
+              <span>
+                {formatIdr(pacing?.totalDailySpent ?? 0)} spent · Starts{" "}
+                <strong className="text-text-secondary font-mono">{cyclePaydayFormatted || "on payday"}</strong> ·{" "}
+                {t("overview.projectedDailyRate")}:{" "}
+                <strong className="text-text-secondary font-mono">{formatIdr(weekdayRate)}/day</strong> weekday /{" "}
+                <strong className="text-text-secondary font-mono">{formatIdr(weekendRate)}/day</strong> weekend
+              </span>
+            ) : isCompletedCycle ? (
+              <span>
+                Final remaining operational balance ({pacing?.daysInCycle ?? 30} of {pacing?.daysInCycle ?? 30} days completed)
+              </span>
+            ) : isWeightedMode ? (
+              pacing?.isWeekendToday ? (
                 <span>
-                  <span className="font-mono text-text-primary tabular-nums font-semibold">
-                    Day 0
-                  </span>{" "}
-                  of {pacing?.daysInCycle ?? 31} · {t("overview.prePaydayPlan")}
-                </span>
-              ) : isCompletedCycle ? (
-                <span>
-                  <span className="font-mono text-text-primary tabular-nums font-semibold">
-                    {pacing?.daysInCycle ?? 30}
-                  </span>{" "}
-                  / {pacing?.daysInCycle ?? 30} days
+                  Sat–Sun rate:{" "}
+                  <strong className="text-text-secondary font-mono">
+                    {formatIdr(weekendRate)}/day
+                  </strong>{" "}
+                  (1.5x weekend)
                 </span>
               ) : (
                 <span>
-                  <span className="font-mono text-text-primary tabular-nums font-semibold">
-                    {pacing?.daysRemaining ?? 30}
-                  </span>{" "}
-                  {t("overview.daysLeft")}
+                  Mon–Fri rate:{" "}
+                  <strong className="text-text-secondary font-mono">
+                    {formatIdr(weekdayRate)}/day
+                  </strong>{" "}
+                  (standard weekday)
                 </span>
-              )}
-            </div>
-            <div className="text-[11px] font-mono tabular-nums text-text-tertiary mt-0.5">
-              Cycle: {pacing?.cycleDateLabel || "Payday to Payday"}
-            </div>
+              )
+            ) : (
+              <span>
+                Target:{" "}
+                <strong className="text-text-secondary font-mono">
+                  {formatIdr(pacing?.baselineDailyRate ?? 0)}/day
+                </strong>{" "}
+                (flat baseline)
+              </span>
+            )}
           </div>
         </div>
 
@@ -614,9 +615,9 @@ export function AdaptiveDailyPacingCard({
           </div>
         )}
 
-        <div className="grid grid-cols-12 gap-2 items-center">
+        <div className="flex items-center gap-2">
           {/* Bank balance input */}
-          <div className="col-span-7">
+          <div className="flex-1 min-w-0">
             <input
               ref={walletInputRef}
               type="text"
@@ -625,8 +626,8 @@ export function AdaptiveDailyPacingCard({
               onChange={(e) => setBankBalanceInput(formatCurrencyInput(e.target.value))}
               placeholder={
                 includesRoutineBills
-                  ? `Actual bank balance (e.g. ${expectedTotalBankBalance.toLocaleString("id-ID")})`
-                  : `Actual living cash (e.g. ${remainingBudget.toLocaleString("id-ID")})`
+                  ? `Bank (Rp ${expectedTotalBankBalance.toLocaleString("id-ID")})`
+                  : `Cash (Rp ${remainingBudget.toLocaleString("id-ID")})`
               }
               className={`w-full px-2.5 py-1.5 rounded bg-surface-subtle border font-mono text-xs text-text-primary placeholder:text-text-tertiary focus:outline-none disabled:opacity-50 ${
                 isSpike
@@ -637,13 +638,13 @@ export function AdaptiveDailyPacingCard({
           </div>
 
           {/* Sync & Wallet Guard Check-In Buttons */}
-          <div className="col-span-5 flex items-center gap-1.5 justify-end">
+          <div className="flex items-center gap-1.5 shrink-0">
             <button
               type="button"
               disabled={isLocked || isSavingGuard || parsedBankBalance === null}
               onClick={handleSaveWalletCheckIn}
               title="Persist actual wallet check-in for Survival Guard tracking"
-              className="px-2.5 py-1.5 rounded text-[11px] font-mono border border-border-default bg-canvas text-text-secondary hover:text-text-primary hover:border-text-secondary transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1 shrink-0"
+              className="px-2.5 py-1.5 rounded text-[11px] font-mono border border-border-default bg-canvas text-text-secondary hover:text-text-primary hover:border-text-secondary transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1 whitespace-nowrap shrink-0"
             >
               <ShieldCheck className="w-3 h-3" />
               {isSavingGuard ? "..." : "Guard"}
@@ -658,7 +659,7 @@ export function AdaptiveDailyPacingCard({
                 balanceDiff === 0
               }
               onClick={handleSyncWallet}
-              className="flex-1 justify-center px-2.5 py-1.5 rounded text-xs font-medium bg-surface-hover border border-border-default text-text-primary hover:border-text-secondary transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1.5 shrink-0"
+              className="justify-center px-2.5 py-1.5 rounded text-xs font-medium bg-surface-hover border border-border-default text-text-primary hover:border-text-secondary transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1.5 whitespace-nowrap shrink-0"
             >
               {isSubmittingSync ? (
                 <>
