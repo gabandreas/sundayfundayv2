@@ -77,14 +77,22 @@ async function main() {
       u1.user,
     );
 
-    // 2. Navigate to Overview (/) and verify Smart Default Active Period (11/2026) & no Platform Admin link
+    // 2. Navigate to Overview (/) and verify Smart Default Active Period (11/2026), Savings & Vaults label, 27 NOV / 28 DEC pre-payday axis dates, and no Platform Admin link
     await page.goto(`${WEB_URL}/`, { waitUntil: 'networkidle2', timeout: 60000 });
     const overviewText = await page.evaluate(() => document.body.innerText);
     assert.ok(
       !overviewText.includes('Platform Admin'),
       'Sidebar must NOT display Platform Admin for consumer role USER (User #1)',
     );
-    console.log('  PASS [1/6]: User #1 consumer role hides Platform Admin from Sidebar.');
+    assert.ok(
+      overviewText.includes('Savings & Vaults'),
+      'Sidebar must render humanized "Savings & Vaults" label instead of "Savings & Reservoirs"',
+    );
+    assert.ok(
+      !overviewText.includes('Savings & Reservoirs'),
+      'Sidebar must not contain "Savings & Reservoirs"',
+    );
+    console.log('  PASS [1/6]: User #1 consumer role hides Platform Admin and displays humanized "Savings & Vaults" navigation.');
 
     // 3. Verify Trilingual Switcher (EN / ID / ZH) produces zero raw translation keys
     for (const loc of ['en', 'id', 'zh'] as const) {
@@ -121,18 +129,28 @@ async function main() {
     }
     console.log('  PASS [3/6]: All new & consolidated routes render expected domain sections.');
 
-    // 5. Verify Alt+M opens the native top-layer <dialog> Marquee drawer
-    await page.keyboard.down('Alt');
-    await page.keyboard.press('KeyM');
-    await page.keyboard.up('Alt');
+    // 5. Verify Floating Bottom-Right Marquee Launcher & Alt+M native top-layer <dialog> Marquee drawer
+    const launcherExists = await page.evaluate(() => {
+      const btn = document.querySelector('[data-testid="marquee-floating-launcher"]') as HTMLElement | null;
+      if (!btn) return false;
+      const svg = btn.querySelector('svg');
+      return Boolean(svg && btn.className.includes('fixed') && btn.className.includes('bottom-5'));
+    });
+    assert.equal(
+      launcherExists,
+      true,
+      'Floating bottom-right Marquee launcher ([data-testid="marquee-floating-launcher"]) with custom SVG emblem must be mounted',
+    );
+
+    await page.click('[data-testid="marquee-floating-launcher"]');
     await new Promise((r) => setTimeout(r, 350));
 
     const dialogOpen = await page.evaluate(() => {
       const dlg = document.querySelector('dialog.marquee-drawer') as HTMLDialogElement | null;
       return Boolean(dlg && dlg.open);
     });
-    assert.equal(dialogOpen, true, 'Alt+M must open native <dialog class="marquee-drawer"> via showModal()');
-    console.log('  PASS [4/6]: Alt+M opens native top-layer <dialog> Marquee drawer.');
+    assert.equal(dialogOpen, true, 'Floating launcher / Alt+M must open native <dialog class="marquee-drawer"> via showModal()');
+    console.log('  PASS [4/6]: Floating bottom-right Marquee launcher & native top-layer <dialog> drawer verified.');
 
     // 6. Verify /admin is restricted for consumer role USER
     await page.goto(`${WEB_URL}/admin`, { waitUntil: 'networkidle2', timeout: 45000 });

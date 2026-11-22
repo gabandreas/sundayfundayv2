@@ -5,6 +5,7 @@ Exact module and symbol locations to minimize redundant search reads. See also:
 - `docs/ERD.md`
 - `docs/ARCHITECTURE_AND_UX_FLOW.md`
 - `docs/MARQUEE_AI_COPILOT.md`
+- `docs/COPYWRITING_AND_DESIGN_SYSTEM.md`
 - `docs/TDD_AND_ERROR_CATALOG.md`
 - `docs/GO_ENGINE_ARCHITECTURE.md`
 - `docs/PAYCYCLE_HORIZON_AND_CUTOFF_LAW.md`
@@ -24,9 +25,10 @@ Exact module and symbol locations to minimize redundant search reads. See also:
 
 ### Marquee 3-Tier Financial AI Co-Pilot & AES-256-GCM Crypto (`apps/api/src/marquee/` & `apps/api/src/common/`)
 - `common/crypto.util.ts`: `encryptSecret`, `decryptSecret` (`v1:<ivHex>:<authTagHex>:<cipherHex>` AES-256-GCM), `generateMarqueeToken` (`mrq_*`), `hashSecretToken` (SHA-256), `verifySecretToken` (`crypto.timingSafeEqual`).
+- `marquee/marquee-context.service.ts`: `MarqueeContextHydrator.hydrateForUser` (userId-scoped paycycle state, multi-cycle snapshots, canonical due days `[8, 11, 17, 23, 24, 25]`, payoff milestones `JAN '27` / `FEB '27` / `SEP '27`, active route/sub-tab context, and 6 Human Writing Laws system prompt).
 - `marquee/marquee-nlu.ts`: `parseMarqueeIntent` (<5ms Tier 1 trilingual EN/ID/ZH NLU parser).
-- `marquee/marquee-tools.service.ts`: `MarqueeToolsService.executeTool` (8 deterministic user-scoped tools: `get_financial_pulse`, `log_quick_expense`, `evaluate_affordability`, `get_upcoming_bills`, `wallet_checkin_guard`, `get_debt_burndown`, `get_savings_and_goals`, `simulate_debt_payoff`).
-- `marquee/marquee-llm.service.ts`: `MarqueeLlmService` (`@google/genai` `gemini-3.8-flash` `interactions.create` + Groq `llama-3.3-70b-versatile` with Tier 1 fallback).
+- `marquee/marquee-tools.service.ts`: `MarqueeToolsService.executeTool` (8 canonical tools: `get_paycycle_pulse`, `simulate_purchase_cutoff`, `optimize_payday_thr_split`, `analyze_debt_burndown`, `evaluate_custom_formula`, `prepare_quick_transaction`, `prepare_wallet_checkin`, `explain_period_variance` + legacy aliases).
+- `marquee/marquee-llm.service.ts`: `MarqueeLlmService` (DeepSeek `deepseek-chat`/`deepseek-reasoner`, OpenCode `opencode-chat`, `@google/genai` `gemini-3.8-flash` `interactions.create`, and Groq `llama-3.3-70b-versatile` with Tier 1 fallback).
 - `marquee/marquee.controller.ts` (`/api/marquee`): `POST /chat`, `GET /config`, `PUT /config`, `POST /webhook-token/rotate`, `POST /webhook` (`X-Marquee-Token` headless quick-capture).
 
 ### Credit & Debt Matrix (`apps/api/src/credit/`)

@@ -798,14 +798,34 @@ async function runLayer3User1ReadOnlyParity(baseUrl: string): Promise<void> {
   const superAdminRes = await apiReq(baseUrl, superSession, 'GET', '/api/admin/users');
   assert.equal(superAdminRes.status, 200, `Dedicated superadmin must get 200 on /api/admin/users, got ${superAdminRes.status}`);
 
-  // Verify Marquee Tier 1 deterministic pulse on User #1 (read-only) & Webhook 401 gate
+  // Verify Marquee Tier 1 deterministic pulse on User #1 (read-only), Hydrated Context, DeepSeek/OpenCode config & Webhook 401 gate
   const mrqPulseRes = await apiReq(baseUrl, u1Session, 'POST', '/api/marquee/chat', {
     message: 'Safe to spend today?',
     month: 11,
     year: 2026,
+    activeRoute: '/credit',
+    activeSubTab: 'contracts',
   });
   assert.equal(mrqPulseRes.status, 201, `POST /api/marquee/chat failed: ${mrqPulseRes.rawText}`);
-  assert.equal(mrqPulseRes.data.tool, 'get_financial_pulse');
+  assert.ok(
+    ['get_financial_pulse', 'get_paycycle_pulse'].includes(mrqPulseRes.data.tool),
+    `Unexpected pulse tool: ${mrqPulseRes.data.tool}`,
+  );
+  assert.equal(mrqPulseRes.data.hydratedContext?.periodTag, '11/2026');
+  assert.equal(mrqPulseRes.data.hydratedContext?.activeRoute, '/credit');
+  assert.equal(mrqPulseRes.data.hydratedContext?.activeSubTab, 'contracts');
+
+  const mrqVarianceRes = await apiReq(baseUrl, u1Session, 'POST', '/api/marquee/chat', {
+    message: 'Compare 11/2026 vs 12/2026 variance',
+    month: 11,
+    year: 2026,
+  });
+  assert.equal(mrqVarianceRes.status, 201);
+  assert.equal(mrqVarianceRes.data.tool, 'explain_period_variance');
+
+  const mrqConfigRes = await apiReq(baseUrl, u1Session, 'GET', '/api/marquee/config');
+  assert.equal(mrqConfigRes.status, 200);
+  assert.ok('hasDeepseekKey' in mrqConfigRes.data && 'hasOpencodeKey' in mrqConfigRes.data);
 
   const badWebhookRes = await fetch(`${baseUrl}/api/marquee/webhook`, {
     method: 'POST',
