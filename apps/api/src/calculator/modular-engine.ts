@@ -551,7 +551,7 @@ export function evaluateModularPayroll(params: {
         nominal = Math.round((Number(rule.value) || 0) * totalWorkingDays);
         break;
       case 'PRORATED_MONTHS_OF_BASE':
-        if (params.month === 12 || thrAmount > 0) {
+        if ((params.month === 12 && params.thrAmount === undefined) || thrAmount > 0) {
           nominal = Math.round(
             ((Number(rule.value) || 0) / 12) * adjustedBaseSalary,
           );
@@ -568,7 +568,7 @@ export function evaluateModularPayroll(params: {
     } else if (rule.id === 'daily_attendance') {
       totalDailyAllowance = nominal;
     } else if (rule.id === 'december_thr') {
-      if (params.month === 12 && thrAmount === 0) {
+      if (params.month === 12 && params.thrAmount === undefined && thrAmount === 0) {
         thrAmount = nominal;
       }
     } else {

@@ -90,19 +90,26 @@ async function apiReq(
   if (session.bearerToken) headers.Authorization = `Bearer ${session.bearerToken}`;
   if (body !== undefined) headers['Content-Type'] = 'application/json';
 
-  const res = await fetch(`${baseUrl}${endpoint}`, {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
-  const rawText = await res.text();
-  let data: any = null;
-  try {
-    data = rawText ? JSON.parse(rawText) : null;
-  } catch {
-    data = rawText;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const res = await fetch(`${baseUrl}${endpoint}`, {
+      method,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+    const rawText = await res.text();
+    if (res.status === 503 && attempt < 3) {
+      await new Promise((r) => setTimeout(r, 600 * attempt));
+      continue;
+    }
+    let data: any = null;
+    try {
+      data = rawText ? JSON.parse(rawText) : null;
+    } catch {
+      data = rawText;
+    }
+    return { status: res.status, data, rawText };
   }
-  return { status: res.status, data, rawText };
+  throw new Error(`Unreachable retry exit for ${endpoint}`);
 }
 
 async function runLayer1GoAndParity(): Promise<void> {
@@ -696,12 +703,19 @@ async function runLayer3User1ReadOnlyParity(baseUrl: string): Promise<void> {
     'Hoodie P1 Vault leaked into /credit contractRows',
   );
 
+  // Verify historical 10/2026 LOCKED baseline
+  const oct26SnapRes = await apiReq(baseUrl, u1Session, 'GET', '/api/snapshots?month=10&year=2026');
+  assert.equal(oct26SnapRes.status, 200);
+  assert.equal(oct26SnapRes.data.status, 'LOCKED');
+  assert.equal(Math.round(oct26SnapRes.data.finalTotalIncome), 5791000);
+  assert.equal(Math.round(oct26SnapRes.data.actualSavings), 328345);
+
   const periods: Array<[number, number]> = [
-    [10, 2026],
     [11, 2026],
     [12, 2026],
     [1, 2027],
     [2, 2027],
+    [3, 2027],
   ];
 
   for (const [m, y] of periods) {

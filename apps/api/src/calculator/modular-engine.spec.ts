@@ -105,6 +105,30 @@ describe('Modular Formula, Dynamic Bucket & Policy Engine', () => {
       expect(resDec.thrAmount).toBe(4415000);
       expect(resDec.finalTotalIncome).toBe(6000000 + 4415000);
     });
+
+    it('respects explicit thrAmount=0 on month=12 (Dec 2026 consumption cycle funded by Nov 27 payday) and explicit thrAmount>0 on month=1 (Jan 2027 cycle funded by Dec 28 payday)', () => {
+      const resDec2026 = evaluateModularPayroll({
+        baseSalary: 5300000,
+        totalWorkingDays: 21,
+        dailyAllowance: 25000,
+        cafeteriaDeduction: 12000,
+        thrAmount: 0,
+        month: 12,
+      });
+      expect(resDec2026.thrAmount).toBe(0);
+      expect(resDec2026.finalTotalIncome).toBe(5904000);
+
+      const resJan2027 = evaluateModularPayroll({
+        baseSalary: 5300000,
+        totalWorkingDays: 22,
+        dailyAllowance: 25000,
+        cafeteriaDeduction: 0,
+        thrAmount: 3899917,
+        month: 1,
+      });
+      expect(resJan2027.thrAmount).toBe(3899917);
+      expect(resJan2027.finalTotalIncome).toBe(9840917);
+    });
   });
 
   describe('Dynamic Bucket Target Resolver & Formula Modes', () => {
