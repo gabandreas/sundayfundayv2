@@ -127,6 +127,7 @@ No single reference is cloned. The direction is a deliberate combination of thre
 
 ## Checklist Before Committing
 
+- [ ] **TDD Iron Law followed:** Failing test (`RED`) written and observed failing before production code (`GREEN`), followed by clean refactor (`REFACTOR`) with full suite green.
 - [ ] No calculation duplicated across frontend/backend or across two backend functions.
 - [ ] No read-path mutates a database record.
 - [ ] No emoji, no banned marketing words, no unrequested UI flourish.
@@ -136,3 +137,32 @@ No single reference is cloned. The direction is a deliberate combination of thre
 - [ ] Month/year state reflected in the URL, not just local state.
 - [ ] Route prefix consistent with the rest of the API.
 - [ ] No mobile/responsive layout work introduced.
+
+---
+
+## Test-Driven Development Discipline
+
+Read `.agent/skills/test-driven-development/SKILL.md` and `docs/TDD_AND_ERROR_CATALOG.md` before modifying application code.
+
+- **Iron Law:** `NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST.`
+- **Red-Green-Refactor:** Write a failing unit/integration test using real modules and hand-derived literal fixtures (`RED`), verify the expected failure, implement the minimal fix (`GREEN`), verify the **entire** Go + API Jest + integration suites pass, and only then refactor (`REFACTOR`).
+- **Four-Layer Test Matrix:**
+  1. `npm run erp:go:test` — Go unit & 620+ adversarial fuzz suite across all 13 Go packages.
+  2. `cd apps/api && npx jest --no-cache` — NestJS API calculators, guards, crypto, Marquee AI tools, and Go-TS parity specs.
+  3. `npx tsx scripts/verify-zero-defect-erp.ts` & `npx tsx scripts/erp-bug-bounty.ts [--live]` — Neon Cloud User #1 read-only Golden Baseline + Demo Sandbox (`userId = 2`) mutation conservation & IDOR isolation.
+  4. `npx tsx scripts/erp-ux-flow-e2e.ts [--live]`, `npx tsx scripts/erp-pentest.ts [--live]`, `npx tsx scripts/erp-email-e2e.ts [--live]` — Headless DOM flows (`EN`/`ID`/`ZH`), security hardening, and SMTP workflows.
+
+---
+
+## AI Context & CLI Operations Index
+
+- Read `CLAUDE.md`, `docs/FINANCIAL_DOMAIN_RULES.md`, `docs/PAYCYCLE_HORIZON_AND_CUTOFF_LAW.md`, `docs/GO_ENGINE_ARCHITECTURE.md`, `docs/FORMULA_DSL_AND_RESERVED_WORDS.md`, `docs/MODULAR_PREFERENCES_AND_NAVIGATION.md`, `docs/SUBMODULE_UX_AND_COPY_STANDARDS.md`, and `docs/AI_CONTEXT_MAP.md` before modifying financial logic, navigation, or liabilities.
+- Read `docs/LIVE_LEDGER_STATE.md` (or run `npm run erp:report -- --write`) instead of running ad-hoc database queries to inspect `userId = 1` live balances.
+- Standard CLI tooling (`scripts/erp-cli.ts`):
+  - `npm run erp:go:test` / `npm run erp:go:build` — Run Go engine tests and rebuild native Go engine binaries (`apps/go-engine/bin/`).
+  - `npm run erp:report [-- --write]` — Output verified Neon Cloud state (`userId = 1`).
+  - `npm run erp:sync` — Mirror `userId = 1` records from Neon Cloud -> Local PostgreSQL (`127.0.0.1:5433`).
+  - `npm run erp:doctor` — Assert `0` Rp engine drift across snapshots, 100% `LiabilityLineItem` <-> `MonthlyBulkBill` parity, and Neon/Local sync.
+  - `npx tsx scripts/verify-zero-defect-erp.ts` — Assert Go unit tests, API Jest parity, User #1 Golden Ledger baselines, formula-driven ceilings, lock-safe reconciler, and milestone progression.
+  - `npx tsx scripts/erp-bug-bounty.ts [--live]` — Run the 5-layer bug bounty harness (Go 620+ vector adversarial fuzz & Go-TS parity, Demo Sandbox `userId = 2` mutation conservation & IDOR isolation, and User #1 read-only cross-route parity).
+  - `npm run erp:item:add` / `npm run erp:item:shift` — Add or shift/split `LiabilityLineItem` records atomically across both databases.
