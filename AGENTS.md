@@ -2,6 +2,15 @@
 
 Read this before writing or modifying any code. This is the source of truth for this repo.
 
+## MANDATORY PRE-FLIGHT PROTOCOL (READ & OBEY ON EVERY PROMPT)
+
+Before making ANY enhancement, bug fix, ledger edit, or UI adjustment, you MUST follow all 5 gates without skipping:
+1. **Read Docs First:** Read `AGENTS.md`, `CLAUDE.md`, `docs/FINANCIAL_DOMAIN_RULES.md`, `docs/PAYCYCLE_HORIZON_AND_CUTOFF_LAW.md`, `docs/COPYWRITING_AND_DESIGN_SYSTEM.md`, `docs/USER1_GOLDEN_LEDGER_LOCK.md`, and `docs/TDD_AND_ERROR_CATALOG.md` before changing financial logic, schedules, or UI modules.
+2. **Strict TDD (`Red -> Green -> Refactor`):** Follow `.agent/skills/test-driven-development/SKILL.md`. Never write production code before writing and observing a failing test (`RED`), implementing minimal code to pass (`GREEN`), and keeping full suites passing (`REFACTOR`).
+3. **Human Copywriting & Zero AI-Slop:** Every UI label, tooltip, error, and AI reply must sound like a direct, capable human engineer (`docs/COPYWRITING_AND_DESIGN_SYSTEM.md`). Zero sugar-coating, zero emojis, zero generic jargon (`Vault`, `Reservoirs`, `Forward-Borrow`, `Outlook`)—use plain ERP financial words (`Emergency Fund`, `Savings & Reserve`, `Temporary Savings Advance`).
+4. **End-to-End Trilingual Parity (`EN` / `ID` / `ZH`):** Every visible UI text, status badge, modal, drawer, and table column must translate cleanly across English (`EN`), natural Indonesian (`ID`), and Simplified Chinese (`ZH`) with zero hardcoded English leaks.
+5. **Run All 5 Verification Layers Before Done:** Always run Go tests (`npm run erp:go:test`), API Jest (`cd apps/api && npx jest --no-cache`), `verify-zero-defect-erp.ts`, live API/UX E2E suites (`erp-bug-bounty.ts --live`, `erp-pentest.ts --live`, `erp-email-e2e.ts --live`, `erp-ux-flow-e2e.ts --live`), and Layer 5 visual screenshot inspection before reporting completion.
+
 ---
 
 ## Scope & Intent

@@ -181,6 +181,22 @@ export interface HorizonContractSummaryInput {
   payoffDateLabel: string;
 }
 
+export interface CashRadarSubItem {
+  title: string;
+  amountRp: number;
+  sliceLabel: string;
+}
+
+export interface CashRadarTxInput {
+  id: number;
+  dateIso: string;
+  label: string;
+  type: string;
+  sourceType: string;
+  amountRp: number;
+  insideAllocatedPool: boolean;
+}
+
 export interface CashRadarItemInput {
   dateIso: string;
   title: string;
@@ -206,6 +222,9 @@ export interface CashRadarRequest {
   paylaterDueRp: number;
   creditCardDueRp: number;
   personalDebtItems?: CashRadarItemInput[];
+  loggedTransactions?: CashRadarTxInput[];
+  paylaterBreakdown?: CashRadarSubItem[];
+  creditCardBreakdown?: CashRadarSubItem[];
   holidaysIso?: string[];
   referenceDateIso?: string;
 }
@@ -221,6 +240,8 @@ export interface CashRadarEvent {
   sliceLabel: string;
   isFinalSlice: boolean;
   notes: string;
+  insideAllocatedPool: boolean;
+  subItems: CashRadarSubItem[];
 }
 
 export interface CashRadarDayPoint {
@@ -1018,6 +1039,8 @@ export function buildCashRadarTs(req: CashRadarRequest): CashRadarResult {
       sliceLabel: '',
       isFinalSlice: false,
       notes: 'Corporate payday credit',
+      insideAllocatedPool: false,
+      subItems: [],
     });
   }
   if (req.routineBillsPoolRp > 0) {
@@ -1032,6 +1055,8 @@ export function buildCashRadarTs(req: CashRadarRequest): CashRadarResult {
       sliceLabel: '',
       isFinalSlice: false,
       notes: 'Transport, internet & routine essentials',
+      insideAllocatedPool: false,
+      subItems: [],
     });
   }
   if (req.dailyLivingPoolRp > 0) {
@@ -1046,6 +1071,8 @@ export function buildCashRadarTs(req: CashRadarRequest): CashRadarResult {
       sliceLabel: '',
       isFinalSlice: false,
       notes: 'Dedicated day-by-day living runway',
+      insideAllocatedPool: false,
+      subItems: [],
     });
   }
   const thrAmt = Math.round(req.thrAmountRp ?? 0);
@@ -1062,6 +1089,8 @@ export function buildCashRadarTs(req: CashRadarRequest): CashRadarResult {
       sliceLabel: '',
       isFinalSlice: false,
       notes: 'Pro-rated statutory allowance',
+      insideAllocatedPool: false,
+      subItems: [],
     });
   }
 
@@ -1084,6 +1113,8 @@ export function buildCashRadarTs(req: CashRadarRequest): CashRadarResult {
         sliceLabel: '',
         isFinalSlice: false,
         notes: 'Charges after today defer to M+2 (due 25th)',
+        insideAllocatedPool: false,
+        subItems: [],
       });
     }
     const ccCutIso = `${String(cy).padStart(4, '0')}-${String(cm).padStart(2, '0')}-25`;
@@ -1099,6 +1130,8 @@ export function buildCashRadarTs(req: CashRadarRequest): CashRadarResult {
         sliceLabel: '',
         isFinalSlice: false,
         notes: 'Swipes from 26th onward bill due 11th of M+2',
+        insideAllocatedPool: false,
+        subItems: [],
       });
     }
     const nxt = addHybridMonths(cm, cy, 1);
@@ -1133,6 +1166,8 @@ export function buildCashRadarTs(req: CashRadarRequest): CashRadarResult {
       notes: item.isFinalSlice
         ? 'Final installment — monthly commitment clears after payment'
         : 'Scheduled installment payment',
+      insideAllocatedPool: false,
+      subItems: [],
     });
   });
 
@@ -1152,6 +1187,12 @@ export function buildCashRadarTs(req: CashRadarRequest): CashRadarResult {
       notes: ccShift.shifted
         ? `Nominal due ${nominalCcIso} falls on weekend/holiday — settle H-1 working day early by ${ccShift.earlyIso}`
         : 'Bank Permata full statement settlement (0% retail interest)',
+      insideAllocatedPool: false,
+      subItems: (req.creditCardBreakdown ?? []).map((s) => ({
+        title: s.title,
+        amountRp: Math.round(s.amountRp),
+        sliceLabel: s.sliceLabel ?? '',
+      })),
     });
   }
 
@@ -1167,6 +1208,12 @@ export function buildCashRadarTs(req: CashRadarRequest): CashRadarResult {
       sliceLabel: '',
       isFinalSlice: false,
       notes: 'Consolidated Shopee SPayLater cycle due',
+      insideAllocatedPool: false,
+      subItems: (req.paylaterBreakdown ?? []).map((s) => ({
+        title: s.title,
+        amountRp: Math.round(s.amountRp),
+        sliceLabel: s.sliceLabel ?? '',
+      })),
     });
   }
 
@@ -1182,9 +1229,71 @@ export function buildCashRadarTs(req: CashRadarRequest): CashRadarResult {
       signedAmountRp: -Math.round(req.coreSavingsTargetRp),
       sliceLabel: '',
       isFinalSlice: false,
-      notes: 'Protected P1 Vault transfer',
+      notes: 'Protected Priority 1 savings sweep',
+      insideAllocatedPool: false,
+      subItems: [],
     });
   }
+
+  let extraIncomeSum = 0;
+  let directOutflows = 0;
+  (req.loggedTransactions ?? []).forEach((tx, idx) => {
+    const amt = Math.round(tx.amountRp ?? 0);
+    if (amt <= 0) return;
+    const rawDate = (tx.dateIso ?? '').trim();
+    if (rawDate.length < 10) return;
+    const dIso = rawDate.slice(0, 10);
+    if (dIso < gridStartIso || dIso > gridEndIso) return;
+    const txType = String(tx.type ?? '').trim().toUpperCase();
+    const srcType = String(tx.sourceType ?? '').trim().toUpperCase();
+    if (txType === 'INCOME') {
+      extraIncomeSum += amt;
+      const note =
+        srcType === 'OPERATIONAL_REFUND'
+          ? 'Balance adjustment or operational credit'
+          : 'Additional income logged in cycle';
+      events.push({
+        id: `tx-inc-${idx + 1}-${tx.id}`,
+        dateIso: dIso,
+        nominalDateIso: '',
+        isBusinessDayShifted: false,
+        label: tx.label,
+        category: 'EXTRA_INCOME',
+        signedAmountRp: amt,
+        sliceLabel: srcType,
+        isFinalSlice: false,
+        notes: note,
+        insideAllocatedPool: false,
+        subItems: [],
+      });
+    } else {
+      const inPool = Boolean(tx.insideAllocatedPool);
+      let cat = 'LIVING_SPEND';
+      let note = 'Drawn from Daily Living Cash Pool (no double-subtraction)';
+      const lowerLbl = String(tx.label ?? '').toLowerCase();
+      if (!inPool) {
+        cat = 'DIRECT_DEDUCTION';
+        note = 'Direct unpooled deduction outside living envelope';
+        directOutflows += amt;
+      } else if (srcType === 'CHECKPOINT' || lowerLbl.includes('checkpoint') || lowerLbl.includes('unitemized')) {
+        note = 'Reconciled balance checkpoint (within living cash pool)';
+      }
+      events.push({
+        id: `tx-exp-${idx + 1}-${tx.id}`,
+        dateIso: dIso,
+        nominalDateIso: '',
+        isBusinessDayShifted: false,
+        label: tx.label,
+        category: cat,
+        signedAmountRp: -amt,
+        sliceLabel: srcType,
+        isFinalSlice: false,
+        notes: note,
+        insideAllocatedPool: inPool,
+        subItems: [],
+      });
+    }
+  });
 
   events.sort((a, b) => {
     if (a.dateIso !== b.dateIso) return a.dateIso < b.dateIso ? -1 : 1;
@@ -1217,6 +1326,7 @@ export function buildCashRadarTs(req: CashRadarRequest): CashRadarResult {
     let inflows = 0;
     let outflows = 0;
     for (const ev of dayEvents) {
+      if (ev.insideAllocatedPool) continue;
       if (ev.signedAmountRp > 0) inflows += ev.signedAmountRp;
       else if (ev.signedAmountRp < 0) outflows += -ev.signedAmountRp;
       running += ev.signedAmountRp;
@@ -1247,12 +1357,13 @@ export function buildCashRadarTs(req: CashRadarRequest): CashRadarResult {
     minBal = running;
   }
 
-  const paydayInflows = Math.round(req.paycheckAmountRp) + thrAmt;
+  const paydayInflows = Math.round(req.paycheckAmountRp) + thrAmt + extraIncomeSum;
   const totalScheduledBills =
     totalPersonalDebtRp +
     Math.round(req.creditCardDueRp) +
     Math.round(req.paylaterDueRp) +
-    Math.round(req.routineBillsPoolRp);
+    Math.round(req.routineBillsPoolRp) +
+    directOutflows;
   const endingBuffer =
     paydayInflows -
     totalScheduledBills -

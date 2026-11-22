@@ -784,17 +784,18 @@ async function runLayer3User1ReadOnlyParity(baseUrl: string): Promise<void> {
       assert.equal(Math.round(s.finalTotalIncome), 5891000);
       assert.equal(Math.round(s.totalDeductions), 4522976);
       assert.equal(Math.round(s.actualDailyOperational), 1720316);
-      assert.equal(Math.round(s.deficitUncovered), 0);
+      assert.equal(Math.round(s.deficitUncovered), 108633);
       assert.equal(Math.round(s.actualSavings), 6341);
       assert.equal(Math.round(s.selfReward), 250000);
-      assert.equal(Math.round(p.remainingBudget), 300000);
+      assert.equal(Math.round(p.remainingBudget), 160000);
       assert.ok(p.safeToSpendToday > 0, `User #1 11/2026 safeToSpendToday must be > 0, got ${p.safeToSpendToday}`);
     }
     if (m === 12 && y === 2026) {
-      assert.equal(Math.round(s.totalDeductions), 4187341);
-      assert.equal(Math.round(s.actualDailyOperational), 1416659);
-      assert.equal(Math.round(s.deficitUncovered), 83341);
-      assert.equal(Math.round(s.actualSavings), 0);
+      assert.equal(Math.round(s.finalTotalIncome), 9737425);
+      assert.equal(Math.round(s.totalDeductions), 4110341);
+      assert.equal(Math.round(s.actualDailyOperational), 1500000);
+      assert.equal(Math.round(s.deficitUncovered), 0);
+      assert.equal(Math.round(s.actualSavings), 1000000);
       assert.ok(p.safeToSpendToday > 0, `User #1 12/2026 safeToSpendToday must be > 0, got ${p.safeToSpendToday}`);
       assert.ok(
         ['PRE_PAYDAY', 'ACTIVE', 'COMPLETED'].includes(p.cycleTemporalState),

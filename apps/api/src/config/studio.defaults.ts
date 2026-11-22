@@ -128,7 +128,7 @@ export function buildDefaultFormulas(): FormulaDefinitions {
     takeHomeSalaryFormula:
       '{BASE_SALARY} + ({WORK_DAYS} * {DAILY_ALLOWANCE}) + {TRANSPORT_ALLOWANCE} + {FIXED_ADDITIONS} - {TAX_AND_BPJS}',
     proratedThrFormula:
-      'ROUND(({TENURE_MONTHS} / 12) * ({BASE_SALARY} + {FIXED_ADDITIONS}))',
+      'ROUND(({TENURE_MONTHS} / 12) * {BASE_SALARY})',
     waterfallAllocationFormula:
       'MAX(0, {NET_INCOME} - {TOTAL_DEBT} - {ROUTINE_BILLS} - {LIVING_BUDGET})',
     debtSafeCeilingFormula:
@@ -220,24 +220,24 @@ export function buildDefaultStudioConfig(
               note: 'May 27 Payday',
             },
             '07/2027': {
-              payslipDateIso: '2027-06-23',
-              paydayDateIso: '2027-06-25',
-              note: 'Jun 25 Payday',
+              payslipDateIso: '2027-06-25',
+              paydayDateIso: '2027-06-29',
+              note: 'Fri Jun 25 Payslip -> Tue Jun 29 Payday',
             },
             '08/2027': {
               payslipDateIso: '2027-07-23',
-              paydayDateIso: '2027-07-26',
-              note: 'Jul 26 Payday',
+              paydayDateIso: '2027-07-27',
+              note: 'Fri Jul 23 Payslip -> Tue Jul 27 Payday',
             },
             '09/2027': {
-              payslipDateIso: '2027-08-24',
-              paydayDateIso: '2027-08-26',
-              note: 'Aug 26 Payday',
+              payslipDateIso: '2027-08-25',
+              paydayDateIso: '2027-08-27',
+              note: 'Wed Aug 25 Payslip -> Fri Aug 27 Payday',
             },
             '10/2027': {
-              payslipDateIso: '2027-09-22',
-              paydayDateIso: '2027-09-24',
-              note: 'Sep 24 Payday',
+              payslipDateIso: '2027-09-24',
+              paydayDateIso: '2027-09-28',
+              note: 'Fri Sep 24 Payslip -> Tue Sep 28 Payday',
             },
           },
       shiftWeekendToFriday: true,
@@ -417,9 +417,9 @@ export function buildDefaultStudioConfig(
       customShortcuts: [
         {
           id: 'shortcut_spinjam_freedom',
-          label: 'SPinjam Payoff Watch',
+          label: 'SPinjam Tracker',
           icon: 'TrendingDown',
-          targetHref: '/credit?sub=contracts',
+          targetHref: '/credit?sub=contracts&focus=spinjam',
           sectionGroup: 'AUDIT_DECISION',
         },
       ],

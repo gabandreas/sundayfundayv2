@@ -1,6 +1,6 @@
 # CLAUDE.md - Sunday Funday ERP Session Index
 
-Read this file together with `AGENTS.md` before making database or calculation changes.
+Read this file together with `AGENTS.md` (and its mandatory 5-gate pre-flight protocol) before making database, UI, or calculation changes. Every task requires reading `docs/*`, TDD `Red -> Green -> Refactor`, zero AI-slop / jargon-free EN-ID-ZH copywriting, and full 5-layer test execution prior to deploy.
 
 ## Zero-Discovery Ground Truth Workflow
 

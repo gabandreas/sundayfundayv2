@@ -249,4 +249,20 @@ describe('payroll calculator', () => {
       expect(calculateWorkingDaysForConsumptionPeriod(1, 2027)).toBe(22);
     });
   });
+
+  describe('PT Indodev / DataOn SunFish Exact Proration & Gross Base THR (2026-04-06 join date)', () => {
+    it('proves April 2026 first payslip proration (25/30 * Rp 5.300.000 = Rp 4.416.667 gross base only)', () => {
+      const { calculateProratedSalaryByDates, calculateDecemberProratedThrByDates } = require('./payroll');
+      const aprilSalary = calculateProratedSalaryByDates(5300000, '2026-04-06', 4, 2026);
+      expect(aprilSalary.daysWorkedInMonth).toBe(25);
+      expect(aprilSalary.daysInMonth).toBe(30);
+      expect(aprilSalary.proratedBaseRp).toBe(4416667);
+
+      // Natal THR (paid H-7 Dec 18 into 12/2026): gross base Rp 5.300.000 ONLY (no laptop allowance) * 264/365 days = Rp 3.833.425
+      const natalThr = calculateDecemberProratedThrByDates(5300000, '2026-04-06', '2026-12-25');
+      expect(natalThr.exactCalendarDays).toBe(264);
+      expect(natalThr.exactDaysAmountRp).toBe(3833425);
+      expect(natalThr.completedMonthsFloorAmountRp).toBe(3533333);
+    });
+  });
 });

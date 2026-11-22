@@ -119,3 +119,53 @@ func TestBuildCashRadarApr2027HolidayShiftAndFebFinalSlice(t *testing.T) {
 		t.Fatalf("expected final slice payoff flag on 02/2027 SPinjam 3/3 item")
 	}
 }
+
+func TestCashRadarIncludesThrAndRealTransactionsWithoutDoubleCounting(t *testing.T) {
+	res := BuildCashRadar(CashRadarRequest{
+		PeriodMonth:         12,
+		PeriodYear:          2026,
+		PaydayDateIso:       "2026-11-27",
+		LivingEndDateIso:    "2026-12-27",
+		NextPaydayIso:       "2026-12-28",
+		PaycheckAmountRp:    5904000,
+		ThrDateIso:          "2026-12-18",
+		ThrAmountRp:         3833425,
+		DailyLivingPoolRp:   1500000,
+		RoutineBillsPoolRp:  300000,
+		CoreSavingsTargetRp: 1000000,
+		PaylaterDueRp:       2783115,
+		CreditCardDueRp:     657256,
+		LoggedTransactions: []CashRadarTxInput{
+			{Id: 101, DateIso: "2026-12-03", Label: "Lunch & Coffee", Type: "DEDUCTION", SourceType: "MANUAL", AmountRp: 65000, InsideAllocatedPool: true},
+			{Id: 102, DateIso: "2026-12-10", Label: "Freelance Bonus", Type: "INCOME", SourceType: "MANUAL", AmountRp: 250000, InsideAllocatedPool: false},
+		},
+		PaylaterBreakdown: []CashRadarSubItem{
+			{Title: "SPayLater Baseline Installments", AmountRp: 1942344, SliceLabel: "1/1"},
+			{Title: "11.11 Promo Checkout (3x 0%)", AmountRp: 159904, SliceLabel: "1/3"},
+		},
+		HolidaysIso:      []string{"2026-12-25", "2027-01-01"},
+		ReferenceDateIso: "2026-12-05",
+	})
+
+	if res.PaydayInflowsRp != 5904000+3833425+250000 {
+		t.Fatalf("expected PaydayInflowsRp = paycheck+THR+extraIncome (9987425), got %d", res.PaydayInflowsRp)
+	}
+	// Living pool 1,500,000 already subtracted at payday; Lunch Rp 65,000 is inside living pool so EndingCashBufferRp stays 9987425 - 3740371 - 1500000 - 1000000 = 3747054
+	expectedBuffer := int64(5904000 + 3833425 + 250000 - (2783115 + 657256 + 300000) - 1500000 - 1000000)
+	if res.EndingCashBufferRp != expectedBuffer {
+		t.Fatalf("expected EndingCashBufferRp=%d without double counting inside-pool spend, got %d", expectedBuffer, res.EndingCashBufferRp)
+	}
+	hasTxEvent := false
+	hasSpaySubItems := false
+	for _, ev := range res.Events {
+		if ev.Category == "LIVING_SPEND" && ev.DateIso == "2026-12-03" && ev.SignedAmountRp == -65000 {
+			hasTxEvent = true
+		}
+		if ev.Id == "bill-spaylater" && len(ev.SubItems) == 2 {
+			hasSpaySubItems = true
+		}
+	}
+	if !hasTxEvent || !hasSpaySubItems {
+		t.Fatalf("expected logged spend transaction event and SPayLater sub-items breakdown, got tx=%v sub=%v", hasTxEvent, hasSpaySubItems)
+	}
+}

@@ -9,6 +9,22 @@ import (
 	"time"
 )
 
+type CashRadarSubItem struct {
+	Title      string `json:"title"`
+	AmountRp   int64  `json:"amountRp"`
+	SliceLabel string `json:"sliceLabel"`
+}
+
+type CashRadarTxInput struct {
+	Id                  int    `json:"id"`
+	DateIso             string `json:"dateIso"`
+	Label               string `json:"label"`
+	Type                string `json:"type"`
+	SourceType          string `json:"sourceType"`
+	AmountRp            int64  `json:"amountRp"`
+	InsideAllocatedPool bool   `json:"insideAllocatedPool"`
+}
+
 type CashRadarItemInput struct {
 	DateIso      string `json:"dateIso"`
 	Title        string `json:"title"`
@@ -34,21 +50,26 @@ type CashRadarRequest struct {
 	PaylaterDueRp       int64                `json:"paylaterDueRp"`
 	CreditCardDueRp     int64                `json:"creditCardDueRp"`
 	PersonalDebtItems   []CashRadarItemInput `json:"personalDebtItems"`
+	LoggedTransactions  []CashRadarTxInput   `json:"loggedTransactions"`
+	PaylaterBreakdown   []CashRadarSubItem   `json:"paylaterBreakdown"`
+	CreditCardBreakdown []CashRadarSubItem   `json:"creditCardBreakdown"`
 	HolidaysIso         []string             `json:"holidaysIso"`
 	ReferenceDateIso    string               `json:"referenceDateIso"`
 }
 
 type CashRadarEvent struct {
-	Id                   string `json:"id"`
-	DateIso              string `json:"dateIso"`
-	NominalDateIso       string `json:"nominalDateIso"`
-	IsBusinessDayShifted bool   `json:"isBusinessDayShifted"`
-	Label                string `json:"label"`
-	Category             string `json:"category"`
-	SignedAmountRp       int64  `json:"signedAmountRp"`
-	SliceLabel           string `json:"sliceLabel"`
-	IsFinalSlice         bool   `json:"isFinalSlice"`
-	Notes                string `json:"notes"`
+	Id                   string             `json:"id"`
+	DateIso              string             `json:"dateIso"`
+	NominalDateIso       string             `json:"nominalDateIso"`
+	IsBusinessDayShifted bool               `json:"isBusinessDayShifted"`
+	Label                string             `json:"label"`
+	Category             string             `json:"category"`
+	SignedAmountRp       int64              `json:"signedAmountRp"`
+	SliceLabel           string             `json:"sliceLabel"`
+	IsFinalSlice         bool               `json:"isFinalSlice"`
+	Notes                string             `json:"notes"`
+	InsideAllocatedPool  bool               `json:"insideAllocatedPool"`
+	SubItems             []CashRadarSubItem `json:"subItems"`
 }
 
 type CashRadarDayPoint struct {
@@ -197,6 +218,8 @@ func BuildCashRadar(req CashRadarRequest) CashRadarResult {
 			SliceLabel:           "",
 			IsFinalSlice:         false,
 			Notes:                "Corporate payday credit",
+			InsideAllocatedPool:  false,
+			SubItems:             []CashRadarSubItem{},
 		})
 	}
 	if req.RoutineBillsPoolRp > 0 {
@@ -211,6 +234,8 @@ func BuildCashRadar(req CashRadarRequest) CashRadarResult {
 			SliceLabel:           "",
 			IsFinalSlice:         false,
 			Notes:                "Transport, internet & routine essentials",
+			InsideAllocatedPool:  false,
+			SubItems:             []CashRadarSubItem{},
 		})
 	}
 	if req.DailyLivingPoolRp > 0 {
@@ -225,6 +250,8 @@ func BuildCashRadar(req CashRadarRequest) CashRadarResult {
 			SliceLabel:           "",
 			IsFinalSlice:         false,
 			Notes:                "Dedicated day-by-day living runway",
+			InsideAllocatedPool:  false,
+			SubItems:             []CashRadarSubItem{},
 		})
 	}
 	if req.ThrAmountRp > 0 && strings.TrimSpace(req.ThrDateIso) != "" {
@@ -240,6 +267,8 @@ func BuildCashRadar(req CashRadarRequest) CashRadarResult {
 			SliceLabel:           "",
 			IsFinalSlice:         false,
 			Notes:                "Pro-rated statutory allowance",
+			InsideAllocatedPool:  false,
+			SubItems:             []CashRadarSubItem{},
 		})
 	}
 
@@ -264,6 +293,8 @@ func BuildCashRadar(req CashRadarRequest) CashRadarResult {
 				SliceLabel:           "",
 				IsFinalSlice:         false,
 				Notes:                "Charges after today defer to M+2 (due 25th)",
+				InsideAllocatedPool:  false,
+				SubItems:             []CashRadarSubItem{},
 			})
 		}
 
@@ -280,6 +311,8 @@ func BuildCashRadar(req CashRadarRequest) CashRadarResult {
 				SliceLabel:           "",
 				IsFinalSlice:         false,
 				Notes:                "Swipes from 26th onward bill due 11th of M+2",
+				InsideAllocatedPool:  false,
+				SubItems:             []CashRadarSubItem{},
 			})
 		}
 
@@ -326,6 +359,8 @@ func BuildCashRadar(req CashRadarRequest) CashRadarResult {
 			SliceLabel:           item.SliceLabel,
 			IsFinalSlice:         item.IsFinalSlice,
 			Notes:                note,
+			InsideAllocatedPool:  false,
+			SubItems:             []CashRadarSubItem{},
 		})
 	}
 
@@ -338,6 +373,10 @@ func BuildCashRadar(req CashRadarRequest) CashRadarResult {
 			note = fmt.Sprintf("Nominal due %s falls on weekend/holiday — settle H-1 working day early by %s", nominalCcIso, effectiveCcIso)
 			nomOut = nominalCcIso
 		}
+		ccSub := req.CreditCardBreakdown
+		if ccSub == nil {
+			ccSub = []CashRadarSubItem{}
+		}
 		events = append(events, CashRadarEvent{
 			Id:                   "bill-permata-cc",
 			DateIso:              effectiveCcIso,
@@ -349,11 +388,17 @@ func BuildCashRadar(req CashRadarRequest) CashRadarResult {
 			SliceLabel:           "",
 			IsFinalSlice:         false,
 			Notes:                note,
+			InsideAllocatedPool:  false,
+			SubItems:             ccSub,
 		})
 	}
 
 	if req.PaylaterDueRp > 0 {
 		plDueIso := fmt.Sprintf("%04d-%02d-25", y, m)
+		plSub := req.PaylaterBreakdown
+		if plSub == nil {
+			plSub = []CashRadarSubItem{}
+		}
 		events = append(events, CashRadarEvent{
 			Id:                   "bill-spaylater",
 			DateIso:              plDueIso,
@@ -365,6 +410,8 @@ func BuildCashRadar(req CashRadarRequest) CashRadarResult {
 			SliceLabel:           "",
 			IsFinalSlice:         false,
 			Notes:                "Consolidated Shopee SPayLater cycle due",
+			InsideAllocatedPool:  false,
+			SubItems:             plSub,
 		})
 	}
 
@@ -383,8 +430,73 @@ func BuildCashRadar(req CashRadarRequest) CashRadarResult {
 			SignedAmountRp:       -req.CoreSavingsTargetRp,
 			SliceLabel:           "",
 			IsFinalSlice:         false,
-			Notes:                "Protected P1 Vault transfer",
+			Notes:                "Protected Priority 1 savings sweep",
+			InsideAllocatedPool:  false,
+			SubItems:             []CashRadarSubItem{},
 		})
+	}
+
+	var extraIncomeSum int64
+	var directOutflows int64
+	for idx, tx := range req.LoggedTransactions {
+		if tx.AmountRp <= 0 {
+			continue
+		}
+		dIso := strings.TrimSpace(tx.DateIso)
+		if len(dIso) < 10 {
+			continue
+		}
+		dIso = dIso[:10]
+		if dIso < gridStartIso || dIso > gridEndIso {
+			continue
+		}
+		txType := strings.ToUpper(strings.TrimSpace(tx.Type))
+		srcType := strings.ToUpper(strings.TrimSpace(tx.SourceType))
+		if txType == "INCOME" {
+			extraIncomeSum += tx.AmountRp
+			note := "Additional income logged in cycle"
+			if srcType == "OPERATIONAL_REFUND" {
+				note = "Balance adjustment or operational credit"
+			}
+			events = append(events, CashRadarEvent{
+				Id:                   fmt.Sprintf("tx-inc-%d-%d", idx+1, tx.Id),
+				DateIso:              dIso,
+				NominalDateIso:       "",
+				IsBusinessDayShifted: false,
+				Label:                tx.Label,
+				Category:             "EXTRA_INCOME",
+				SignedAmountRp:       tx.AmountRp,
+				SliceLabel:           srcType,
+				IsFinalSlice:         false,
+				Notes:                note,
+				InsideAllocatedPool:  false,
+				SubItems:             []CashRadarSubItem{},
+			})
+		} else {
+			cat := "LIVING_SPEND"
+			note := "Drawn from Daily Living Cash Pool (no double-subtraction)"
+			if !tx.InsideAllocatedPool {
+				cat = "DIRECT_DEDUCTION"
+				note = "Direct unpooled deduction outside living envelope"
+				directOutflows += tx.AmountRp
+			} else if srcType == "CHECKPOINT" || strings.Contains(strings.ToLower(tx.Label), "checkpoint") || strings.Contains(strings.ToLower(tx.Label), "unitemized") {
+				note = "Reconciled balance checkpoint (within living cash pool)"
+			}
+			events = append(events, CashRadarEvent{
+				Id:                   fmt.Sprintf("tx-exp-%d-%d", idx+1, tx.Id),
+				DateIso:              dIso,
+				NominalDateIso:       "",
+				IsBusinessDayShifted: false,
+				Label:                tx.Label,
+				Category:             cat,
+				SignedAmountRp:       -tx.AmountRp,
+				SliceLabel:           srcType,
+				IsFinalSlice:         false,
+				Notes:                note,
+				InsideAllocatedPool:  tx.InsideAllocatedPool,
+				SubItems:             []CashRadarSubItem{},
+			})
+		}
 	}
 
 	sort.SliceStable(events, func(i, j int) bool {
@@ -421,6 +533,9 @@ func BuildCashRadar(req CashRadarRequest) CashRadarResult {
 		}
 		var inflows, outflows int64
 		for _, ev := range dayEvents {
+			if ev.InsideAllocatedPool {
+				continue
+			}
 			if ev.SignedAmountRp > 0 {
 				inflows += ev.SignedAmountRp
 			} else if ev.SignedAmountRp < 0 {
@@ -459,8 +574,8 @@ func BuildCashRadar(req CashRadarRequest) CashRadarResult {
 		minBal = running
 	}
 
-	paydayInflows := req.PaycheckAmountRp + req.ThrAmountRp
-	totalScheduledBills := totalPersonalDebtRp + req.CreditCardDueRp + req.PaylaterDueRp + req.RoutineBillsPoolRp
+	paydayInflows := req.PaycheckAmountRp + req.ThrAmountRp + extraIncomeSum
+	totalScheduledBills := totalPersonalDebtRp + req.CreditCardDueRp + req.PaylaterDueRp + req.RoutineBillsPoolRp + directOutflows
 	endingBuffer := paydayInflows - totalScheduledBills - req.DailyLivingPoolRp - req.CoreSavingsTargetRp
 
 	return CashRadarResult{

@@ -11,6 +11,7 @@ import {
   WalletGuardResult,
   addHybridMonths,
   formatHybridPeriodLabel,
+  resolvePreviousBusinessDayIsoTs,
 } from '../calculator/hybrid-engine';
 import {
   Transaction,
@@ -917,7 +918,19 @@ export class FinanceSelectors {
       curThrRaw > 0
         ? Math.max(0, Math.round((curSnap.finalTotalIncome ?? 0) - curThrRaw))
         : Math.round(curSnap.finalTotalIncome ?? 0);
-    const thrDateIso = curThrRaw > 0 ? radarHorizon.paydayIso : '';
+    const holidays = new Set<string>(pcCfg.holidayDatesIso ?? []);
+    let thrDateIso = '';
+    if (curThrRaw > 0) {
+      if (month === 12) {
+        const decThr = resolvePreviousBusinessDayIsoTs(year, 12, 18, holidays).earlyIso;
+        thrDateIso =
+          decThr >= radarHorizon.livingStartIso && decThr <= radarHorizon.livingEndIso
+            ? decThr
+            : radarHorizon.paydayIso;
+      } else {
+        thrDateIso = radarHorizon.paydayIso;
+      }
+    }
 
     const paylaterDueRp = Math.round(matrix?.payLaterRow.cells[curKey]?.amount ?? 0);
     const creditCardDueRp = Math.round(matrix?.creditCardRow.cells[curKey]?.amount ?? 0);
@@ -951,6 +964,74 @@ export class FinanceSelectors {
         };
       });
 
+    const paylaterBreakdown = (matrix?.payLaterRow?.cells?.[curKey]?.items ?? [])
+      .filter((item: any) => Math.round(item?.monthlyAmount ?? 0) > 0)
+      .map((item: any) => {
+        const tenor = Math.max(1, Number(item.tenorMonths ?? 1));
+        const idx = Math.max(1, Number(item.installmentIndex ?? 1));
+        return {
+          title: String(item.title || 'SPayLater Item'),
+          amountRp: Math.round(item.monthlyAmount ?? 0),
+          sliceLabel: tenor > 1 ? `${idx}/${tenor}` : '1/1',
+        };
+      });
+
+    const creditCardBreakdown = (matrix?.creditCardRow?.cells?.[curKey]?.items ?? [])
+      .filter((item: any) => Math.round(item?.monthlyAmount ?? 0) > 0)
+      .map((item: any) => {
+        const tenor = Math.max(1, Number(item.tenorMonths ?? 1));
+        const idx = Math.max(1, Number(item.installmentIndex ?? 1));
+        return {
+          title: String(item.title || 'Credit Card Charge'),
+          amountRp: Math.round(item.monthlyAmount ?? 0),
+          sliceLabel: tenor > 1 ? `${idx}/${tenor}` : '1/1',
+        };
+      });
+
+    const rawTxs: any[] = Array.isArray((curSnap as any).transactions)
+      ? (curSnap as any).transactions
+      : await this.prisma.transaction.findMany({
+          where: { snapshotId: curSnap.id },
+          orderBy: [{ date: 'asc' }, { id: 'asc' }],
+        });
+
+    const loggedTransactions = rawTxs
+      .filter((tx: any) => {
+        const tType = String(tx?.type ?? '').toUpperCase();
+        const sType = String(tx?.sourceType ?? '').toUpperCase();
+        if (tType === 'CREDIT_BILL') return false;
+        if (sType === 'BULK_BILL' || sType === 'CREDIT_CARD' || sType === 'CC_TRANSACTION' || sType === 'PERSONAL_DEBT') {
+          return false;
+        }
+        return Math.round(Number(tx?.amount) || 0) > 0;
+      })
+      .map((tx: any) => {
+        const rawIso = tx?.date ? new Date(tx.date).toISOString().slice(0, 10) : radarHorizon.livingStartIso;
+        const createdIso = tx?.createdAt ? new Date(tx.createdAt).toISOString().slice(0, 10) : rawIso;
+        let resolvedIso = rawIso;
+        if (resolvedIso < radarHorizon.livingStartIso) {
+          if (createdIso >= radarHorizon.livingStartIso && createdIso <= radarHorizon.livingEndIso) {
+            resolvedIso = createdIso;
+          } else {
+            resolvedIso = radarHorizon.livingStartIso;
+          }
+        }
+        const tType = String(tx?.type ?? 'DEDUCTION').toUpperCase();
+        const sType = String(tx?.sourceType ?? 'MANUAL').toUpperCase();
+        const fixedCat = String(tx?.fixedEssentialCategory ?? '').trim();
+        const insideAllocatedPool =
+          tType === 'DEDUCTION' && (Boolean(fixedCat) || dailyLivingPoolRp > 0);
+        return {
+          id: Number(tx?.id ?? 0),
+          dateIso: resolvedIso,
+          label: String(tx?.label || 'Transaction'),
+          type: tType,
+          sourceType: sType,
+          amountRp: Math.round(Number(tx?.amount) || 0),
+          insideAllocatedPool,
+        };
+      });
+
     const refIso = referenceDate
       ? normalizeDate(referenceDate)
       : normalizeDate(new Date());
@@ -971,6 +1052,9 @@ export class FinanceSelectors {
       paylaterDueRp,
       creditCardDueRp,
       personalDebtItems,
+      loggedTransactions,
+      paylaterBreakdown,
+      creditCardBreakdown,
       holidaysIso: pcCfg.holidayDatesIso ?? [],
       referenceDateIso: refIsoStr,
     });

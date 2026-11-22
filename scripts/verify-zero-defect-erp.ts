@@ -69,7 +69,7 @@ async function main() {
     assert.equal(Math.round(nov26?.actualDailyOperational ?? -1), 1720316, '11/2026 actualDailyOperational must be 1,720,316');
     assert.equal(Math.round(nov26?.actualSavings ?? -1), 6341, '11/2026 Core Savings P1 must be 6,341');
     assert.equal(Math.round(nov26?.selfReward ?? -1), 250000, '11/2026 Self-Reward P2 must be 250,000');
-    assert.equal(Math.round(nov26?.deficitUncovered ?? -1), 0, '11/2026 deficitUncovered must be 0');
+    assert.equal(Math.round(nov26?.deficitUncovered ?? -1), 108633, '11/2026 deficitUncovered must reflect 6,899,633 - 6,791,000 = 108,633');
 
     const novPacing = await financeSelectors.getPacing(
       11,
@@ -83,15 +83,15 @@ async function main() {
     assert.equal(novPacing.daysInCycle, 30, '11/2026 must be 30 days (28 Oct – 26 Nov)');
     assert.equal(novPacing.daysRemaining, 5, '11/2026 on Nov 22 must have 5 days remaining');
     assert.equal(Math.round(novPacing.totalOperationalBudget), 1720316, '11/2026 pacing totalOperationalBudget must be 1,720,316');
-    assert.equal(Math.round(novPacing.totalDailySpent), 1420316, '11/2026 pacing totalDailySpent must be 1,420,316');
-    assert.equal(Math.round(novPacing.remainingBudget), 300000, '11/2026 pacing remainingBudget must be 300,000');
+    assert.equal(Math.round(novPacing.totalDailySpent), 1560316, '11/2026 pacing totalDailySpent must be 1,560,316 (with Rp 140k cash sync)');
+    assert.equal(Math.round(novPacing.remainingBudget), 160000, '11/2026 pacing remainingBudget must be Rp 160,000');
 
-    // Upcoming period (22 Nov 2026): 12/2026 (27 Nov – 27 Dec 2026, PRE_PAYDAY Day 0, starts in 5 days)
-    assert.equal(Math.round(dec26?.finalTotalIncome ?? -1), 5904000, '12/2026 finalTotalIncome must be 5,904,000');
-    assert.equal(Math.round(dec26?.totalDeductions ?? -1), 4187341, '12/2026 Total Debt must be 4,187,341');
-    assert.equal(Math.round(dec26?.actualDailyOperational ?? -1), 1416659, '12/2026 actualDailyOperational must be 1,416,659');
-    assert.equal(Math.round(dec26?.actualSavings ?? -1), 0, '12/2026 P1 must be 0 under Proportional Living Cash');
-    assert.equal(Math.round(dec26?.deficitUncovered ?? -1), 83341, '12/2026 deficitUncovered must be 83,341');
+    // Upcoming period (22 Nov 2026): 12/2026 (27 Nov – 27 Dec 2026, PRE_PAYDAY Day 0, starts in 5 days) with Natal THR H-7 Dec 18
+    assert.equal(Math.round(dec26?.finalTotalIncome ?? -1), 9737425, '12/2026 finalTotalIncome (Salary + Natal THR 3,833,425) must be 9,737,425');
+    assert.equal(Math.round(dec26?.totalDeductions ?? -1), 4110341, '12/2026 Total Debt (after CC #31 delete) must be 4,110,341');
+    assert.equal(Math.round(dec26?.actualDailyOperational ?? -1), 1500000, '12/2026 actualDailyOperational must be 1,500,000');
+    assert.equal(Math.round(dec26?.actualSavings ?? -1), 1000000, '12/2026 P1 must be 1,000,000 funded with Natal THR');
+    assert.equal(Math.round(dec26?.deficitUncovered ?? -1), 0, '12/2026 deficitUncovered must be 0 with Natal THR');
 
     const decPacing = await financeSelectors.getPacing(
       12,
@@ -103,13 +103,13 @@ async function main() {
     assert.equal(decPacing.cycleTemporalState, 'PRE_PAYDAY', '12/2026 on Nov 22 must be PRE_PAYDAY');
     assert.equal(decPacing.currentDayIndex, 0, '12/2026 on Nov 22 must be Day 0');
     assert.equal(decPacing.daysUntilCycleStart, 5, '12/2026 on Nov 22 must start in 5 days');
-    assert.equal(Math.round(decPacing.totalOperationalBudget), 1416659, '12/2026 pacing totalOperationalBudget must be 1,416,659');
+    assert.equal(Math.round(decPacing.totalOperationalBudget), 1500000, '12/2026 pacing totalOperationalBudget must be 1,500,000');
 
-    assert.equal(Math.round(jan27?.finalTotalIncome ?? -1), 9840917, '01/2027 Total Income (with Natal THR) must be 9,840,917');
+    assert.equal(Math.round(jan27?.finalTotalIncome ?? -1), 5941000, '01/2027 Total Income (THR moved to 12/2026) must be 5,941,000');
     assert.equal(Math.round(jan27?.totalDeductions ?? -1), 3171115, '01/2027 Total Debt must be 3,171,115');
     assert.equal(Math.round(jan27?.dailyOperational ?? -1), 1500000, '01/2027 dailyOperational must be 1,500,000');
-    assert.equal(Math.round(jan27?.actualSavings ?? -1), 1000000, '01/2027 P1 must be 1,000,000');
-    assert.equal(Math.round(jan27?.selfReward ?? -1), 3634802, '01/2027 P2 must be 3,634,802');
+    assert.equal(Math.round(jan27?.actualSavings ?? -1), 734885, '01/2027 P1 must be 734,885');
+    assert.equal(Math.round(jan27?.selfReward ?? -1), 0, '01/2027 P2 must be 0');
 
     assert.equal(Math.round(feb27?.totalDeductions ?? -1), 1967159, '02/2027 Total Debt must be 1,967,159');
     assert.equal(Math.round(feb27?.dailyOperational ?? -1), 1500000, '02/2027 dailyOperational must be 1,500,000');
@@ -280,16 +280,16 @@ async function main() {
     // 5. Verify 12/2026 Credit & Debt Ceiling Control
     console.log('\n[5/11] Verifying 12/2026 Credit Ceiling formula & direct period maturity dates...');
     const creditDec = await creditSelectors.getCreditUsageLimit(12, 2026, 1);
-    assert.equal(creditDec.isSafeCeilingExceeded, true, '12/2026 isSafeCeilingExceeded must be true under organic Rp 83,341 ceiling overrun');
+    assert.equal(creditDec.isSafeCeilingExceeded, false, '12/2026 isSafeCeilingExceeded must be false with Natal THR & CC #31 deleted');
     assert.equal(
       creditDec.ceilingBreakdown.recommendedSafeCombinedCeiling,
-      3434030,
-      `12/2026 Safe Ceiling must be Rp 3,434,030, got ${creditDec.ceilingBreakdown.recommendedSafeCombinedCeiling}`,
+      7267455,
+      `12/2026 Safe Ceiling must be Rp 7,267,455, got ${creditDec.ceilingBreakdown.recommendedSafeCombinedCeiling}`,
     );
     assert.equal(creditDec.maturityMonth, 12, '12/2026 credit usage card must map directly to 12/2026 maturity');
     assert.equal(creditDec.maturityYear, 2026, '12/2026 credit usage maturity year must be 2026');
     console.log(
-      `  PASS: 12/2026 Safe Ceiling = Rp 3,434,030, isSafeCeilingExceeded = ${creditDec.isSafeCeilingExceeded}, Maturity = 12/2026.`,
+      `  PASS: 12/2026 Safe Ceiling = Rp 7,267,455, isSafeCeilingExceeded = ${creditDec.isSafeCeilingExceeded}, Maturity = 12/2026.`,
     );
 
     // 6. Verify Debt Optimizer excludes P1_VAULT_REFUND & matches exact SPinjam unlocks
@@ -361,7 +361,7 @@ async function main() {
       1,
     );
     assert.equal(formulaRes.evaluation.allValid, true);
-    assert.equal(formulaRes.evaluation.results.tenPctIncome.valueRp, 590400);
+    assert.equal(formulaRes.evaluation.results.tenPctIncome.valueRp, 973743);
     console.log('  PASS: Reconciler locks 10/2026 safely into 11/2026 & Formula DSL evaluates accurately.');
 
     // 9. Verify Dynamic Milestone Progression in 03/2027 (SPINJAM_ZERO -> PAYLATER_INSTALLMENTS_ZERO)
@@ -427,8 +427,8 @@ async function main() {
     );
     assert.equal(
       intelDec.networth.currentCycleDebtRp,
-      4187341,
-      `12/2026 currentCycleDebtRp must be 4,187,341, got ${intelDec.networth.currentCycleDebtRp}`,
+      4110341,
+      `12/2026 currentCycleDebtRp must be 4,110,341, got ${intelDec.networth.currentCycleDebtRp}`,
     );
     const p1AccountsTotal = (intelNov.effectiveAssetAccounts ?? [])
       .filter((a: any) => a.accountType === 'SAVINGS_VAULT')
@@ -438,16 +438,25 @@ async function main() {
       `User #1 11/2026 P1 vault (${p1AccountsTotal}) must exclude pre-epoch phantom backfill`,
     );
     console.log(
-      `  PASS: Zero Hoodie P1 leak, 03/2027 contracts = ${mar27ActiveContracts.length} (CC only), 11/2026 currentCycleDebtRp = Rp 4,522,976, 12/2026 currentCycleDebtRp = Rp 4,187,341, P1 vault = Rp ${p1AccountsTotal}.`,
+      `  PASS: Zero Hoodie P1 leak, 03/2027 contracts = ${mar27ActiveContracts.length} (CC only), 11/2026 currentCycleDebtRp = Rp 4,522,976, 12/2026 currentCycleDebtRp = Rp 4,110,341, P1 vault = Rp ${p1AccountsTotal}.`,
     );
 
-    // 11. Verify Two-Stage 02/2027 Payday Date (Jan 27, 2027) & Non-Double-Counted Jan 2027 THR Timeline
-    console.log('\n[11/11] Verifying Two-Stage 02/2027 payday & 01/2027 non-double-counted THR timeline...');
+    // 11. Verify Two-Stage 02/2027 Payday Date (Jan 27, 2027) & Non-Double-Counted Dec 2026 Natal THR Timeline
+    console.log('\n[11/11] Verifying Two-Stage 02/2027 payday & 12/2026 non-double-counted Natal THR timeline...');
     const intelFeb27 = await financeSelectors.getIntelligenceBundle(2, 2027, 1, 0);
     assert.equal(
       intelFeb27.paycycle.paydayIso,
       '2027-01-27',
       `02/2027 Two-Stage funding payday must be 2027-01-27 (not 25th), got ${intelFeb27.paycycle.paydayIso}`,
+    );
+    const timelineDec26 = await financeSelectors.simulateTimelineForUser(
+      { month: 12, year: 2026 },
+      1,
+    );
+    assert.equal(
+      timelineDec26.baseline.paycheckAmount + timelineDec26.baseline.thrAmount,
+      9737425,
+      `12/2026 combined Salary + Natal THR must equal 9,737,425 without double counting, got ${timelineDec26.baseline.paycheckAmount} + ${timelineDec26.baseline.thrAmount}`,
     );
     const timelineJan27 = await financeSelectors.simulateTimelineForUser(
       { month: 1, year: 2027 },
@@ -455,10 +464,10 @@ async function main() {
     );
     assert.equal(
       timelineJan27.baseline.paycheckAmount + timelineJan27.baseline.thrAmount,
-      9840917,
-      `01/2027 combined Salary + THR must equal 9,840,917 without double counting, got ${timelineJan27.baseline.paycheckAmount} + ${timelineJan27.baseline.thrAmount}`,
+      5941000,
+      `01/2027 Salary (THR moved to 12/2026) must equal 5,941,000, got ${timelineJan27.baseline.paycheckAmount} + ${timelineJan27.baseline.thrAmount}`,
     );
-    console.log('  PASS: 02/2027 funding payday = 2027-01-27, 01/2027 timeline inflows = Rp 9,840,917.');
+    console.log('  PASS: 02/2027 funding payday = 2027-01-27, 12/2026 timeline inflows = Rp 9,737,425, 01/2027 = Rp 5,941,000.');
 
     console.log('\n=== ALL 11 ZERO-DEFECT VERIFICATION CHECKS PASSED ===');
   } finally {

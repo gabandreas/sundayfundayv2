@@ -3,7 +3,7 @@ import { SavingsSelectors } from '../savings/savings.selectors';
 import { SnapshotStatus } from '@prisma/client';
 
 describe('SnapshotsSelectors & SavingsSelectors Multi-Period Integrity', () => {
-  it('provisions uncreated 09/2027 with Payday(08/2027) working days (21), 2027-08-26 payout date, and Rp 1.500.000 living budget', async () => {
+  it('provisions uncreated 09/2027 with Payday(08/2027) working days (21), 2027-08-27 payout date, and Rp 1.500.000 living budget', async () => {
     const createdPayloads: any[] = [];
     const mockPrisma: any = {
       monthlySnapshot: {
@@ -52,10 +52,11 @@ describe('SnapshotsSelectors & SavingsSelectors Multi-Period Integrity', () => {
     expect(createdPayloads).toHaveLength(1);
     expect(snap.totalWorkingDays).toBe(21);
     expect(snap.dailyOperational).toBe(1500000);
-    expect(new Date(snap.payrollPayoutDate).toISOString().slice(0, 10)).toBe('2027-08-26');
+    // Aug 25, 2027 is Wed -> +1 Thu 26 review -> +2 Fri 27 Aug 2027 transfer
+    expect(new Date(snap.payrollPayoutDate).toISOString().slice(0, 10)).toBe('2027-08-27');
   });
 
-  it('computes Payday(08/2027) working days (21) and 2027-08-26 payout date in listHorizonSnapshots for unmaterialized 09/2027', async () => {
+  it('computes Payday(M-1) working days and Friday->Tuesday Two-Stage payout dates across 07/2027–09/2027', async () => {
     const mockPrisma: any = {
       globalConfig: {
         findUnique: jest.fn().mockResolvedValue({
@@ -99,16 +100,20 @@ describe('SnapshotsSelectors & SavingsSelectors Multi-Period Integrity', () => {
     };
 
     const selectors = new SnapshotsSelectors(mockPrisma);
-    const horizon = await selectors.listHorizonSnapshots(8, 2027, 2, 1);
-    expect(horizon.periods).toHaveLength(2);
-    const aug27 = horizon.periods[0];
-    const sep27 = horizon.periods[1];
+    const horizon = await selectors.listHorizonSnapshots(7, 2027, 3, 1);
+    expect(horizon.periods).toHaveLength(3);
+    const jul27 = horizon.periods[0];
+    const aug27 = horizon.periods[1];
+    const sep27 = horizon.periods[2];
+    // Jun 25, 2027 is Friday -> Mon Jun 28 review -> Tue Jun 29 transfer
+    expect(jul27.payrollPayoutDate.slice(0, 10)).toBe('2027-06-29');
     expect(aug27.totalWorkingDays).toBe(22);
     expect(aug27.finalTotalIncome).toBe(5941000);
-    expect(aug27.payrollPayoutDate.slice(0, 10)).toBe('2027-07-26');
+    // Jul 25, 2027 is Sunday -> Fri Jul 23 payslip -> Mon Jul 26 review -> Tue Jul 27 transfer
+    expect(aug27.payrollPayoutDate.slice(0, 10)).toBe('2027-07-27');
     expect(sep27.totalWorkingDays).toBe(21);
     expect(sep27.finalTotalIncome).toBe(5916000);
-    expect(sep27.payrollPayoutDate.slice(0, 10)).toBe('2027-08-26');
+    expect(sep27.payrollPayoutDate.slice(0, 10)).toBe('2027-08-27');
     expect(sep27.dailyOperational).toBe(1500000);
   });
 

@@ -301,3 +301,116 @@ export function calculatePayroll(input: PayrollInput): PayrollResult {
     cafeteriaDeduction,
   };
 }
+
+function parseStrictIsoDateUtc(raw: string): { year: number; month: number; day: number } | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec((raw ?? '').trim());
+  if (!m) return null;
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  const day = Number(m[3]);
+  if (!Number.isFinite(year) || month < 1 || month > 12 || day < 1 || day > 31) return null;
+  return { year, month, day };
+}
+
+/**
+ * Computes PT Indodev / DataOn SunFish calendar-day proration for a partial joining month
+ * using Gross Base Salary ONLY (excluding fixed laptop/transport allowances).
+ */
+export function calculateProratedSalaryByDates(
+  grossBaseSalary: number,
+  joinDateIso: string,
+  month: number,
+  year: number,
+): { daysWorkedInMonth: number; daysInMonth: number; proratedBaseRp: number } {
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  if (grossBaseSalary <= 0) {
+    return { daysWorkedInMonth: 0, daysInMonth, proratedBaseRp: 0 };
+  }
+  const join = parseStrictIsoDateUtc(joinDateIso);
+  if (!join) {
+    return {
+      daysWorkedInMonth: daysInMonth,
+      daysInMonth,
+      proratedBaseRp: Math.round(grossBaseSalary),
+    };
+  }
+  if (join.year > year || (join.year === year && join.month > month)) {
+    return { daysWorkedInMonth: 0, daysInMonth, proratedBaseRp: 0 };
+  }
+  const daysWorkedInMonth =
+    join.year < year || (join.year === year && join.month < month)
+      ? daysInMonth
+      : Math.max(0, daysInMonth - join.day + 1);
+  return {
+    daysWorkedInMonth,
+    daysInMonth,
+    proratedBaseRp: Math.round((daysWorkedInMonth / daysInMonth) * grossBaseSalary),
+  };
+}
+
+/**
+ * Computes Natal THR on Gross Base Salary ONLY (excluding laptop allowance), returning both:
+ * - SunFish exact calendar-day proration (`daysInclusive / 365 * grossBaseSalary`)
+ * - Permenaker No. 6/2016 statutory completed-month floor (`floorMonths / 12 * grossBaseSalary`)
+ */
+export function calculateDecemberProratedThrByDates(
+  grossBaseSalary: number,
+  joinDateIso: string,
+  holidayDateIso: string,
+): {
+  exactCalendarDays: number;
+  exactDaysAmountRp: number;
+  completedMonths: number;
+  completedMonthsFloorAmountRp: number;
+  sunfishCutoffAmountRp: number;
+} {
+  if (grossBaseSalary <= 0) {
+    return {
+      exactCalendarDays: 0,
+      exactDaysAmountRp: 0,
+      completedMonths: 0,
+      completedMonthsFloorAmountRp: 0,
+      sunfishCutoffAmountRp: 0,
+    };
+  }
+  const join = parseStrictIsoDateUtc(joinDateIso);
+  const holiday = parseStrictIsoDateUtc(holidayDateIso);
+  if (!join || !holiday) {
+    return {
+      exactCalendarDays: 0,
+      exactDaysAmountRp: 0,
+      completedMonths: 0,
+      completedMonthsFloorAmountRp: 0,
+      sunfishCutoffAmountRp: 0,
+    };
+  }
+  const joinUtc = Date.UTC(join.year, join.month - 1, join.day);
+  const holidayUtc = Date.UTC(holiday.year, holiday.month - 1, holiday.day);
+  if (holidayUtc < joinUtc) {
+    return {
+      exactCalendarDays: 0,
+      exactDaysAmountRp: 0,
+      completedMonths: 0,
+      completedMonthsFloorAmountRp: 0,
+      sunfishCutoffAmountRp: 0,
+    };
+  }
+  const exactCalendarDays = Math.floor((holidayUtc - joinUtc) / 86400000) + 1;
+  const effectiveDays = Math.min(365, exactCalendarDays);
+  const exactDaysAmountRp = Math.round((effectiveDays / 365) * grossBaseSalary);
+
+  const rawMonths =
+    (holiday.year - join.year) * 12 +
+    (holiday.month - join.month) -
+    (holiday.day < join.day ? 1 : 0);
+  const completedMonths = Math.max(0, Math.min(12, rawMonths));
+  const completedMonthsFloorAmountRp = Math.round((completedMonths / 12) * grossBaseSalary);
+
+  return {
+    exactCalendarDays,
+    exactDaysAmountRp,
+    completedMonths,
+    completedMonthsFloorAmountRp,
+    sunfishCutoffAmountRp: exactDaysAmountRp,
+  };
+}

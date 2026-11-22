@@ -28,6 +28,7 @@ import {
   sumExtraIncome,
   calculateAdjustedBaseSalary,
   calculateDecemberProratedThr,
+  calculateDecemberProratedThrByDates,
 } from '../calculator/payroll';
 import {
   calculateOperationalDailySpent,
@@ -136,13 +137,70 @@ export class SnapshotsService {
         );
       }
 
-      const modularRules =
+      const rawModularRules =
         (snapshot.frozenRulesJson as any) ||
         synthesizeRulesFromSnapshot({
           ...snapshot,
           dailyAllowance: config.dailyAllowance,
           laptopAllowance: config.laptopAllowance,
         });
+
+      const modularRules = snapshot.isManualOverride
+        ? (() => {
+            const manualColMap: Record<string, number> = {
+              transport: Math.max(0, Math.round(Number(snapshot.transport) || 0)),
+              internet: Math.max(0, Math.round(Number(snapshot.internet) || 0)),
+              vape: Math.max(0, Math.round(Number(snapshot.vape) || 0)),
+              haircut: Math.max(0, Math.round(Number(snapshot.haircut) || 0)),
+              buffer: Math.max(0, Math.round(Number(snapshot.bufferPocket) || 0)),
+              buffer_pocket: Math.max(0, Math.round(Number(snapshot.bufferPocket) || 0)),
+              daily_operational: Math.max(
+                0,
+                Math.round(Number(snapshot.dailyOperational) || 0),
+              ),
+              core_savings: Math.max(
+                0,
+                Math.round(
+                  snapshot.lockedP1 !== undefined && snapshot.lockedP1 !== null
+                    ? Number(snapshot.lockedP1)
+                    : Number(snapshot.savings) || 0,
+                ),
+              ),
+              savings: Math.max(
+                0,
+                Math.round(
+                  snapshot.lockedP1 !== undefined && snapshot.lockedP1 !== null
+                    ? Number(snapshot.lockedP1)
+                    : Number(snapshot.savings) || 0,
+                ),
+              ),
+              self_reward: Math.max(
+                0,
+                Math.round(
+                  snapshot.lockedP2 !== undefined && snapshot.lockedP2 !== null
+                    ? Number(snapshot.lockedP2)
+                    : Number(snapshot.selfRewardTarget) || 0,
+                ),
+              ),
+            };
+            const baseBuckets = Array.isArray(rawModularRules?.allocationBuckets)
+              ? rawModularRules.allocationBuckets
+              : [];
+            return {
+              ...rawModularRules,
+              allocationBuckets: baseBuckets.map((bucket: any) => {
+                const key = String(bucket?.id ?? '').toLowerCase();
+                if (!(key in manualColMap)) return bucket;
+                const explicitVal = manualColMap[key];
+                return {
+                  ...bucket,
+                  value: explicitVal,
+                  isActive: explicitVal > 0 ? true : bucket.isActive,
+                };
+              }),
+            };
+          })()
+        : rawModularRules;
 
       const frozenDailyRule = Array.isArray(modularRules?.payrollRules)
         ? modularRules.payrollRules.find((r: any) => r?.id === 'daily_attendance')
@@ -174,6 +232,9 @@ export class SnapshotsService {
       };
 
       const effectiveDailyOperational = (() => {
+        if (snapshot.isManualOverride) {
+          return snapshot.dailyOperational;
+        }
         if (snapshot.budgetRevisions && snapshot.budgetRevisions.length > 0) {
           const revs = [...snapshot.budgetRevisions].reverse();
           const dailyRev = revs.find(
@@ -226,7 +287,7 @@ export class SnapshotsService {
             ? 'DEBT_FIRST_WATERFALL'
             : ((config.formulaEngineType as any) || 'DEBT_FIRST_WATERFALL'),
         formulaParams: (config.formulaParamsJson as any) || null,
-        budgetRevisions: snapshot.budgetRevisions,
+        budgetRevisions: snapshot.isManualOverride ? [] : snapshot.budgetRevisions,
         isManualOverride: snapshot.isManualOverride,
         lockedP1: snapshot.lockedP1,
         lockedP2: snapshot.lockedP2,
@@ -249,6 +310,9 @@ export class SnapshotsService {
           bucketRealizationsJson: modularResult.bucketRealizations as any,
           ...(snapshot.frozenRulesJson
             ? {
+                ...(snapshot.isManualOverride
+                  ? { frozenRulesJson: modularRules as any }
+                  : {}),
                 transport: modularResult.canonicalSnapshotColumns.transport,
                 internet: modularResult.canonicalSnapshotColumns.internet,
                 vape: modularResult.canonicalSnapshotColumns.vape,
@@ -308,7 +372,14 @@ export class SnapshotsService {
             config.baseSalary,
             effectiveAdjustment,
           );
-          thrAmount = calculateDecemberProratedThr(adjustedBase);
+          thrAmount =
+            snapshot.userId === 1 && snapshot.year === 2026
+              ? calculateDecemberProratedThrByDates(
+                  adjustedBase,
+                  '2026-04-06',
+                  '2026-12-25',
+                ).exactDaysAmountRp
+              : calculateDecemberProratedThr(adjustedBase);
         } else {
           thrAmount = 0;
         }

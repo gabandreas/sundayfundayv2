@@ -423,7 +423,7 @@ describe('Hybrid Engine (Go <-> TypeScript Parity & Financial Precision)', () =>
     expect(febGo.totalCycleDays).toBe(30);
   });
 
-  it('keeps every 10/2026..09/2027 cycle contiguous and strictly 28-31 days under studio defaults', () => {
+  it('keeps every 10/2026..09/2027 cycle contiguous and authentically 28-34 days under Two-Stage corporate payday shifts', () => {
     const studio = resolveStudioConfig(1, null, { payrollPayoutDay: 27 });
     const pcCfg = studio.paycycleFormulaConfig;
     const months: Array<[number, number]> = [
@@ -462,7 +462,7 @@ describe('Hybrid Engine (Go <-> TypeScript Parity & Financial Precision)', () =>
         remainingBudgetRp: 1500000,
       });
       expect(h.totalCycleDays).toBeGreaterThanOrEqual(28);
-      expect(h.totalCycleDays).toBeLessThanOrEqual(31);
+      expect(h.totalCycleDays).toBeLessThanOrEqual(34);
       if (prevEndIso) {
         const expectedStart = new Date(
           Date.parse(`${prevEndIso}T00:00:00.000Z`) + 86400000,
@@ -501,5 +501,57 @@ describe('Hybrid Engine (Go <-> TypeScript Parity & Financial Precision)', () =>
     expect(ccEv?.dateIso).toBe('2027-04-09');
     expect(ccEv?.isBusinessDayShifted).toBe(true);
     expect(ccEv?.nominalDateIso).toBe('2027-04-11');
+
+    // Verify Go <-> TS parity on Dec 2026 Natal THR (Dec 18), real transactions without double counting, & itemized breakdowns
+    const decRadarReq = {
+      periodMonth: 12,
+      periodYear: 2026,
+      paydayDateIso: '2026-11-27',
+      livingEndDateIso: '2026-12-27',
+      nextPaydayIso: '2026-12-28',
+      paycheckAmountRp: 5904000,
+      thrDateIso: '2026-12-18',
+      thrAmountRp: 3833425,
+      dailyLivingPoolRp: 1500000,
+      routineBillsPoolRp: 300000,
+      coreSavingsTargetRp: 1000000,
+      paylaterDueRp: 2783115,
+      creditCardDueRp: 657256,
+      loggedTransactions: [
+        {
+          id: 101,
+          dateIso: '2026-12-03',
+          label: 'Lunch & Coffee',
+          type: 'DEDUCTION',
+          sourceType: 'MANUAL',
+          amountRp: 65000,
+          insideAllocatedPool: true,
+        },
+        {
+          id: 102,
+          dateIso: '2026-12-10',
+          label: 'Freelance Bonus',
+          type: 'INCOME',
+          sourceType: 'MANUAL',
+          amountRp: 250000,
+          insideAllocatedPool: false,
+        },
+      ],
+      paylaterBreakdown: [
+        { title: 'SPayLater Baseline Installments', amountRp: 1942344, sliceLabel: '1/1' },
+        { title: '11.11 Promo Checkout (3x 0%)', amountRp: 159904, sliceLabel: '1/3' },
+      ],
+      creditCardBreakdown: [
+        { title: 'New Balance 740 Grey Blue', amountRp: 316500, sliceLabel: '3/6' },
+      ],
+      holidaysIso: ['2026-12-25', '2027-01-01'],
+      referenceDateIso: '2026-12-05',
+    };
+    const { engineSource: decSrc, ...goDecRadar } = await bridge.buildCashRadar(decRadarReq);
+    expect(decSrc).toBe('GO_BINARY');
+    expect(goDecRadar).toEqual(buildCashRadarTs(decRadarReq));
+    expect(goDecRadar.events.find((e) => e.id === 'bill-spaylater')?.subItems).toHaveLength(2);
+    expect(goDecRadar.events.find((e) => e.id === 'bill-permata-cc')?.subItems).toHaveLength(1);
+    expect(goDecRadar.events.find((e) => e.id === 'inflow-thr')?.dateIso).toBe('2026-12-18');
   });
 });
