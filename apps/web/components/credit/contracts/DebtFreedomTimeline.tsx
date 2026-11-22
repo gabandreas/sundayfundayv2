@@ -289,7 +289,7 @@ export function DebtFreedomTimeline({
             Active Installment Plans
           </h3>
           <p className="text-xs font-sans text-text-secondary mt-0.5">
-            Track installment progress and final payoff month across PayLater, Credit Card, and SPinjam plans.
+            Track installment progress and final payoff month across PayLater, credit card, and personal loan plans.
           </p>
         </div>
 
@@ -346,10 +346,10 @@ export function DebtFreedomTimeline({
           <div className="flex items-center justify-between gap-2">
             <div>
               <h3 className="text-sm font-semibold font-sans text-text-primary">
-                Single-Period Bills &amp; P1 Repayments ({MONTH_SHORT[(currentMonth - 1) % 12]} &apos;{String(currentYear).slice(2)})
+                Single-Period Bills &amp; Savings Repayments ({MONTH_SHORT[(currentMonth - 1) % 12]} &apos;{String(currentYear).slice(2)})
               </h3>
               <p className="text-xs font-sans text-text-secondary mt-0.5">
-                One-time charges, recurring subscriptions, and single-cycle P1 repayments due in this period.
+                One-time charges, recurring subscriptions, and single-cycle savings repayments due in this period.
               </p>
             </div>
             <span className="text-xs font-mono text-text-secondary tabular-nums whitespace-nowrap">

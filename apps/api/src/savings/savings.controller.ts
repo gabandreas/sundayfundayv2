@@ -7,6 +7,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Put,
   Query,
   Req,
 } from '@nestjs/common';
@@ -21,6 +22,7 @@ import {
   UpdateSavingsGoalDto,
   ConfirmPeriodDepositDto,
 } from './dto/savings-goal.dto';
+import { SaveSavingsPocketsDto } from './dto/savings-pockets.dto';
 import { getUserIdOrThrow } from '../auth/auth.utils';
 
 @Controller('api/savings')
@@ -46,6 +48,12 @@ export class SavingsController {
   getOverview(@Req() req?: any) {
     const userId = getUserIdOrThrow(req);
     return this.savingsSelectors.getOverview(new Date(), userId);
+  }
+
+  @Put('pockets')
+  updatePockets(@Body() dto: SaveSavingsPocketsDto, @Req() req?: any) {
+    const userId = getUserIdOrThrow(req);
+    return this.savingsService.updateSavingsPockets(dto, userId);
   }
 
   @Post('confirm-period-deposit')

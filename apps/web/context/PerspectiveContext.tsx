@@ -258,16 +258,23 @@ export function PerspectiveProvider({ children }: { children: React.ReactNode })
   };
 
   const getRoutineLabel = (slot: string): string => {
-    const custom = customRoutineLabels?.[slot.toLowerCase()];
+    const keyLower = slot.toLowerCase();
+    const custom = customRoutineLabels?.[keyLower];
     if (custom) {
       return custom;
+    }
+    const studioMatch = studioConfig?.routineTemplatesTable?.find(
+      (r) => r.slotKey?.toLowerCase() === keyLower && r.name?.trim(),
+    );
+    if (studioMatch?.name) {
+      return studioMatch.name.trim();
     }
     if (
       user?.blueprintType === "SUPERADMIN_BESPOKE" ||
       user?.lifeStagePreset === "SUPERADMIN_BESPOKE" ||
       profileMode === "SUPERADMIN_BESPOKE"
     ) {
-      switch (slot.toLowerCase()) {
+      switch (keyLower) {
         case "transport":
           return "Transport";
         case "internet":

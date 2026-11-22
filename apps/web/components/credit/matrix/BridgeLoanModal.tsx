@@ -28,8 +28,8 @@ export function BridgeLoanModal({
   const nextCol = columns[currentIdx + 1] ?? columns[currentIdx];
   const monthAfterCol = columns[currentIdx + 2] ?? nextCol;
 
-  const [title, setTitle] = useState("SPinjam Bridge Loan");
-  const [merchant, setMerchant] = useState("SPinjam");
+  const [title, setTitle] = useState("Personal Bridge Loan");
+  const [merchant, setMerchant] = useState("Personal Loan");
   const [principalRaw, setPrincipalRaw] = useState("900.000");
   const [monthlyRaw, setMonthlyRaw] = useState("335.578");
   const [tenorMonths, setTenorMonths] = useState(3);
@@ -80,7 +80,7 @@ export function BridgeLoanModal({
 
     const res = await createBridgeLoan({
       title: title.trim(),
-      merchantOrPlatform: merchant.trim() || "SPinjam",
+      merchantOrPlatform: merchant.trim() || "Personal Loan",
       principalAmount: principal,
       monthlyInstallment,
       tenorMonths,
@@ -340,7 +340,7 @@ export function BridgeLoanModal({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-4 py-1.5 rounded bg-text-primary text-canvas text-xs font-sans font-semibold hover:opacity-90 disabled:opacity-50"
+              className="px-4 py-1.5 rounded erp-btn-primary text-xs font-sans font-semibold hover:opacity-90 disabled:opacity-50"
             >
               {isSubmitting ? "Recording..." : "Create Bridge Loan"}
             </button>

@@ -204,7 +204,7 @@ export function EnvelopesAndSinkingPanel({
           <div className="text-[11px] text-text-tertiary mt-1">At current daily burn rate</div>
         </div>
         <div className="rounded-lg border border-border bg-surface p-4">
-          <div className="text-[10px] font-mono uppercase text-text-tertiary">Unspent Sweep to P1</div>
+          <div className="text-[10px] font-mono uppercase text-text-tertiary">Unspent Sweep to Savings</div>
           <div className="font-mono text-xl font-semibold text-delta-positive mt-1 tabular-nums">
             {formatRupiah(env.totalUnspentSweepToP1Rp, isAmountsMasked)}
           </div>
@@ -234,7 +234,7 @@ export function EnvelopesAndSinkingPanel({
                 <th className="px-3 py-2">Spent</th>
                 <th className="px-3 py-2">Unspent</th>
                 <th className="px-3 py-2">Rollover Policy</th>
-                <th className="px-3 py-2 text-right">Sweep to P1 / Roll Next</th>
+                <th className="px-3 py-2 text-right">Sweep to Savings / Roll Next</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle">
@@ -255,7 +255,7 @@ export function EnvelopesAndSinkingPanel({
                       }
                       className="bg-canvas border border-border rounded px-2 py-1 text-[11px] text-text-primary cursor-pointer"
                     >
-                      <option value="SWEEP_TO_P1">Sweep Unspent to P1</option>
+                      <option value="SWEEP_TO_P1">Sweep Unspent to Core Savings</option>
                       <option value="ROLLOVER_NEXT_MONTH">Roll Over Next Cycle</option>
                     </select>
                   </td>
@@ -332,7 +332,7 @@ export function DebtPayoffOptimizerPanel({
             Debt Payoff Strategy Optimizer (Contractual vs Avalanche vs Snowball)
           </h3>
           <p className="text-xs text-text-tertiary mt-0.5">
-            Simulate applying extra THR or P2 surplus to measure interest savings and monthly cashflow unlocks.
+            Simulate applying extra THR or flexible surplus to measure interest savings and monthly cashflow unlocks.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -348,7 +348,7 @@ export function DebtPayoffOptimizerPanel({
             type="button"
             onClick={handleSimulate}
             disabled={loading}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-text-primary text-canvas text-xs font-medium hover:opacity-90 cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded erp-btn-primary text-xs font-medium hover:opacity-90 cursor-pointer"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
             Simulate Prepayment
@@ -379,15 +379,25 @@ export function DebtPayoffOptimizerPanel({
   );
 }
 
-// 4. Bulk Statement & Mutation Reconciler Panel (/credit?sub=reconciler)
+const RECONCILER_INSTRUMENT_LABELS: Record<string, string> = {
+  CASH: "Cash / Bank",
+  PAYLATER: "PayLater",
+  CREDIT_CARD: "Credit Card",
+};
+
+// 4. Bulk Statement & Mutation Reconciler Panel (/import)
 export function BulkStatementReconcilerPanel({
   onCommitted,
+  externalText,
+  externalVersion,
 }: {
   onCommitted?: () => void;
+  externalText?: string;
+  externalVersion?: number;
 }) {
   const { isAmountsMasked } = usePrivacyMask();
   const [rawText, setRawText] = useState(
-    "2026-11-16, Kopi Kenangan QRIS SPayLater, Rp 34.200\n2026-11-18, GrabRide Commuter, Rp 28.500\n2026-11-21, AWS Cloud Bill Permata Credit Card, Rp 145.000",
+    "2026-11-16, Coffee Shop QRIS, Rp 34.200\n2026-11-18, Commuter Ride, Rp 28.500\n2026-11-21, Cloud Hosting Credit Card, Rp 145.000",
   );
   const [defaultMethod, setDefaultMethod] = useState<"CASH" | "PAYLATER" | "CREDIT_CARD">("CASH");
   const [result, setResult] = useState<ReconcilerParseResponse | null>(null);
@@ -395,6 +405,14 @@ export function BulkStatementReconcilerPanel({
   const [parsing, setParsing] = useState(false);
   const [committing, setCommitting] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (externalText !== undefined && externalVersion !== undefined && externalVersion > 0) {
+      setRawText(externalText);
+      setResult(null);
+      setStatusMsg(null);
+    }
+  }, [externalText, externalVersion]);
 
   const handleParse = async () => {
     setParsing(true);
@@ -452,15 +470,15 @@ export function BulkStatementReconcilerPanel({
             onChange={(e) => setDefaultMethod(e.target.value as any)}
             className="bg-canvas border border-border rounded px-2.5 py-1.5 text-xs text-text-secondary"
           >
-            <option value="CASH">Default: Cash / BCA QRIS</option>
-            <option value="PAYLATER">Default: SPayLater (M-15d Cutoff)</option>
-            <option value="CREDIT_CARD">Default: Permata CC (25th Cutoff)</option>
+            <option value="CASH">Default: Cash / Bank / QRIS</option>
+            <option value="PAYLATER">Default: PayLater (Cutoff Auto-Route)</option>
+            <option value="CREDIT_CARD">Default: Credit Card (Statement Cutoff)</option>
           </select>
           <button
             type="button"
             onClick={handleParse}
             disabled={parsing || !rawText.trim()}
-            className="px-3 py-1.5 rounded bg-text-primary text-canvas text-xs font-medium hover:opacity-90 disabled:opacity-50 cursor-pointer"
+            className="px-3 py-1.5 rounded erp-btn-primary text-xs font-medium hover:opacity-90 disabled:opacity-50 cursor-pointer"
           >
             {parsing ? "Parsing..." : "Parse & Auto-Route"}
           </button>
@@ -492,7 +510,7 @@ export function BulkStatementReconcilerPanel({
               type="button"
               onClick={handleCommit}
               disabled={committing || result.rows.every((r) => !selectedLines[r.lineNumber])}
-              className="px-3 py-1.5 rounded bg-delta-positive text-canvas text-xs font-semibold hover:opacity-90 disabled:opacity-40 cursor-pointer"
+              className="px-3.5 py-1.5 rounded erp-btn-primary text-xs font-semibold hover:opacity-90 disabled:opacity-40 cursor-pointer"
             >
               {committing ? "Committing..." : "Commit Selected Rows"}
             </button>
@@ -528,7 +546,9 @@ export function BulkStatementReconcilerPanel({
                     </td>
                     <td className="px-2.5 py-2 font-mono text-text-tertiary">{r.dateIso}</td>
                     <td className="px-2.5 py-2 font-medium text-text-primary">{r.description}</td>
-                    <td className="px-2.5 py-2 font-sans text-text-secondary">{r.instrument}</td>
+                    <td className="px-2.5 py-2 font-sans text-text-secondary">
+                      {RECONCILER_INSTRUMENT_LABELS[r.instrument] ?? r.instrument}
+                    </td>
                     <td className="px-2.5 py-2 font-mono text-text-primary">
                       <div className="flex flex-wrap items-center gap-1.5">
                         <span>{r.targetPeriodCode}</span>
@@ -710,7 +730,7 @@ export function WealthForecaster12MPanel({
           </div>
           <div className="text-[11px] text-text-tertiary mt-1">
             {intel.dynamicMilestone?.code === "ALL_DEBT_FREE_P1_FOCUS"
-              ? "Active surplus directed to P1"
+              ? "Active surplus directed to savings"
               : intel.dynamicMilestone?.remainingAmountRp
                 ? `${formatRupiah(intel.dynamicMilestone.remainingAmountRp, isAmountsMasked)} left`
                 : "Milestone achieved"}
@@ -743,7 +763,7 @@ export function WealthForecaster12MPanel({
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-delta-positive" />
-            <span>3-Scenario Savings &amp; Stress-Test Trajectory</span>
+            <span>3-Scenario Horizon Checkpoints (12-Month Stress Test)</span>
           </h3>
           <span className="text-[11px] font-mono text-text-tertiary">
             Emergency Fund Target: {fc.emergencyFundCompletionDate}

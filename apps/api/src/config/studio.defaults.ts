@@ -106,6 +106,35 @@ export interface SidebarNavigationConfig {
   customShortcuts: CustomSidebarShortcut[];
 }
 
+export interface PriorityTierConfig {
+  key: 'SAVINGS' | 'DISCRETIONARY' | string;
+  label: string;
+  order: number;
+  enabled: boolean;
+}
+
+export interface SavingsPocketConfig {
+  id: string;
+  key: string;
+  name: string;
+  category: 'EMERGENCY_FUND' | 'WISHLIST' | 'SINKING_RESERVE' | 'CUSTOM';
+  allocatedRp: number;
+  targetRp: number;
+  notes?: string;
+}
+
+export interface DisplayPreferencesConfig {
+  defaultLanguage: 'en' | 'id' | 'zh';
+  numberFormat: 'id-ID' | 'en-US';
+  uiDensity: 'COMMAND_COCKPIT' | 'SIMPLE_CLARITY';
+  hidePriorityCodesInUi: boolean;
+}
+
+export interface PrivacyPreferencesConfig {
+  maskBalancesByDefault: boolean;
+  requirePasswordToReveal: boolean;
+}
+
 export interface ModularStudioConfig {
   enableExternalAssetPortfolio: boolean;
   actualP1VaultBalanceRp?: number | null;
@@ -114,6 +143,10 @@ export interface ModularStudioConfig {
   assetAccountsTable: AssetAccountConfigRow[];
   routineTemplatesTable: RoutineTemplateConfigRow[];
   sidebarNavigationConfig: SidebarNavigationConfig;
+  priorityTiers: PriorityTierConfig[];
+  savingsPockets: SavingsPocketConfig[];
+  displayPreferences: DisplayPreferencesConfig;
+  privacyPreferences: PrivacyPreferencesConfig;
 }
 
 const FABRICATED_U1_ASSET_IDS = new Set([
@@ -414,15 +447,60 @@ export function buildDefaultStudioConfig(
     sidebarNavigationConfig: {
       defaultLandingRoute: '/',
       moduleOverrides: {},
-      customShortcuts: [
-        {
-          id: 'shortcut_spinjam_freedom',
-          label: 'SPinjam Tracker',
-          icon: 'TrendingDown',
-          targetHref: '/credit?sub=contracts&focus=spinjam',
-          sectionGroup: 'AUDIT_DECISION',
-        },
-      ],
+      customShortcuts: [],
+    },
+    priorityTiers: [
+      {
+        key: 'SAVINGS',
+        label: 'Core Savings Reserve',
+        order: 1,
+        enabled: true,
+      },
+      {
+        key: 'DISCRETIONARY',
+        label: 'Flexible Surplus',
+        order: 2,
+        enabled: true,
+      },
+    ],
+    savingsPockets: [
+      {
+        id: 'pocket_emergency',
+        key: 'EMERGENCY_FUND',
+        name: 'Emergency Fund',
+        category: 'EMERGENCY_FUND',
+        allocatedRp: 0,
+        targetRp: 4_500_000,
+        notes: 'Core cash reserve covering essential living months.',
+      },
+      {
+        id: 'pocket_wishlist',
+        key: 'WISHLIST_RESERVE',
+        name: 'Wishlist Reserve',
+        category: 'WISHLIST',
+        allocatedRp: 0,
+        targetRp: 0,
+        notes: 'Saved portion set aside for upcoming planned purchases.',
+      },
+      {
+        id: 'pocket_sinking',
+        key: 'SINKING_RESERVE',
+        name: 'Annual & Sinking Reserve',
+        category: 'SINKING_RESERVE',
+        allocatedRp: 0,
+        targetRp: 0,
+        notes: 'Periodic taxes, servicing, and irregular expenses.',
+      },
+    ],
+    displayPreferences: {
+      defaultLanguage: 'en',
+      numberFormat: 'id-ID',
+      uiDensity: 'COMMAND_COCKPIT',
+      hidePriorityCodesInUi: true,
+    },
+    privacyPreferences: {
+      maskBalancesByDefault: true,
+      requirePasswordToReveal: true,
     },
   };
 }
@@ -511,9 +589,72 @@ export function resolveStudioConfig(
         typeof raw.sidebarNavigationConfig.moduleOverrides === 'object'
           ? raw.sidebarNavigationConfig.moduleOverrides
           : defaults.sidebarNavigationConfig.moduleOverrides,
-      customShortcuts: Array.isArray(raw?.sidebarNavigationConfig?.customShortcuts)
-        ? raw.sidebarNavigationConfig.customShortcuts
-        : defaults.sidebarNavigationConfig.customShortcuts,
+      customShortcuts: (
+        Array.isArray(raw?.sidebarNavigationConfig?.customShortcuts)
+          ? raw.sidebarNavigationConfig.customShortcuts
+          : defaults.sidebarNavigationConfig.customShortcuts
+      ).filter(
+        (s: CustomSidebarShortcut) =>
+          s &&
+          s.id !== 'shortcut_spinjam_freedom' &&
+          !String(s.targetHref || '').includes('focus=spinjam'),
+      ),
+    },
+    priorityTiers:
+      Array.isArray(raw?.priorityTiers) && raw.priorityTiers.length > 0
+        ? raw.priorityTiers.map((t: PriorityTierConfig, i: number) => ({
+            key: String(t?.key || `TIER_${i + 1}`),
+            label: String(t?.label || `Tier ${i + 1}`),
+            order: Number.isFinite(Number(t?.order)) ? Number(t.order) : i + 1,
+            enabled: t?.enabled !== false,
+          }))
+        : defaults.priorityTiers,
+    savingsPockets:
+      Array.isArray(raw?.savingsPockets) && raw.savingsPockets.length > 0
+        ? raw.savingsPockets.map((p: SavingsPocketConfig, i: number) => ({
+            id: String(p?.id || `pocket_${i + 1}`),
+            key: String(p?.key || p?.id || `POCKET_${i + 1}`),
+            name: String(p?.name || `Pocket ${i + 1}`),
+            category:
+              p?.category === 'EMERGENCY_FUND' ||
+              p?.category === 'WISHLIST' ||
+              p?.category === 'SINKING_RESERVE' ||
+              p?.category === 'CUSTOM'
+                ? p.category
+                : 'CUSTOM',
+            allocatedRp: Math.max(0, Math.round(Number(p?.allocatedRp) || 0)),
+            targetRp: Math.max(0, Math.round(Number(p?.targetRp) || 0)),
+            notes: p?.notes ? String(p.notes) : undefined,
+          }))
+        : defaults.savingsPockets,
+    displayPreferences: {
+      defaultLanguage:
+        raw?.displayPreferences?.defaultLanguage === 'id' ||
+        raw?.displayPreferences?.defaultLanguage === 'zh'
+          ? raw.displayPreferences.defaultLanguage
+          : defaults.displayPreferences.defaultLanguage,
+      numberFormat:
+        raw?.displayPreferences?.numberFormat === 'en-US'
+          ? 'en-US'
+          : defaults.displayPreferences.numberFormat,
+      uiDensity:
+        raw?.displayPreferences?.uiDensity === 'SIMPLE_CLARITY'
+          ? 'SIMPLE_CLARITY'
+          : defaults.displayPreferences.uiDensity,
+      hidePriorityCodesInUi:
+        typeof raw?.displayPreferences?.hidePriorityCodesInUi === 'boolean'
+          ? raw.displayPreferences.hidePriorityCodesInUi
+          : defaults.displayPreferences.hidePriorityCodesInUi,
+    },
+    privacyPreferences: {
+      maskBalancesByDefault:
+        typeof raw?.privacyPreferences?.maskBalancesByDefault === 'boolean'
+          ? raw.privacyPreferences.maskBalancesByDefault
+          : defaults.privacyPreferences.maskBalancesByDefault,
+      requirePasswordToReveal:
+        typeof raw?.privacyPreferences?.requirePasswordToReveal === 'boolean'
+          ? raw.privacyPreferences.requirePasswordToReveal
+          : defaults.privacyPreferences.requirePasswordToReveal,
     },
   };
 }

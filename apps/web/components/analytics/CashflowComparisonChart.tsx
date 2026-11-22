@@ -76,7 +76,7 @@ export function CashflowComparisonChart({
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-xs bg-[#2BB686] inline-block" />
-            <span>Savings & Surplus (P1+P2)</span>
+            <span>Savings &amp; Surplus</span>
           </div>
         </div>
       </div>
@@ -282,7 +282,7 @@ export function CashflowComparisonChart({
                   />
                 )}
 
-                {/* Bar 4: Retained Savings & Surplus (P1 + P2) */}
+                {/* Bar 4: Retained Savings & Surplus */}
                 {surplusH > 0 && (
                   <rect
                     x={groupX + (barW + gap) * 3}
@@ -349,7 +349,7 @@ export function CashflowComparisonChart({
           </div>
           <div>
             <span className="text-text-tertiary mr-1 font-sans">
-              P1 Savings ({activePeriod.savingsRatePercent.toFixed(1)}%):
+              Core Savings ({activePeriod.savingsRatePercent.toFixed(1)}%):
             </span>
             <span className="text-delta-positive font-medium">
               {formatRp(activePeriod.actualSavings)}
@@ -357,7 +357,7 @@ export function CashflowComparisonChart({
           </div>
           <div>
             <span className="text-text-tertiary mr-1 font-sans">
-              P2 Surplus:
+              Flexible Surplus:
             </span>
             <span className="text-text-primary font-medium">
               {formatRp(activePeriod.selfRewardSurplus)}

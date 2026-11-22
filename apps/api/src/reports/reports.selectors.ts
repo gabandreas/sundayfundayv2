@@ -62,9 +62,18 @@ import {
   calculateCardInstallmentProgress,
 } from '../credit/credit.utils';
 import { extractPeriodTagFromLabel } from '../savings/savings.utils';
+import { resolveStudioConfig } from '../config/studio.defaults';
 
 @Injectable()
 export class ReportsSelectors {
+  static computePeriodDisciplineScore(
+    periodFlags: Array<{ type: string }>,
+  ): number {
+    const greenCount = periodFlags.filter((f) => f.type === 'GREEN').length;
+    const redCount = periodFlags.filter((f) => f.type === 'RED').length;
+    return calculateDisciplineScore(greenCount, redCount);
+  }
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditSelectors: AuditSelectors,
@@ -198,7 +207,7 @@ export class ReportsSelectors {
       );
       const greenCount = periodFlags.filter((f) => f.type === 'GREEN').length;
       const redCount = periodFlags.filter((f) => f.type === 'RED').length;
-      const score = calculateDisciplineScore(greenCount, greenCount + redCount);
+      const score = ReportsSelectors.computePeriodDisciplineScore(periodFlags);
       return {
         disciplineScore: score,
         greenCount,
@@ -216,27 +225,24 @@ export class ReportsSelectors {
         : 'DRAFT'
       : 'UNINITIALIZED';
 
+    const studioConfig = resolveStudioConfig(userId, config.formulaParamsJson, config);
     const isStandardMode = config.profileMode === 'STANDARD_GENERAL';
     const cutoffWindow = getWorkingDaysCutoffWindow(month, year);
     const workingDaysWindowLabel = isStandardMode
       ? `Standard Monthly Cycle (${cutoffWindow.workingDays} working days)`
       : cutoffWindow.windowLabel;
 
-    const routineCategoryLabels: Record<string, string> = isStandardMode
-      ? {
-          DAILY_OPERATIONAL: 'Daily Living Budget',
-          TRANSPORT: 'Transport & Fuel',
-          INTERNET: 'Internet & Utilities',
-          VAPE: 'Subscriptions & Lifestyle',
-          HAIRCUT: 'Personal Care & Health',
-        }
-      : {
-          DAILY_OPERATIONAL: 'Daily Living & Food Budget',
-          TRANSPORT: 'Transport & Fuel',
-          INTERNET: 'Internet & Data Package',
-          VAPE: 'Vape Supplies',
-          HAIRCUT: 'Haircut & Grooming',
-        };
+    const findTplName = (slotKey: string, fallback: string) =>
+      studioConfig.routineTemplatesTable.find((t) => t.slotKey === slotKey)?.name ||
+      fallback;
+
+    const routineCategoryLabels: Record<string, string> = {
+      DAILY_OPERATIONAL: 'Daily Living Budget',
+      TRANSPORT: findTplName('transport', 'Transport'),
+      INTERNET: findTplName('internet', 'Internet & Data'),
+      VAPE: findTplName('vape', 'Monthly Supplies'),
+      HAIRCUT: findTplName('haircut', 'Personal Grooming'),
+    };
 
     const transactions = selectedSnapshot?.transactions ?? [];
     const extraIncome = sumExtraIncome(transactions);
@@ -911,6 +917,7 @@ export class ReportsSelectors {
       pacing,
       governance: {
         disciplineScore: selectedAuditStats.disciplineScore,
+        overallDisciplineScore: fullAuditReport.healthScorecard.disciplineScore,
         greenCount: selectedAuditStats.greenCount,
         yellowCount: 0,
         redCount: selectedAuditStats.redCount,

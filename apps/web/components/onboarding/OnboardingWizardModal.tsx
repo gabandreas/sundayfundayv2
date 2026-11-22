@@ -510,16 +510,16 @@ export function OnboardingWizardModal() {
                   className="w-full px-3 py-2 rounded bg-surface-subtle border border-border text-xs font-mono text-text-primary"
                 >
                   <option value="DEBT_FIRST_WATERFALL">
-                    DEBT_FIRST_WATERFALL (Bills -&gt; Living -&gt; P1 Savings)
+                    Debt-First Waterfall (Bills -&gt; Living -&gt; Core Savings)
                   </option>
                   <option value="SAVINGS_FIRST_LOCK">
-                    SAVINGS_FIRST_LOCK (Pay Yourself First)
+                    Savings-First Lock (Pay Yourself First)
                   </option>
                   <option value="PERCENTAGE_SPLIT">
-                    PERCENTAGE_SPLIT (50/30/20 Proportional)
+                    Percentage Split (50/30/20 Proportional)
                   </option>
                   <option value="RETIREMENT_DRAWDOWN">
-                    RETIREMENT_DRAWDOWN (Pension + Reserve Drawdown)
+                    Retirement Drawdown (Pension + Reserve Drawdown)
                   </option>
                 </select>
               </div>

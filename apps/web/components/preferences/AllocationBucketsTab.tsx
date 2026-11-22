@@ -78,7 +78,7 @@ const DEFAULT_ALLOCATION_BUCKETS: AllocationBucketRule[] = [
   },
   {
     id: "core_savings",
-    label: "Priority 1 Core Savings",
+    label: "Core Savings Reserve",
     group: "SAVINGS_P1",
     priorityTier: 1,
     formulaType: "FIXED_AMOUNT",
@@ -87,7 +87,7 @@ const DEFAULT_ALLOCATION_BUCKETS: AllocationBucketRule[] = [
   },
   {
     id: "self_reward",
-    label: "Priority 2 Discretionary / Self-Reward",
+    label: "Flexible Surplus",
     group: "SELF_REWARD_P2",
     priorityTier: 2,
     formulaType: "REMAINDER_OVERFLOW",
@@ -359,8 +359,8 @@ export function AllocationBucketsTab({
                   <option value="FIXED_ESSENTIAL">Fixed Essential</option>
                   <option value="DAILY_OPERATIONAL">Daily Operational</option>
                   <option value="BUFFER">Buffer</option>
-                  <option value="SAVINGS_P1">Savings P1</option>
-                  <option value="SELF_REWARD_P2">Self-Reward P2</option>
+                  <option value="SAVINGS_P1">Core Savings</option>
+                  <option value="SELF_REWARD_P2">Flexible Surplus</option>
                 </select>
               </div>
               <div>

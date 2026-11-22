@@ -158,7 +158,7 @@ export function FormulaSandboxTab({ config }: FormulaSandboxTabProps) {
                 {formatRupiah(simResult.payroll.finalTotalIncome)}
               </span>
               <span className="block text-[11px] text-text-tertiary mt-1 font-mono">
-                Base Rp {formatRupiah(simResult.payroll.adjustedBaseSalary)}
+                Base {formatRupiah(simResult.payroll.adjustedBaseSalary)}
               </span>
             </div>
 
@@ -188,7 +188,7 @@ export function FormulaSandboxTab({ config }: FormulaSandboxTabProps) {
 
             <div className="p-4 rounded-lg border border-[#282e3d] bg-[#161922]">
               <span className="block text-[10px] font-mono text-text-tertiary uppercase tracking-wider">
-                Actual P1 Savings Rate
+                Core Savings Rate
               </span>
               <span className="block text-xl font-mono font-bold text-emerald-400 mt-1 tabular-nums">
                 {simResult.policySummary.savingsRatePercent}%
@@ -212,7 +212,7 @@ export function FormulaSandboxTab({ config }: FormulaSandboxTabProps) {
               <span className="block text-[11px] text-text-tertiary mt-1 font-mono">
                 {simResult.waterfall.isDeficit
                   ? `Shortfall: ${formatRupiah(simResult.waterfall.deficitUncovered)}`
-                  : `P2 Leftover: ${formatRupiah(simResult.waterfall.actualSelfReward)}`}
+                  : `Surplus Leftover: ${formatRupiah(simResult.waterfall.actualSelfReward)}`}
               </span>
             </div>
           </div>

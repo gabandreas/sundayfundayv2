@@ -3,12 +3,13 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight, X } from "lucide-react";
-import { MonthlySnapshot, borrowFromP1Vault } from "@/lib/api";
+import { MonthlySnapshot, borrowFromP1Vault, resolvePriorityTierLabel } from "@/lib/api";
 import { formatRupiah, formatCurrencyInput, parseCurrencyInput } from "@/lib/utils";
 import { EditableTarget } from "./EditableTarget";
 import { PrivacyEyeButton } from "@/components/shell/PrivacyEyeButton";
 import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { usePerspective } from "@/context/PerspectiveContext";
 
 interface CoreSavingsCardProps {
   snapshot: MonthlySnapshot | null;
@@ -18,6 +19,9 @@ interface CoreSavingsCardProps {
 export function CoreSavingsCard({ snapshot, isLocked }: CoreSavingsCardProps) {
   const { isAmountsMasked } = usePrivacyMask();
   const { t } = useLanguage();
+  const { studioConfig } = usePerspective();
+  const savingsTierLabel = resolvePriorityTierLabel(studioConfig, "SAVINGS", "Core Savings");
+  const surplusTierLabel = resolvePriorityTierLabel(studioConfig, "DISCRETIONARY", "Flexible Surplus");
   const actualSavings = snapshot?.actualSavings ?? 0;
   const targetSavings = snapshot?.savings ?? 0;
   const progressPercent =
@@ -61,11 +65,11 @@ export function CoreSavingsCard({ snapshot, isLocked }: CoreSavingsCardProps) {
       destination,
       refundMonth: targetRefund.month,
       refundYear: targetRefund.year,
-      reason: reason.trim() || "P1 temporary transfer",
+      reason: reason.trim() || "Temporary savings advance",
     });
     setIsSubmitting(false);
     if (!res.success) {
-      setErrorMsg(res.error || "Failed to transfer from P1 savings.");
+      setErrorMsg(res.error || "Failed to transfer from savings reserve.");
       return;
     }
     setIsBorrowModalOpen(false);
@@ -81,7 +85,7 @@ export function CoreSavingsCard({ snapshot, isLocked }: CoreSavingsCardProps) {
               {t("overview.coreSavings")}
             </span>
             <span className="text-[10px] font-mono text-text-tertiary">
-              Priority 1
+              {savingsTierLabel}
             </span>
           </div>
 
@@ -169,10 +173,10 @@ export function CoreSavingsCard({ snapshot, isLocked }: CoreSavingsCardProps) {
             <div className="px-5 py-4 border-b border-border bg-surface flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-semibold font-sans text-text-primary">
-                  Temporary Transfer from Core Savings (P1)
+                  Temporary Transfer from {savingsTierLabel}
                 </h3>
                 <p className="text-xs font-sans text-text-secondary mt-0.5">
-                  Moves P1 savings into this period and schedules an automatic repayment item in a future cycle.
+                  Moves saved funds into this period and schedules an automatic repayment item in a future cycle.
                 </p>
               </div>
               <button
@@ -216,7 +220,7 @@ export function CoreSavingsCard({ snapshot, isLocked }: CoreSavingsCardProps) {
                     onChange={(e) => setDestination(e.target.value as any)}
                     className="w-full bg-surface-subtle border border-border rounded px-2 py-1.5 text-xs font-mono text-text-primary"
                   >
-                    <option value="SELF_REWARD">Self-Reward (P2)</option>
+                    <option value="SELF_REWARD">{surplusTierLabel}</option>
                     <option value="LIVING_CASH">Daily Living Cash</option>
                   </select>
                 </div>
@@ -263,7 +267,7 @@ export function CoreSavingsCard({ snapshot, isLocked }: CoreSavingsCardProps) {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-3.5 py-1.5 rounded bg-text-primary text-canvas text-xs font-sans font-semibold hover:opacity-90 disabled:opacity-50"
+                  className="px-3.5 py-1.5 rounded erp-btn-primary text-xs font-sans font-semibold hover:opacity-90 disabled:opacity-50"
                 >
                   {isSubmitting ? "Processing..." : "Confirm Borrow & Lock Refund"}
                 </button>

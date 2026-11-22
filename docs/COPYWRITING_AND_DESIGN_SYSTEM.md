@@ -11,7 +11,9 @@ Every headline, empty state, helper label, and Marquee AI response must follow s
 1. **Concrete Nouns & Active Verbs:** State who does what to which Rupiah balance. Replace vague abstractions (*"liquidity telemetry orchestration"*) with direct action (*"Your Nov 27 paycheck funds Rp 1.416.659 for daily living"*).
 2. **Everyday Human Words Over Stiff Jargon:** Use plain banking and household terms rather than academic or sci-fi metaphors:
    - Say **"Savings & Emergency Fund"** (`EN`), **"Tabungan & Dana Darurat"** (`ID`), **"储蓄与应急基金"** (`ZH`) — never *"Savings & Reservoirs"* or *"Savings & Vaults"*.
-   - Say **"Temporary Transfer P1"** / **"Savings Deposit"** — never *"Forward-Borrow"* or *"Vault Transfer"*.
+   - Say **"Temporary Savings Advance"** / **"Savings Deposit"** — never *"Forward-Borrow"*, *"Vault Transfer"*, or *"P1 / P2 / P3"*.
+   - Say **"Core Savings Reserve"** & **"Flexible Surplus"** (or user-configured tier names from Preferences) — never raw *"P1"*, *"P2"*, *"Priority 1"*, *"DEBT_FIRST_WATERFALL"*, *"FIXED_ESSENTIAL"*, or *"EMERGENCY_FUND"*.
+   - Say **"Bill Schedule"** — never *"Liability Matrix"* or *"Amortization"*.
    - Say **"Manual Bill Total (Override)"** — never *"Lump-Sum Override"*.
    - Say **"Active Installment Plans"** (`EN`), **"Daftar Cicilan Aktif"** (`ID`), **"当前分期计划"** (`ZH`) — never *"Amortization & Payoff Progress Lanes"*.
    - Say **"Periodic Bill Set-Asides"** — never *"Sinking Fund Amortization"*.

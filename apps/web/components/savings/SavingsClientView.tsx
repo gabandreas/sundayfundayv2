@@ -17,12 +17,15 @@ import { usePeriodSlice } from "@/hooks/usePeriodSlice";
 import { useSubModule } from "@/hooks/useSubModule";
 import { SAVINGS_SUB_KEYS, SavingsSubKey } from "@/lib/tabs";
 import { useLanguage } from "@/context/LanguageContext";
+import { usePrivacyMask } from "@/context/PrivacyMaskContext";
+import { PageHeader } from "@/components/primitives/PageHeader";
 import { SubModuleNav } from "@/components/primitives/SubModuleNav";
 import {
   NetWorthReservoirsPanel,
   WealthForecaster12MPanel,
 } from "@/components/finance/ModuleGoPanels";
 import { SavingsBalanceCard } from "@/components/savings/SavingsBalanceCard";
+import { SavingsPocketsCard } from "@/components/savings/SavingsPocketsCard";
 import { SavingsMilestonesCard } from "@/components/savings/SavingsMilestonesCard";
 import { WealthTargetPlannerCard } from "@/components/savings/WealthTargetPlannerCard";
 import { SavingsAccumulationTable } from "@/components/savings/SavingsAccumulationTable";
@@ -30,6 +33,7 @@ import { SavingsGoalsCard } from "@/components/savings/SavingsGoalsCard";
 import { ManualSavingsForm } from "@/components/savings/ManualSavingsForm";
 import { SavingsTransactionsTable } from "@/components/savings/SavingsTransactionsTable";
 import { usePerspective } from "@/context/PerspectiveContext";
+import { resolvePriorityTierLabel } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
 
 export interface SavingsPeriodData {
@@ -80,8 +84,23 @@ export function SavingsClientView({
   initialData,
 }: SavingsClientViewProps) {
   const { t } = useLanguage();
+  const { isAmountsMasked } = usePrivacyMask();
   const { studioConfig, updateStudioConfig } = usePerspective();
-  const [activeSub, selectSub] = useSubModule<SavingsSubKey>(SAVINGS_SUB_KEYS, "vault");
+  const savingsTierLabel = resolvePriorityTierLabel(studioConfig, "SAVINGS", "Core Savings");
+  const [activeSub, selectSub] = useSubModule<SavingsSubKey>(
+    SAVINGS_SUB_KEYS,
+    "pockets",
+    {
+      vault: "pockets",
+      overview: "pockets",
+      splits: "pockets",
+      ledger: "pockets",
+      goals: "pockets",
+      networth: "runway",
+      forecaster: "runway",
+      projections: "runway",
+    },
+  );
   const [intel, setIntel] = useState<IntelligenceBundleResponse | null>(null);
   const [p1OverrideInput, setP1OverrideInput] = useState<string>(
     studioConfig?.actualP1VaultBalanceRp !== null &&
@@ -179,83 +198,55 @@ export function SavingsClientView({
 
   return (
     <div className="space-y-6 w-full max-w-full">
-      {/* Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-border-subtle">
-        <div>
-          <h1 className="text-xl font-bold font-sans tracking-tight text-text-primary">
-            {t("nav.savings")}
-          </h1>
-          <p className="text-xs font-sans text-text-secondary mt-1">
-            Emergency cash balance, P1 savings transfers, cash-vs-debt position, and 12-month payoff projection.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="text-xs font-sans text-text-tertiary">
-            Baseline Period:{" "}
-            <span className="font-mono text-text-secondary">
-              {month}/{year}
-            </span>
-          </span>
-        </div>
-      </div>
+      <PageHeader
+        title={t("nav.savings")}
+        subtitle="Divide confirmed savings into dedicated pockets, reconcile deposits, and model your survival runway."
+        periodLabel={`${month}/${year}`}
+      />
 
       <SubModuleNav
         items={[
-          { key: "networth", label: t("sub.savings.networth") },
-          { key: "forecaster", label: t("sub.savings.forecaster") },
-          { key: "vault", label: t("sub.savings.vault") },
+          { key: "pockets", label: t("sub.savings.pockets") },
+          { key: "runway", label: t("sub.savings.runway") },
         ]}
         activeKey={activeSub}
         onSelect={selectSub}
       />
 
-      {activeSub === "networth" && <NetWorthReservoirsPanel intel={intel} />}
-
-      {activeSub === "forecaster" && (
+      {activeSub === "pockets" && (
         <div className="space-y-6">
-          <WealthForecaster12MPanel intel={intel} />
-          <WealthTargetPlannerCard
-            vault={activeVault}
-            baselineMonth={month}
-            baselineYear={year}
-          />
-        </div>
-      )}
-
-      {activeSub === "vault" && (
-        <div className="space-y-6">
-          {/* 3-Second Reserve & P1 Reconciliation Strip */}
+          {/* Top Reserve & Reconciliation Strip */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="rounded-lg border border-border-default bg-surface p-3.5">
               <span className="text-[10px] font-sans font-semibold uppercase tracking-wider text-text-tertiary block">
-                Emergency Fund Reserve
+                Emergency Fund Pool
               </span>
-              <span className="font-mono text-lg font-semibold text-text-primary tabular-nums mt-1 block">
-                {formatRupiah(activeVault.balance ?? 0)}
+              <span className="font-mono text-lg font-semibold text-text-primary tabular-nums erp-tabular-currency mt-1 block">
+                {formatRupiah(activeVault.balance ?? 0, isAmountsMasked)}
               </span>
               <span className="text-[11px] font-sans text-text-tertiary mt-0.5 block">
-                {runwayCoveragePct}% of 3-month floor ({formatRupiah(threeMonthRunwayTarget)})
+                {runwayCoveragePct}% of 3-month floor ({formatRupiah(threeMonthRunwayTarget, isAmountsMasked)})
               </span>
             </div>
 
             <div className="rounded-lg border border-border-default bg-surface p-3.5">
               <span className="text-[10px] font-sans font-semibold uppercase tracking-wider text-text-tertiary block">
-                Active P1 Allocation ({month}/{year})
+                Active {savingsTierLabel} ({month}/{year})
               </span>
-              <span className="font-mono text-lg font-semibold text-delta-positive tabular-nums mt-1 block">
-                {formatRupiah(activePeriodP1)}
+              <span className="font-mono text-lg font-semibold text-delta-positive tabular-nums erp-tabular-currency mt-1 block">
+                {formatRupiah(activePeriodP1, isAmountsMasked)}
               </span>
               <span className="text-[11px] font-sans text-text-tertiary mt-0.5 block">
-                Locked in period waterfall pending close
+                Allocated in active cycle pending close
               </span>
             </div>
 
             <div className="rounded-lg border border-border-default bg-surface p-3.5">
               <span className="text-[10px] font-sans font-semibold uppercase tracking-wider text-text-tertiary block">
-                Scheduled P1 Repayments
+                Scheduled Savings Repayments
               </span>
-              <span className="font-mono text-lg font-semibold text-caution tabular-nums mt-1 block">
-                {formatRupiah(scheduledP1RefundTotal)}
+              <span className="font-mono text-lg font-semibold text-caution tabular-nums erp-tabular-currency mt-1 block">
+                {formatRupiah(scheduledP1RefundTotal, isAmountsMasked)}
               </span>
               <span className="text-[11px] font-sans text-text-tertiary mt-0.5 block">
                 {p1RefundItems.filter((i) => !i.isSettled).length} internal repayment(s) due
@@ -264,24 +255,35 @@ export function SavingsClientView({
 
             <div className="rounded-lg border border-border-default bg-surface p-3.5">
               <span className="text-[10px] font-sans font-semibold uppercase tracking-wider text-text-tertiary block">
-                2026 P1 Trajectory
+                Planned Savings Trajectory
               </span>
-              <span className="font-mono text-lg font-semibold text-text-primary tabular-nums mt-1 block">
-                {formatRupiah(activeVault.overview?.kpi.totalPlanned2026P1 ?? 0)}
+              <span className="font-mono text-lg font-semibold text-text-primary tabular-nums erp-tabular-currency mt-1 block">
+                {formatRupiah(activeVault.overview?.kpi.totalPlanned2026P1 ?? 0, isAmountsMasked)}
               </span>
               <span className="text-[11px] font-sans text-text-tertiary mt-0.5 block">
-                Avg {formatRupiah(avgMonthlySavings)} / cycle
+                Avg {formatRupiah(avgMonthlySavings, isAmountsMasked)} / cycle
               </span>
             </div>
           </div>
 
           <SavingsBalanceCard vault={activeVault} />
 
-          {/* Actual Core Savings (P1) Closed-Cycles Balance Override */}
+          <SavingsPocketsCard
+            totalConfirmedSavingsRp={
+              activeVault.pocketsSummary?.totalConfirmedSavingsRp ?? activeVault.balance ?? 0
+            }
+            initialPockets={activeVault.pocketsSummary?.pockets ?? studioConfig?.savingsPockets}
+            onSaved={(saved) => {
+              updateStudioConfig({ savingsPockets: saved.pockets });
+              window.dispatchEvent(new Event("erp:data-mutated"));
+            }}
+          />
+
+          {/* Closed-Cycles Balance Override */}
           <div className="rounded-lg border border-border-default bg-surface p-4 flex flex-wrap items-center justify-between gap-3">
             <div>
               <div className="text-xs font-semibold font-sans text-text-primary">
-                Actual Core Savings (P1) Closed-Cycles Balance
+                Actual Closed-Cycles Savings Balance
               </div>
               <p className="text-[11px] font-sans text-text-tertiary mt-0.5">
                 Optional real-world balance override for past closed cycles (leave blank to compute strictly from verified savings entries).
@@ -301,7 +303,7 @@ export function SavingsClientView({
                 type="button"
                 disabled={savingP1Override}
                 onClick={() => handleSaveP1Override(false)}
-                className="px-3 py-1.5 rounded bg-text-primary text-canvas text-xs font-medium hover:opacity-90 disabled:opacity-50 cursor-pointer"
+                className="px-3 py-1.5 rounded erp-btn-primary text-xs font-medium hover:opacity-90 disabled:opacity-50 cursor-pointer"
               >
                 {savingP1Override ? "Saving..." : "Apply Override"}
               </button>
@@ -318,11 +320,7 @@ export function SavingsClientView({
                 )}
             </div>
           </div>
-          <WealthTargetPlannerCard
-            vault={activeVault}
-            baselineMonth={month}
-            baselineYear={year}
-          />
+
           {(activeVault.milestones?.length ?? 0) > 0 && (
             <SavingsMilestonesCard
               milestones={activeVault.milestones ?? []}
@@ -338,6 +336,18 @@ export function SavingsClientView({
             }
           />
           <SavingsTransactionsTable transactions={activeVault.transactions} />
+        </div>
+      )}
+
+      {activeSub === "runway" && (
+        <div className="space-y-6">
+          <NetWorthReservoirsPanel intel={intel} />
+          <WealthForecaster12MPanel intel={intel} />
+          <WealthTargetPlannerCard
+            vault={activeVault}
+            baselineMonth={month}
+            baselineYear={year}
+          />
         </div>
       )}
     </div>

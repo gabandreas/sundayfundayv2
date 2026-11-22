@@ -1,25 +1,15 @@
 "use client";
 
 import React, { useRef } from "react";
-import { handleTabListKeyDown } from "@/lib/tabs";
-import type { PreferencesTabKey } from "@/lib/tabs";
-import { TranslationKey, useLanguage } from "@/context/LanguageContext";
+import { PreferencesTabKey, handleTabListKeyDown } from "@/lib/tabs";
 
-export type { PreferencesTabKey };
-
-interface PreferencesTabItem {
-  key: PreferencesTabKey;
-  labelKey: TranslationKey;
-}
-
-export const PREFERENCES_TABS: PreferencesTabItem[] = [
-  { key: "formula", labelKey: "sub.preferences.formula" },
-  { key: "instruments", labelKey: "sub.preferences.instruments" },
-  { key: "accounts", labelKey: "sub.preferences.accounts" },
-  { key: "templates", labelKey: "sub.preferences.templates" },
-  { key: "navigation", labelKey: "sub.preferences.navigation" },
-  { key: "notifications", labelKey: "sub.preferences.notifications" },
-  { key: "ai", labelKey: "sub.preferences.ai" },
+const PREFERENCES_TABS: Array<{ id: PreferencesTabKey; label: string }> = [
+  { id: "formula", label: "Formula & Priority" },
+  { id: "instruments", label: "Methods & Accounts" },
+  { id: "templates", label: "Routine & Buckets" },
+  { id: "display", label: "Display, Account & AI" },
+  { id: "notifications", label: "Alerts & Email" },
+  { id: "backup", label: "Backup & Restore" },
 ];
 
 interface PreferencesNavProps {
@@ -28,46 +18,45 @@ interface PreferencesNavProps {
 }
 
 export function PreferencesNav({ currentTab, onSelectTab }: PreferencesNavProps) {
-  const { t } = useLanguage();
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   return (
     <div
       role="tablist"
-      aria-label="Configuration studio sections"
-      className="flex items-center gap-2 border-b border-border pb-3 overflow-x-auto no-scrollbar whitespace-nowrap"
+      aria-label="Configuration sections"
+      className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-border"
     >
       {PREFERENCES_TABS.map((tab, idx) => {
-        const isActive = currentTab === tab.key;
+        const isActive = currentTab === tab.id;
         return (
           <button
-            key={tab.key}
+            key={tab.id}
             ref={(el) => {
               tabRefs.current[idx] = el;
             }}
-            id={`preferences-tab-${tab.key}`}
+            id={`preferences-tab-${tab.id}`}
             role="tab"
             type="button"
             aria-selected={isActive}
-            aria-controls={`preferences-panel-${tab.key}`}
+            aria-controls={`preferences-panel-${tab.id}`}
             tabIndex={isActive ? 0 : -1}
-            onClick={() => onSelectTab(tab.key)}
+            onClick={() => onSelectTab(tab.id)}
             onKeyDown={(e) =>
               handleTabListKeyDown(
                 e,
-                PREFERENCES_TABS.map((x) => x.key),
+                PREFERENCES_TABS.map((t) => t.id),
                 idx,
                 onSelectTab,
                 tabRefs,
               )
             }
-            className={`px-3 py-1.5 rounded-md text-xs font-medium font-sans transition-colors border shrink-0 cursor-pointer ${
+            className={`pb-3 text-xs font-medium font-sans transition-colors border-b-2 -mb-px whitespace-nowrap cursor-pointer ${
               isActive
-                ? "bg-surface-active text-text-primary border-border-strong"
-                : "bg-transparent text-text-tertiary border-transparent hover:text-text-secondary hover:bg-surface"
+                ? "border-accent text-text-primary"
+                : "border-transparent text-text-tertiary hover:text-text-secondary"
             }`}
           >
-            {t(tab.labelKey)}
+            {tab.label}
           </button>
         );
       })}

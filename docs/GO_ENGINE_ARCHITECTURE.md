@@ -49,7 +49,9 @@ Quantitative analysis, cutoff simulation, waterfall projection, debt payoff comp
 - `POST /api/finance/reconciler/parse` (`FinanceController` -> `FinanceSelectors.parseStatementForUser`):
   - Read-only batch parser accepting `ParseReconcilerDto` and returning categorized `ReconcilerParsedRow[]` with deduplication flags, lock-safe advancement, and auto-assigned paycycle target periods.
 - `POST /api/finance/reconciler/commit` (`FinanceController` -> `FinanceService.commitReconcilerRows`):
-  - Atomic write endpoint (`CommitReconcilerDto`) committing approved statement rows into `Transaction` or `LiabilityLineItem` records and recomputing affected monthly totals.
+  - Atomic write endpoint (`CommitReconcilerDto`) committing approved statement rows into `Transaction` or `LiabilityLineItem` records and recomputing affected monthly totals, powering the dedicated **`/import`** (*Statement Import*) module.
+- `POST /api/finance/scenarios/simulate` (`FinanceController.simulateScenario` -> `FinanceSelectors.simulateScenarioForUser`):
+  - Read-only multi-engine What-If simulator running Go `forecaster` + `debtopt` + `cutoff` against user-supplied scenario adjustments (`extraMonthlySavingsRp`, `oneTimeBonusRp`, `monthlyLivingDeltaRp`, `extraDebtPaymentRp`, `variableShockPercent`) to power **`/scenarios`** (*What-If Scenario Lab*) and future mobile clients.
 
 ---
 

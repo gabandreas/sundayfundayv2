@@ -162,8 +162,8 @@ const FORMULA_META: Array<{
   },
   {
     key: "waterfallAllocationFormula",
-    title: "P1/P2 Waterfall Distributable Pool",
-    description: "Income left for Core Savings (P1) and Self-Reward (P2) after essentials and debt.",
+    title: "Waterfall Distributable Pool",
+    description: "Income left for Core Savings Reserve and Flexible Surplus after essentials and debt.",
     unit: "RP",
   },
   {
@@ -186,8 +186,8 @@ const FORMULA_META: Array<{
   },
   {
     key: "forecasterFreedDebtToP1Formula",
-    title: "Freed Installment Sweep to P1",
-    description: "Portion of maturing installment cashflow routed toward P1 Core Savings.",
+    title: "Freed Installment Sweep to Savings",
+    description: "Portion of maturing installment cashflow routed toward Core Savings.",
     unit: "RP",
   },
 ];
@@ -396,7 +396,7 @@ export function PaycycleFormulaStudioCard({ initialConfig }: { initialConfig?: M
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-text-primary text-canvas text-xs font-medium hover:opacity-90 disabled:opacity-50 cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded erp-btn-primary text-xs font-medium hover:opacity-90 disabled:opacity-50 cursor-pointer"
           >
             <Save className="w-3.5 h-3.5" />
             {saving ? "Saving..." : "Save Configuration"}
@@ -485,7 +485,7 @@ export function PaycycleFormulaStudioCard({ initialConfig }: { initialConfig?: M
           />
         </label>
         <label className="space-y-1 text-xs">
-          <span className="text-text-tertiary font-medium block">Core Savings P1 Floor (Rp)</span>
+          <span className="text-text-tertiary font-medium block">Core Savings Floor (Rp)</span>
           <input
             type="number"
             step={50000}
@@ -519,9 +519,9 @@ export function PaycycleFormulaStudioCard({ initialConfig }: { initialConfig?: M
             }}
             className="w-full bg-canvas border border-border rounded px-2.5 py-1.5 text-text-primary"
           >
-            <option value="SPINJAM_ZERO">Auto: SPinjam -&gt; PayLater -&gt; Debt-Free</option>
+            <option value="SPINJAM_ZERO">Auto: High-Interest Loan -&gt; PayLater -&gt; Debt-Free</option>
             <option value="PAYLATER_INSTALLMENTS_ZERO">Focus: PayLater Zero Target</option>
-            <option value="ALL_DEBT_FREE_P1_FOCUS">Focus: Core P1 Savings Only</option>
+            <option value="ALL_DEBT_FREE_P1_FOCUS">Focus: Core Savings Growth</option>
           </select>
         </label>
         <label className="space-y-1 text-xs">
@@ -582,7 +582,7 @@ export function PaycycleFormulaStudioCard({ initialConfig }: { initialConfig?: M
           </span>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-xs text-left">
+          <table className="w-full min-w-[780px] text-xs text-left">
             <thead className="bg-surface-subtle/50 text-[10px] font-mono uppercase text-text-tertiary border-b border-border-subtle">
               <tr>
                 <th className="px-3 py-2">Period</th>
@@ -829,7 +829,7 @@ export function InstrumentsTableCard({ initialConfig }: { initialConfig?: Modula
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-text-primary text-canvas text-xs font-medium hover:opacity-90 disabled:opacity-50 cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded erp-btn-primary text-xs font-medium hover:opacity-90 disabled:opacity-50 cursor-pointer"
           >
             <Save className="w-3.5 h-3.5" />
             {saving ? "Saving..." : "Save Table"}
@@ -840,7 +840,7 @@ export function InstrumentsTableCard({ initialConfig }: { initialConfig?: Modula
       <SaveBanner savedMsg={savedMsg} errorMsg={errorMsg} />
 
       <div className="overflow-x-auto">
-        <table className="w-full text-xs text-left">
+        <table className="w-full min-w-[780px] text-xs text-left">
           <thead className="bg-surface-subtle text-[10px] font-mono uppercase text-text-tertiary border-b border-border">
             <tr>
               <th className="px-2.5 py-2">Instrument Name</th>
@@ -1023,7 +1023,7 @@ export function AssetAccountsTableCard({ initialConfig }: { initialConfig?: Modu
     setSavedMsg(
       enableExternal
         ? "External asset portfolio enabled & synced with Cash & Savings vs. Debt."
-        : "External asset portfolio disabled — balances derive strictly from ledger snapshots.",
+        : "External asset portfolio disabled â€” balances derive strictly from ledger snapshots.",
     );
     setSaving(false);
   };
@@ -1076,7 +1076,7 @@ export function AssetAccountsTableCard({ initialConfig }: { initialConfig?: Modu
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-text-primary text-canvas text-xs font-medium hover:opacity-90 disabled:opacity-50 cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded erp-btn-primary text-xs font-medium hover:opacity-90 disabled:opacity-50 cursor-pointer"
           >
             <Save className="w-3.5 h-3.5" />
             {saving ? "Saving..." : "Save Accounts"}
@@ -1089,10 +1089,10 @@ export function AssetAccountsTableCard({ initialConfig }: { initialConfig?: Modu
       <div className="rounded border border-border-subtle bg-surface-subtle/40 p-3.5 flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="text-xs font-medium text-text-primary font-sans">
-            Actual Core Savings (P1) Closed-Cycles Balance Override (Rp)
+            Actual Closed-Cycles Savings Balance Override (Rp)
           </div>
           <p className="text-[11px] text-text-tertiary mt-0.5">
-            Set an exact realized balance for closed P1 cycles or leave blank to compute directly from verified P1 savings records.
+            Set an exact realized balance for closed cycles or leave blank to compute directly from verified savings records.
           </p>
         </div>
         <input
@@ -1112,12 +1112,12 @@ export function AssetAccountsTableCard({ initialConfig }: { initialConfig?: Modu
             External Asset Portfolio is currently OFF (Ledger-Truth Mode)
           </div>
           <p className="text-text-tertiary">
-            Cash &amp; Savings balances derive exclusively from your verified monthly Core Savings (P1) ledger deposits and actual Wallet Check-In cash balances. Turn on &quot;Enable External Asset Portfolio&quot; above if you want to track off-ledger RDPU, time deposits, gold, stocks, or crypto holdings.
+            Cash &amp; Savings balances derive exclusively from your verified monthly Core Savings ledger deposits and actual Wallet Check-In cash balances. Turn on &quot;Enable External Asset Portfolio&quot; above if you want to track off-ledger money market, time deposits, gold, stocks, or crypto holdings.
           </p>
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-xs text-left">
+          <table className="w-full min-w-[780px] text-xs text-left">
             <thead className="bg-surface-subtle text-[10px] font-mono uppercase text-text-tertiary border-b border-border">
               <tr>
                 <th className="px-2.5 py-2">Account Name</th>
@@ -1262,7 +1262,7 @@ export function RoutineTemplatesTableCard({ initialConfig }: { initialConfig?: M
             Routine Envelopes &amp; Rollover Policy Templates
           </h3>
           <p className="text-xs text-text-tertiary mt-0.5">
-            Defines default monthly routine quotas, due dates, and end-of-cycle rollover behavior (Sweep to P1 vs Roll Forward).
+            Defines default monthly routine quotas, due dates, and end-of-cycle rollover behavior (Sweep to Savings vs Roll Forward).
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -1291,7 +1291,7 @@ export function RoutineTemplatesTableCard({ initialConfig }: { initialConfig?: M
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-text-primary text-canvas text-xs font-medium hover:opacity-90 disabled:opacity-50 cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded erp-btn-primary text-xs font-medium hover:opacity-90 disabled:opacity-50 cursor-pointer"
           >
             <Save className="w-3.5 h-3.5" />
             {saving ? "Saving..." : "Save Templates"}
@@ -1302,7 +1302,7 @@ export function RoutineTemplatesTableCard({ initialConfig }: { initialConfig?: M
       <SaveBanner savedMsg={savedMsg} errorMsg={null} />
 
       <div className="overflow-x-auto">
-        <table className="w-full text-xs text-left">
+        <table className="w-full min-w-[780px] text-xs text-left">
           <thead className="bg-surface-subtle text-[10px] font-mono uppercase text-text-tertiary border-b border-border">
             <tr>
               <th className="px-2.5 py-2">Template Label</th>
@@ -1371,7 +1371,7 @@ export function RoutineTemplatesTableCard({ initialConfig }: { initialConfig?: M
                     }}
                     className="bg-canvas border border-border rounded px-2 py-1 text-xs text-text-secondary"
                   >
-                    <option value="SWEEP_TO_P1">Sweep Unspent to Core Savings (P1)</option>
+                    <option value="SWEEP_TO_P1">Sweep Unspent to Core Savings</option>
                     <option value="ROLLOVER_NEXT_MONTH">Roll Over to Next Month Quota</option>
                   </select>
                 </td>
@@ -1408,63 +1408,63 @@ export function RoutineTemplatesTableCard({ initialConfig }: { initialConfig?: M
 const MANAGED_SIDEBAR_ROUTES = [
   { href: "/", defaultLabel: "Overview" },
   { href: "/payroll", defaultLabel: "Payroll & Income" },
-  { href: "/allocations", defaultLabel: "Allocations" },
-  { href: "/credit", defaultLabel: "Credit & Liabilities" },
-  { href: "/savings", defaultLabel: "Savings & Emergency Fund" },
+  { href: "/allocations", defaultLabel: "Monthly Plan" },
+  { href: "/credit", defaultLabel: "Installments & Bills" },
+  { href: "/savings", defaultLabel: "Savings & Pockets" },
+  { href: "/import", defaultLabel: "Statement Import" },
+  { href: "/scenarios", defaultLabel: "Scenario Lab" },
   { href: "/ledger", defaultLabel: "Transaction Ledger" },
   { href: "/wishlist", defaultLabel: "Wishlist Simulator" },
-  { href: "/audit", defaultLabel: "Discipline Audit" },
-  { href: "/analytics", defaultLabel: "Analytics" },
-  { href: "/reports", defaultLabel: "Reports & Statements" },
-  { href: "/subscriptions", defaultLabel: "Subscriptions & Recurring" },
+  { href: "/audit", defaultLabel: "Health Check" },
+  { href: "/analytics", defaultLabel: "Spending Trend" },
+  { href: "/reports", defaultLabel: "Financial Reports" },
+  { href: "/subscriptions", defaultLabel: "Recurring Bills" },
   { href: "/preferences", defaultLabel: "Preferences" },
   { href: "/admin", defaultLabel: "Platform Admin" },
 ];
 
 const SHORTCUT_DESTINATION_CATALOG: Array<{ group: string; items: Array<{ href: string; label: string }> }> = [
   {
-    group: "All Top-Level Modules (13)",
+    group: "All Top-Level Modules",
     items: [
       { href: "/", label: "Overview (/)" },
       { href: "/payroll", label: "Payroll & Income (/payroll)" },
-      { href: "/allocations", label: "Allocations (/allocations)" },
-      { href: "/credit", label: "Credit & Liabilities (/credit)" },
-      { href: "/savings", label: "Savings & Emergency Fund (/savings)" },
+      { href: "/allocations", label: "Monthly Plan (/allocations)" },
+      { href: "/credit", label: "Installments & Bills (/credit)" },
+      { href: "/savings", label: "Savings & Pockets (/savings)" },
+      { href: "/import", label: "Statement Import (/import)" },
+      { href: "/scenarios", label: "Scenario Lab (/scenarios)" },
       { href: "/ledger", label: "Transaction Ledger (/ledger)" },
       { href: "/wishlist", label: "Wishlist Simulator (/wishlist)" },
-      { href: "/audit", label: "Discipline Audit (/audit)" },
-      { href: "/analytics", label: "Analytics (/analytics)" },
-      { href: "/reports", label: "Reports & Statements (/reports)" },
-      { href: "/subscriptions", label: "Subscriptions & Recurring (/subscriptions)" },
+      { href: "/audit", label: "Health Check (/audit)" },
+      { href: "/analytics", label: "Spending Trend (/analytics)" },
+      { href: "/reports", label: "Financial Reports (/reports)" },
+      { href: "/subscriptions", label: "Recurring Bills (/subscriptions)" },
       { href: "/preferences", label: "Preferences (/preferences)" },
       { href: "/admin", label: "Platform Admin (/admin)" },
     ],
   },
   {
-    group: "All Sub-Module Views (22)",
+    group: "All Sub-Module Views",
     items: [
       { href: "/payroll?sub=payslip", label: "Payslip & Income (/payroll?sub=payslip)" },
-      { href: "/payroll?sub=timeline", label: "Payday Split-Bill Planner (/payroll?sub=timeline)" },
+      { href: "/payroll?sub=timeline", label: "Payday Timeline (/payroll?sub=timeline)" },
       { href: "/payroll?sub=lifeenergy", label: "Hourly Wage & Time Cost (/payroll?sub=lifeenergy)" },
-      { href: "/allocations?sub=waterfall", label: "Waterfall Rules & Quotas (/allocations?sub=waterfall)" },
-      { href: "/allocations?sub=envelopes", label: "Envelopes & Sinking Funds (/allocations?sub=envelopes)" },
-      { href: "/allocations?sub=revisions", label: "Budget Revision History (/allocations?sub=revisions)" },
-      { href: "/credit?sub=matrix", label: "12-Month Matrix & Cards (/credit?sub=matrix)" },
-      { href: "/credit?sub=contracts", label: "Installments & Payoff (/credit?sub=contracts)" },
-      { href: "/credit?sub=simulator", label: "Billing Cutoff Advisor (/credit?sub=simulator)" },
-      { href: "/credit?sub=reconciler", label: "Bulk Statement Reconciler (/credit?sub=reconciler)" },
-      { href: "/savings?sub=vault", label: "Core Savings & Emergency Fund (/savings?sub=vault)" },
-      { href: "/savings?sub=networth", label: "Cash vs Debt Position (/savings?sub=networth)" },
-      { href: "/savings?sub=forecaster", label: "12-Month Payoff Projection (/savings?sub=forecaster)" },
-      { href: "/reports?sub=executive", label: "Executive Summary (/reports?sub=executive)" },
-      { href: "/reports?sub=variance", label: "Variance & Drift (/reports?sub=variance)" },
-      { href: "/reports?sub=export", label: "4-Sheet Export (/reports?sub=export)" },
-      { href: "/preferences?sub=formula", label: "Payroll & Formula Studio (/preferences?sub=formula)" },
-      { href: "/preferences?sub=instruments", label: "Payment Instruments (/preferences?sub=instruments)" },
-      { href: "/preferences?sub=accounts", label: "Cash & Asset Accounts (/preferences?sub=accounts)" },
-      { href: "/preferences?sub=templates", label: "Routine Bill Templates (/preferences?sub=templates)" },
-      { href: "/preferences?sub=navigation", label: "Menu Builder (/preferences?sub=navigation)" },
+      { href: "/allocations?sub=waterfall", label: "Plan & Quota Simulator (/allocations?sub=waterfall)" },
+      { href: "/allocations?sub=envelopes", label: "Routine & Sinking Reserve (/allocations?sub=envelopes)" },
+      { href: "/credit?sub=matrix", label: "Bill Schedule & Cards (/credit?sub=matrix)" },
+      { href: "/credit?sub=simulator", label: "Payoff Strategy & Cutoff (/credit?sub=simulator)" },
+      { href: "/savings?sub=pockets", label: "Savings Pockets & Splits (/savings?sub=pockets)" },
+      { href: "/savings?sub=runway", label: "Net Worth & Runway (/savings?sub=runway)" },
+      { href: "/reports?sub=executive", label: "Statement & Visuals (/reports?sub=executive)" },
+      { href: "/reports?sub=variance", label: "Comparison & Health Check (/reports?sub=variance)" },
+      { href: "/reports?sub=export", label: "Forward Outlook & Exports (/reports?sub=export)" },
+      { href: "/preferences?sub=formula", label: "Formula & Priority (/preferences?sub=formula)" },
+      { href: "/preferences?sub=instruments", label: "Methods & Accounts (/preferences?sub=instruments)" },
+      { href: "/preferences?sub=templates", label: "Routine & Buckets (/preferences?sub=templates)" },
+      { href: "/preferences?sub=display", label: "Display, Account & AI (/preferences?sub=display)" },
       { href: "/preferences?sub=notifications", label: "Alerts & Email (/preferences?sub=notifications)" },
+      { href: "/preferences?sub=backup", label: "Backup & Restore (/preferences?sub=backup)" },
     ],
   },
 ];
@@ -1481,7 +1481,7 @@ export function SidebarMenuBuilderCard({ initialConfig }: { initialConfig?: Modu
     },
   );
   const [newLabel, setNewLabel] = useState("");
-  const [newTargetHref, setNewTargetHref] = useState("/credit?sub=contracts");
+  const [newTargetHref, setNewTargetHref] = useState("/scenarios");
   const [newIcon, setNewIcon] = useState("TrendingDown");
   const [newGroup, setNewGroup] = useState<CustomSidebarShortcut["sectionGroup"]>("AUDIT_DECISION");
   const [saving, setSaving] = useState(false);
@@ -1560,7 +1560,7 @@ export function SidebarMenuBuilderCard({ initialConfig }: { initialConfig?: Modu
             <span className="text-text-tertiary block">Custom Menu Name</span>
             <input
               type="text"
-              placeholder="e.g. SPinjam Payoff"
+              placeholder="e.g. Payoff Strategy"
               value={newLabel}
               onChange={(e) => setNewLabel(e.target.value)}
               className="w-full bg-canvas border border-border rounded px-2.5 py-1.5 text-xs text-text-primary"
@@ -1599,7 +1599,7 @@ export function SidebarMenuBuilderCard({ initialConfig }: { initialConfig?: Modu
           <button
             type="submit"
             disabled={saving || !newLabel.trim()}
-            className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded bg-text-primary text-canvas text-xs font-medium hover:opacity-90 disabled:opacity-50 cursor-pointer"
+            className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded erp-btn-primary text-xs font-medium hover:opacity-90 disabled:opacity-50 cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             Add Shortcut
@@ -1652,7 +1652,7 @@ export function SidebarMenuBuilderCard({ initialConfig }: { initialConfig?: Modu
             type="button"
             onClick={() => persistNav(navCfg, "Module navigation overrides saved.")}
             disabled={saving}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-text-primary text-canvas text-xs font-medium hover:opacity-90 disabled:opacity-50 cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded erp-btn-primary text-xs font-medium hover:opacity-90 disabled:opacity-50 cursor-pointer"
           >
             <Save className="w-3.5 h-3.5" />
             Save Navigation
@@ -1660,7 +1660,7 @@ export function SidebarMenuBuilderCard({ initialConfig }: { initialConfig?: Modu
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-xs text-left">
+          <table className="w-full min-w-[780px] text-xs text-left">
             <thead className="bg-surface-subtle text-[10px] font-mono uppercase text-text-tertiary border-b border-border">
               <tr>
                 <th className="px-3 py-2">Route</th>

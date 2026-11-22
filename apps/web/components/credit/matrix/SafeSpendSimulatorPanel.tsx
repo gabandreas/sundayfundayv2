@@ -162,7 +162,7 @@ export function SafeSpendSimulatorPanel({
       const res = await createLineItem({
         title: description.trim() || "Simulated Purchase",
         category: instrument === "SPINJAM" ? "PERSONAL_DEBT" : "PAYLATER",
-        merchantOrPlatform: instrument === "SPINJAM" ? "SPinjam" : "SPayLater",
+        merchantOrPlatform: instrument === "SPINJAM" ? "Personal Loan" : "PayLater",
         totalAmount: principal,
         amountMode: "PRINCIPAL_SPLIT",
         tenorMonths: tenor,
@@ -276,9 +276,9 @@ export function SafeSpendSimulatorPanel({
                 }`}
               >
                 {inst === "PAYLATER"
-                  ? "SPay"
+                  ? "PayLater"
                   : inst === "CREDIT_CARD"
-                    ? "CC"
+                    ? "Card"
                     : inst === "SPINJAM"
                       ? "Loan"
                       : "Cash"}
@@ -340,7 +340,7 @@ export function SafeSpendSimulatorPanel({
               </div>
               <div className="text-xs font-sans">{cutoffAdvice.advice}</div>
               <div className="text-[10px] font-mono opacity-85 tabular-nums">
-                DSR: {cutoffAdvice.dsrBeforePercent}% → {cutoffAdvice.dsrAfterPercent}% (Next cycle: {cutoffAdvice.nextDsrAfterPercent}%) · First Slice: {formatRp(cutoffAdvice.monthlySliceFirst)}
+                DSR: {cutoffAdvice.dsrBeforePercent}% â†’ {cutoffAdvice.dsrAfterPercent}% (Next cycle: {cutoffAdvice.nextDsrAfterPercent}%) · First Slice: {formatRp(cutoffAdvice.monthlySliceFirst)}
               </div>
             </div>
           </div>
@@ -388,7 +388,7 @@ export function SafeSpendSimulatorPanel({
           type="button"
           disabled={isCommitting || principal <= 0 || instrument === "CASH"}
           onClick={handleCommit}
-          className="w-full lg:w-auto px-3.5 py-1.5 rounded bg-text-primary text-canvas text-xs font-sans font-semibold hover:opacity-90 cursor-pointer disabled:opacity-40"
+          className="w-full lg:w-auto px-3.5 py-1.5 rounded erp-btn-primary text-xs font-sans font-semibold hover:opacity-90 cursor-pointer disabled:opacity-40"
         >
           {isCommitting ? "Committing..." : "Commit Purchase to Matrix"}
         </button>

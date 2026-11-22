@@ -10,22 +10,19 @@ User-configurable formula parameters, instrument cutoffs, asset reservoirs, rout
 
 ---
 
-## 2. Six Table-Driven Sub-Modules (`/preferences`)
+## 2. Six Full-Width Non-Overflowing Sub-Modules (`/preferences`)
 
-Implemented across `apps/web/components/preferences/PreferencesStudio.tsx`, `PreferencesNav.tsx`, and `StudioTables.tsx`:
+Implemented across `apps/web/components/preferences/PreferencesStudio.tsx`, `PreferencesNav.tsx`, `StudioTables.tsx`, `AccountDisplayPanel.tsx`, and `BackupDataTab.tsx`:
 
-1. **`formula` (`PaycycleFormulaStudioCard`):**
-   - Edits Two-Stage Payroll (`payslipAnchorDay`, `payslipShiftRule`, `reviewLagWorkingDays`, `paydayAnchorDay`, `shiftWeekendToFriday`, `periodOverrides`, `holidayDatesIso`), `milestonePriorityOrder`, and the 7 customizable Formula DSL expressions with clickable 31 Reserved Word token chips, `Verify Live` (`POST /api/finance/formula/evaluate`), and `Reset to Default`.
-   - Renders a live 6-period Horizon Preview Table showing Stage 1 payslip dates, Stage 2 paydays, living windows (`Payday(M) -> Payday(M+1)-1`), and inline per-month overrides.
-2. **`instruments` (`InstrumentsTableCard`):**
-   - Edits `InstrumentConfigRow[]`: `id`, `name`, `type` (`PAYLATER` | `CREDIT_CARD` | `CASH_LOAN`), `cutoffDay`, `dueDay`, `dueRule` (`FIXED_DAY` | `DISBURSEMENT_DAY`), `monthlyInterestPct`, `adminFeePct`, `creditLimitRp`, `utilizationWarnPct`, `lateFeeRule`, `active`.
-   - Feeds `routeTransactionToPaycycleTs` cutoff logic and utilization alerts across Credit and Reconciler modules.
-3. **`accounts` (`AssetAccountsTableCard`):**
-   - Master switch **`enableExternalAssetPortfolio`** (default `false` for User #1 ledger-truth mode; `true` for Sandbox). When `OFF`, `Cash & Savings` derives exclusively from verified ledger P1 savings + actual Wallet Check-In cash with zero fabricated external holdings.
-   - Edits `AssetAccountConfigRow[]` across `OPERATIONAL_BANK`, `MONEY_MARKET_RDPU`, `TIME_DEPOSIT`, `GOLD`, `STOCKS`, `CRYPTO`, `CASH_WALLET`, `SAVINGS_VAULT`.
-4. **`templates` (`RoutineTemplatesTableCard`):**
-   - Edits `RoutineTemplateConfigRow[]`: default `slotKey`, `name`, `monthlyQuotaRp`, `targetDueDay`, `rolloverPolicy` (`SWEEP_TO_P1` | `ROLLOVER_NEXT_MONTH`), and `active` (also editable inline from `/allocations?sub=envelopes`).
-5. **`navigation` (`SidebarMenuBuilderCard`):**
-   - Edits `SidebarNavigationConfig`: `defaultLandingRoute`, `moduleOverrides` (`label`, `hidden`, `order` across all 13 routes), and `customShortcuts` spanning all **13 top-level modules and 22 sub-module destinations** across `FINANCIAL_ENGINE`, `AUDIT_DECISION`, and `SYSTEM`.
-6. **`notifications` (`SmtpControlPanel` & `SubscriptionKillSwitchTab`):**
-   - SMTP delivery controls, encrypted 16-digit Google App Password persistence, dry-run/live verification, and recurring charge Kill-Switch automation.
+1. **`formula` (*Paycycle & Priority Rules*):**
+   - Two-Stage Payroll (`payslipAnchorDay`, `payslipShiftRule`, `reviewLagWorkingDays`, `paydayAnchorDay`, `periodOverrides`, `holidayDatesIso`), **Configurable Priority Tiers (`priorityTiers`)** defining human labels & allocation rank end-to-end without `P1`/`P2`/`P3` badges, plus 7 Formula DSL expressions (`Verify Live`).
+2. **`instruments` (*Payment Methods & Cutoffs*):**
+   - Full-width responsive table editing custom cards, PayLater lines, and loans (`cutoffDay`, `dueDay`, `dueRule`, `monthlyInterestPct`, `adminFeePct`, `creditLimitRp`, `utilizationWarnPct`) with zero right-edge column clipping and zero hardcoded brands.
+3. **`templates` (*Routine Bills, Accounts & Savings Pockets*):**
+   - Unified Routine Envelope templates (propagating identically across Overview, Allocations, and Envelopes), `enableExternalAssetPortfolio` / `assetAccountsTable`, and default `savingsPockets` templates.
+4. **`display` (*Account, Privacy & Display*):**
+   - Profile details + **Change Account Password (`POST /api/auth/change-password`)**, Privacy Mask defaults (`maskBalancesByDefault`, `requirePasswordToReveal`), default Language (`EN`/`ID`/`ZH`), Number Format (`id-ID` / `en-US`), UI Density (`Command Cockpit` / `Simple Clarity`), and Sidebar Visibility/Ordering (`SidebarMenuBuilderCard`).
+5. **`notifications` (*Notifications & Promo Watch*):**
+   - Separated cleanly into Promotional Auto-Renew Watchlist and SMTP Email / WhatsApp Dispatch Controls (`SmtpControlPanel`).
+6. **`backup` (*Backup, Restore & Data*):**
+   - Dedicated atomic full-ledger JSON archive export, off-site restore (`DatabaseBackupRestoreCard`), and workspace reset controls (moved out of SMTP email sub-panel).

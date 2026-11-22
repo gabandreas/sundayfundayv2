@@ -8,6 +8,7 @@ import { MonthYearSwitcher } from "./MonthYearSwitcher";
 import { GlobalSearchModal } from "./GlobalSearchModal";
 import { AccountHeaderBadge } from "./AccountHeaderBadge";
 import { LanguageSwitcher } from "./LanguageSwitcher";
+import { PrivacyEyeButton } from "./PrivacyEyeButton";
 import { BrandMark } from "@/components/primitives/BrandMark";
 import { TranslationKey, useLanguage } from "@/context/LanguageContext";
 
@@ -19,6 +20,8 @@ const ROUTE_TITLE_KEYS: Record<string, { titleKey: TranslationKey; catKey: Trans
   "/allocations": { titleKey: "nav.allocations", catKey: "cat.engine" },
   "/credit": { titleKey: "nav.credit", catKey: "cat.engine" },
   "/savings": { titleKey: "nav.savings", catKey: "cat.engine" },
+  "/import": { titleKey: "nav.import", catKey: "cat.engine" },
+  "/scenarios": { titleKey: "nav.scenarios", catKey: "cat.audit" },
   "/ledger": { titleKey: "nav.ledger", catKey: "cat.engine" },
   "/marquee": { titleKey: "nav.marquee", catKey: "cat.decision" },
   "/wishlist": { titleKey: "nav.wishlist", catKey: "cat.decision" },
@@ -72,9 +75,13 @@ export function AppHeader({ onToggleMobileDrawer }: { onToggleMobileDrawer?: () 
         <GlobalSearchModal />
       </div>
 
-      {/* Right Zone: Language + Guide + Period Capsule Navigator + Account Profile */}
-      <div className="flex items-center gap-1.5 sm:gap-2.5 justify-end min-w-0 lg:min-w-[260px] shrink-0">
+      {/* Right Zone: Privacy Toggle + Language + Guide + Period Capsule Navigator + Account Profile */}
+      <div className="flex items-center gap-1.5 sm:gap-2.5 justify-end min-w-0 lg:min-w-[280px] shrink-0">
         <div className="hidden sm:flex items-center gap-1.5">
+          <PrivacyEyeButton
+            size="sm"
+            className="h-8 w-8 rounded border border-border bg-surface hover:border-border-strong"
+          />
           <LanguageSwitcher compact />
           <Link
             href="/guide"

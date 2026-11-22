@@ -83,7 +83,7 @@ export function MatrixCellDrawer({
   // Add item form state
   const [showAddForm, setShowAddForm] = useState(false);
   const [title, setTitle] = useState("");
-  const [merchant, setMerchant] = useState(category === "PERSONAL_DEBT" ? "SPinjam" : "SPayLater");
+  const [merchant, setMerchant] = useState(category === "PERSONAL_DEBT" ? "Personal Loan" : "PayLater");
   const [totalAmountRaw, setTotalAmountRaw] = useState("");
   const [amountMode, setAmountMode] = useState<"PRINCIPAL_SPLIT" | "FIXED_MONTHLY">(
     "PRINCIPAL_SPLIT"
@@ -112,7 +112,7 @@ export function MatrixCellDrawer({
   const [overrideRaw, setOverrideRaw] = useState("");
 
   useEffect(() => {
-    setMerchant(category === "PERSONAL_DEBT" ? "SPinjam" : "SPayLater");
+    setMerchant(category === "PERSONAL_DEBT" ? "Personal Loan" : "PayLater");
     setCustomDueDay(category === "PERSONAL_DEBT" ? 8 : 25);
     setDrawerMode("itemized");
     setErrorMsg(null);
@@ -603,7 +603,7 @@ export function MatrixCellDrawer({
                 )}
               </div>
 
-              {/* Add Item / Installment Wizard — rendered directly at top under button */}
+              {/* Add Item / Installment Wizard â€” rendered directly at top under button */}
               {showAddForm && drawerMode === "itemized" && !isLocked && (
                 <form
                   onSubmit={handleAddSubmit}
@@ -636,7 +636,7 @@ export function MatrixCellDrawer({
                         type="text"
                         value={merchant}
                         onChange={(e) => setMerchant(e.target.value)}
-                        placeholder={category === "PERSONAL_DEBT" ? "SPinjam" : "SPayLater"}
+                        placeholder={category === "PERSONAL_DEBT" ? "Lender name" : "PayLater platform"}
                         className="w-full bg-canvas border border-border rounded px-2.5 py-1.5 text-xs font-sans text-text-primary focus:outline-none focus:border-text-secondary"
                       />
                     </div>
@@ -796,7 +796,7 @@ export function MatrixCellDrawer({
                             <div className="text-text-tertiary truncate">
                               {cutoffPreview.slices
                                 .map((s) => `${s.periodLabel}: Rp ${s.amount.toLocaleString("id-ID")}`)
-                                .join(" → ")}
+                                .join(" â†’ ")}
                             </div>
                           )}
                         </div>
@@ -815,7 +815,7 @@ export function MatrixCellDrawer({
                     <button
                       type="submit"
                       disabled={isBusy}
-                      className="px-3.5 py-1.5 rounded bg-text-primary text-canvas text-xs font-sans font-semibold hover:opacity-90 disabled:opacity-50"
+                      className="px-3.5 py-1.5 rounded erp-btn-primary text-xs font-sans font-semibold hover:opacity-90 disabled:opacity-50"
                     >
                       {busyAction === "add" ? "Saving..." : "Commit Item"}
                     </button>
@@ -862,7 +862,7 @@ export function MatrixCellDrawer({
                             </div>
                             {item.category === "P1_VAULT_REFUND" && (
                               <div className="text-[9px] font-mono text-caution mt-0.5">
-                                P1 Refund Lock
+                                Savings Refund Lock
                               </div>
                             )}
                           </div>
@@ -1094,7 +1094,7 @@ export function MatrixCellDrawer({
                 <button
                   type="submit"
                   disabled={isBusy}
-                  className="px-3.5 py-1.5 rounded bg-text-primary text-canvas text-xs font-sans font-semibold hover:opacity-90 disabled:opacity-50"
+                  className="px-3.5 py-1.5 rounded erp-btn-primary text-xs font-sans font-semibold hover:opacity-90 disabled:opacity-50"
                 >
                   {busyAction === "override" ? "Saving..." : "Apply Override"}
                 </button>

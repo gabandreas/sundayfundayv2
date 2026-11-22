@@ -460,7 +460,7 @@ export function GlobalConfigForm({ initialConfig }: GlobalConfigFormProps) {
             />
             <div className="flex items-center justify-between mt-1">
               <span className="text-[11px] font-mono text-text-tertiary tabular-nums">
-                {formatRupiah(parseFloat(formData.baseSavings) || 0)} (Priority 1 Core Savings Target)
+                {formatRupiah(parseFloat(formData.baseSavings) || 0)} (Core Savings Target)
               </span>
               {fieldErrors.baseSavings && (
                 <span className="text-[11px] font-sans text-delta-negative">{fieldErrors.baseSavings}</span>

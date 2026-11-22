@@ -21,13 +21,18 @@ import {
 } from "@/lib/api";
 import { formatIDR, formatDate } from "@/lib/utils";
 import { MetricCard } from "@/components/primitives/MetricCard";
-import { BrandMark } from "@/components/primitives/BrandMark";
 import { AnalyticsGoTelemetryStrip } from "@/components/analytics/AnalyticsGoTelemetryStrip";
 import { ReportsAuditEmbed } from "@/components/reports/ReportsAuditEmbed";
 import { exportExecutiveReportToExcel } from "@/lib/exportReportsExcel";
-import { TranslationKey, useLanguage } from "@/context/LanguageContext";
+import { PageHeader } from "@/components/primitives/PageHeader";
+import { BrandMark } from "@/components/primitives/BrandMark";
+import { SubModuleNav } from "@/components/primitives/SubModuleNav";
+import { useSubModule } from "@/hooks/useSubModule";
+import { REPORTS_SUB_KEYS, ReportsSubKey } from "@/lib/tabs";
+import { ReportsEquityChart } from "@/components/reports/ReportsEquityChart";
+import { ReportsSpendingBreakdown } from "@/components/reports/ReportsSpendingBreakdown";
+import { useLanguage } from "@/context/LanguageContext";
 import { usePeriod } from "@/context/PeriodContext";
-import { handleTabListKeyDown, syncTabInUrl } from "@/lib/tabs";
 import {
   DrillDownCategoryFilter,
   ReportDrillDownDrawer,
@@ -44,14 +49,6 @@ interface ReportsClientViewProps {
   report: ExecutiveReportPayload;
   activeTab: ReportTab;
 }
-
-const TABS: Array<{ id: ReportTab; labelKey: TranslationKey; fallback: string }> = [
-  { id: "statement", labelKey: "reports.tab.cycle", fallback: "Monthly Money Cycle" },
-  { id: "comparative", labelKey: "reports.tab.audit", fallback: "Month-to-Month Comparison" },
-  { id: "amortization", labelKey: "credit.tab.contracts", fallback: "Debt & Installment Payoff Schedule" },
-  { id: "dossier", labelKey: "reports.tab.edits", fallback: "Budget Edits & Audit History" },
-  { id: "forecast", labelKey: "reports.tab.forecast", fallback: "Next 3 Months Forecast" },
-];
 
 function formatSnapshotStatusLabel(status: string): string {
   if (status === "LOCKED") return "Closed & Locked";
@@ -87,47 +84,30 @@ export function ReportsClientView({
   const lastRevRef = React.useRef<number>(revisionTick);
   const reqSeqRef = React.useRef<number>(0);
 
-  const [currentTab, setCurrentTab] = React.useState<ReportTab>(activeTab);
-  const [activeSubMode, setActiveSubMode] = React.useState<"executive" | "variance" | "audit" | "export">(
-    activeTab === "comparative"
+  const initialSubMode: ReportsSubKey =
+    activeTab === "comparative" || activeTab === "dossier"
       ? "variance"
-      : activeTab === "dossier"
-        ? "audit"
-        : activeTab === "amortization"
-          ? "export"
-          : "executive",
+      : activeTab === "amortization" || activeTab === "forecast"
+        ? "export"
+        : "executive";
+  const [activeSubMode, selectSubMode] = useSubModule<ReportsSubKey>(
+    REPORTS_SUB_KEYS,
+    initialSubMode,
+    {
+      statement: "executive",
+      comparative: "variance",
+      audit: "variance",
+      dossier: "variance",
+      amortization: "export",
+      forecast: "export",
+    },
   );
-  const tabRefs = React.useRef<Array<HTMLButtonElement | null>>([]);
   const [isExportingExcel, setIsExportingExcel] = React.useState(false);
-
-  React.useEffect(() => {
-    const applySub = (sub: string) => {
-      if (sub === "executive") {
-        setActiveSubMode("executive");
-        setCurrentTab("statement");
-      } else if (sub === "variance") {
-        setActiveSubMode("variance");
-        setCurrentTab("comparative");
-      } else if (sub === "audit") {
-        setActiveSubMode("audit");
-        setCurrentTab("dossier");
-      } else if (sub === "export") {
-        setActiveSubMode("export");
-      }
-    };
-    if (typeof window !== "undefined") {
-      const sp = new URLSearchParams(window.location.search);
-      const initialSub = sp.get("sub");
-      if (initialSub) applySub(initialSub);
-    }
-    const onSubEvent = (e: Event) => {
-      const detail = (e as CustomEvent<{ pathname?: string; sub?: string }>).detail;
-      if (!detail?.sub || (detail.pathname && detail.pathname !== "/reports")) return;
-      applySub(detail.sub);
-    };
-    window.addEventListener("erp:sub-change", onSubEvent);
-    return () => window.removeEventListener("erp:sub-change", onSubEvent);
-  }, []);
+  const [isSendingEmail, setIsSendingEmail] = React.useState(false);
+  const [emailFeedback, setEmailFeedback] = React.useState<{
+    ok: boolean;
+    message: string;
+  } | null>(null);
   const [drillDownTarget, setDrillDownTarget] = React.useState<{
     row: ComparativePeriodRow;
     filter: DrillDownCategoryFilter;
@@ -189,14 +169,6 @@ export function ReportsClientView({
     };
   }, [periodMonth, periodYear, scope, revisionTick]);
 
-  React.useEffect(() => {
-    setCurrentTab(activeTab);
-  }, [activeTab]);
-  const [isSendingEmail, setIsSendingEmail] = React.useState(false);
-  const [emailFeedback, setEmailFeedback] = React.useState<{
-    ok: boolean;
-    message: string;
-  } | null>(null);
   const { locale, t } = useLanguage();
 
   const cs = report.closingStatement;
@@ -220,11 +192,9 @@ export function ReportsClientView({
     }
   };
 
-  const handleTabChange = (nextTab: ReportTab) => {
-    if (nextTab === currentTab) return;
-    setCurrentTab(nextTab);
-    syncTabInUrl(nextTab);
-  };
+  const isExecutiveTab = activeSubMode === "executive";
+  const isVarianceTab = activeSubMode === "variance";
+  const isExportTab = activeSubMode === "export";
 
   const totalInDenominator = Math.max(1, mc.kpis.totalMoneyIn);
   const debtRatioPct = Math.min(100, Math.round((mc.kpis.totalDebtAndBillsPaid / totalInDenominator) * 1000) / 10);
@@ -306,110 +276,89 @@ export function ReportsClientView({
         </div>
       </div>
 
-      {/* Top Header & Action Controls */}
-      <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4 border-b border-border pb-5 print-hidden">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2.5">
-            <BrandMark size={20} className="shrink-0" />
-            <h2 className="text-lg sm:text-xl font-semibold tracking-tight text-text-primary">
-              {t("reports.title")}
-            </h2>
-            <span
-              className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono ${
-                cs.status === "LOCKED"
-                  ? "bg-surface-elevated text-text-secondary border border-border"
-                  : cs.status === "DRAFT"
-                  ? "bg-emerald-500/10 text-positive border border-emerald-500/20"
-                  : "bg-surface text-text-tertiary border border-border-subtle"
-              }`}
-            >
-              {cs.periodLabel} · {formatSnapshotStatusLabel(cs.status)}
-            </span>
-          </div>
-          <p className="text-xs text-text-secondary mt-1">
-            {t("reports.subtitle")}
-          </p>
-        </div>
-
-        {/* Controls: Scope Filter + Print / PDF + Email Statement + 5-Sheet Excel Export */}
-        <div className="flex flex-col items-end gap-2 print-hidden shrink-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-flex items-center rounded bg-surface p-0.5 border border-border">
+      <div className="print-hidden space-y-2">
+        <PageHeader
+          title={t("reports.title")}
+          subtitle={t("reports.subtitle")}
+          periodLabel={cs.periodLabel}
+          status={cs.status}
+          statusLabel={formatSnapshotStatusLabel(cs.status)}
+          rightActions={
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex items-center rounded bg-surface p-0.5 border border-border">
+                <button
+                  type="button"
+                  onClick={() => handleScopeChange("all")}
+                  className={`px-2.5 py-1 text-xs font-medium rounded-sm transition-colors cursor-pointer whitespace-nowrap ${
+                    scope === "all"
+                      ? "bg-surface-elevated text-text-primary shadow-xs"
+                      : "text-text-tertiary hover:text-text-secondary"
+                  }`}
+                >
+                  All Months ({comp.periodCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleScopeChange("locked")}
+                  className={`px-2.5 py-1 text-xs font-medium rounded-sm transition-colors cursor-pointer whitespace-nowrap ${
+                    scope === "locked"
+                      ? "bg-surface-elevated text-text-primary shadow-xs"
+                      : "text-text-tertiary hover:text-text-secondary"
+                  }`}
+                >
+                  Closed Only
+                </button>
+              </div>
+              {isLoadingReport && (
+                <span className="text-[11px] font-mono text-text-tertiary whitespace-nowrap">
+                  Updating...
+                </span>
+              )}
               <button
                 type="button"
-                onClick={() => handleScopeChange("all")}
-                className={`px-2.5 py-1 text-xs font-medium rounded-sm transition-colors cursor-pointer ${
-                  scope === "all"
-                    ? "bg-surface-elevated text-text-primary shadow-xs"
-                    : "text-text-tertiary hover:text-text-secondary"
-                }`}
+                onClick={() => window.print()}
+                className="erp-btn-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium cursor-pointer whitespace-nowrap"
               >
-                All Months ({comp.periodCount})
+                <Printer className="w-3.5 h-3.5" />
+                {t("reports.printPdf")}
               </button>
               <button
                 type="button"
-                onClick={() => handleScopeChange("locked")}
-                className={`px-2.5 py-1 text-xs font-medium rounded-sm transition-colors cursor-pointer ${
-                  scope === "locked"
-                    ? "bg-surface-elevated text-text-primary shadow-xs"
-                    : "text-text-tertiary hover:text-text-secondary"
-                }`}
+                onClick={handleSendStatementEmail}
+                disabled={isSendingEmail}
+                title="Send 4-sheet .xlsx statement to your profile email"
+                className="erp-btn-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium cursor-pointer disabled:opacity-60 whitespace-nowrap"
               >
-                Closed Months Only
+                <Mail className="w-3.5 h-3.5" />
+                {isSendingEmail ? "Sending..." : "Email (.xlsx)"}
+              </button>
+              <button
+                type="button"
+                onClick={handleExportExcel}
+                disabled={isExportingExcel}
+                className="erp-btn-primary inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded text-xs font-medium hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-60 whitespace-nowrap"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                {isExportingExcel ? t("reports.exportingExcel") : t("reports.downloadExcel")}
               </button>
             </div>
-            {isLoadingReport && (
-              <span className="text-[11px] font-mono text-text-tertiary">
-                Updating...
-              </span>
-            )}
-
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium bg-surface hover:bg-surface-elevated text-text-secondary hover:text-text-primary border border-border transition-colors cursor-pointer"
-            >
-              <Printer className="w-3.5 h-3.5" />
-              {t("reports.printPdf")}
-            </button>
-
-            <button
-              type="button"
-              onClick={handleSendStatementEmail}
-              disabled={isSendingEmail}
-              title="Send 4-sheet .xlsx statement to your profile email"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium bg-surface hover:bg-surface-elevated text-text-primary border border-border transition-colors cursor-pointer disabled:opacity-60"
-            >
-              <Mail className="w-3.5 h-3.5" />
-              {isSendingEmail ? "Sending..." : "Email Statement (.xlsx)"}
-            </button>
-
-            <button
-              type="button"
-              onClick={handleExportExcel}
-              disabled={isExportingExcel}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded text-xs font-medium bg-text-primary text-canvas hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-60"
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5" />
-              {isExportingExcel ? t("reports.exportingExcel") : t("reports.downloadExcel")}
-            </button>
+          }
+        />
+        {emailFeedback && (
+          <div
+            className={`text-[11px] font-mono px-3 py-1.5 rounded border inline-block ${
+              emailFeedback.ok
+                ? "border-delta-positive/40 bg-[rgba(16,183,141,0.08)] text-delta-positive"
+                : "border-urgency/40 bg-[rgba(255,56,56,0.08)] text-urgency"
+            }`}
+          >
+            {emailFeedback.message}
           </div>
-          {emailFeedback && (
-            <div
-              className={`text-[11px] font-mono px-2.5 py-1 rounded border ${
-                emailFeedback.ok
-                  ? "border-delta-positive/40 bg-[rgba(16,183,141,0.08)] text-delta-positive"
-                  : "border-urgency/40 bg-[rgba(255,56,56,0.08)] text-urgency"
-              }`}
-            >
-              {emailFeedback.message}
-            </div>
-          )}
-        </div>
+        )}
       </div>
 
-      {/* Top Summary Strip (4 Plain-Language KPI Cards — ONLY Card 4 uses Centerpiece Newsreader serif) */}
-      {activeSubMode === "export" && (
+      {/* Top Export Callout when Exports tab selected */}
+      {isExportTab && (
         <div className="rounded-lg border border-delta-positive/40 bg-[rgba(16,183,141,0.06)] p-4 flex flex-wrap items-center justify-between gap-4 print-hidden">
           <div>
             <div className="text-xs font-semibold text-text-primary">
@@ -433,7 +382,7 @@ export function ReportsClientView({
               type="button"
               onClick={handleExportExcel}
               disabled={isExportingExcel}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded text-xs font-medium bg-text-primary text-canvas hover:opacity-90 cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded text-xs font-medium erp-btn-primary hover:opacity-90 cursor-pointer"
             >
               <FileSpreadsheet className="w-3.5 h-3.5" />
               {isExportingExcel ? t("reports.exportingExcel") : t("reports.downloadExcel")}
@@ -474,7 +423,7 @@ export function ReportsClientView({
           footer={
             uw.isDeficit
               ? "Uncovered deficit after upfront debt & living bills"
-              : `Saved (P1): ${formatIDR(uw.actualSavings)} · Leftover (P2): ${formatIDR(uw.actualSelfReward)}`
+              : `Core Savings: ${formatIDR(uw.actualSavings)} · Flexible Surplus: ${formatIDR(uw.actualSelfReward)}`
           }
         />
       </div>
@@ -561,64 +510,30 @@ export function ReportsClientView({
         )}
       </div>
 
-      {/* Tab Navigation Bar */}
-      <div className="flex items-center justify-between border-b border-border print-hidden">
-        <div
-          role="tablist"
-          aria-label="Executive report sections"
-          className="flex items-center gap-5 sm:gap-6 overflow-x-auto no-scrollbar whitespace-nowrap"
-        >
-          {TABS.map((tab, idx) => {
-            const active = currentTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                ref={(el) => {
-                  tabRefs.current[idx] = el;
-                }}
-                id={`reports-tab-${tab.id}`}
-                role="tab"
-                type="button"
-                aria-selected={active}
-                aria-controls={`reports-panel-${tab.id}`}
-                tabIndex={active ? 0 : -1}
-                onClick={() => handleTabChange(tab.id)}
-                onKeyDown={(e) =>
-                  handleTabListKeyDown(
-                    e,
-                    TABS.map((x) => x.id),
-                    idx,
-                    handleTabChange,
-                    tabRefs,
-                  )
-                }
-                className={`pb-3 text-xs font-medium transition-colors border-b-2 -mb-px cursor-pointer shrink-0 ${
-                  active
-                    ? "border-accent text-text-primary"
-                    : "border-transparent text-text-tertiary hover:text-text-secondary"
-                }`}
-              >
-                {t(tab.labelKey, tab.fallback)}
-              </button>
-            );
-          })}
-        </div>
+      <div className="print-hidden">
+        <SubModuleNav
+          items={[
+            { key: "executive", label: t("sub.reports.executive") },
+            { key: "variance", label: t("sub.reports.variance") },
+            { key: "export", label: t("sub.reports.export") },
+          ]}
+          activeKey={activeSubMode}
+          onSelect={selectSubMode}
+        />
       </div>
 
-      <div className="relative">
+      <div className="relative space-y-6">
       {/* =====================================================================
-          TAB 1 (MAIN VIEW): MONTHLY MONEY CYCLE
+          TAB 1 (MAIN VIEW): EXECUTIVE & TRADING CURVE
          ===================================================================== */}
-      <div
-        role="tabpanel"
-        id="reports-panel-statement"
-        aria-labelledby="reports-tab-statement"
-        data-active={currentTab === "statement" ? "true" : "false"}
-        aria-hidden={currentTab !== "statement"}
-        inert={currentTab !== "statement"}
-        className="tab-panel"
-      >
+      {isExecutiveTab && (
         <div className="space-y-6">
+          <ReportsEquityChart
+            periods={comp.periods}
+            selectedMonth={cs.month}
+            selectedYear={cs.year}
+          />
+          <ReportsSpendingBreakdown statement={cs} />
           {/* 2. "Where Your Money Went & Why This Month Changed" (Deterministic Driver & Spike Callout) */}
           <section className="bg-surface border border-border rounded-lg overflow-hidden print-avoid-break">
             <div className="px-5 py-3.5 border-b border-border flex items-center justify-between bg-surface-subtle/40">
@@ -635,7 +550,7 @@ export function ReportsClientView({
                 </p>
               </div>
               <span className="text-[11px] font-mono text-text-secondary">
-                Discipline Score: {gov.disciplineScore}/100
+                Discipline Score: {gov.overallDisciplineScore ?? gov.disciplineScore}/100
               </span>
             </div>
 
@@ -707,7 +622,7 @@ export function ReportsClientView({
                           >
                             {s.deltaAmount > 0 ? "+" : ""}
                             {formatIDR(s.deltaAmount)} (
-                            {formatIDR(s.previousAmount)} →{" "}
+                            {formatIDR(s.previousAmount)} â†’{" "}
                             {formatIDR(s.currentAmount)})
                           </span>
                         </div>
@@ -862,7 +777,7 @@ export function ReportsClientView({
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
-                      3. Transfer to Savings Reserve (P1)
+                      3. Transfer to Savings Reserve
                     </span>
                     <span
                       className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
@@ -895,7 +810,7 @@ export function ReportsClientView({
                 </div>
                 <div className="pt-2.5 border-t border-border-subtle space-y-1.5 text-[11px]">
                   <div className="flex justify-between font-mono text-text-secondary">
-                    <span>Deposited to Vault</span>
+                    <span>Deposited to Savings</span>
                     <span>
                       {formatIDR(
                         mc.paydayChecklist.step3TransferToSavingsVault
@@ -915,7 +830,7 @@ export function ReportsClientView({
                       href={`/savings?month=${cs.month}&year=${cs.year}`}
                       className="inline-flex items-center gap-0.5 text-text-primary hover:underline font-medium print-hidden"
                     >
-                      Open Vault
+                      Open Savings
                       <ArrowUpRight className="w-3 h-3" />
                     </Link>
                   </div>
@@ -926,7 +841,7 @@ export function ReportsClientView({
               <div className="p-4 flex flex-col justify-between space-y-3">
                 <div className="space-y-1.5">
                   <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
-                    4. Free / Self-Reward Allowance (P2)
+                    4. Flexible Surplus Allowance
                   </div>
                   <div className="font-mono text-base font-semibold text-text-primary">
                     {formatIDR(
@@ -935,14 +850,14 @@ export function ReportsClientView({
                     )}
                   </div>
                   <p className="text-[11px] text-text-secondary">
-                    Guilt-free personal reward money after all bills and P1 savings are funded.
+                    Discretionary spending money after all bills and core savings are funded.
                   </p>
                 </div>
                 <div className="pt-2.5 border-t border-border-subtle text-[11px] font-mono text-text-tertiary">
                   {mc.paydayChecklist.step4FreeSelfRewardAllowance
                     .fundedP2Allowance > 0
-                    ? "100% discretionary — safe to enjoy or sweep to Vault"
-                    : "Paused at Rp 0 this month so upfront bills & P1 savings come first"}
+                    ? "100% discretionary — safe to spend or allocate to savings"
+                    : "Paused at Rp 0 this month so upfront bills & core savings come first"}
                 </div>
               </div>
             </div>
@@ -987,7 +902,7 @@ export function ReportsClientView({
                 )}
                 <div className="px-5 py-2.5 flex items-center justify-between">
                   <span className="text-text-secondary">
-                    Attendance Allowance ({p.totalWorkingDays} days ×{" "}
+                    Attendance Allowance ({p.totalWorkingDays} days Ã—{" "}
                     {formatIDR(p.dailyAllowance)} · {cs.workingDaysWindowLabel})
                   </span>
                   <span className="font-mono text-positive">
@@ -1196,7 +1111,7 @@ export function ReportsClientView({
                             {cc.chargeTypeLabel}
                           </td>
                           <td className="py-2 px-3 font-mono text-text-secondary">
-                            {cc.sliceBadge ?? "—"}
+                            {cc.sliceBadge ?? "â€”"}
                             {cc.endedAtLabel
                               ? ` · Ends ${cc.endedAtLabel}`
                               : ""}
@@ -1490,10 +1405,10 @@ export function ReportsClientView({
             <div className="px-5 py-3.5 border-b border-border flex items-center justify-between bg-surface-subtle/40">
               <div>
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-text-primary">
-                  Step 5 · Savings & Bottom Line (What You Kept)
+                  Step 5 · Savings &amp; Bottom Line (What You Kept)
                 </h3>
                 <p className="text-[11px] text-text-secondary mt-0.5">
-                  Core Savings (Priority 1), Self-Reward Surplus (Priority 2), Savings Vault sub-allocation, and Period Verdict.
+                  Core Savings Reserve, Flexible Surplus, Savings Pockets, and Period Verdict.
                 </p>
               </div>
               <span
@@ -1517,7 +1432,7 @@ export function ReportsClientView({
                   <div className="px-4 py-2.5 flex items-center justify-between">
                     <div>
                       <div className="font-medium text-text-primary">
-                        Core Savings (Priority 1)
+                        Core Savings Reserve
                       </div>
                       <div className="text-[11px] text-text-tertiary">
                         Initial Plan: {formatIDR(mc.savingsBottomLine.p1Baseline)} · Target:{" "}
@@ -1529,7 +1444,7 @@ export function ReportsClientView({
                         {formatIDR(mc.savingsBottomLine.p1Funded)} Funded
                       </div>
                       <div className="text-[11px] text-text-secondary">
-                        Vault Realized:{" "}
+                        Confirmed Savings:{" "}
                         {formatIDR(mc.savingsBottomLine.realizedInVaultTotal)}
                       </div>
                     </div>
@@ -1538,7 +1453,7 @@ export function ReportsClientView({
                   <div className="px-4 py-2.5 flex items-center justify-between">
                     <div>
                       <div className="font-medium text-text-primary">
-                        Self-Reward / Surplus (Priority 2)
+                        Flexible Surplus
                       </div>
                       <div className="text-[11px] text-text-tertiary">
                         Target: {formatIDR(mc.savingsBottomLine.p2Target)}
@@ -1549,7 +1464,7 @@ export function ReportsClientView({
                         {formatIDR(mc.savingsBottomLine.p2Funded)} Funded
                       </div>
                       <div className="text-[11px] text-text-tertiary">
-                        Guilt-free overflow after P1
+                        Discretionary overflow after Core Savings
                       </div>
                     </div>
                   </div>
@@ -1594,7 +1509,7 @@ export function ReportsClientView({
                       </span>
                     </div>
                     <div className="flex justify-between text-[11px] text-text-secondary">
-                      <span className="font-sans">Investment RDPU (Bibit)</span>
+                      <span className="font-sans">Yield / Investment Portfolio</span>
                       <span>
                         {formatIDR(
                           mc.savingsBottomLine.vaultInvestmentRdpuBalance
@@ -1612,20 +1527,13 @@ export function ReportsClientView({
             </div>
           </section>
         </div>
-      </div>
+      )}
 
       {/* =====================================================================
-          TAB 2: MONTH-TO-MONTH COMPARISON
+          TAB 2: MONTH-TO-MONTH COMPARISON & HEALTH CHECK
          ===================================================================== */}
-      <div
-        role="tabpanel"
-        id="reports-panel-comparative"
-        aria-labelledby="reports-tab-comparative"
-        data-active={currentTab === "comparative" ? "true" : "false"}
-        aria-hidden={currentTab !== "comparative"}
-        inert={currentTab !== "comparative"}
-        className="tab-panel"
-      >
+      {isVarianceTab && (
+        <div className="space-y-6">
         <div className="bg-surface border border-border rounded-lg overflow-hidden">
           <div className="px-5 py-3.5 border-b border-border flex items-center justify-between">
             <div>
@@ -1633,7 +1541,7 @@ export function ReportsClientView({
                 Month-to-Month Comparison ({comp.periodCount} Months)
               </h3>
               <p className="text-[11px] text-text-secondary mt-0.5">
-                Side-by-side comparison of Money In, Debt Bills, Routine & Daily Living, Saved (P1), Leftover (P2), and Change vs Last Month.
+                Side-by-side comparison of Money In, Debt Bills, Routine &amp; Daily Living, Core Savings, Flexible Surplus, and Change vs Last Month.
               </p>
             </div>
           </div>
@@ -1655,10 +1563,10 @@ export function ReportsClientView({
                     Routine & Daily Living
                   </th>
                   <th className="py-2.5 px-4 text-right font-medium">
-                    Saved (P1)
+                    Core Savings
                   </th>
                   <th className="py-2.5 px-4 text-right font-medium">
-                    Leftover (P2)
+                    Flexible Surplus
                   </th>
                   <th className="py-2.5 px-5 text-left font-medium">
                     Change vs Last Month
@@ -1791,20 +1699,14 @@ export function ReportsClientView({
 
         <AnalyticsGoTelemetryStrip />
       </div>
+      )}
 
       {/* =====================================================================
-          TAB 3: DEBT & INSTALLMENT PAYOFF SCHEDULE
+          TAB 3: FORWARD OUTLOOK & INSTALLMENT SCHEDULE
          ===================================================================== */}
-      <div
-        role="tabpanel"
-        id="reports-panel-amortization"
-        aria-labelledby="reports-tab-amortization"
-        data-active={currentTab === "amortization" ? "true" : "false"}
-        aria-hidden={currentTab !== "amortization"}
-        inert={currentTab !== "amortization"}
-        className="tab-panel"
-      >
-        <div className="space-y-5">
+      {isExportTab && (
+        <div className="space-y-6">
+          <div className="space-y-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-surface border border-border rounded-lg p-4">
               <div className="text-[10px] uppercase tracking-wider text-text-tertiary">
@@ -1941,14 +1843,14 @@ export function ReportsClientView({
                           ))}
                           {m.activeInstallmentSlices.length === 0 &&
                             m.activeSubscriptions.length === 0 && (
-                              <span className="text-text-tertiary">—</span>
+                              <span className="text-text-tertiary">â€”</span>
                             )}
                         </div>
                       </td>
                       <td className="py-2.5 px-4 font-mono text-[11px] text-positive">
                         {m.droppingOffAfterThisMonth.length > 0
                           ? m.droppingOffAfterThisMonth.join(", ")
-                          : "—"}
+                          : "â€”"}
                       </td>
                     </tr>
                   ))}
@@ -1978,20 +1880,11 @@ export function ReportsClientView({
           </div>
         </div>
       </div>
+      )}
 
-      {/* =====================================================================
-          TAB 4: BUDGET EDITS & AUDIT HISTORY
-         ===================================================================== */}
-      <div
-        role="tabpanel"
-        id="reports-panel-dossier"
-        aria-labelledby="reports-tab-dossier"
-        data-active={currentTab === "dossier" ? "true" : "false"}
-        aria-hidden={currentTab !== "dossier"}
-        inert={currentTab !== "dossier"}
-        className="tab-panel"
-      >
-        <div className="space-y-6">
+      {/* Audit Trail & Health Check Section (shown inside Variance tab) */}
+      {isVarianceTab && (
+      <div className="space-y-6 pt-2">
           <ReportsAuditEmbed />
 
           {/* Chronological Mid-Month Budget Edits Log */}
@@ -2163,20 +2056,13 @@ export function ReportsClientView({
             </div>
           )}
         </div>
-      </div>
+      )}
 
       {/* =====================================================================
-          TAB 5: NEXT 3 MONTHS FORECAST
+          FORWARD 3-MONTH OUTLOOK (inside Export & Outlook tab)
          ===================================================================== */}
-      <div
-        role="tabpanel"
-        id="reports-panel-forecast"
-        aria-labelledby="reports-tab-forecast"
-        data-active={currentTab === "forecast" ? "true" : "false"}
-        aria-hidden={currentTab !== "forecast"}
-        inert={currentTab !== "forecast"}
-        className="tab-panel"
-      >
+      {isExportTab && (
+      <div className="pt-2">
         {report.liquidityForecast && (
         <div className="space-y-6">
           <div
@@ -2226,7 +2112,7 @@ export function ReportsClientView({
               </div>
               <div>
                 <div className="text-[10px] uppercase tracking-wider text-text-tertiary">
-                  3M Funded P1 Savings
+                  3M Funded Core Savings
                 </div>
                 <div className="text-positive font-semibold mt-0.5">
                   {formatIDR(
@@ -2347,7 +2233,7 @@ export function ReportsClientView({
 
                     <div className="flex items-center justify-between pt-2 border-t border-border-subtle">
                       <span className="text-text-secondary">
-                        Projected Saved (P1 Target:{" "}
+                        Projected Core Savings (Target:{" "}
                         {formatIDR(m.waterfall.p1SavingsTarget)})
                       </span>
                       <span
@@ -2364,7 +2250,7 @@ export function ReportsClientView({
 
                     <div className="flex items-center justify-between">
                       <span className="text-text-secondary">
-                        Projected Leftover (P2)
+                        Projected Flexible Surplus
                       </span>
                       <span className="font-mono text-text-primary">
                         {formatIDR(m.waterfall.projectedSelfRewardSurplus)}
@@ -2407,6 +2293,7 @@ export function ReportsClientView({
         </div>
         )}
       </div>
+      )}
       </div>
 
       <ReportDrillDownDrawer

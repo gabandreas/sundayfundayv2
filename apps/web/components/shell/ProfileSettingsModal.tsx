@@ -208,7 +208,7 @@ export function ProfileSettingsModal() {
           <button
             type="submit"
             disabled={saving}
-            className="px-4 py-1.5 rounded text-xs font-medium bg-text-primary text-canvas hover:opacity-90 disabled:opacity-50 cursor-pointer"
+            className="px-4 py-1.5 rounded text-xs font-medium erp-btn-primary hover:opacity-90 disabled:opacity-50 cursor-pointer"
           >
             {saving ? "Saving..." : "Save Profile"}
           </button>

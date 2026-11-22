@@ -18,6 +18,8 @@ import {
 } from './dto/create-savings-transaction.dto';
 import { formatPeriodVaultLabel } from './savings.utils';
 import { getPayrollPeriodForDate } from '../calculator/pacing';
+import { resolveStudioConfig, SavingsPocketConfig } from '../config/studio.defaults';
+import { SaveSavingsPocketsDto } from './dto/savings-pockets.dto';
 
 @Injectable()
 export class SavingsService {
@@ -377,5 +379,92 @@ export class SavingsService {
     });
 
     return deleted;
+  }
+
+  async updateSavingsPockets(dto: SaveSavingsPocketsDto, userId: number = 1) {
+    const [config, transactions] = await Promise.all([
+      (await this.prisma.globalConfig.findFirst({ where: { userId } })) ||
+        (await this.prisma.globalConfig.findFirst({ where: { userId: 1 } })),
+      this.prisma.savingsManualTransaction.findMany({ where: { userId } }),
+    ]);
+
+    if (!config) {
+      throw new NotFoundException('GlobalConfig not found for user');
+    }
+
+    const studioConfig = resolveStudioConfig(userId, config.formulaParamsJson, config);
+    const rawBalance = transactions.reduce((sum, t) => sum + t.amount, 0);
+    const hasP1Override =
+      studioConfig.actualP1VaultBalanceRp !== null &&
+      studioConfig.actualP1VaultBalanceRp !== undefined &&
+      !Number.isNaN(Number(studioConfig.actualP1VaultBalanceRp));
+    const totalConfirmedSavingsRp = hasP1Override
+      ? Math.max(0, Math.round(Number(studioConfig.actualP1VaultBalanceRp)))
+      : Math.max(0, Math.round(rawBalance));
+
+    const cleanPockets: SavingsPocketConfig[] = (dto.pockets ?? []).map((p, idx) => {
+      const alloc = Math.round(Number(p.allocatedRp));
+      const target = Math.round(Number(p.targetRp ?? 0));
+      if (!Number.isFinite(alloc) || alloc < 0) {
+        throw new BadRequestException(
+          `Allocation for "${p.name}" cannot be negative.`,
+        );
+      }
+      if (!Number.isFinite(target) || target < 0) {
+        throw new BadRequestException(
+          `Target for "${p.name}" cannot be negative.`,
+        );
+      }
+      return {
+        id: String(p.id || `pocket_${idx + 1}`).trim(),
+        key: String(p.key || p.id || `POCKET_${idx + 1}`).trim(),
+        name: String(p.name || `Pocket ${idx + 1}`).trim(),
+        category: p.category,
+        allocatedRp: alloc,
+        targetRp: target,
+        notes: p.notes?.trim() || undefined,
+      };
+    });
+
+    const totalAllocatedRp = cleanPockets.reduce((s, p) => s + p.allocatedRp, 0);
+    if (totalAllocatedRp > totalConfirmedSavingsRp) {
+      throw new BadRequestException(
+        `Allocated pockets total (Rp ${totalAllocatedRp.toLocaleString('id-ID')}) exceeds confirmed savings pool (Rp ${totalConfirmedSavingsRp.toLocaleString('id-ID')}).`,
+      );
+    }
+
+    const baseFormula =
+      config.formulaParamsJson && typeof config.formulaParamsJson === 'object'
+        ? { ...(config.formulaParamsJson as any) }
+        : {};
+    const nextStudio = {
+      ...studioConfig,
+      savingsPockets: cleanPockets,
+    };
+
+    await this.prisma.globalConfig.update({
+      where: { id: config.id },
+      data: {
+        formulaParamsJson: {
+          ...baseFormula,
+          studioConfig: nextStudio,
+        } as any,
+      },
+    });
+
+    await this.auditLogService.record({
+      action: 'SAVINGS_POCKETS_UPDATED',
+      category: AuditCategory.SAVINGS,
+      summary: `Updated ${cleanPockets.length} savings pocket allocations (Rp ${totalAllocatedRp.toLocaleString('id-ID')} allocated of Rp ${totalConfirmedSavingsRp.toLocaleString('id-ID')})`,
+      details: JSON.stringify(cleanPockets),
+      severity: AuditSeverity.INFO,
+    });
+
+    return {
+      totalConfirmedSavingsRp,
+      totalAllocatedRp,
+      unallocatedPoolRp: Math.max(0, totalConfirmedSavingsRp - totalAllocatedRp),
+      pockets: cleanPockets,
+    };
   }
 }

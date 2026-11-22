@@ -59,7 +59,7 @@ export function SavingsAccumulationTable({
             Monthly Savings Transfer Tracker
           </h2>
           <p className="text-xs text-text-secondary mt-0.5">
-            Tracks Priority 1 (P1) salary savings allocations vs confirmed actual bank/RDPU deposits.
+            Tracks monthly savings allocations vs confirmed actual bank or money-market deposits.
           </p>
         </div>
         <span className="text-xs font-mono text-text-tertiary">
@@ -74,7 +74,7 @@ export function SavingsAccumulationTable({
               <th className="py-2.5 px-3">Period</th>
               <th className="py-2.5 px-3">Status</th>
               <th className="py-2.5 px-3 text-right">Monthly Target</th>
-              <th className="py-2.5 px-3 text-right text-text-primary">Funded from Salary (P1)</th>
+              <th className="py-2.5 px-3 text-right text-text-primary">Funded from Salary</th>
               <th className="py-2.5 px-3 text-right">Confirmed Deposited</th>
               <th className="py-2.5 px-3 text-right">Pending Transfer</th>
               <th className="py-2.5 px-3 text-center">Reconciliation Action</th>
@@ -144,7 +144,7 @@ export function SavingsAccumulationTable({
                       </span>
                     ) : (
                       <span className="text-[11px] text-text-disabled font-mono">
-                        No P1 Allocation
+                        No Allocation
                       </span>
                     )}
                   </td>
@@ -174,7 +174,7 @@ export function SavingsAccumulationTable({
 
             <p className="text-xs text-text-secondary leading-relaxed">
               Deposit <strong className="text-text-primary font-mono">{formatRupiah(activeDepositPeriod.pendingAmount)}</strong> funded
-              from Salary (P1) into your emergency savings reserve and mark this period transferred.
+              from monthly salary into your emergency savings reserve and mark this period transferred.
             </p>
 
             <form onSubmit={handleConfirmDeposit} className="space-y-3">

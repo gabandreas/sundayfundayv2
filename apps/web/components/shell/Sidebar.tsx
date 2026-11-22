@@ -30,8 +30,11 @@ import {
   Calculator,
   CalendarDays,
   ListChecks,
+  FileUp,
+  FlaskConical,
 } from "lucide-react";
 import { SidebarNavItem } from "@/components/primitives/SidebarNavItem";
+import { BrandMark } from "@/components/primitives/BrandMark";
 import { MarqueeMark } from "@/components/primitives/MarqueeMark";
 
 interface SubModuleDef {
@@ -57,34 +60,28 @@ export const SUBMODULES_BY_ROUTE: Record<string, SubModuleDef[]> = {
   ],
   "/allocations": [
     { key: "waterfall", labelKey: "sub.allocations.waterfall", defaultSub: true },
-    { key: "envelopes", labelKey: "sub.allocations.envelopes" },
-    { key: "revisions", labelKey: "sub.allocations.revisions" },
+    { key: "envelopes", labelKey: "sub.allocations.envelopes", aliases: ["revisions"] },
   ],
   "/credit": [
-    { key: "matrix", labelKey: "sub.credit.matrix", defaultSub: true, aliases: ["overview"] },
-    { key: "contracts", labelKey: "sub.credit.contracts", aliases: ["cards"] },
-    { key: "simulator", labelKey: "sub.credit.simulator" },
-    { key: "reconciler", labelKey: "sub.credit.reconciler", aliases: ["kill-switches"] },
+    { key: "matrix", labelKey: "sub.credit.matrix", defaultSub: true, aliases: ["overview", "cards"] },
+    { key: "simulator", labelKey: "sub.credit.simulator", aliases: ["contracts", "reconciler"] },
   ],
   "/savings": [
-    { key: "networth", labelKey: "sub.savings.networth" },
-    { key: "forecaster", labelKey: "sub.savings.forecaster" },
-    { key: "vault", labelKey: "sub.savings.vault", defaultSub: true },
+    { key: "pockets", labelKey: "sub.savings.vault", defaultSub: true, aliases: ["vault"] },
+    { key: "runway", labelKey: "sub.savings.networth", aliases: ["networth", "forecaster"] },
   ],
   "/reports": [
     { key: "executive", labelKey: "sub.reports.executive", defaultSub: true },
     { key: "variance", labelKey: "sub.reports.variance" },
-    { key: "audit", labelKey: "sub.reports.audit" },
-    { key: "export", labelKey: "sub.reports.export" },
+    { key: "export", labelKey: "sub.reports.export", aliases: ["audit"] },
   ],
   "/preferences": [
-    { key: "formula", labelKey: "sub.preferences.formula", defaultSub: true, aliases: ["payroll"] },
+    { key: "formula", labelKey: "sub.preferences.formula", defaultSub: true, aliases: ["payroll", "sandbox"] },
     { key: "instruments", labelKey: "sub.preferences.instruments", aliases: ["policy"] },
-    { key: "accounts", labelKey: "sub.preferences.accounts", aliases: ["sandbox"] },
-    { key: "templates", labelKey: "sub.preferences.templates", aliases: ["buckets"] },
-    { key: "navigation", labelKey: "sub.preferences.navigation", aliases: ["modules", "requests"] },
+    { key: "templates", labelKey: "sub.preferences.templates", aliases: ["buckets", "accounts"] },
+    { key: "display", labelKey: "sub.preferences.display", aliases: ["navigation", "modules", "requests", "ai", "marquee", "copilot"] },
     { key: "notifications", labelKey: "sub.preferences.notifications", aliases: ["killswitch"] },
-    { key: "ai", labelKey: "sub.preferences.ai", aliases: ["marquee", "copilot"] },
+    { key: "backup", labelKey: "sub.preferences.backup" },
   ],
 };
 
@@ -120,15 +117,24 @@ const PRIMARY_ROUTES: RouteItem[] = [
     moduleKey: "savings_vault",
     subModules: SUBMODULES_BY_ROUTE["/savings"],
   },
+  {
+    labelKey: "nav.import",
+    href: "/import",
+    icon: FileUp,
+  },
 ];
 
 const ANALYSIS_ROUTES: RouteItem[] = [
+  {
+    labelKey: "nav.scenarios",
+    href: "/scenarios",
+    icon: FlaskConical,
+  },
   {
     labelKey: "nav.analytics",
     href: "/analytics",
     icon: BarChart3,
     moduleKey: "advanced_analytics",
-    subModules: SUBMODULES_BY_ROUTE["/analytics"],
   },
   {
     labelKey: "nav.reports",
@@ -387,21 +393,26 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
   );
 
   return (
-    <aside className="w-60 h-screen bg-surface-subtle border-r border-border flex flex-col justify-between shrink-0 select-none">
+    <aside className="w-64 h-screen bg-surface-subtle border-r border-border flex flex-col justify-between shrink-0 select-none">
       {/* Top Section: App Branding & Navigation Links */}
       <div className="flex flex-col min-h-0 flex-1">
         {/* Brand Header */}
-        <div className="px-5 py-4 border-b border-border-subtle">
-          <div className="font-sans text-sm font-semibold tracking-tight text-text-primary">
-            {t("app.title")}
-          </div>
-          <div className="text-[11px] text-text-tertiary font-sans mt-0.5 flex items-center justify-between">
-            <span>{t("app.subtitle")}</span>
-            {uiDensityMode === "SIMPLE_CLARITY" && (
-              <span className="text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded border border-border text-text-secondary">
-                Simple
-              </span>
-            )}
+        <div className="px-4 py-4 border-b border-border-subtle">
+          <div className="flex items-center gap-2.5">
+            <BrandMark size={22} className="shrink-0" />
+            <div className="min-w-0">
+              <div className="font-sans text-sm font-semibold tracking-tight text-text-primary truncate">
+                {t("app.title")}
+              </div>
+              <div className="text-[11px] text-text-tertiary font-sans mt-0.5 flex items-center justify-between gap-2">
+                <span className="truncate">{t("app.subtitle")}</span>
+                {uiDensityMode === "SIMPLE_CLARITY" && (
+                  <span className="text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded border border-border text-text-secondary shrink-0">
+                    Simple
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
         </div>
 

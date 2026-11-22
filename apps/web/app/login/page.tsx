@@ -43,6 +43,7 @@ function LoginForm() {
   const [ipLabel, setIpLabel] = useState("");
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isDemoLoading, setIsDemoLoading] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -93,16 +94,16 @@ function LoginForm() {
   };
 
   const handleDemoLogin = async () => {
-    setIsLoading(true);
+    setIsDemoLoading(true);
     setErrorMessage(null);
     try {
-      setIsTransitioning(true);
       await demoLogin();
+      setIsTransitioning(true);
     } catch (err: any) {
       setIsTransitioning(false);
       setErrorMessage(err.message || "Failed to launch General Demo Sandbox.");
     } finally {
-      setIsLoading(false);
+      setIsDemoLoading(false);
     }
   };
 
@@ -290,11 +291,11 @@ function LoginForm() {
         {/* Submit Action */}
         <button
           type="submit"
-          disabled={isLoading || isTransitioning}
-          className="w-full mt-2 py-2.5 px-4 rounded font-medium text-xs bg-text-primary text-canvas hover:opacity-95 transition-opacity flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
+          disabled={isLoading || isDemoLoading || (isTransitioning && !isDemoLoading)}
+          className="w-full mt-2 py-2.5 px-4 rounded font-medium text-xs erp-btn-primary flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
         >
           <span>
-            {isTransitioning
+            {isTransitioning && !isDemoLoading
               ? t("auth.transitioning")
               : isLoading
               ? t("auth.authenticating")
@@ -304,7 +305,7 @@ function LoginForm() {
               ? t("auth.unlockSession")
               : t("auth.signInBtn")}
           </span>
-          {isLoading || isTransitioning ? (
+          {isLoading || (isTransitioning && !isDemoLoading) ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
           ) : (
             <ArrowRight className="w-3.5 h-3.5" />
@@ -333,10 +334,13 @@ function LoginForm() {
         <button
           type="button"
           onClick={handleDemoLogin}
-          disabled={isLoading || isTransitioning}
-          className="w-full py-2 px-3 text-xs rounded border border-emerald-500/30 bg-surface-subtle hover:bg-emerald-950/20 text-text-secondary hover:text-emerald-300 transition-colors flex items-center justify-center gap-1.5 font-mono cursor-pointer disabled:opacity-50"
+          disabled={isLoading || isDemoLoading}
+          className="w-full py-2 px-3 text-xs rounded erp-btn-secondary flex items-center justify-center gap-1.5 font-mono cursor-pointer disabled:opacity-50"
         >
-          <span>{t("auth.demoBtn")} &rarr;</span>
+          <span>
+            {isDemoLoading ? t("auth.transitioning") : `${t("auth.demoBtn")} \u2192`}
+          </span>
+          {isDemoLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
         </button>
       </div>
 

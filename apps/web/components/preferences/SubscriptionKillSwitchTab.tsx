@@ -27,6 +27,7 @@ interface SubscriptionKillSwitchTabProps {
   initialKillSwitches?: KillSwitchResponse | null;
   initialNotificationConfig?: KillSwitchNotificationConfig | null;
   initialEmailStatus?: EmailStatusResponse | null;
+  hideSmtpPanel?: boolean;
 }
 
 const DEFAULT_KILL_SWITCH_TEMPLATE =
@@ -148,6 +149,7 @@ export function SubscriptionKillSwitchTab({
   initialKillSwitches,
   initialNotificationConfig,
   initialEmailStatus,
+  hideSmtpPanel = false,
 }: SubscriptionKillSwitchTabProps) {
   const { locale } = useLanguage();
   const { isAmountsMasked } = usePrivacyMask();
@@ -380,7 +382,7 @@ export function SubscriptionKillSwitchTab({
       const text =
         sentChannels.length > 0
           ? `Notice sent via ${sentChannels.join(" & ")}`
-          : "Notice generated (preview mode — add Gmail App Password below to dispatch SMTP)";
+          : "Notice generated (preview mode â€” add Gmail App Password below to dispatch SMTP)";
       setReminderFeedback({ id: item.id, success: true, text });
       loadData();
     } else {
@@ -536,7 +538,7 @@ export function SubscriptionKillSwitchTab({
           <button
             type="button"
             onClick={openAddDialog}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium bg-text-primary text-canvas hover:opacity-90 transition-opacity cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium erp-btn-primary hover:opacity-90 transition-opacity cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             Track Promotional Guard
@@ -790,14 +792,16 @@ export function SubscriptionKillSwitchTab({
       </section>
 
       {/* Dedicated SMTP & Email Delivery Control Panel */}
-      <SmtpControlPanel
-        initialNotifConfig={initialNotificationConfig}
-        initialEmailStatus={initialEmailStatus}
-        customTemplate={customTemplate}
-        defaultLocale={apiLocale}
-        activeMonth={activeMonth}
-        activeYear={activeYear}
-      />
+      {!hideSmtpPanel && (
+        <SmtpControlPanel
+          initialNotifConfig={initialNotificationConfig}
+          initialEmailStatus={initialEmailStatus}
+          customTemplate={customTemplate}
+          defaultLocale={apiLocale}
+          activeMonth={activeMonth}
+          activeYear={activeYear}
+        />
+      )}
 
       {/* Native <dialog>: Add / Edit Kill-Switch Form */}
       <dialog
@@ -930,7 +934,7 @@ export function SubscriptionKillSwitchTab({
             <button
               type="submit"
               disabled={submittingForm}
-              className="px-4 py-1.5 rounded bg-text-primary text-canvas font-medium hover:opacity-90 disabled:opacity-50 cursor-pointer"
+              className="px-4 py-1.5 rounded erp-btn-primary font-medium hover:opacity-90 disabled:opacity-50 cursor-pointer"
             >
               {submittingForm
                 ? "Saving..."
@@ -955,7 +959,7 @@ export function SubscriptionKillSwitchTab({
       >
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-border-subtle bg-surface-subtle">
           <h3 id="ks-notice-dialog-title" className="text-sm font-semibold text-text-primary">
-            Cancellation Notice — {previewingNoticeItem?.label || "Subscription"}
+            Cancellation Notice â€” {previewingNoticeItem?.label || "Subscription"}
           </h3>
           <button
             type="button"
@@ -995,7 +999,7 @@ export function SubscriptionKillSwitchTab({
               <button
                 type="button"
                 onClick={closeNoticeDialog}
-                className="px-3 py-1.5 rounded bg-text-primary text-canvas font-medium cursor-pointer"
+                className="px-3 py-1.5 rounded erp-btn-primary font-medium cursor-pointer"
               >
                 Close
               </button>

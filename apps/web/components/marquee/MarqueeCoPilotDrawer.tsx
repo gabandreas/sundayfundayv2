@@ -27,7 +27,7 @@ const QUICK_PROMPTS = [
   "Log kopi kenangan 34k",
   "Split my 3.8jt Natal THR bonus",
   "Compare 11/2026 vs 12/2026 variance",
-  "Cek sisa cicilan aktif SPinjam",
+  "Cek sisa cicilan aktif & payoff",
   "Formula net_income - total_debt - living_pool",
 ];
 
@@ -329,7 +329,7 @@ export function MarqueeCoPilotDrawer({ isOpen, onClose }: MarqueeCoPilotDrawerPr
           type="submit"
           disabled={sending || !input.trim()}
           aria-label="Send to Marquee"
-          className="px-3 py-2 rounded bg-text-primary text-canvas hover:opacity-90 disabled:opacity-40 cursor-pointer inline-flex items-center gap-1.5 text-xs font-medium"
+          className="px-3 py-2 rounded erp-btn-primary hover:opacity-90 disabled:opacity-40 cursor-pointer inline-flex items-center gap-1.5 text-xs font-medium"
         >
           <Send className="w-3.5 h-3.5" />
           <span>{sending ? "..." : "Send"}</span>

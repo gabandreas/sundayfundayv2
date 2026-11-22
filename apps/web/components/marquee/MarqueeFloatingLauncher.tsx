@@ -28,13 +28,13 @@ export function MarqueeFloatingLauncher({
       title="Marquee Financial Co-Pilot (Alt+M)"
       className={`fixed bottom-5 right-5 z-40 print-hidden inline-flex items-center justify-center w-11 h-11 rounded-full border shadow-xl transition-colors cursor-pointer ${
         isOpen
-          ? "bg-text-primary text-canvas border-border-strong"
+          ? "erp-btn-primary border-accent/60"
           : "bg-surface hover:bg-surface-hover text-text-primary border-border-strong"
       }`}
     >
       <MarqueeMark
         className={`w-5 h-5 shrink-0 ${
-          isOpen ? "text-canvas" : "text-delta-positive"
+          isOpen ? "text-emerald-200" : "text-delta-positive"
         }`}
       />
       {!isOpen && hasReminder && (

@@ -16,6 +16,7 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { VerifyPasswordDto } from './dto/verify-password.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { CurrentUser } from './current-user.decorator';
 import { extractClientIp, getUserIdOrThrow } from './auth.utils';
 
@@ -83,6 +84,16 @@ export class AuthController {
   ) {
     const userId = getUserIdOrThrow(req);
     return this.authService.updateProfile(userId, dto);
+  }
+
+  @Post('change-password')
+  @HttpCode(HttpStatus.OK)
+  async changePassword(
+    @Body() dto: ChangePasswordDto,
+    @Req() req: any,
+  ) {
+    const userId = getUserIdOrThrow(req);
+    return this.authService.changePassword(userId, dto);
   }
 
   @Post('reset-demo')

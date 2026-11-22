@@ -88,6 +88,12 @@ export interface SavingsOverviewResult {
     maxMonthlySavableCapacity: number;
     avgMonthlySavingsP1: number;
   };
+  pocketsSummary?: {
+    totalConfirmedSavingsRp: number;
+    totalAllocatedRp: number;
+    unallocatedPoolRp: number;
+    pockets: any[];
+  };
 }
 
 export interface SavingsVaultResult {
@@ -457,6 +463,10 @@ export class SavingsSelectors {
       maxMonthlySavableCapacity,
     });
 
+    const pockets = studioConfig.savingsPockets ?? [];
+    const totalConfirmedSavingsRp = Math.max(0, Math.round(balance));
+    const totalAllocatedRp = pockets.reduce((s, p) => s + Math.max(0, Math.round(p.allocatedRp || 0)), 0);
+
     return {
       kpi: {
         totalVaultBalance: balance,
@@ -481,6 +491,12 @@ export class SavingsSelectors {
         currentPeriodNetIncome,
         maxMonthlySavableCapacity,
         avgMonthlySavingsP1,
+      },
+      pocketsSummary: {
+        totalConfirmedSavingsRp,
+        totalAllocatedRp,
+        unallocatedPoolRp: Math.max(0, totalConfirmedSavingsRp - totalAllocatedRp),
+        pockets,
       },
     };
   }

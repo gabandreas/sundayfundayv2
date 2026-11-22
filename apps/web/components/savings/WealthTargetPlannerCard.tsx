@@ -17,6 +17,9 @@ import {
   WealthFeasibilityStatus,
 } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
+import { usePrivacyMask } from "@/context/PrivacyMaskContext";
+
+const SHORT_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 interface WealthTargetPlannerCardProps {
   vault: SavingsVault;
@@ -29,6 +32,7 @@ export function WealthTargetPlannerCard({
   baselineMonth = 10,
   baselineYear = 2026,
 }: WealthTargetPlannerCardProps) {
+  const { isAmountsMasked } = usePrivacyMask();
   const savedConfig = vault.overview?.wealthTargetConfig;
   const initialPlan = vault.overview?.wealthTargetPlan;
   const capacity = vault.overview?.financialCapacity;
@@ -102,19 +106,22 @@ export function WealthTargetPlannerCard({
       st = "FEASIBLE";
       badgeText = "Goal Reached (100% Funded)";
       expText = `Your ${
-        targetBase === "PLANNED_P1" ? "planned 2026 P1" : "confirmed savings"
-      } balance (${formatRupiah(currentBaseBalance)}) already meets or exceeds ${formatRupiah(
-        targetBalance
+        targetBase === "PLANNED_P1" ? "planned annual savings" : "confirmed savings"
+      } balance (${formatRupiah(currentBaseBalance, isAmountsMasked)}) already meets or exceeds ${formatRupiah(
+        targetBalance,
+        isAmountsMasked
       )}.`;
     } else if (required > maxSavableCapacity || pct > 50) {
       st = "UNREALISTIC";
       badgeText = "Unrealistic for Current Income & Obligations";
       expText = `Requires saving ${formatRupiah(
-        required
+        required,
+        isAmountsMasked
       )}/mo (${pct.toFixed(
         1
       )}% of net income). Exceeds contractual uncommitted cashflow (${formatRupiah(
-        maxSavableCapacity
+        maxSavableCapacity,
+        isAmountsMasked
       )}/mo) after routine bills and debt obligations.`;
     } else if (
       (avgMonthlySavingsP1 > 0 && required > avgMonthlySavingsP1 * 1.5) ||
@@ -122,18 +129,20 @@ export function WealthTargetPlannerCard({
     ) {
       st = "STRETCH";
       badgeText = "Stretch Target";
-      expText = `Requires ${formatRupiah(required)}/mo (${pct.toFixed(
+      expText = `Requires ${formatRupiah(required, isAmountsMasked)}/mo (${pct.toFixed(
         1
-      )}% of income). This is 1.5x+ your current average P1 pace (${formatRupiah(
-        avgMonthlySavingsP1
+      )}% of income). This is 1.5x+ your current average savings pace (${formatRupiah(
+        avgMonthlySavingsP1,
+        isAmountsMasked
       )}/mo).`;
     } else {
       st = "FEASIBLE";
       badgeText = "Realistic & On Track";
-      expText = `Requires ${formatRupiah(required)}/mo (${pct.toFixed(
+      expText = `Requires ${formatRupiah(required, isAmountsMasked)}/mo (${pct.toFixed(
         1
       )}% of income), comfortably within your uncommitted capacity of ${formatRupiah(
-        maxSavableCapacity
+        maxSavableCapacity,
+        isAmountsMasked
       )}/mo.`;
     }
 
@@ -275,9 +284,9 @@ export function WealthTargetPlannerCard({
       )}
 
       {/* Input Controls Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-4 items-end">
         {/* Input 1: Target Wealth Balance */}
-        <div className="space-y-1.5">
+        <div className="xl:col-span-3 space-y-1.5">
           <label className="text-[11px] font-mono text-text-tertiary uppercase tracking-wider block">
             Target Wealth Balance
           </label>
@@ -300,7 +309,7 @@ export function WealthTargetPlannerCard({
         </div>
 
         {/* Input 2: Target Horizon (Month / Year) */}
-        <div className="space-y-1.5">
+        <div className="xl:col-span-3 space-y-1.5">
           <label className="text-[11px] font-mono text-text-tertiary uppercase tracking-wider block">
             Target Horizon
           </label>
@@ -308,18 +317,18 @@ export function WealthTargetPlannerCard({
             <select
               value={targetMonth}
               onChange={(e) => setTargetMonth(parseInt(e.target.value, 10))}
-              className="w-full px-2 py-1.5 rounded bg-surface-subtle border border-border-subtle text-xs font-mono text-text-primary outline-none"
+              className="w-full px-2 py-1.5 rounded bg-surface-subtle border border-border-subtle text-xs font-mono text-text-primary outline-none whitespace-nowrap"
             >
               {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
                 <option key={m} value={m}>
-                  Month {m}
+                  {SHORT_MONTHS[m - 1]}
                 </option>
               ))}
             </select>
             <select
               value={targetYear}
               onChange={(e) => setTargetYear(parseInt(e.target.value, 10))}
-              className="w-full px-2 py-1.5 rounded bg-surface-subtle border border-border-subtle text-xs font-mono text-text-primary outline-none"
+              className="w-full px-2 py-1.5 rounded bg-surface-subtle border border-border-subtle text-xs font-mono text-text-primary outline-none whitespace-nowrap"
             >
               {[2026, 2027, 2028, 2029, 2030].map((y) => (
                 <option key={y} value={y}>
@@ -331,44 +340,44 @@ export function WealthTargetPlannerCard({
         </div>
 
         {/* Input 3: Base Comparison Pool Toggle */}
-        <div className="space-y-1.5">
+        <div className="xl:col-span-4 space-y-1.5">
           <label className="text-[11px] font-mono text-text-tertiary uppercase tracking-wider block">
             Base Comparison Balance
           </label>
-          <div className="flex rounded bg-surface-subtle border border-border-subtle p-0.5">
+          <div className="flex rounded bg-surface-subtle border border-border-subtle p-0.5 gap-1">
             <button
               type="button"
               onClick={() => setTargetBase("CONFIRMED_VAULT")}
-              className={`flex-1 py-1 text-[11px] font-mono rounded transition-colors ${
+              className={`flex-1 py-1 px-2 text-[11px] font-mono rounded transition-colors whitespace-nowrap truncate cursor-pointer ${
                 targetBase === "CONFIRMED_VAULT"
                   ? "bg-surface-active text-text-primary font-semibold"
                   : "text-text-tertiary hover:text-text-secondary"
               }`}
             >
-              Savings Balance ({formatRupiah(confirmedVaultBalance)})
+              Confirmed ({formatRupiah(confirmedVaultBalance, isAmountsMasked)})
             </button>
             <button
               type="button"
               onClick={() => setTargetBase("PLANNED_P1")}
-              className={`flex-1 py-1 text-[11px] font-mono rounded transition-colors ${
+              className={`flex-1 py-1 px-2 text-[11px] font-mono rounded transition-colors whitespace-nowrap truncate cursor-pointer ${
                 targetBase === "PLANNED_P1"
                   ? "bg-surface-active text-text-primary font-semibold"
                   : "text-text-tertiary hover:text-text-secondary"
               }`}
             >
-              2026 P1 ({formatRupiah(plannedP1Balance)})
+              2026 Planned ({formatRupiah(plannedP1Balance, isAmountsMasked)})
             </button>
           </div>
         </div>
 
         {/* Input 4: Horizon Summary */}
-        <div className="space-y-1.5">
+        <div className="xl:col-span-2 space-y-1.5">
           <label className="text-[11px] font-mono text-text-tertiary uppercase tracking-wider block">
             Time Remaining
           </label>
-          <div className="px-3 py-1.5 rounded bg-surface-subtle border border-border-subtle flex items-center justify-between text-xs font-mono">
-            <span className="text-text-secondary">From {baselineMonth}/{baselineYear}:</span>
-            <span className="font-semibold text-text-primary">{monthsRemaining} Months</span>
+          <div className="px-3 py-1.5 rounded bg-surface-subtle border border-border-subtle flex items-center justify-between gap-2 text-xs font-mono whitespace-nowrap">
+            <span className="text-text-secondary">{baselineMonth}/{baselineYear}:</span>
+            <span className="font-semibold text-text-primary">{monthsRemaining} mo</span>
           </div>
         </div>
       </div>
@@ -379,11 +388,11 @@ export function WealthTargetPlannerCard({
           <span className="text-[10px] font-mono text-text-tertiary uppercase block">
             Current Base Balance
           </span>
-          <span className="text-sm font-mono font-semibold text-text-primary mt-0.5 block">
-            {formatRupiah(currentBaseBalance)}
+          <span className="text-sm font-mono font-semibold text-text-primary mt-0.5 block erp-tabular-currency">
+            {formatRupiah(currentBaseBalance, isAmountsMasked)}
           </span>
           <span className="text-[10px] font-mono text-text-tertiary">
-            {targetBase === "CONFIRMED_VAULT" ? "Confirmed Savings" : "Planned 2026 P1"}
+            {targetBase === "CONFIRMED_VAULT" ? "Confirmed Savings" : "Planned Annual Savings"}
           </span>
         </div>
 
@@ -391,8 +400,8 @@ export function WealthTargetPlannerCard({
           <span className="text-[10px] font-mono text-text-tertiary uppercase block">
             Remaining Shortfall
           </span>
-          <span className="text-sm font-mono font-semibold text-text-primary mt-0.5 block">
-            {formatRupiah(shortfall)}
+          <span className="text-sm font-mono font-semibold text-text-primary mt-0.5 block erp-tabular-currency">
+            {formatRupiah(shortfall, isAmountsMasked)}
           </span>
           <span className="text-[10px] font-mono text-text-tertiary">
             {shortfall === 0 ? "Fully funded" : "To accumulate"}
@@ -403,8 +412,8 @@ export function WealthTargetPlannerCard({
           <span className="text-[10px] font-mono text-text-tertiary uppercase block">
             Required Monthly Saving
           </span>
-          <span className="text-sm font-mono font-bold text-text-primary mt-0.5 block">
-            {formatRupiah(requiredMonthlySaving)}
+          <span className="text-sm font-mono font-bold text-text-primary mt-0.5 block erp-tabular-currency">
+            {formatRupiah(requiredMonthlySaving, isAmountsMasked)}
             <span className="text-xs font-normal text-text-secondary"> /mo</span>
           </span>
           <span className="text-[10px] font-mono text-text-tertiary">
@@ -414,14 +423,14 @@ export function WealthTargetPlannerCard({
 
         <div>
           <span className="text-[10px] font-mono text-text-tertiary uppercase block">
-            Income Share & Capacity
+            Income Share &amp; Capacity
           </span>
           <span className="text-sm font-mono font-semibold text-text-primary mt-0.5 block">
             {pctOfIncome.toFixed(1)}%
             <span className="text-xs font-normal text-text-secondary"> of Net Pay</span>
           </span>
           <span className="text-[10px] font-mono text-text-tertiary">
-            Cap: {formatRupiah(maxSavableCapacity)}/mo
+            Cap: {formatRupiah(maxSavableCapacity, isAmountsMasked)}/mo
           </span>
         </div>
       </div>
@@ -440,7 +449,10 @@ export function WealthTargetPlannerCard({
           </div>
 
           <div className="text-[11px] font-mono text-text-secondary">
-            Net Monthly Income: <span className="font-semibold text-text-primary">{formatRupiah(netIncome)}</span>
+            Net Monthly Income:{" "}
+            <span className="font-semibold text-text-primary erp-tabular-currency">
+              {formatRupiah(netIncome, isAmountsMasked)}
+            </span>
           </div>
         </div>
 
@@ -455,10 +467,10 @@ export function WealthTargetPlannerCard({
               <ArrowRight className="w-3.5 h-3.5 text-text-tertiary mt-0.5 shrink-0" />
               <div>
                 <span className="text-text-tertiary block">
-                  At current pace ({formatRupiah(avgMonthlySavingsP1)}/mo):
+                  At current pace ({formatRupiah(avgMonthlySavingsP1, isAmountsMasked)}/mo):
                 </span>
                 <span className="text-text-primary font-medium">
-                  {targetBalance.toLocaleString("id-ID")} reachable in {realisticCompletionDate}
+                  {formatRupiah(targetBalance, isAmountsMasked)} reachable in {realisticCompletionDate}
                 </span>
               </div>
             </div>
@@ -469,8 +481,8 @@ export function WealthTargetPlannerCard({
                 <span className="text-text-tertiary block">
                   Reachable by {targetMonth}/{targetYear} at normal pace:
                 </span>
-                <span className="text-text-primary font-medium">
-                  {formatRupiah(realisticReachableAmount)}
+                <span className="text-text-primary font-medium erp-tabular-currency">
+                  {formatRupiah(realisticReachableAmount, isAmountsMasked)}
                 </span>
               </div>
             </div>

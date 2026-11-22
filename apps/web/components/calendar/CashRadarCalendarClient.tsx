@@ -23,6 +23,7 @@ import { usePeriod } from "@/context/PeriodContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 import { formatRupiah } from "@/lib/utils";
+import { PageHeader } from "@/components/primitives/PageHeader";
 import { PreBoundaryNotice } from "@/components/shell/PreBoundaryNotice";
 
 export interface CashRadarCalendarData {
@@ -233,7 +234,7 @@ export function CashRadarCalendarClient({
   const t = COPY_BY_LOCALE[locale] ?? COPY_BY_LOCALE.en;
 
   const maskRp = useCallback(
-    (v: number) => (isAmountsMasked ? "Rp ••••••" : formatRupiah(v)),
+    (v: number) => formatRupiah(v, isAmountsMasked),
     [isAmountsMasked]
   );
 
@@ -432,63 +433,53 @@ export function CashRadarCalendarClient({
 
   return (
     <div className="space-y-6 w-full max-w-full pb-16">
-      {/* Header Row */}
-      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border pb-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 text-[11px] font-mono uppercase tracking-wider text-text-tertiary">
-            <CalendarIcon className="w-3.5 h-3.5 text-positive" />
-            <span>{t.eyebrow}</span>
-            {radar && (
-              <span className="text-text-secondary">
-                · {fmtShortDate(radar.cycleStartIso)} – {fmtShortDate(radar.cycleEndIso)}
-              </span>
-            )}
-          </div>
-          <h1 className="text-xl font-semibold tracking-tight text-text-primary">{t.title}</h1>
-          <p className="text-xs text-text-secondary max-w-2xl leading-relaxed">{t.subtitle}</p>
-        </div>
+      <PageHeader
+        title={t.title}
+        subtitle={t.subtitle}
+        periodLabel={radar ? `${fmtShortDate(radar.cycleStartIso)} – ${fmtShortDate(radar.cycleEndIso)}` : undefined}
+        rightActions={
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex items-center rounded border border-border bg-surface p-0.5 flex-wrap">
+              {(["ALL", "INFLOW", "BILLS", "CUTOFF", "SPENDING"] as EventFilterMode[]).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setFilterMode(mode)}
+                  className={`px-2.5 py-1 text-[11px] font-medium rounded-sm cursor-pointer transition-colors ${
+                    filterMode === mode
+                      ? "bg-surface-active text-text-primary"
+                      : "text-text-tertiary hover:text-text-secondary"
+                  }`}
+                >
+                  {t.filters[mode]}
+                </button>
+              ))}
+            </div>
 
-        <div className="flex items-center gap-2">
-          <div className="inline-flex items-center rounded border border-border bg-surface p-0.5 flex-wrap">
-            {(["ALL", "INFLOW", "BILLS", "CUTOFF", "SPENDING"] as EventFilterMode[]).map((mode) => (
+            <div className="inline-flex items-center rounded border border-border bg-surface">
               <button
-                key={mode}
                 type="button"
-                onClick={() => setFilterMode(mode)}
-                className={`px-2.5 py-1 text-[11px] font-medium rounded-sm cursor-pointer transition-colors ${
-                  filterMode === mode
-                    ? "bg-surface-active text-text-primary"
-                    : "text-text-tertiary hover:text-text-secondary"
-                }`}
+                onClick={() => handleShiftPeriod(-1)}
+                aria-label={t.prevMonth}
+                className="p-1.5 text-text-secondary hover:text-text-primary hover:bg-surface-hover cursor-pointer"
               >
-                {t.filters[mode]}
+                <ChevronLeft className="w-4 h-4" />
               </button>
-            ))}
+              <span className="px-2.5 text-xs font-mono text-text-primary tabular-nums">
+                {String(month).padStart(2, "0")}/{year}
+              </span>
+              <button
+                type="button"
+                onClick={() => handleShiftPeriod(1)}
+                aria-label={t.nextMonth}
+                className="p-1.5 text-text-secondary hover:text-text-primary hover:bg-surface-hover cursor-pointer"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
-
-          <div className="inline-flex items-center rounded border border-border bg-surface">
-            <button
-              type="button"
-              onClick={() => handleShiftPeriod(-1)}
-              aria-label={t.prevMonth}
-              className="p-1.5 text-text-secondary hover:text-text-primary hover:bg-surface-hover cursor-pointer"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <span className="px-2.5 text-xs font-mono text-text-primary tabular-nums">
-              {String(month).padStart(2, "0")}/{year}
-            </span>
-            <button
-              type="button"
-              onClick={() => handleShiftPeriod(1)}
-              aria-label={t.nextMonth}
-              className="p-1.5 text-text-secondary hover:text-text-primary hover:bg-surface-hover cursor-pointer"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* Summary Metrics Strip */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">

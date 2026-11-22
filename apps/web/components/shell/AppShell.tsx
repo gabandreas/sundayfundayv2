@@ -16,6 +16,7 @@ import { ProfileSettingsModal } from "@/components/shell/ProfileSettingsModal";
 import { MarqueeCoPilotDrawer } from "@/components/marquee/MarqueeCoPilotDrawer";
 import { MarqueeFloatingLauncher } from "@/components/marquee/MarqueeFloatingLauncher";
 import { BrandMark } from "@/components/primitives/BrandMark";
+import { WorkspaceSkeleton } from "@/components/primitives/WorkspaceSkeleton";
 import { TopProgressBar } from "./TopProgressBar";
 
 function AppShellProtected({ children }: { children: React.ReactNode }) {
@@ -41,10 +42,26 @@ function AppShellProtected({ children }: { children: React.ReactNode }) {
 
   if (isLoading || !user) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-canvas text-text-tertiary font-mono text-xs">
-        <div className="flex flex-col items-center gap-3">
-          <BrandMark size={28} className="animate-pulse" />
-          <span>Authenticating session...</span>
+      <div className="flex h-screen w-screen overflow-hidden bg-canvas text-text-primary">
+        <div className="hidden lg:flex w-64 h-screen bg-surface-subtle border-r border-border shrink-0 p-5 flex-col gap-4 animate-pulse">
+          <div className="flex items-center gap-2.5">
+            <BrandMark size={20} />
+            <div className="h-4 w-28 rounded bg-surface-elevated" />
+          </div>
+          <div className="space-y-2 pt-3">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="h-7 w-full rounded bg-surface" />
+            ))}
+          </div>
+        </div>
+        <div className="flex-1 flex flex-col min-w-0">
+          <div className="h-14 border-b border-border bg-canvas/95 px-6 flex items-center justify-between animate-pulse">
+            <div className="h-4 w-40 rounded bg-surface" />
+            <div className="h-7 w-48 rounded bg-surface" />
+          </div>
+          <div className="p-6 lg:p-8 flex-1 overflow-hidden">
+            <WorkspaceSkeleton rows={4} cards={4} />
+          </div>
         </div>
       </div>
     );
@@ -62,10 +79,10 @@ function AppShellProtected({ children }: { children: React.ReactNode }) {
         </div>
         <div className="flex h-screen w-screen overflow-hidden print:h-auto print:w-auto print:overflow-visible bg-canvas text-text-primary">
           {/* Persistent Left Navigation Sidebar (Desktop) */}
-          <div className="hidden lg:flex w-60 h-screen shrink-0 print-hidden">
+          <div className="hidden lg:flex w-64 h-screen shrink-0 print-hidden">
             <Suspense
               fallback={
-                <div className="w-60 h-screen bg-surface-subtle border-r border-border shrink-0" />
+                <div className="w-64 h-screen bg-surface-subtle border-r border-border shrink-0" />
               }
             >
               <Sidebar />
@@ -118,7 +135,7 @@ function AppShellProtected({ children }: { children: React.ReactNode }) {
             <AppHeader onToggleMobileDrawer={() => setIsMobileDrawerOpen((prev) => !prev)} />
 
             {/* Scrollable View Area */}
-            <main className="flex-1 overflow-y-auto overflow-x-hidden print:overflow-visible print:p-0 p-4 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] sm:p-6 lg:p-8">
+            <main className="flex-1 overflow-y-auto overflow-x-hidden print:overflow-visible print:p-0 p-4 pb-24 sm:p-6 sm:pb-24 lg:p-8 lg:pb-24">
               {children}
             </main>
           </div>

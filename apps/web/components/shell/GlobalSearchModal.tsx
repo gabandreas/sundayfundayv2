@@ -432,14 +432,14 @@ export function GlobalSearchModal() {
                   Quick Jumps:
                 </span>
                 {[
-                  { label: "12-Month Matrix", href: "/credit?tab=matrix" },
-                  { label: "Safe-Spend Simulator", href: "/credit?tab=matrix&tool=simulator" },
-                  { label: "Record Bridge Loan", href: "/credit?tab=matrix&tool=bridge" },
-                  { label: "Active Contracts", href: "/credit?tab=contracts" },
-                  { label: "Subscriptions & Recurring", href: "/subscriptions" },
-                  { label: "Kill-Switch & SMTP", href: "/preferences?tab=killswitch" },
-                  { label: "Overview & P1 Borrow", href: "/" },
-                  { label: "User Guide & SOP", href: "/guide" },
+                  { label: "Bill Schedule & Cards", href: "/credit?sub=matrix" },
+                  { label: "Payoff & Cutoff Check", href: "/credit?sub=simulator" },
+                  { label: "Statement Import", href: "/import" },
+                  { label: "Scenario Lab", href: "/scenarios" },
+                  { label: "Savings Pockets", href: "/savings?sub=pockets" },
+                  { label: "Alerts & Email", href: "/preferences?sub=notifications" },
+                  { label: "Overview & Savings Advance", href: "/" },
+                  { label: "User Guide", href: "/guide" },
                 ].map((act) => (
                   <button
                     key={act.href}
@@ -475,7 +475,7 @@ export function GlobalSearchModal() {
                         </div>
                         {parsedSmart.kind !== "WALLET_CHECKIN" && smartCutoffPreview && (
                           <div className="text-[11px] font-mono text-text-secondary">
-                            Routed: <strong className="text-text-primary">{smartCutoffPreview.startPeriodLabel}</strong> · 1st Due {smartCutoffPreview.firstDueDateIso} · DSR {smartCutoffPreview.dsrBeforePercent}% → {smartCutoffPreview.dsrAfterPercent}% ({smartCutoffPreview.verdict})
+                            Routed: <strong className="text-text-primary">{smartCutoffPreview.startPeriodLabel}</strong> · 1st Due {smartCutoffPreview.firstDueDateIso} · DSR {smartCutoffPreview.dsrBeforePercent}% â†’ {smartCutoffPreview.dsrAfterPercent}% ({smartCutoffPreview.verdict})
                           </div>
                         )}
                         {parsedSmart.kind === "WALLET_CHECKIN" && smartWalletPreview?.guard && (
@@ -490,7 +490,7 @@ export function GlobalSearchModal() {
                       type="button"
                       disabled={smartExecuting}
                       onClick={() => void executeSmartCommand()}
-                      className="px-3 py-1.5 rounded bg-text-primary text-canvas text-xs font-mono font-semibold hover:opacity-90 disabled:opacity-50 shrink-0 cursor-pointer"
+                      className="px-3 py-1.5 rounded erp-btn-primary text-xs font-mono font-semibold hover:opacity-90 disabled:opacity-50 shrink-0 cursor-pointer"
                     >
                       {smartExecuting
                         ? "Executing..."
@@ -547,7 +547,7 @@ export function GlobalSearchModal() {
                 <div className="flex items-center gap-2 text-xs font-mono text-emerald-400 shrink-0">
                   <span className="text-[11px] text-text-tertiary hidden sm:inline">Jump to studio</span>
                   <kbd className="px-2 py-0.5 text-[10px] bg-emerald-900/50 border border-emerald-500/30 rounded text-emerald-300">
-                    Enter ↵
+                    Enter â†µ
                   </kbd>
                 </div>
               </button>

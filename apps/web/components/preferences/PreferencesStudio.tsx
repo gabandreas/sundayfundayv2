@@ -19,7 +19,11 @@ import { FormulaSandboxTab } from "./FormulaSandboxTab";
 import { RiskPolicyTab } from "./RiskPolicyTab";
 import { CustomRequestStudio } from "./CustomRequestStudio";
 import { SubscriptionKillSwitchTab } from "./SubscriptionKillSwitchTab";
+import { SmtpControlPanel } from "./SmtpControlPanel";
 import { MarqueeAiSettingsPanel } from "./MarqueeAiSettingsPanel";
+import { AccountDisplayPanel } from "./AccountDisplayPanel";
+import { PriorityTiersEditor } from "./PriorityTiersEditor";
+import { DatabaseBackupRestoreCard } from "./DatabaseBackupRestoreCard";
 import {
   AssetAccountsTableCard,
   InstrumentsTableCard,
@@ -43,13 +47,22 @@ interface PreferencesStudioProps {
 const PREF_ALIASES: Record<string, PreferencesTabKey> = {
   payroll: "formula",
   sandbox: "formula",
+  accounts: "instruments",
   policy: "instruments",
   buckets: "templates",
-  modules: "navigation",
-  requests: "navigation",
+  navigation: "display",
+  modules: "display",
+  requests: "display",
+  marquee: "display",
+  copilot: "display",
+  ai: "display",
+  account: "display",
+  privacy: "display",
   killswitch: "notifications",
-  marquee: "ai",
-  copilot: "ai",
+  smtp: "notifications",
+  email: "notifications",
+  database: "backup",
+  restore: "backup",
 };
 
 export function PreferencesStudio({
@@ -72,13 +85,18 @@ export function PreferencesStudio({
   const currentMonth = periodMonth || activeMonth;
   const currentYear = periodYear || activeYear;
 
+  const samplePromoTemplate =
+    initialKillSwitchNotificationConfig?.killSwitchCustomMessageTemplate ||
+    "Notice: Promotional pricing for {{name}} expires on {{deadline}} ({{daysLeft}} remaining). To prevent automatic renewal at the standard rate of Rp {{normalPrice}}/month, cancel through your provider portal prior to cutoff: {{cancelUrl}}";
+
   return (
-    <div className="space-y-6 w-full max-w-full">
+    <div className="space-y-6 w-full max-w-full pb-16">
       <PreferencesNav currentTab={activeTab} onSelectTab={selectTab} />
 
       <div className="relative w-full">
         {activeTab === "formula" && (
           <div id="preferences-panel-formula" className="space-y-6">
+            <PriorityTiersEditor initialConfig={config.studioConfig} />
             <PaycycleFormulaStudioCard initialConfig={config.studioConfig} />
             <PayrollFormulaTab config={config} />
             <FormulaSandboxTab config={config} />
@@ -88,13 +106,8 @@ export function PreferencesStudio({
         {activeTab === "instruments" && (
           <div id="preferences-panel-instruments" className="space-y-6">
             <InstrumentsTableCard initialConfig={config.studioConfig} />
-            <RiskPolicyTab config={config} />
-          </div>
-        )}
-
-        {activeTab === "accounts" && (
-          <div id="preferences-panel-accounts" className="space-y-6">
             <AssetAccountsTableCard initialConfig={config.studioConfig} />
+            <RiskPolicyTab config={config} />
           </div>
         )}
 
@@ -110,8 +123,10 @@ export function PreferencesStudio({
           </div>
         )}
 
-        {activeTab === "navigation" && (
-          <div id="preferences-panel-navigation" className="space-y-6">
+        {activeTab === "display" && (
+          <div id="preferences-panel-display" className="space-y-6">
+            <AccountDisplayPanel initialConfig={config.studioConfig} />
+            <MarqueeAiSettingsPanel />
             <SidebarMenuBuilderCard initialConfig={config.studioConfig} />
             <ModuleManagerTab config={config} />
             <CustomRequestStudio initialRequests={initialCustomRequests} />
@@ -127,13 +142,21 @@ export function PreferencesStudio({
               initialKillSwitches={initialKillSwitches}
               initialNotificationConfig={initialKillSwitchNotificationConfig}
               initialEmailStatus={initialEmailStatus}
+              hideSmtpPanel={true}
+            />
+            <SmtpControlPanel
+              initialNotifConfig={initialKillSwitchNotificationConfig}
+              initialEmailStatus={initialEmailStatus}
+              customTemplate={samplePromoTemplate}
+              activeMonth={currentMonth}
+              activeYear={currentYear}
             />
           </div>
         )}
 
-        {activeTab === "ai" && (
-          <div id="preferences-panel-ai" className="space-y-6">
-            <MarqueeAiSettingsPanel />
+        {activeTab === "backup" && (
+          <div id="preferences-panel-backup" className="space-y-6">
+            <DatabaseBackupRestoreCard />
           </div>
         )}
       </div>

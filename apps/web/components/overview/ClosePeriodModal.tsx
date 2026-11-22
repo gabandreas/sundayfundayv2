@@ -69,7 +69,7 @@ export function ClosePeriodModal({
     String(defaultSuggestedAmount)
   );
   const [vaultLabelInput, setVaultLabelInput] = useState<string>(
-    `P1 Savings Transfer (${month}/${year})`
+    `Core Savings Transfer (${month}/${year})`
   );
 
   useEffect(() => {
@@ -79,7 +79,7 @@ export function ClosePeriodModal({
         : Math.max(0, Math.round(actualSavings));
     setPreset(nextDefault > 0 ? "P1_ONLY" : "SKIP");
     setVaultAmountInput(String(nextDefault));
-    setVaultLabelInput(`P1 Savings Transfer (${month}/${year})`);
+    setVaultLabelInput(`Core Savings Transfer (${month}/${year})`);
   }, [actualSavings, existingPeriodVaultDeposit, month, year]);
 
   const [isReopening, setIsReopening] = useState(false);
@@ -184,13 +184,13 @@ export function ClosePeriodModal({
       const amt =
         existingPeriodVaultDeposit > 0 ? remainingUntransferredP1 : actualSavings;
       setVaultAmountInput(String(Math.max(0, amt)));
-      setVaultLabelInput(`P1 Savings Transfer (${month}/${year})`);
+      setVaultLabelInput(`Core Savings Transfer (${month}/${year})`);
     } else if (nextPreset === "P1_PLUS_OPERATIONAL" && canSweepOperational) {
       const baseP1 =
         existingPeriodVaultDeposit > 0 ? remainingUntransferredP1 : actualSavings;
       setVaultAmountInput(String(Math.max(0, baseP1 + safeUnspentOperational)));
       setVaultLabelInput(
-        `P1 Savings + Operational Surplus (${month}/${year})`
+        `Core Savings + Operational Surplus (${month}/${year})`
       );
     } else if (nextPreset === "SKIP") {
       setVaultAmountInput("0");
@@ -229,7 +229,7 @@ export function ClosePeriodModal({
         vaultTopupAmount: parsedTopup,
         vaultTopupLabel:
           parsedTopup > 0
-            ? vaultLabelInput.trim() || `P1 Savings Transfer (${month}/${year})`
+            ? vaultLabelInput.trim() || `Core Savings Transfer (${month}/${year})`
             : undefined,
       });
       if (res.success) {
@@ -341,10 +341,10 @@ export function ClosePeriodModal({
               <div className="flex items-center justify-between border-b border-border-subtle pb-2">
                 <div>
                   <div className="text-xs font-semibold font-sans text-text-primary">
-                    Emergency Savings Transfer (Priority 1 Realization)
+                    Emergency Fund Transfer
                   </div>
                   <div className="text-[11px] font-sans text-text-secondary">
-                    Allocated P1 Savings:{" "}
+                    Allocated Core Savings:{" "}
                     <span className="font-mono text-text-primary font-semibold">
                       {formatRupiah(actualSavings)}
                     </span>{" "}
@@ -369,7 +369,7 @@ export function ClosePeriodModal({
                   </span>{" "}
                   is already recorded in your Savings Reserve for period {month}/{year}.
                   {remainingUntransferredP1 > 0
-                    ? ` Remaining untransferred P1 savings: ${formatRupiah(remainingUntransferredP1)}.`
+                    ? ` Remaining untransferred savings: ${formatRupiah(remainingUntransferredP1)}.`
                     : " Defaulting suggested transfer to Rp 0 to prevent double-counting."}
                 </div>
               )}
@@ -386,7 +386,7 @@ export function ClosePeriodModal({
                       : "bg-surface border-border-subtle text-text-secondary hover:text-text-primary"
                   }`}
                 >
-                  P1 Savings Only (
+                  Core Savings Only (
                   <span className="font-mono">
                     {formatRupiah(
                       existingPeriodVaultDeposit > 0
@@ -408,7 +408,7 @@ export function ClosePeriodModal({
                         : "bg-surface border-border-subtle text-text-secondary hover:text-text-primary"
                     }`}
                   >
-                    P1 + Unspent Operational (
+                    Savings + Unspent Operational (
                     <span className="font-mono">
                       {formatRupiah(
                         (existingPeriodVaultDeposit > 0
@@ -461,7 +461,7 @@ export function ClosePeriodModal({
                     value={vaultLabelInput}
                     onChange={(e) => setVaultLabelInput(e.target.value)}
                     disabled={isClosing || parsedTopupPreview === 0}
-                    placeholder={`P1 Savings Transfer (${month}/${year})`}
+                    placeholder={`Core Savings Transfer (${month}/${year})`}
                     className="w-full px-2.5 py-1.5 rounded bg-surface border border-border focus:border-accent text-xs font-sans text-text-primary outline-none disabled:opacity-50"
                   />
                 </div>

@@ -123,7 +123,7 @@ export function ManualSavingsForm({
         <div className="px-4 py-3 border-b border-border-subtle bg-surface-subtle/50 flex flex-wrap items-center justify-between gap-3">
           <div className="text-xs font-sans text-text-secondary">
             <strong className="text-text-primary font-semibold">
-              Unconfirmed Closed-Period P1 Savings:
+              Unconfirmed Closed-Period Savings:
             </strong>{" "}
             Select a closed period to pre-fill a deposit record before confirming.
           </div>
@@ -135,7 +135,7 @@ export function ManualSavingsForm({
                 onClick={() => handlePrefillLockedPeriod(p)}
                 className="px-2.5 py-1 rounded border border-[rgba(16,183,141,0.35)] bg-[rgba(16,183,141,0.08)] hover:bg-[rgba(16,183,141,0.15)] text-[11px] font-sans text-delta-positive transition-colors cursor-pointer"
               >
-                Pre-fill {p.month}/{p.year} P1 Savings:{" "}
+                Pre-fill {p.month}/{p.year} Savings:{" "}
                 <strong className="font-mono">
                   {formatRupiah(p.untransferredAmount)}
                 </strong>

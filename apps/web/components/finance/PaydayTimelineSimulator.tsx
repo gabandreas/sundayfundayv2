@@ -213,7 +213,7 @@ export function PaydayTimelineSimulator({ month, year }: PaydayTimelineSimulator
                   {formatRp(Math.max(0, timeline.baseline.thrAmount - timeline.spaylaterRemainingAfterEarly))}
                 </div>
                 <div className="text-[10px] font-mono text-text-tertiary whitespace-nowrap">
-                  Net carry-forward to 12/2026 P1/P2
+                  Net carry-forward to 12/2026 Savings &amp; Surplus
                 </div>
               </div>
             </div>

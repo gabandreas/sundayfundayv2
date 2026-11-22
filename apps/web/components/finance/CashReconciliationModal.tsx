@@ -199,7 +199,7 @@ export function CashReconciliationModal({
       <button
         type="button"
         disabled
-        title="Period is locked — cash reconciliation is disabled"
+        title="Period is locked â€” cash reconciliation is disabled"
         className="px-2.5 py-1 rounded text-[11px] font-sans font-medium bg-surface-subtle text-text-tertiary border border-border-subtle opacity-60 cursor-not-allowed inline-flex items-center gap-1.5"
       >
         <Scale className="w-3.5 h-3.5" />
@@ -314,7 +314,7 @@ export function CashReconciliationModal({
                   <div className="p-3.5 rounded bg-surface-subtle/60 border border-border space-y-2.5">
                     <div className="flex items-center justify-between text-[11px] text-text-tertiary">
                       <span>
-                        Enter balances across your operational accounts/wallets — sum syncs automatically below.
+                        Enter balances across your operational accounts/wallets â€” sum syncs automatically below.
                       </span>
                       <button
                         type="button"
@@ -491,7 +491,7 @@ export function CashReconciliationModal({
                         {formatIDR(preview.adjustmentAmount)})
                       </div>
                       <p className="text-[11px] text-text-tertiary mt-1">
-                        Logs a MANUAL INCOME entry, boosting Total Net Income and P1/P2 Waterfall Surplus.
+                        Logs a manual income entry, boosting Total Net Income and Savings &amp; Surplus allocations.
                       </p>
                     </button>
                   </div>
@@ -554,7 +554,7 @@ export function CashReconciliationModal({
 
                     <div className="flex items-center justify-between">
                       <span className="text-text-secondary">
-                        Priority 1 Core Savings Allocation
+                        Core Savings Allocation
                       </span>
                       <div className="flex items-center gap-2 font-mono">
                         <span className="text-text-tertiary">
@@ -575,7 +575,7 @@ export function CashReconciliationModal({
 
                     <div className="flex items-center justify-between">
                       <span className="text-text-secondary">
-                        Priority 2 Self-Reward Surplus
+                        Flexible Surplus
                       </span>
                       <div className="flex items-center gap-2 font-mono">
                         <span className="text-text-tertiary">
@@ -674,7 +674,7 @@ export function CashReconciliationModal({
                     preview.resolvedActionType === "NO_OP"
                   }
                   onClick={handleConfirm}
-                  className="px-4 py-1.5 rounded text-xs font-semibold bg-text-primary text-canvas hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1.5 cursor-pointer"
+                  className="px-4 py-1.5 rounded text-xs font-semibold erp-btn-primary hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1.5 cursor-pointer"
                 >
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   {isSubmitting

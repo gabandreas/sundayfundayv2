@@ -1,11 +1,12 @@
 "use client";
 
 import React from "react";
-import { MonthlySnapshot, DailyPacing } from "@/lib/api";
+import { MonthlySnapshot, DailyPacing, resolvePriorityTierLabel } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
 import { PrivacyEyeButton } from "@/components/shell/PrivacyEyeButton";
 import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { usePerspective } from "@/context/PerspectiveContext";
 
 interface CashflowSummaryCardProps {
   snapshot: MonthlySnapshot;
@@ -15,6 +16,9 @@ interface CashflowSummaryCardProps {
 export function CashflowSummaryCard({ snapshot, pacing }: CashflowSummaryCardProps) {
   const { isAmountsMasked } = usePrivacyMask();
   const { t } = useLanguage();
+  const { studioConfig } = usePerspective();
+  const savingsTierLabel = resolvePriorityTierLabel(studioConfig, "SAVINGS", "Core Savings");
+  const surplusTierLabel = resolvePriorityTierLabel(studioConfig, "DISCRETIONARY", "Flexible Surplus");
   const totalIncome = snapshot.finalTotalIncome ?? snapshot.netSalaryIncome ?? 0;
   const totalDeductions = snapshot.totalDeductions ?? 0;
   const dailySpent = pacing?.totalDailySpent ?? 0;
@@ -83,14 +87,14 @@ export function CashflowSummaryCard({ snapshot, pacing }: CashflowSummaryCardPro
           </div>
           <div className="grid grid-cols-3 gap-2 text-center">
             <div className="p-2 rounded bg-surface-subtle border border-border-subtle">
-              <div className="text-[10px] text-text-tertiary font-sans">Savings (P1)</div>
-              <div className="font-mono text-xs font-medium text-text-primary mt-0.5 tabular-nums">
+              <div className="text-[10px] text-text-tertiary font-sans">{savingsTierLabel}</div>
+              <div className="font-mono text-xs font-medium text-text-primary mt-0.5 tabular-nums erp-tabular-currency">
                 {formatRupiah(snapshot.actualSavings ?? 0, isAmountsMasked)}
               </div>
             </div>
             <div className="p-2 rounded bg-surface-subtle border border-border-subtle">
-              <div className="text-[10px] text-text-tertiary font-sans">Self-Reward (P2)</div>
-              <div className="font-mono text-xs font-medium text-text-primary mt-0.5 tabular-nums flex items-center justify-center gap-1">
+              <div className="text-[10px] text-text-tertiary font-sans">{surplusTierLabel}</div>
+              <div className="font-mono text-xs font-medium text-text-primary mt-0.5 tabular-nums erp-tabular-currency flex items-center justify-center gap-1">
                 <span>{formatRupiah(snapshot.selfReward ?? 0, isAmountsMasked)}</span>
                 {(snapshot.selfReward ?? 0) === 0 && (snapshot.selfRewardTarget ?? 0) > 0 && (
                   <span

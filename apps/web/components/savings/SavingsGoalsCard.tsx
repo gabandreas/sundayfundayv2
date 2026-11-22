@@ -125,7 +125,7 @@ export function SavingsGoalsCard({
             Target Savings Goals & Projections
           </h2>
           <p className="text-xs text-text-secondary mt-0.5">
-            Forward goal trajectories calculated against target dates and your average monthly P1 savings pace ({formatRupiah(avgMonthlySavings)}/month).
+            Forward goal trajectories calculated against target dates and your average monthly savings pace ({formatRupiah(avgMonthlySavings)}/month).
           </p>
         </div>
         <button
@@ -267,7 +267,7 @@ export function SavingsGoalsCard({
                         ? `${goal.projectedCompletionDate} (${goal.projectedMonthsAtPace} mo)`
                         : goal.remainingNeeded === 0
                           ? "Completed"
-                          : "P1 Savings Needed"}
+                          : "More Savings Needed"}
                     </span>
                   </div>
                 </div>

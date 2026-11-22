@@ -7,9 +7,11 @@ import {
   MonthlySnapshot,
   createExpenseTransaction,
   FixedEssentialCategory,
+  resolvePriorityTierLabel,
 } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
 import { EditableTarget } from "./EditableTarget";
+import { usePerspective } from "@/context/PerspectiveContext";
 
 interface PillarsAndExpenseLoggerCardProps {
   snapshot: MonthlySnapshot | null;
@@ -144,6 +146,10 @@ export function PillarsAndExpenseLoggerCard({
     }
   };
 
+  const { studioConfig } = usePerspective();
+  const savingsTierLabel = resolvePriorityTierLabel(studioConfig, "SAVINGS", "Core Savings");
+  const surplusTierLabel = resolvePriorityTierLabel(studioConfig, "DISCRETIONARY", "Flexible Surplus");
+
   const totalAllocated =
     (snapshot?.actualSavings ?? 0) +
     (snapshot?.selfReward ?? 0) +
@@ -170,10 +176,10 @@ export function PillarsAndExpenseLoggerCard({
         </div>
 
         <div className="pt-2.5 border-t border-border-subtle space-y-2 text-xs font-sans">
-          {/* Savings (P1) */}
+          {/* Core Savings */}
           <div className="flex items-center justify-between">
             <div>
-              <span className="text-text-secondary text-[11px] block">Savings (P1):</span>
+              <span className="text-text-secondary text-[11px] block">{savingsTierLabel}:</span>
               {(snapshot?.actualSavings ?? 0) < (snapshot?.savings ?? 0) && (
                 <span className="text-[9px] text-text-tertiary font-mono">
                   Target: {formatRupiah(snapshot?.savings ?? 0)}
@@ -197,10 +203,10 @@ export function PillarsAndExpenseLoggerCard({
             </div>
           </div>
 
-          {/* Self-Reward (P2) */}
+          {/* Flexible Surplus */}
           <div className="flex items-center justify-between">
             <div>
-              <span className="text-text-secondary text-[11px] block">Self-Reward (P2):</span>
+              <span className="text-text-secondary text-[11px] block">{surplusTierLabel}:</span>
               {(snapshot?.selfReward ?? 0) < (snapshot?.selfRewardTarget ?? 0) && (
                 <span className="text-[9px] text-text-tertiary font-mono">
                   Target: {formatRupiah(snapshot?.selfRewardTarget ?? 0)}

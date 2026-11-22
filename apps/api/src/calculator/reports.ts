@@ -221,6 +221,7 @@ export interface MonthlyClosingStatement {
   pacing: PacingResult;
   governance: {
     disciplineScore: number;
+    overallDisciplineScore?: number;
     greenCount: number;
     yellowCount: number;
     redCount: number;

@@ -16,7 +16,7 @@ const FORMULA_ENGINES: Array<{
     title: "Debt-First Waterfall",
     badge: "CANONICAL DEFAULT",
     description:
-      "Mandatory Bills & Routine Envelopes + Daily Living upfront, then Priority 1 Core Savings, then Priority 2 Self-Reward.",
+      "Mandatory Bills & Routine Envelopes + Daily Living upfront, then Core Savings Reserve, then Flexible Surplus.",
   },
   {
     key: "SAVINGS_FIRST_LOCK",
@@ -95,7 +95,7 @@ export function FormulaEngineSelectorCard() {
   const handleApplyEngine = async () => {
     if (isOwnerProtected && selectedEngine !== "DEBT_FIRST_WATERFALL") {
       setStatusMessage(
-        "Platform Owner (User #1) canonical snapshots are protected on DEBT_FIRST_WATERFALL. Switch to Demo Sandbox or a Client Account to test alternative engines."
+        "Platform Owner (User #1) canonical snapshots are protected on the Debt-First Waterfall engine. Switch to Demo Sandbox or a Client Account to test alternative engines."
       );
       return;
     }
@@ -195,7 +195,7 @@ export function FormulaEngineSelectorCard() {
             type="button"
             disabled={isSaving}
             onClick={handleApplyEngine}
-            className="px-3.5 py-1.5 rounded text-xs font-medium bg-text-primary text-background hover:opacity-90 transition-opacity"
+            className="px-3.5 py-1.5 rounded text-xs font-medium erp-btn-primary hover:opacity-90 transition-opacity"
           >
             {isSaving ? "Applying..." : "Apply Savings-First Lock"}
           </button>
@@ -243,7 +243,7 @@ export function FormulaEngineSelectorCard() {
             type="button"
             disabled={isSaving}
             onClick={handleApplyEngine}
-            className="px-3.5 py-1.5 rounded text-xs font-medium bg-text-primary text-background hover:opacity-90 transition-opacity"
+            className="px-3.5 py-1.5 rounded text-xs font-medium erp-btn-primary hover:opacity-90 transition-opacity"
           >
             {isSaving ? "Applying..." : "Apply Percentage Split"}
           </button>
@@ -286,7 +286,7 @@ export function FormulaEngineSelectorCard() {
             type="button"
             disabled={isSaving}
             onClick={handleApplyEngine}
-            className="px-3.5 py-1.5 rounded text-xs font-medium bg-text-primary text-background hover:opacity-90 transition-opacity"
+            className="px-3.5 py-1.5 rounded text-xs font-medium erp-btn-primary hover:opacity-90 transition-opacity"
           >
             {isSaving ? "Applying..." : "Apply Retirement Drawdown"}
           </button>
@@ -300,7 +300,7 @@ export function FormulaEngineSelectorCard() {
               type="button"
               disabled={isSaving}
               onClick={handleApplyEngine}
-              className="px-3.5 py-1.5 rounded text-xs font-medium bg-text-primary text-background hover:opacity-90 transition-opacity"
+              className="px-3.5 py-1.5 rounded text-xs font-medium erp-btn-primary hover:opacity-90 transition-opacity"
             >
               {isSaving ? "Applying..." : "Restore Debt-First Waterfall"}
             </button>

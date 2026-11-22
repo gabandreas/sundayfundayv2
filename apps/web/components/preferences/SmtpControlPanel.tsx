@@ -380,7 +380,7 @@ export function SmtpControlPanel({
                   ? `Verified Live SMTP (${hostDisplay}:${portDisplay}${emailStatus?.fallbackUsed ? " STARTTLS" : ""})`
                   : isAuthError
                     ? `SMTP Auth / Connection Error (${hostDisplay}:${portDisplay})`
-                    : "Preview / Dry-Run Mode — App Password Unset"}
+                    : "Preview / Dry-Run Mode â€” App Password Unset"}
               </span>
             </div>
             <p className="text-xs font-sans text-text-tertiary mt-1">
@@ -601,7 +601,7 @@ export function SmtpControlPanel({
           <button
             type="submit"
             disabled={saving}
-            className="px-4 py-1.5 rounded text-xs font-medium bg-text-primary text-canvas hover:opacity-90 transition-opacity disabled:opacity-50 cursor-pointer"
+            className="px-4 py-1.5 rounded text-xs font-medium erp-btn-primary hover:opacity-90 transition-opacity disabled:opacity-50 cursor-pointer"
           >
             {saving ? "Saving Configuration..." : "Save SMTP & Channel Settings"}
           </button>

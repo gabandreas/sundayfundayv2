@@ -29,6 +29,7 @@ import {
   EvaluateFormulaSuiteDto,
   ParseReconcilerDto,
   SimulateCutoffDto,
+  SimulateScenarioDto,
   SimulateTimelineDto,
   WalletGuardEvaluateDto,
 } from './dto/hybrid-finance.dto';
@@ -309,5 +310,11 @@ export class FinanceController {
       dto.overrideVariables,
       userId,
     );
+  }
+
+  @Post('scenarios/simulate')
+  async simulateScenario(@Body() dto: SimulateScenarioDto, @Req() req?: any) {
+    const userId = getUserIdOrThrow(req);
+    return this.financeSelectors.simulateScenarioForUser(dto, userId);
   }
 }

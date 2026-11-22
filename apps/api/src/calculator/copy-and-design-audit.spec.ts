@@ -302,4 +302,115 @@ describe('System-Wide Anti-AI-Slop Visual Design, Temporal Chart Axis & Human Co
     expect(drawer).not.toContain('3.4jt Natal THR');
     expect(workspace).not.toContain('3.4jt Natal THR');
   });
+
+  it('enforces dark emerald-slate CTA buttons (no glaring white bg-text-primary text-canvas), Sidebar BrandMark, global PrivacyEyeButton, and route skeletons', () => {
+    const globals = fs.readFileSync(path.join(WEB_DIR, 'app', 'globals.css'), 'utf8');
+    expect(globals).toContain('.erp-btn-primary');
+    expect(globals).toContain('.erp-btn-secondary');
+
+    const uiFiles = collectFiles(path.join(WEB_DIR, 'components'), ['.ts', '.tsx']).concat(
+      collectFiles(path.join(WEB_DIR, 'app'), ['.ts', '.tsx']),
+    );
+    for (const file of uiFiles) {
+      const content = fs.readFileSync(file, 'utf8');
+      const rel = path.relative(REPO_ROOT, file);
+      expect({ file: rel, whiteBtn: content.includes('bg-text-primary text-canvas') }).toEqual({
+        file: rel,
+        whiteBtn: false,
+      });
+    }
+
+    const sidebar = fs.readFileSync(
+      path.join(WEB_DIR, 'components', 'shell', 'Sidebar.tsx'),
+      'utf8',
+    );
+    expect(sidebar).toContain('<BrandMark');
+    expect(sidebar).toContain('/import');
+    expect(sidebar).toContain('/scenarios');
+    expect(sidebar).not.toContain('SPinjam Tracker');
+
+    const appHeader = fs.readFileSync(
+      path.join(WEB_DIR, 'components', 'shell', 'AppHeader.tsx'),
+      'utf8',
+    );
+    expect(appHeader).toContain('PrivacyEyeButton');
+
+    expect(
+      fs.existsSync(path.join(WEB_DIR, 'components', 'primitives', 'PageHeader.tsx')),
+    ).toBe(true);
+    expect(
+      fs.existsSync(path.join(WEB_DIR, 'components', 'primitives', 'WorkspaceSkeleton.tsx')),
+    ).toBe(true);
+
+    const requiredLoadings = [
+      'loading.tsx',
+      'allocations/loading.tsx',
+      'credit/loading.tsx',
+      'savings/loading.tsx',
+      'reports/loading.tsx',
+      'import/loading.tsx',
+      'scenarios/loading.tsx',
+      'preferences/loading.tsx',
+      'analytics/loading.tsx',
+      'calendar/loading.tsx',
+      'payroll/loading.tsx',
+    ];
+    for (const lp of requiredLoadings) {
+      expect({ loadingFile: lp, exists: fs.existsSync(path.join(WEB_DIR, 'app', lp)) }).toEqual({
+        loadingFile: lp,
+        exists: true,
+      });
+    }
+  });
+
+  it('purges P1/P2/P3 priority labels & raw enum strings from consumer UI, sets consolidated tabs, and wires visual /reports, /import, /scenarios & 6-tab /preferences', () => {
+    const bannedUiCopy = [
+      /\bPriority [123]\b/,
+      /\((?:P1|P2|P3)\)/,
+      /\bCore P1\b/,
+      /\bP1 Savings\b/,
+      /\bP2 Surplus\b/,
+      /\bP1 Refund\b/,
+      /Rp\s+Rp\b/,
+      /(?<![`"'])DEBT_FIRST_WATERFALL(?![`"'])/,
+      /Rp\s*•••••••/,
+    ];
+    const checkFiles = [
+      ...collectFiles(path.join(WEB_DIR, 'components', 'overview'), ['.ts', '.tsx']),
+      ...collectFiles(path.join(WEB_DIR, 'components', 'allocations'), ['.ts', '.tsx']),
+      ...collectFiles(path.join(WEB_DIR, 'components', 'savings'), ['.ts', '.tsx']),
+      ...collectFiles(path.join(WEB_DIR, 'components', 'reports'), ['.ts', '.tsx']),
+      ...collectFiles(path.join(WEB_DIR, 'components', 'credit'), ['.ts', '.tsx']),
+      ...collectFiles(path.join(WEB_DIR, 'components', 'analytics'), ['.ts', '.tsx']),
+      ...collectFiles(path.join(WEB_DIR, 'components', 'preferences'), ['.ts', '.tsx']),
+      path.join(WEB_DIR, 'context', 'LanguageContext.tsx'),
+    ];
+    for (const file of checkFiles) {
+      const content = fs.readFileSync(file, 'utf8');
+      const rel = path.relative(REPO_ROOT, file);
+      for (const rx of bannedUiCopy) {
+        expect({ file: rel, badCopy: content.match(rx)?.[0] ?? null }).toEqual({
+          file: rel,
+          badCopy: null,
+        });
+      }
+    }
+
+    const tabs = fs.readFileSync(path.join(WEB_DIR, 'lib', 'tabs.ts'), 'utf8');
+    expect(tabs).toContain('ALLOCATIONS_SUB_KEYS = ["waterfall", "envelopes"]');
+    expect(tabs).toContain('CREDIT_SUB_KEYS = ["matrix", "simulator"]');
+    expect(tabs).toContain('SAVINGS_SUB_KEYS = ["pockets", "runway"]');
+    expect(tabs).toContain('PREFERENCES_TAB_KEYS: readonly PreferencesTabKey[] = [');
+    expect(tabs).toContain('"display"');
+    expect(tabs).toContain('"backup"');
+
+    expect(
+      fs.existsSync(path.join(WEB_DIR, 'components', 'reports', 'ReportsEquityChart.tsx')),
+    ).toBe(true);
+    expect(
+      fs.existsSync(path.join(WEB_DIR, 'components', 'reports', 'ReportsSpendingBreakdown.tsx')),
+    ).toBe(true);
+    expect(fs.existsSync(path.join(WEB_DIR, 'app', 'import', 'page.tsx'))).toBe(true);
+    expect(fs.existsSync(path.join(WEB_DIR, 'app', 'scenarios', 'page.tsx'))).toBe(true);
+  });
 });

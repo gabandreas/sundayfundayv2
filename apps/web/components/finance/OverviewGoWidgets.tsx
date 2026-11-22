@@ -263,7 +263,7 @@ export function OverviewIntelligenceStrip({
             {dynamicMilestone?.targetDateLabel ?? forecaster.spinjamFreedomDate}
           </span>{" "}
           {debtopt.spinjamMonthlyTotalRp > 0
-            ? `(SPinjam ${formatRupiah(debtopt.spinjamMonthlyTotalRp, isAmountsMasked)}/mo). `
+            ? `(Priority Loan ${formatRupiah(debtopt.spinjamMonthlyTotalRp, isAmountsMasked)}/mo). `
             : "· "}
           {t("intel.ageOfMoney")}:{" "}
           <span className="font-mono text-text-primary font-medium">{forecaster.pureSurvivalRunwayDays}d</span>.

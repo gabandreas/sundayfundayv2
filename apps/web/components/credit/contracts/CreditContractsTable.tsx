@@ -230,7 +230,7 @@ export function CreditContractsTable({
                               type="button"
                               disabled={busyId === row.id}
                               onClick={() => handleAccelerate(row.parentContractId!, row.id)}
-                              className="px-2 py-1 rounded bg-text-primary text-canvas text-[10px] font-mono font-semibold disabled:opacity-40"
+                              className="px-2 py-1 rounded erp-btn-primary text-[10px] font-mono font-semibold disabled:opacity-40"
                             >
                               {busyId === row.id ? "..." : "Settle"}
                             </button>

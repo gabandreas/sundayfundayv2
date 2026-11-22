@@ -149,30 +149,30 @@ const COPY = {
   },
   zh: {
     subtitle:
-      "集中管理信用卡定期订阅、一次性 AI 与数字服务账单、每月固定例行额度以及账单日与还款日倒计时。",
-    addAction: "新增账单 / 订阅",
-    killSwitchLink: "Kill-Switch 与邮件面板",
-    monthlyRecurringLabel: "当前每月固定与订阅支出",
-    monthlyRecurringSub: "活跃信用卡订阅 + 例行固定额度",
-    annualizedLabel: "年度预测支出 (12个月)",
-    annualizedSub: "12个月持续性固定与订阅总额",
-    oneOffCycleLabel: "一次性数字与单笔卡消费",
-    cutoffCardLabel: "近期账单截止与还款日",
-    searchPlaceholder: "筛选商户、类别或备注...",
-    allTab: "全部记录",
-    recurringTab: "定期订阅",
-    oneOffTab: "一次性消费",
-    stoppedTab: "已停用",
-    colMerchant: "商户 / 项目",
-    colMode: "模式",
-    colBilling: "账单周期",
-    colAmount: "金额",
-    colKillSwitch: "Kill-Switch 预警",
-    colAction: "操作",
-    routineHeading: "每月固定例行预算额度",
-    routineManage: "编辑例行额度",
-    emptyRows: "当前筛选条件下暂无匹配的订阅或卡账单记录。",
-    periodLockedNote: "当前周期已锁定，停用或恢复订阅操作已禁用。",
+      "é›†ä¸­ç®¡ç†ä¿¡ç”¨å¡å®šæœŸè®¢é˜…ã€ä¸€æ¬¡æ€§ AI ä¸Žæ•°å­—æœåŠ¡è´¦å•ã€æ¯æœˆå›ºå®šä¾‹è¡Œé¢åº¦ä»¥åŠè´¦å•æ—¥ä¸Žè¿˜æ¬¾æ—¥å€’è®¡æ—¶ã€‚",
+    addAction: "æ–°å¢žè´¦å• / è®¢é˜…",
+    killSwitchLink: "Kill-Switch ä¸Žé‚®ä»¶é¢æ¿",
+    monthlyRecurringLabel: "å½“å‰æ¯æœˆå›ºå®šä¸Žè®¢é˜…æ”¯å‡º",
+    monthlyRecurringSub: "æ´»è·ƒä¿¡ç”¨å¡è®¢é˜… + ä¾‹è¡Œå›ºå®šé¢åº¦",
+    annualizedLabel: "å¹´åº¦é¢„æµ‹æ”¯å‡º (12ä¸ªæœˆ)",
+    annualizedSub: "12ä¸ªæœˆæŒç»­æ€§å›ºå®šä¸Žè®¢é˜…æ€»é¢",
+    oneOffCycleLabel: "ä¸€æ¬¡æ€§æ•°å­—ä¸Žå•ç¬”å¡æ¶ˆè´¹",
+    cutoffCardLabel: "è¿‘æœŸè´¦å•æˆªæ­¢ä¸Žè¿˜æ¬¾æ—¥",
+    searchPlaceholder: "ç­›é€‰å•†æˆ·ã€ç±»åˆ«æˆ–å¤‡æ³¨...",
+    allTab: "å…¨éƒ¨è®°å½•",
+    recurringTab: "å®šæœŸè®¢é˜…",
+    oneOffTab: "ä¸€æ¬¡æ€§æ¶ˆè´¹",
+    stoppedTab: "å·²åœç”¨",
+    colMerchant: "å•†æˆ· / é¡¹ç›®",
+    colMode: "æ¨¡å¼",
+    colBilling: "è´¦å•å‘¨æœŸ",
+    colAmount: "é‡‘é¢",
+    colKillSwitch: "Kill-Switch é¢„è­¦",
+    colAction: "æ“ä½œ",
+    routineHeading: "æ¯æœˆå›ºå®šä¾‹è¡Œé¢„ç®—é¢åº¦",
+    routineManage: "ç¼–è¾‘ä¾‹è¡Œé¢åº¦",
+    emptyRows: "å½“å‰ç­›é€‰æ¡ä»¶ä¸‹æš‚æ— åŒ¹é…çš„è®¢é˜…æˆ–å¡è´¦å•è®°å½•ã€‚",
+    periodLockedNote: "å½“å‰å‘¨æœŸå·²é”å®šï¼Œåœç”¨æˆ–æ¢å¤è®¢é˜…æ“ä½œå·²ç¦ç”¨ã€‚",
   },
 } as const;
 
@@ -607,7 +607,7 @@ export function SubscriptionsStudio({
           <button
             type="button"
             onClick={openDialog}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded text-xs font-medium bg-text-primary text-canvas hover:opacity-90 transition-opacity cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded text-xs font-medium erp-btn-primary hover:opacity-90 transition-opacity cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             {copy.addAction}
@@ -840,7 +840,7 @@ export function SubscriptionsStudio({
                           {formatPeriodCode(tx.billingMonth, tx.billingYear)}
                           {tx.stoppedAtMonth && tx.stoppedAtYear && (
                             <span className="text-text-tertiary ml-1">
-                              → {formatPeriodCode(tx.stoppedAtMonth, tx.stoppedAtYear)}
+                              â†’ {formatPeriodCode(tx.stoppedAtMonth, tx.stoppedAtYear)}
                             </span>
                           )}
                         </td>
@@ -874,7 +874,7 @@ export function SubscriptionsStudio({
                               <ExternalLink className="w-3 h-3" />
                             </Link>
                           ) : (
-                            <span className="text-text-tertiary">—</span>
+                            <span className="text-text-tertiary">â€”</span>
                           )}
                         </td>
 
@@ -1180,7 +1180,7 @@ export function SubscriptionsStudio({
             <button
               type="submit"
               disabled={submitting}
-              className="px-4 py-1.5 rounded text-xs font-medium bg-text-primary text-canvas hover:opacity-90 disabled:opacity-50 cursor-pointer"
+              className="px-4 py-1.5 rounded text-xs font-medium erp-btn-primary hover:opacity-90 disabled:opacity-50 cursor-pointer"
             >
               {submitting ? "Saving..." : "Save Entry"}
             </button>

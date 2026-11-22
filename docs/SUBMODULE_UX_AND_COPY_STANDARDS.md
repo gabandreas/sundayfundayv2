@@ -4,13 +4,18 @@
 
 - **Overview (`/`) stays single-surface:** `OverviewClientView.tsx` renders one continuous vertical workspace (`OverviewExecutiveRibbon` -> 3-column Core Bento Grid -> `OverviewIntelligenceStrip` -> `RecentTransactionsTable`) with **zero sidebar sub-modules**.
 - **`RecordExpenseCard.tsx` Work-Hours Badge:** Displays live equivalent work-hours cost derived from the active period's `lifeenergy.trueNetHourlyWageRp` as amounts are entered.
-- **Six Expandable Sidebar Parent Routes (`Sidebar.tsx` `SUBMODULES_BY_ROUTE`):**
-  - `/payroll`: `payslip` (default), `timeline`, `lifeenergy`
-  - `/allocations`: `waterfall` (default), `envelopes`, `revisions`
-  - `/credit`: `matrix` (default), `contracts`, `simulator`, `reconciler`
-  - `/savings`: `vault` (default), `networth`, `forecaster`
-  - `/reports`: `executive` (default), `variance`, `export`
-  - `/preferences`: `formula` (default), `instruments`, `accounts`, `templates`, `navigation`, `notifications`
+- **Consolidated Navigation IA (Zero `SPinjam Tracker`, Dedicated Go-Powered Operational Workspaces):**
+  - **`/payroll`:** `payslip` (default), `timeline`, `lifeenergy`
+  - **`/allocations` (*Monthly Plan*):** `waterfall` (default: *Plan & Quota Simulator*), `envelopes` (*Routine & Sinking Reserve* synced 1:1 from Preferences templates & Go `envelopes`)
+  - **`/credit` (*Installments & Bills*):** `matrix` (default: *Bill Schedule & Cards* — unified 12-cycle schedule + card swipes without redundant nested tab bars), `simulator` (*Payoff Strategy & Cutoff Check* combining Go `debtopt` + `cutoff`)
+  - **`/savings` (*Savings & Pockets*):** `pockets` (default: *Savings Pockets & Goals* splitting confirmed savings pool into Emergency Fund, Wishlist Reserve, Annual Reserve, & Custom Pockets), `runway` (*Net Worth & Survival Runway* powered by Go `networth` + `forecaster`)
+  - **`/import` (*Statement Import*):** Dedicated Go `reconciler` + `paycycle` statement parser, deduplicator, cutoff router, and ledger committer (replaces buried `/credit?sub=reconciler` card)
+  - **`/scenarios` (*What-If Scenario Lab*):** Dedicated Go `forecaster` + `debtopt` + `cutoff` interactive scenario lab comparing Baseline vs Adjusted Income/Bonus/Prepayment/Shock curves (replaces `SPinjam Tracker` shortcut)
+  - **`/analytics` (*Spending & Anomalies*):** Enhanced Go `anomaly` + burn velocity + work-hour breakdown
+  - **`/reports` (*Financial Reports*):** Clean 2-tier non-crushed header, SVG Trading-Style Equity/Cashflow Curve, Visual *"Where Your Money Went This Cycle"* breakdown, unified single Discipline Score, and clean 4-sheet Excel export spacing
+  - **`/preferences` (*Preferences* — 6 Full-Width Non-Overflowing Tabs):** `formula` (*Paycycle & Priority Rules*), `instruments` (*Payment Methods & Cutoffs*), `templates` (*Routine Bills & Savings Pockets*), `display` (*Account, Privacy & Display*), `notifications` (*Notifications & Promo Watch*), `backup` (*Backup, Restore & Data*)
+- **Button, Logo & Loading Standardization:** Primary buttons use `.erp-btn-primary` (muted dark emerald-slate `#12332a` + `#10b78d/45` border), secondary actions use `.erp-btn-secondary` (`#1d222e`), never glaring white `#f3f4f6` CTA fills (`bg-text-primary text-canvas`). Every workspace shares `<PageHeader />`, `<BrandMark />` appears in both Sidebar lockup and unified headers, and every App Router directory provides `loading.tsx` skeletons.
+- **Zero Priority Jargon (`P1` / `P2` / `P3`):** Numeric priority tags (`P1`, `P2`, `Priority 1`, `Priority 2`) are purged from consumer UI copy and replaced by user-configured tier names managed in Preferences (`priorityTiers`: e.g., `Core Savings Reserve`, `Flexible Surplus`).
 - **Zero `_rsc` Sub-Module Switching (`<15ms`):** Managed by `useSubModule` (`apps/web/hooks/useSubModule.ts`), `syncSubInUrl` (`apps/web/lib/tabs.ts`), and `window.dispatchEvent(new CustomEvent("erp:sub-change", ...))`. Both `?sub=` and legacy `?tab=` aliases resolve without Next.js server round-trips.
 - **Standalone Fixed Modules:** `/wishlist`, `/audit`, and `/analytics` are enhanced in place (including `AnalyticsGoTelemetryStrip`) without collapsible sub-trees.
 

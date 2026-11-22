@@ -253,6 +253,12 @@ export interface SavingsOverviewResult {
   financialCapacity?: FinancialCapacity;
   wealthTargetConfig?: WealthTargetConfig;
   wealthTargetPlan?: WealthTargetPlanResult;
+  pocketsSummary?: {
+    totalConfirmedSavingsRp: number;
+    totalAllocatedRp: number;
+    unallocatedPoolRp: number;
+    pockets: SavingsPocketConfig[];
+  };
 }
 
 export interface SavingsVault {
@@ -276,6 +282,12 @@ export interface SavingsVault {
   periodDepositsByPeriod?: Record<string, number>;
   untransferredLockedPeriods?: UntransferredLockedPeriod[];
   overview?: SavingsOverviewResult;
+  pocketsSummary?: {
+    totalConfirmedSavingsRp: number;
+    totalAllocatedRp: number;
+    unallocatedPoolRp: number;
+    pockets: SavingsPocketConfig[];
+  } | null;
 }
 
 export interface CreditContract {
@@ -3691,6 +3703,7 @@ export interface MonthlyClosingStatement {
   pacing: DailyPacing;
   governance: {
     disciplineScore: number;
+    overallDisciplineScore?: number;
     greenCount: number;
     yellowCount: number;
     redCount: number;
@@ -5829,6 +5842,35 @@ export interface SidebarNavigationConfig {
   customShortcuts: CustomSidebarShortcut[];
 }
 
+export interface PriorityTierConfig {
+  key: "SAVINGS" | "DISCRETIONARY" | string;
+  label: string;
+  order: number;
+  enabled: boolean;
+}
+
+export interface SavingsPocketConfig {
+  id: string;
+  key: string;
+  name: string;
+  category: "EMERGENCY_FUND" | "WISHLIST" | "SINKING_RESERVE" | "CUSTOM";
+  allocatedRp: number;
+  targetRp: number;
+  notes?: string;
+}
+
+export interface DisplayPreferencesConfig {
+  defaultLanguage: "en" | "id" | "zh";
+  numberFormat: "id-ID" | "en-US";
+  uiDensity: "COMMAND_COCKPIT" | "SIMPLE_CLARITY";
+  hidePriorityCodesInUi: boolean;
+}
+
+export interface PrivacyPreferencesConfig {
+  maskBalancesByDefault: boolean;
+  requirePasswordToReveal: boolean;
+}
+
 export interface ModularStudioConfig {
   enableExternalAssetPortfolio?: boolean;
   actualP1VaultBalanceRp?: number | null;
@@ -5837,6 +5879,19 @@ export interface ModularStudioConfig {
   assetAccountsTable: AssetAccountConfigRow[];
   routineTemplatesTable: RoutineTemplateConfigRow[];
   sidebarNavigationConfig: SidebarNavigationConfig;
+  priorityTiers?: PriorityTierConfig[];
+  savingsPockets?: SavingsPocketConfig[];
+  displayPreferences?: DisplayPreferencesConfig;
+  privacyPreferences?: PrivacyPreferencesConfig;
+}
+
+export function resolvePriorityTierLabel(
+  studioConfig: ModularStudioConfig | null | undefined,
+  key: "SAVINGS" | "DISCRETIONARY",
+  fallback: string
+): string {
+  const hit = studioConfig?.priorityTiers?.find((t) => t.key === key);
+  return hit?.label?.trim() || fallback;
 }
 
 export interface PaycycleHorizonEngineResult {
@@ -6635,5 +6690,139 @@ export async function fetchCashRadar(
     return parsed;
   } catch {
     return null;
+  }
+}
+
+export interface SavingsPocketsSaveResponse {
+  totalConfirmedSavingsRp: number;
+  totalAllocatedRp: number;
+  unallocatedPoolRp: number;
+  pockets: SavingsPocketConfig[];
+}
+
+export async function saveSavingsPockets(
+  pockets: SavingsPocketConfig[]
+): Promise<{ success: boolean; data?: SavingsPocketsSaveResponse; error?: string }> {
+  try {
+    const res = await fetch(`${API_URL}/api/savings/pockets`, {
+      method: "PUT",
+      headers: {
+        ...(await getAuthHeaders()),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ pockets }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { success: false, error: body?.message || "Failed to update savings pockets" };
+    }
+    invalidateCache("savings");
+    invalidateCache("config");
+    return { success: true, data: body };
+  } catch (err: any) {
+    return { success: false, error: err?.message || "Network error" };
+  }
+}
+
+export async function changeAccountPassword(payload: {
+  currentPassword: string;
+  newPassword: string;
+}): Promise<{ success: boolean; message?: string; error?: string }> {
+  try {
+    const res = await fetch(`${API_URL}/api/auth/change-password`, {
+      method: "POST",
+      headers: {
+        ...(await getAuthHeaders()),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { success: false, error: body?.message || "Password update failed" };
+    }
+    return { success: true, message: body?.message || "Password updated cleanly." };
+  } catch (err: any) {
+    return { success: false, error: err?.message || "Network error" };
+  }
+}
+
+export interface ScenarioSimulationRequest {
+  month?: number;
+  year?: number;
+  extraMonthlySavingsRp?: number;
+  oneTimeBonusRp?: number;
+  monthlyLivingDeltaRp?: number;
+  extraDebtPrepaymentRp?: number;
+  variableShockPercent?: number;
+}
+
+export interface ScenarioSimulationResponse {
+  period: { month: number; year: number };
+  inputs: {
+    extraMonthlySavingsRp: number;
+    oneTimeBonusRp: number;
+    monthlyLivingDeltaRp: number;
+    extraDebtPrepaymentRp: number;
+    variableShockPercent: number;
+  };
+  baseline: {
+    projected6MWealthRp: number;
+    projected12MWealthRp: number;
+    freedomDate: string;
+    lowDsrDate: string;
+    emergencyCompletionDate: string;
+    runwayDays: number;
+  };
+  simulated: {
+    projected6MWealthRp: number;
+    projected12MWealthRp: number;
+    freedomDate: string;
+    lowDsrDate: string;
+    emergencyCompletionDate: string;
+    runwayDays: number;
+  };
+  net12MDeltaRp: number;
+  runwayDeltaDays: number;
+  series: Array<{
+    month: number;
+    year: number;
+    label: string;
+    baselineWealthRp: number;
+    simulatedWealthRp: number;
+    disciplinedWealthRp: number;
+    shockWealthRp: number;
+    baselineDsrPercent: number;
+    simulatedDsrPercent: number;
+    remainingPersonalDebtRp: number;
+  }>;
+  debtStrategies: Array<{
+    strategy: string;
+    immediateFreedMonthlyRp: number;
+    estimatedInterestSavedRp: number;
+    monthsShaved: number;
+    summary: string;
+  }>;
+}
+
+export async function simulateScenario(
+  payload: ScenarioSimulationRequest
+): Promise<{ success: boolean; data?: ScenarioSimulationResponse; error?: string }> {
+  try {
+    const res = await fetch(`${API_URL}/api/finance/scenarios/simulate`, {
+      method: "POST",
+      headers: {
+        ...(await getAuthHeaders()),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { success: false, error: body?.message || "Scenario simulation failed" };
+    }
+    return { success: true, data: body };
+  } catch (err: any) {
+    return { success: false, error: err?.message || "Network error" };
   }
 }

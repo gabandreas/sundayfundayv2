@@ -48,7 +48,7 @@ function textColorForTone(tone: Tone): string {
 function addBanner(ws: ExcelJS.Worksheet, colCount: number, title: string, subtitle: string) {
   const r1 = ws.addRow([title]);
   ws.mergeCells(r1.number, 1, r1.number, colCount);
-  r1.height = 28;
+  r1.height = 26;
   for (let c = 1; c <= colCount; c++) {
     const cell = r1.getCell(c);
     cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: COLORS.bannerBg } };
@@ -57,14 +57,13 @@ function addBanner(ws: ExcelJS.Worksheet, colCount: number, title: string, subti
   }
   const r2 = ws.addRow([subtitle]);
   ws.mergeCells(r2.number, 1, r2.number, colCount);
-  r2.height = 19;
+  r2.height = 18;
   for (let c = 1; c <= colCount; c++) {
     const cell = r2.getCell(c);
     cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: COLORS.totalBg } };
     cell.font = { name: "Calibri", italic: true, color: { argb: COLORS.ink }, size: 10 };
     cell.alignment = { vertical: "middle", horizontal: "left" };
   }
-  ws.addRow([]);
 }
 
 function addSectionTitle(ws: ExcelJS.Worksheet, colCount: number, title: string) {
@@ -151,17 +150,19 @@ function styleDataRow(
   }
 }
 
-function autoFitColumns(ws: ExcelJS.Worksheet, minWidth = 12, maxWidth = 44) {
-  ws.columns?.forEach((col) => {
+function autoFitColumns(ws: ExcelJS.Worksheet, minWidth = 11, maxWidth = 42) {
+  ws.columns?.forEach((col, colIdx) => {
     let maxLen = minWidth;
     col.eachCell?.({ includeEmpty: false }, (cell) => {
+      // Skip merged wide banner/section title cells so column 1 does not inflate unnecessarily
+      if (colIdx === 0 && cell.isMerged) return;
       const val = cell.value;
       const text =
         val && typeof val === "object" && "result" in val
           ? String((val as { result?: unknown }).result ?? "")
           : String(val ?? "");
-      if (text.length + 4 > maxLen) {
-        maxLen = text.length + 4;
+      if (text.length + 3 > maxLen) {
+        maxLen = text.length + 3;
       }
     });
     col.width = Math.min(maxWidth, maxLen);
@@ -215,7 +216,7 @@ export async function buildExecutiveReportWorkbook(
   [
     ["PayLater Bills (Due 25th M+1)", uw.paylaterBills, "Matrix PayLater Bucket"],
     ["Credit Card Charges (Due 11th M+1)", uw.creditCardBills, "Statement Period Due"],
-    ["Personal & Informal Debt (Due 8th/Exact)", uw.personalDebtBills, "SPinjam & P1 Vault Refunds"],
+    ["Personal & Informal Debt (Due 8th/Exact)", uw.personalDebtBills, "Personal Loans & Savings Repayments"],
     ["Direct Contract Installments", uw.contractInstallments, "Non-duplicated contracts"],
   ].forEach(([label, amt, note], i) => {
     const rNum = ws1.lastRow!.number + 1;
@@ -244,8 +245,8 @@ export async function buildExecutiveReportWorkbook(
     ["Fixed Routine Essentials Pool", uw.fixedEssentialsActual, "Transport, Internet, Vape, Haircut"],
     ["Daily Living Budget (Daily Operational)", uw.actualDailyOperational, `Remaining: Rp ${Math.round(mc.dailyLiving.remainingOperationalCash).toLocaleString("id-ID")}`],
     ["Emergency Buffer Pocket", uw.actualBufferPocket, "Protected reserve"],
-    ["Core Savings (P1 Allocation)", uw.actualSavings, `Realized Vault: Rp ${Math.round(mc.savingsBottomLine.realizedInVaultTotal).toLocaleString("id-ID")}`],
-    ["Self-Reward Allowance (P2)", uw.actualSelfReward, "Discretionary P2 surplus"],
+    ["Core Savings Allocation", uw.actualSavings, `Realized Savings: Rp ${Math.round(mc.savingsBottomLine.realizedInVaultTotal).toLocaleString("id-ID")}`],
+    ["Flexible Surplus Allowance", uw.actualSelfReward, "Discretionary surplus"],
     ["Deficit Uncovered", uw.deficitUncovered, uw.isDeficit ? "Cap exceeds inflow" : "Fully covered"],
   ].forEach(([label, amt, note], i) => {
     const rNum = ws1.lastRow!.number + 1;
@@ -287,8 +288,8 @@ export async function buildExecutiveReportWorkbook(
       "Total Income",
       "Debt Bills",
       "Routine & Daily Ops",
-      "Core Savings P1",
-      "Self-Reward P2",
+      "Core Savings",
+      "Flexible Surplus",
       "DSR %",
       "Score",
       "Narrative Driver",
@@ -339,7 +340,7 @@ export async function buildExecutiveReportWorkbook(
     `Due-Date & Settlement Schedule — ${cs.periodLabel}`,
     settlementTot
       ? `Period Total: Rp ${settlementTot.totalDue.toLocaleString("id-ID")} | Bank Hold Needed: Rp ${settlementTot.bankHoldNeeded.toLocaleString("id-ID")} | Paid: Rp ${settlementTot.paidAmount.toLocaleString("id-ID")}`
-      : "8th Personal Debt · 11th Credit Card · 25th SPayLater"
+      : "8th Personal Debt · 11th Credit Card · 25th PayLater"
   );
   addSectionTitle(ws2, 8, "SECTION A: 12-MONTH MATURITY SCHEDULE");
   addTableHeaders(

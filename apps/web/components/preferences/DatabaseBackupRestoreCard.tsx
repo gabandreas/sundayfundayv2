@@ -139,7 +139,7 @@ export function DatabaseBackupRestoreCard() {
             type="button"
             onClick={handleDownloadBackup}
             disabled={exporting}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded text-xs font-medium bg-text-primary text-canvas hover:opacity-90 disabled:opacity-50 transition-opacity cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded text-xs font-medium erp-btn-primary hover:opacity-90 disabled:opacity-50 transition-opacity cursor-pointer"
           >
             {exportSuccess ? (
               <>

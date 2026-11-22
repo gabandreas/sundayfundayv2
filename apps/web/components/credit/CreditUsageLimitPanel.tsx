@@ -156,7 +156,7 @@ export function CreditUsageLimitPanel({
 
   const optimalConstraintLabel =
     ceilingBreakdown.optimalBindingConstraint === "CASHFLOW_SAVINGS_PROTECTION"
-      ? "Constrained by Remaining Cashflow (Protects P1 Savings)"
+      ? "Constrained by Remaining Cashflow (Protects Core Savings)"
       : "Constrained by 20% Optimal Debt Ratio";
 
   const safeConstraintLabel =
@@ -363,7 +363,7 @@ export function CreditUsageLimitPanel({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="p-2.5 rounded bg-surface border border-border-subtle">
               <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
-                Optimal Ceiling (P1 Safe)
+                Optimal Ceiling (Savings-Safe)
               </div>
               <div className="text-sm font-mono font-bold tabular-nums text-delta-positive mt-0.5">
                 {formatRp(
@@ -411,7 +411,7 @@ export function CreditUsageLimitPanel({
               </span>
             </div>
             <div>
-              <span className="block text-text-tertiary/80">P1 Savings</span>
+              <span className="block text-text-tertiary/80">Core Savings</span>
               <span className="text-text-secondary tabular-nums">
                 {formatRp(ceilingBreakdown.savingsTarget)}
               </span>

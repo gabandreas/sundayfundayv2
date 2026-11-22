@@ -569,7 +569,7 @@ export default function SqlStudioPage() {
                     <Play className="w-3 h-3 fill-white" />
                     <span>{isExecuting ? "Executing..." : "Run"}</span>
                     <kbd className="hidden sm:inline text-[9px] font-mono bg-emerald-700/60 px-1 py-0.2 rounded border border-emerald-400/30">
-                      Ctrl+↵
+                      Ctrl+â†µ
                     </kbd>
                   </button>
                 </>
@@ -587,7 +587,7 @@ export default function SqlStudioPage() {
                         rowData: {},
                       })
                     }
-                    className="flex items-center gap-1.5 px-3 py-1 text-xs rounded border border-border-strong bg-text-primary text-canvas hover:opacity-95 font-medium transition-opacity cursor-pointer"
+                    className="flex items-center gap-1.5 px-3 py-1 text-xs rounded border border-border-strong erp-btn-primary hover:opacity-95 font-medium transition-opacity cursor-pointer"
                   >
                     <Plus className="w-3 h-3" />
                     <span>Insert Row</span>

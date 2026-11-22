@@ -192,3 +192,41 @@ export class EvaluateFormulaSuiteDto {
   @IsObject()
   overrideVariables?: Record<string, number>;
 }
+
+export class SimulateScenarioDto {
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(12)
+  month?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(2020)
+  @Max(2100)
+  year?: number;
+
+  @IsOptional()
+  @IsNumber()
+  extraMonthlySavingsRp?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  oneTimeBonusRp?: number;
+
+  @IsOptional()
+  @IsNumber()
+  monthlyLivingDeltaRp?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  extraDebtPrepaymentRp?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  variableShockPercent?: number;
+}

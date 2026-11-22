@@ -17,6 +17,7 @@ import { usePeriodSlice } from "@/hooks/usePeriodSlice";
 import { useSubModule } from "@/hooks/useSubModule";
 import { PAYROLL_SUB_KEYS, PayrollSubKey } from "@/lib/tabs";
 import { useLanguage } from "@/context/LanguageContext";
+import { PageHeader } from "@/components/primitives/PageHeader";
 import { SubModuleNav } from "@/components/primitives/SubModuleNav";
 import { TrueHourlyLifeEnergyPanel } from "@/components/finance/ModuleGoPanels";
 import { PayrollStatementTable } from "@/components/payroll/PayrollStatementTable";
@@ -108,34 +109,13 @@ export function PayrollClientView({
 
   return (
     <div className="space-y-6 w-full max-w-full">
-      {/* Header & Status Bar */}
-      <div className="flex items-center justify-between pb-3 border-b border-border-subtle">
-        <div>
-          <h1 className="text-xl font-bold font-sans tracking-tight text-text-primary">
-            {t("nav.payroll")}
-          </h1>
-          <p className="text-xs font-sans text-text-secondary mt-1">
-            Calculated monthly payroll statement, multi-wave disbursement timeline, and true hourly life-energy cost.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="text-xs font-sans text-text-tertiary">
-            Period:{" "}
-            <span className="font-mono text-text-secondary">
-              {month}/{year}
-            </span>
-          </span>
-          <span
-            className={`px-2 py-0.5 rounded text-[10px] font-mono font-medium border ${
-              isLocked
-                ? "bg-surface-subtle text-text-tertiary border-border-subtle"
-                : "bg-[rgba(16,183,141,0.10)] text-delta-positive border-[rgba(16,183,141,0.25)]"
-            }`}
-          >
-            {snapshot?.status ?? "DRAFT"}
-          </span>
-        </div>
-      </div>
+      <PageHeader
+        title={t("nav.payroll")}
+        subtitle="Calculated monthly payroll statement, multi-wave disbursement timeline, and true hourly life-energy cost."
+        periodLabel={`${month}/${year}`}
+        status={snapshot?.status ?? "DRAFT"}
+        statusLabel={isLocked ? "Closed" : "Active Draft"}
+      />
 
       <SubModuleNav
         items={[

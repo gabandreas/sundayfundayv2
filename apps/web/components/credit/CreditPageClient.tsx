@@ -27,18 +27,17 @@ import { usePeriodSlice } from "@/hooks/usePeriodSlice";
 import { useSubModule } from "@/hooks/useSubModule";
 import { CREDIT_SUB_KEYS, CreditSubKey } from "@/lib/tabs";
 import { useLanguage } from "@/context/LanguageContext";
+import { PageHeader } from "@/components/primitives/PageHeader";
 import { SubModuleNav } from "@/components/primitives/SubModuleNav";
 import { CreditTabType } from "@/components/credit/CreditTabNav";
 import { CreditStudio } from "@/components/credit/CreditStudio";
 import { CreditUsageLimitPanel } from "@/components/credit/CreditUsageLimitPanel";
 import { SafeSpendSimulatorPanel } from "@/components/credit/matrix/SafeSpendSimulatorPanel";
 import { ActiveContractsHub } from "@/components/credit/contracts/ActiveContractsHub";
+import { DebtFreedomTimeline } from "@/components/credit/contracts/DebtFreedomTimeline";
+import { CreditContractsTable } from "@/components/credit/contracts/CreditContractsTable";
 import { CreditWishlistEmbed } from "@/components/credit/CreditWishlistEmbed";
 import { usePeriod } from "@/context/PeriodContext";
-import {
-  BulkStatementReconcilerPanel,
-  DebtPayoffOptimizerPanel,
-} from "@/components/finance/ModuleGoPanels";
 import { PreBoundaryNotice } from "@/components/shell/PreBoundaryNotice";
 
 export interface CreditPeriodData {
@@ -71,8 +70,14 @@ export function CreditPageClient({
   const { t } = useLanguage();
   const [activeSub, selectSub] = useSubModule<CreditSubKey>(
     CREDIT_SUB_KEYS,
-    initialTab === "contracts" ? "contracts" : "matrix",
-    { overview: "matrix", card: "matrix", cards: "matrix" },
+    initialTab === "contracts" ? "simulator" : "matrix",
+    {
+      overview: "matrix",
+      card: "matrix",
+      cards: "matrix",
+      contracts: "simulator",
+      reconciler: "simulator",
+    },
   );
   const [intel, setIntel] = useState<IntelligenceBundleResponse | null>(null);
   const { refreshPeriod } = usePeriod();
@@ -225,41 +230,18 @@ export function CreditPageClient({
 
   return (
     <div className="space-y-6 w-full max-w-full">
-      {/* Header & Period Status */}
-      <div className="flex items-center justify-between pb-3 border-b border-border-subtle">
-        <div>
-          <h1 className="text-xl font-bold font-sans tracking-tight text-text-primary">
-            {t("nav.credit")}
-          </h1>
-          <p className="text-xs font-sans text-text-secondary mt-1">
-            Rolling liability schedule, payoff strategy optimizer, cutoff simulator, and bulk statement reconciler.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="text-xs font-sans text-text-tertiary">
-            Period:{" "}
-            <span className="font-mono text-text-secondary">
-              {month}/{year}
-            </span>
-          </span>
-          <span
-            className={`px-2 py-0.5 rounded text-[10px] font-mono font-medium border ${
-              isLocked
-                ? "bg-surface-subtle text-text-tertiary border-border-subtle"
-                : "bg-[rgba(16,183,141,0.10)] text-delta-positive border-[rgba(16,183,141,0.25)]"
-            }`}
-          >
-            {snapshot?.status ?? "DRAFT"}
-          </span>
-        </div>
-      </div>
+      <PageHeader
+        title={t("nav.credit")}
+        subtitle="Monthly bill schedule, card charges, payoff strategy optimizer, and cutoff timing check."
+        periodLabel={`${month}/${year}`}
+        status={snapshot?.status ?? "DRAFT"}
+        statusLabel={isLocked ? "Closed" : "Active Draft"}
+      />
 
       <SubModuleNav
         items={[
           { key: "matrix", label: t("sub.credit.matrix") },
-          { key: "contracts", label: t("sub.credit.contracts") },
           { key: "simulator", label: t("sub.credit.simulator") },
-          { key: "reconciler", label: t("sub.credit.reconciler") },
         ]}
         activeKey={activeSub}
         onSelect={selectSub}
@@ -271,7 +253,7 @@ export function CreditPageClient({
           <CreditStudio
             month={month}
             year={year}
-            initialTab={initialTab === "contracts" ? "matrix" : initialTab}
+            initialTab="matrix"
             initialTool={initialTool}
             isLocked={isLocked}
             creditUsageLimit={creditUsageLimit}
@@ -284,7 +266,7 @@ export function CreditPageClient({
         </div>
       )}
 
-      {activeSub === "contracts" && (
+      {activeSub === "simulator" && (
         <div className="space-y-6">
           <ActiveContractsHub
             contracts={contracts}
@@ -293,14 +275,10 @@ export function CreditPageClient({
             currentMonth={month}
             currentYear={year}
             initialIntel={intel}
-            onSelectSub={(s) => selectSub(s)}
+            onSelectSub={(s) => selectSub(s === "matrix" ? "matrix" : "simulator")}
             onMutated={refreshPeriod}
           />
-        </div>
-      )}
 
-      {activeSub === "simulator" && (
-        <div className="space-y-6">
           {matrixData ? (
             <SafeSpendSimulatorPanel
               isOpen={true}
@@ -312,20 +290,27 @@ export function CreditPageClient({
             />
           ) : (
             <div className="rounded-lg border border-border bg-surface p-8 text-center text-xs text-text-tertiary">
-              Loading matrix context for cutoff simulator...
+              Loading schedule context for cutoff timing check...
             </div>
           )}
 
+          <DebtFreedomTimeline
+            contracts={contracts}
+            installmentPlans={installmentPlans}
+            currentMonth={month}
+            currentYear={year}
+            matrixData={matrixData}
+          />
+
+          <CreditContractsTable
+            contracts={contracts}
+            installmentPlans={installmentPlans}
+            currentMonth={month}
+            currentYear={year}
+          />
+
           <CreditWishlistEmbed month={month} year={year} />
         </div>
-      )}
-
-      {activeSub === "reconciler" && (
-        <BulkStatementReconcilerPanel
-          onCommitted={() => {
-            window.dispatchEvent(new Event("erp:data-mutated"));
-          }}
-        />
       )}
     </div>
   );

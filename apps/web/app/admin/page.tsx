@@ -478,7 +478,7 @@ export default function AdminConsolePage() {
           <button
             type="button"
             onClick={handleDownloadBackup}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium rounded border border-border-strong bg-text-primary text-canvas hover:opacity-95 transition-opacity cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium rounded border border-border-strong erp-btn-primary hover:opacity-95 transition-opacity cursor-pointer"
           >
             <Download className="w-3.5 h-3.5" />
             <span>Full Backup (.json)</span>
@@ -621,7 +621,7 @@ export default function AdminConsolePage() {
             <button
               type="button"
               onClick={() => setIsCreateModalOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded border border-border-strong bg-text-primary text-canvas hover:opacity-95 transition-opacity font-medium"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded border border-border-strong erp-btn-primary hover:opacity-95 transition-opacity font-medium"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Provision Client Account</span>
@@ -647,7 +647,7 @@ export default function AdminConsolePage() {
                       <div className="font-medium text-text-primary">{u.fullName}</div>
                       <div className="text-[11px] font-mono text-text-tertiary mt-0.5">
                         <span className="text-emerald-400/80">{u.accountName || "default"}</span> /{" "}
-                        <span className="text-text-secondary">{u.username || "—"}</span> · {u.email}
+                        <span className="text-text-secondary">{u.username || "â€”"}</span> · {u.email}
                       </div>
                     </td>
                     <td className="px-4 py-3.5">
@@ -730,7 +730,7 @@ export default function AdminConsolePage() {
               >
                 {users.map((u) => (
                   <option key={u.id} value={u.id}>
-                    #{u.id} — {u.fullName} ({u.role})
+                    #{u.id} â€” {u.fullName} ({u.role})
                   </option>
                 ))}
               </select>
@@ -742,7 +742,7 @@ export default function AdminConsolePage() {
               <div className="grid grid-cols-3 gap-5">
                 <div>
                   <label className="block text-xs font-medium text-text-secondary mb-1">
-                    Life-Stage Preset (Ages 20–70)
+                    Life-Stage Preset (Ages 20â€“70)
                   </label>
                   <select
                     value={selectedUserConfig.lifeStagePreset || "CORPORATE_PROFESSIONAL"}
@@ -786,10 +786,10 @@ export default function AdminConsolePage() {
                     }
                     className="w-full px-3 py-2 text-xs rounded border border-border bg-surface-subtle text-text-primary font-mono"
                   >
-                    <option value="DEBT_FIRST_WATERFALL">DEBT_FIRST_WATERFALL (Priority Debt & Living)</option>
-                    <option value="SAVINGS_FIRST_LOCK">SAVINGS_FIRST_LOCK (Pay Yourself First)</option>
-                    <option value="PERCENTAGE_SPLIT">PERCENTAGE_SPLIT (50/30/20 Ratio)</option>
-                    <option value="RETIREMENT_DRAWDOWN">RETIREMENT_DRAWDOWN (Pension & Healthcare)</option>
+                    <option value="DEBT_FIRST_WATERFALL">Debt-First Waterfall (Debt &amp; Living First)</option>
+                    <option value="SAVINGS_FIRST_LOCK">Savings-First Lock (Pay Yourself First)</option>
+                    <option value="PERCENTAGE_SPLIT">Percentage Split (50/30/20 Ratio)</option>
+                    <option value="RETIREMENT_DRAWDOWN">Retirement Drawdown (Pension &amp; Healthcare)</option>
                   </select>
                 </div>
 
@@ -968,7 +968,7 @@ export default function AdminConsolePage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] text-text-secondary mb-1">Priority 1 Savings</label>
+                    <label className="block text-[11px] text-text-secondary mb-1">Core Savings Target</label>
                     <input
                       type="number"
                       value={selectedUserConfig.baseSavings ?? 0}
@@ -988,7 +988,7 @@ export default function AdminConsolePage() {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="px-4 py-2 text-xs font-medium rounded border border-border-strong bg-text-primary text-canvas hover:opacity-95 transition-opacity"
+                  className="px-4 py-2 text-xs font-medium rounded border border-border-strong erp-btn-primary hover:opacity-95 transition-opacity"
                 >
                   Save Blueprint Configuration
                 </button>
@@ -1060,7 +1060,7 @@ export default function AdminConsolePage() {
                       <td className="px-4 py-3.5 font-mono text-text-primary">
                         {req.estimatedSetupFee
                           ? `Rp ${req.estimatedSetupFee.toLocaleString("id-ID")}`
-                          : "—"}
+                          : "â€”"}
                       </td>
                       <td className="px-4 py-3.5 text-right">
                         <button
@@ -1108,7 +1108,7 @@ export default function AdminConsolePage() {
                 <button
                   type="button"
                   onClick={handleDownloadBackup}
-                  className="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium rounded border border-border-strong bg-text-primary text-canvas hover:opacity-95 transition-opacity cursor-pointer"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium rounded border border-border-strong erp-btn-primary hover:opacity-95 transition-opacity cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5" />
                   <span>Download Full Backup (.json)</span>
@@ -1340,7 +1340,7 @@ export default function AdminConsolePage() {
                 <button
                   type="submit"
                   disabled={isUpdatingCredentials || !credentialForm.currentPassword}
-                  className="px-4 py-2 text-xs font-medium rounded border border-border-strong bg-text-primary text-canvas hover:opacity-95 disabled:opacity-50 transition-opacity"
+                  className="px-4 py-2 text-xs font-medium rounded border border-border-strong erp-btn-primary hover:opacity-95 disabled:opacity-50 transition-opacity"
                 >
                   {isUpdatingCredentials ? "Updating Credentials..." : "Update Owner Credentials"}
                 </button>
@@ -1581,7 +1581,7 @@ export default function AdminConsolePage() {
 
               <div>
                 <label className="block text-xs font-medium text-text-secondary mb-1">
-                  Life-Stage Preset (Ages 20–70)
+                  Life-Stage Preset (Ages 20â€“70)
                 </label>
                 <select
                   value={createForm.lifeStagePreset}
@@ -1641,7 +1641,7 @@ export default function AdminConsolePage() {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="px-4 py-2 text-xs font-medium rounded border border-border-strong bg-text-primary text-canvas hover:opacity-95"
+                  className="px-4 py-2 text-xs font-medium rounded border border-border-strong erp-btn-primary hover:opacity-95"
                 >
                   Provision Client
                 </button>
@@ -1724,7 +1724,7 @@ export default function AdminConsolePage() {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="px-4 py-2 text-xs font-medium rounded border border-border-strong bg-text-primary text-canvas hover:opacity-95"
+                  className="px-4 py-2 text-xs font-medium rounded border border-border-strong erp-btn-primary hover:opacity-95"
                 >
                   Save Assessment
                 </button>

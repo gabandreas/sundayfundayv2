@@ -296,8 +296,8 @@ export default function ComponentDevShowcasePage() {
           />
           <DataTableRow
             date="03 Sep 2026"
-            title="Tabungan Prioritas 1 — Dana Darurat & Investasi"
-            subtitle="Waterfall priority 1 allocation to high-yield account"
+            title="Core Savings Reserve — Emergency & Yield"
+            subtitle="Core savings allocation to high-yield account"
             category="SAVINGS"
             badge={{ text: "LOCKED", variant: "positive" }}
             amount="-Rp 3.500.000"

@@ -127,7 +127,7 @@ export function VerifyPasswordModal() {
             <button
               type="submit"
               disabled={isLoading || !password}
-              className="px-3.5 py-1.5 text-xs font-medium rounded border border-border-strong bg-text-primary text-canvas hover:opacity-95 transition-opacity disabled:opacity-50"
+              className="px-3.5 py-1.5 text-xs font-medium rounded border border-border-strong erp-btn-primary hover:opacity-95 transition-opacity disabled:opacity-50"
             >
               {isLoading ? "Verifying..." : "Verify & Reveal"}
             </button>

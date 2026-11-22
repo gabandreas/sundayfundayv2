@@ -71,7 +71,7 @@ function FormattedProse({ text }: { text: string }) {
       continue;
     }
 
-    const bulletMatch = trimmed.match(/^[-*•]\s+(.*)$/);
+    const bulletMatch = trimmed.match(/^[-*â€¢]\s+(.*)$/);
     const orderedMatch = trimmed.match(/^\d+\.\s+(.*)$/);
     if (bulletMatch || orderedMatch) {
       const ordered = Boolean(orderedMatch);
@@ -216,7 +216,7 @@ export function MarqueeResponseCards({
                 type="button"
                 disabled={busyConfirm}
                 onClick={() => onConfirm(response)}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-text-primary text-canvas hover:opacity-90 text-[11px] font-mono font-semibold cursor-pointer disabled:opacity-50"
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded erp-btn-primary hover:opacity-90 text-[11px] font-mono font-semibold cursor-pointer disabled:opacity-50"
               >
                 <CheckCircle2 className="w-3 h-3" />
                 <span>{busyConfirm ? "Saving..." : "Confirm & Save"}</span>

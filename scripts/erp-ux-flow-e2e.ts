@@ -111,6 +111,10 @@ async function main() {
       'Sidebar must not list a redundant "Marquee AI" entry',
     );
     assert.ok(
+      !overviewText.includes('SPinjam Payoff Watch'),
+      'Sidebar must not render removed legacy "SPinjam Payoff Watch" shortcut',
+    );
+    assert.ok(
       !overviewText.includes('Savings & Reservoirs'),
       'Sidebar must not contain "Savings & Reservoirs"',
     );
@@ -174,6 +178,10 @@ async function main() {
       { path: '/calendar?month=4&year=2027', expectedSubstring: 'Lowest Cash Point' },
       { path: '/credit?sub=contracts&month=11&year=2026', expectedSubstring: 'Active Installment Plans' },
       { path: '/credit?sub=simulator&month=11&year=2026', expectedSubstring: 'Wishlist' },
+      { path: '/import?month=11&year=2026', expectedSubstring: 'Statement Import' },
+      { path: '/scenarios?month=11&year=2026', expectedSubstring: 'What-If Scenario Lab' },
+      { path: '/savings?sub=pockets&month=11&year=2026', expectedSubstring: 'Savings Pockets' },
+      { path: '/reports?sub=executive&month=12&year=2026', expectedSubstring: 'Where Your Money Went' },
       { path: '/analytics', expectedSubstring: 'Spending' },
       { path: '/marquee', expectedSubstring: 'Marquee Financial Co-Pilot' },
       { path: '/preferences?sub=ai', expectedSubstring: 'AES-256-GCM' },

@@ -119,6 +119,37 @@ input[type="number"] {
   border-left: 2px solid var(--color-positive);
 }
 
+/* Unified Dark Emerald-Slate Button Tokens (zero stark white boxes) */
+.erp-btn-primary {
+  background-color: #12352c;
+  color: #ecfdf5;
+  border: 1px solid rgba(16, 183, 141, 0.45);
+  transition: background-color 150ms ease, border-color 150ms ease, opacity 150ms ease;
+}
+
+.erp-btn-primary:hover:not(:disabled) {
+  background-color: #164438;
+  border-color: rgba(16, 183, 141, 0.72);
+}
+
+.erp-btn-secondary {
+  background-color: var(--color-surface-elevated);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border-strong);
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.erp-btn-secondary:hover:not(:disabled) {
+  background-color: var(--color-surface-active);
+  border-color: var(--color-border-strong);
+}
+
+.erp-tabular-currency {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 /* Instant off-screen tab panel switching preserving state (<10ms) */
 .tab-panel[data-active="false"] {
   display: block;

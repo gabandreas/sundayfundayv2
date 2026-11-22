@@ -84,10 +84,10 @@ export function MetricCard({
       {/* Main Metric Value: Centerpiece uses Newsreader serif display, secondary uses tight tabular font-mono */}
       <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1 my-1 min-w-0">
         <span
-          className={`whitespace-nowrap tabular-nums ${
+          className={`erp-tabular-currency leading-tight ${
             isCenterpiece
-              ? "font-display text-[32px] font-normal leading-none tracking-tight text-text-primary"
-              : "font-mono text-[24px] font-semibold leading-none tracking-tight text-text-primary"
+              ? "font-display text-[30px] sm:text-[32px] font-normal tracking-tight text-text-primary"
+              : "font-mono text-[22px] sm:text-[24px] font-semibold tracking-tight text-text-primary"
           }`}
         >
           {displayValue}

@@ -130,7 +130,7 @@ export function WishlistPlannerView({
                 Purchase Feasibility Comparator
               </h3>
               <p className="text-xs font-sans text-text-tertiary mt-0.5">
-                Compare upfront P2 cash against SPayLater (daysInMonth-15 cutoff) and Bank Permata CC (25th cutoff) across forward periods.
+                Compare upfront flexible surplus cash against PayLater and Credit Card billing cutoffs across forward cycles.
               </p>
             </div>
 
@@ -201,11 +201,11 @@ export function WishlistPlannerView({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Path A: Cash from P2 Surplus */}
+            {/* Path A: Cash from Flexible Surplus */}
             <div className="p-4 rounded-md border border-border-subtle bg-surface-subtle space-y-2.5 flex flex-col justify-between">
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-[11px] font-sans">
-                  <span className="font-semibold text-text-secondary">Path A: Cash (P2 Surplus)</span>
+                  <span className="font-semibold text-text-secondary">Path A: Cash (Flexible Surplus)</span>
                   <span
                     className={`font-mono text-[10px] font-semibold ${
                       quickPrice <= activeP2
@@ -216,10 +216,10 @@ export function WishlistPlannerView({
                     }`}
                   >
                     {quickPrice <= activeP2
-                      ? "Funded in Active P2"
+                      ? "Funded in Active Surplus"
                       : quickPrice <= totalForwardP2
                       ? "Save Over 3 Cycles"
-                      : "Exceeds 3-Cycle P2"}
+                      : "Exceeds 3-Cycle Surplus"}
                   </span>
                 </div>
                 <div className="font-mono text-lg font-semibold text-text-primary tabular-nums">
@@ -229,15 +229,15 @@ export function WishlistPlannerView({
 
               <div className="pt-2 border-t border-border-subtle space-y-1 text-[11px] font-mono text-text-tertiary tabular-nums">
                 <div className="flex justify-between">
-                  <span>Active P2 ({formatSnapLabel(activeSnap, currentMonth, currentYear)}):</span>
+                  <span>Active Surplus ({formatSnapLabel(activeSnap, currentMonth, currentYear)}):</span>
                   <span className="text-text-secondary">{formatRupiah(activeP2)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>3-Cycle Cumulative P2:</span>
+                  <span>3-Cycle Cumulative Surplus:</span>
                   <span className="text-text-secondary">{formatRupiah(totalForwardP2)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>P1 Core Savings Impact:</span>
+                  <span>Core Savings Impact:</span>
                   <span className={cashShortfallVs3Cycle > 0 ? "text-caution" : "text-delta-positive"}>
                     {cashShortfallVsActive === 0
                       ? "Rp 0 (Protected)"
@@ -293,7 +293,7 @@ export function WishlistPlannerView({
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Target Period P1 After:</span>
+                  <span>Target Period Core Savings After:</span>
                   <span className={paylaterP1Erosion > 0 ? "text-caution" : "text-delta-positive"}>
                     {formatRupiah(paylaterResultingP1)}
                   </span>
@@ -345,7 +345,7 @@ export function WishlistPlannerView({
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Target Period P1 After:</span>
+                  <span>Target Period Core Savings After:</span>
                   <span className={ccP1Erosion > 0 ? "text-caution" : "text-delta-positive"}>
                     {formatRupiah(ccResultingP1)}
                   </span>

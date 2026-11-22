@@ -1,12 +1,13 @@
 "use client";
 
 import React from "react";
-import { MonthlySnapshot } from "@/lib/api";
+import { MonthlySnapshot, resolvePriorityTierLabel } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
 import { EditableTarget } from "./EditableTarget";
 import { PrivacyEyeButton } from "@/components/shell/PrivacyEyeButton";
 import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { usePerspective } from "@/context/PerspectiveContext";
 
 interface SelfRewardBufferCardProps {
   snapshot: MonthlySnapshot | null;
@@ -19,6 +20,8 @@ export function SelfRewardBufferCard({
 }: SelfRewardBufferCardProps) {
   const { isAmountsMasked } = usePrivacyMask();
   const { t } = useLanguage();
+  const { studioConfig } = usePerspective();
+  const surplusTierLabel = resolvePriorityTierLabel(studioConfig, "DISCRETIONARY", "Flexible Surplus");
   const actualSelfReward = snapshot?.selfReward ?? 0;
   const targetSelfReward = snapshot?.selfRewardTarget ?? 0;
   const bufferPocket = snapshot?.bufferPocket ?? 0;
@@ -38,11 +41,11 @@ export function SelfRewardBufferCard({
         </div>
 
         <div className="space-y-2.5 pt-1">
-          {/* Self-Reward (P2) */}
+          {/* Flexible Surplus */}
           <div className="flex items-center justify-between">
             <div>
               <span className="text-text-secondary text-xs font-sans block">
-                Self-Reward (P2)
+                {surplusTierLabel}
               </span>
               {actualSelfReward < targetSelfReward && (
                 <span className="text-[10px] text-text-tertiary font-mono">

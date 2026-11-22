@@ -6,6 +6,7 @@ import { AnalyticsScopeToggle } from "@/components/analytics/AnalyticsScopeToggl
 import { CashflowComparisonChart } from "@/components/analytics/CashflowComparisonChart";
 import { CategoryDistributionPanel } from "@/components/analytics/CategoryDistributionPanel";
 import { AnalyticsGoTelemetryStrip } from "@/components/analytics/AnalyticsGoTelemetryStrip";
+import { PageHeader } from "@/components/primitives/PageHeader";
 import { formatRupiah } from "@/lib/utils";
 
 interface AnalyticsPageProps {
@@ -26,14 +27,10 @@ export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps
   if (!report) {
     return (
       <div className="space-y-6 w-full max-w-full pb-20">
-        <div className="pb-3 border-b border-border-subtle">
-          <h1 className="text-xl font-bold font-sans tracking-tight text-text-primary">
-            Analytics
-          </h1>
-          <p className="text-xs font-sans text-text-secondary mt-1">
-            Multi-period cashflow aggregation, category conservation, and savings trajectory.
-          </p>
-        </div>
+        <PageHeader
+          title="Spending & Cashflow Trend"
+          subtitle="Multi-period cashflow aggregation, category conservation, and savings trajectory."
+        />
         <div className="p-8 border border-border-subtle border-dashed rounded-lg text-center text-text-secondary text-sm">
           Analytics data is currently unavailable.
         </div>
@@ -46,34 +43,25 @@ export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps
 
   return (
     <div className="space-y-6 w-full max-w-full pb-20">
-      {/* Header & Period Scope Filter */}
-      <div className="flex items-center justify-between pb-3 border-b border-border-subtle">
-        <div>
+      <PageHeader
+        title="Spending & Cashflow Trend"
+        periodLabel={report.dateRangeLabel}
+        subtitle={`Multi-period cashflow aggregation, 100% income allocation breakdown, and deleveraging trajectory across ${report.periodCount} ${
+          report.periodCount === 1 ? "period" : "periods"
+        } (${report.lockedCount} closed, ${report.draftCount} active draft).`}
+        rightActions={
           <div className="flex items-center gap-3">
-            <h1 className="text-xl font-bold font-sans tracking-tight text-text-primary">
-              Analytics
-            </h1>
-            <span className="text-xs font-mono text-text-tertiary">
-              {report.dateRangeLabel}
-            </span>
+            <Link href="/reports?sub=variance" className="text-xs font-mono text-text-secondary hover:text-text-primary hover:underline">
+              Open in Reports
+            </Link>
+            <AnalyticsScopeToggle
+              currentScope={currentScope}
+              totalAvailableCount={report.totalAvailableSnapshotsCount}
+              lockedCount={report.lockedSnapshotsCount}
+            />
           </div>
-          <p className="text-xs font-sans text-text-secondary mt-1">
-            Multi-period cashflow aggregation, 100% income allocation breakdown, and deleveraging trajectory across {report.periodCount}{" "}
-            {report.periodCount === 1 ? "period" : "periods"} ({report.lockedCount} closed, {report.draftCount} active draft).
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <Link href="/reports?sub=variance" className="text-xs font-mono text-text-secondary hover:text-text-primary hover:underline">
-            Open in Reports
-          </Link>
-          <AnalyticsScopeToggle
-            currentScope={currentScope}
-            totalAvailableCount={report.totalAvailableSnapshotsCount}
-            lockedCount={report.lockedSnapshotsCount}
-          />
-        </div>
-      </div>
+        }
+      />
 
       {/* Top KPI Row: 4 MetricCards (Centerpiece serif strictly on Card 1 & Card 3) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -94,7 +82,7 @@ export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps
           amount={kpis.averageMonthlySavings}
           value={formatRp(kpis.averageMonthlySavings)}
           isCenterpiece={false}
-          footer={`Funded P1 total: ${formatRp(kpis.cumulativePlannedSavings)} (target ${formatRp(
+          footer={`Funded total: ${formatRp(kpis.cumulativePlannedSavings)} (target ${formatRp(
             kpis.cumulativeSavingsTarget
           )})`}
         />
@@ -115,7 +103,7 @@ export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps
           amount={kpis.cumulativeVaultInflow}
           value={formatRp(kpis.cumulativeVaultInflow)}
           isCenterpiece={false}
-          footer={`Realized deposits: ${kpis.vaultRealizationRatePercent.toFixed(1)}% of P1 (${formatRp(
+          footer={`Realized deposits: ${kpis.vaultRealizationRatePercent.toFixed(1)}% of Core Savings (${formatRp(
             kpis.untransferredPlannedSavings
           )} pending transfer)`}
         />

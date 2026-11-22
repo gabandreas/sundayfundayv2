@@ -30,6 +30,7 @@ import { usePeriodSlice } from "@/hooks/usePeriodSlice";
 import { usePeriod } from "@/context/PeriodContext";
 import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 import { formatRupiah } from "@/lib/utils";
+import { PageHeader } from "@/components/primitives/PageHeader";
 import { PreBoundaryNotice } from "@/components/shell/PreBoundaryNotice";
 
 export interface PaydayWizardData {
@@ -211,48 +212,40 @@ export function PaydayWizardClient({
       setP1ConfirmedLocal(true);
       setStatusMessage({
         ok: true,
-        text: `Confirmed ${formatRp(plannedP1Savings)} P1 savings deposit for ${periodLabel}.`,
+        text: `Confirmed ${formatRp(plannedP1Savings)} savings deposit for ${periodLabel}.`,
       });
       refreshPeriod();
     } else {
-      setStatusMessage({ ok: false, text: res.error || "Failed to confirm P1 deposit." });
+      setStatusMessage({ ok: false, text: res.error || "Failed to confirm savings deposit." });
     }
   };
 
   return (
     <div className="space-y-6 w-full max-w-full pb-16">
-      {/* Header Summary */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
-        <div>
-          <div className="text-[11px] font-mono uppercase tracking-wider text-text-tertiary">
-            Payday &amp; Closing Ritual · {periodLabel}
-          </div>
-          <h1 className="text-xl font-semibold tracking-tight text-text-primary mt-0.5">
-            4-Step Paycycle Activation Checklist
-          </h1>
-          <p className="text-xs text-text-secondary mt-1">
-            Confirm take-home pay, lock the prior cycle, settle fixed obligations, and release daily living cashflow.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-4">
-          <div className="text-right">
-            <div className="text-[10px] font-mono uppercase text-text-tertiary">
-              Checklist Progress
+      <PageHeader
+        title="4-Step Paycycle Activation Checklist"
+        subtitle="Confirm take-home pay, lock the prior cycle, settle fixed obligations, and release daily living cashflow."
+        periodLabel={periodLabel}
+        rightActions={
+          <div className="flex items-center gap-4">
+            <div className="text-right">
+              <div className="text-[10px] font-mono uppercase text-text-tertiary">
+                Checklist Progress
+              </div>
+              <div className="font-display text-2xl text-text-primary tabular-nums">
+                {completedSteps} / 4 Steps
+              </div>
             </div>
-            <div className="font-display text-2xl text-text-primary tabular-nums">
-              {completedSteps} / 4 Steps
-            </div>
+            <Link
+              href={`/?month=${month}&year=${year}`}
+              className="erp-btn-secondary inline-flex items-center gap-1.5 px-3 py-2 rounded text-xs font-medium"
+            >
+              <span>Open Overview</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
           </div>
-          <Link
-            href={`/?month=${month}&year=${year}`}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded border border-border bg-surface hover:bg-surface-hover text-xs font-medium text-text-primary"
-          >
-            <span>Open Overview</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
-      </div>
+        }
+      />
 
       {statusMessage && (
         <div
@@ -313,7 +306,7 @@ export function PaydayWizardClient({
           <div className="flex items-center justify-between pt-1">
             <span className="text-xs text-text-tertiary">
               {isCycleLocked
-                ? "Cycle locked — calculations frozen."
+                ? "Cycle locked â€” calculations frozen."
                 : "Verify attendance days and THR/bonus adjustments before paying bills."}
             </span>
             <button
@@ -377,7 +370,7 @@ export function PaydayWizardClient({
                     type="button"
                     disabled={busyAction === "lock-prev"}
                     onClick={() => void handleLockPrevious()}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-text-primary text-canvas text-xs font-mono font-medium hover:opacity-90 disabled:opacity-40 cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded erp-btn-primary text-xs font-mono font-medium hover:opacity-90 disabled:opacity-40 cursor-pointer"
                   >
                     <Lock className="w-3.5 h-3.5" />
                     <span>{busyAction === "lock-prev" ? "Locking..." : `Lock ${prevLabel}`}</span>
@@ -419,7 +412,7 @@ export function PaydayWizardClient({
                   type="button"
                   disabled={busyAction === "settle-all"}
                   onClick={() => void handleSettleAll()}
-                  className="px-3 py-1.5 rounded bg-text-primary text-canvas text-xs font-mono font-medium hover:opacity-90 disabled:opacity-50 cursor-pointer"
+                  className="px-3 py-1.5 rounded erp-btn-primary text-xs font-mono font-medium hover:opacity-90 disabled:opacity-50 cursor-pointer"
                 >
                   {busyAction === "settle-all" ? "Settling..." : `Settle All (${unsettledCount})`}
                 </button>
@@ -484,7 +477,7 @@ export function PaydayWizardClient({
               <div>
                 <div className="text-[10px] font-mono uppercase text-text-tertiary">Step 4</div>
                 <h2 className="text-sm font-semibold text-text-primary">
-                  Activate Daily Living Pool &amp; Confirm P1 Savings Deposit
+                  Activate Daily Living Pool &amp; Confirm Core Savings Deposit
                 </h2>
               </div>
             </div>
@@ -525,7 +518,7 @@ export function PaydayWizardClient({
             <div className="md:col-span-4 md:pl-4 pt-3 md:pt-0 flex flex-col justify-between">
               <div>
                 <div className="text-[10px] font-mono uppercase text-text-tertiary">
-                  Core Savings (P1) Transfer
+                  Core Savings Transfer
                 </div>
                 <div className="font-mono text-lg font-semibold text-delta-positive mt-1 tabular-nums">
                   {formatRp(plannedP1Savings)}
@@ -537,17 +530,17 @@ export function PaydayWizardClient({
                     type="button"
                     disabled={busyAction === "confirm-p1" || p1ConfirmedLocal}
                     onClick={() => void handleConfirmP1Deposit()}
-                    className="w-full px-3 py-1.5 rounded bg-text-primary text-canvas text-xs font-mono font-medium hover:opacity-90 disabled:opacity-50 cursor-pointer"
+                    className="w-full px-3 py-1.5 rounded erp-btn-primary text-xs font-mono font-medium hover:opacity-90 disabled:opacity-50 cursor-pointer"
                   >
                     {p1ConfirmedLocal
-                      ? "P1 Deposit Confirmed"
+                      ? "Deposit Confirmed"
                       : busyAction === "confirm-p1"
                         ? "Confirming..."
-                        : "Confirm P1 Savings Deposit"}
+                        : "Confirm Savings Deposit"}
                   </button>
                 ) : (
                   <span className="text-[11px] font-mono text-text-tertiary">
-                    P1 funded surplus is Rp 0 this cycle (debt &amp; essentials prioritized first).
+                    Core savings funded surplus is Rp 0 this cycle (debt &amp; essentials prioritized first).
                   </span>
                 )}
               </div>

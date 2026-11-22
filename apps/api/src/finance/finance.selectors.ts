@@ -41,6 +41,7 @@ import { buildDefaultSandboxState } from '../config/sandbox.defaults';
 import { resolveStudioConfig } from '../config/studio.defaults';
 import { computePaycycleHorizonTs } from '../calculator/erp-engines';
 import { evaluateModularPayroll } from '../calculator/modular-engine';
+import { SimulateScenarioDto } from './dto/hybrid-finance.dto';
 
 export type EnrichedPacingResult = PacingResult & {
   fixedEssentialsRealization: FixedEssentialsRealizationSummary;
@@ -1718,6 +1719,16 @@ export class FinanceSelectors {
       envelopes,
       debtopt,
       lifeenergy,
+      scenarioSeed: {
+        startingLiquidAssetsRp: liquidAssetsStart,
+        startingVaultRp: p1VaultBalance,
+        emergencyTargetRp: pcCfg.emergencyFundTargetRp,
+        baselineDailyBurnRp: Math.max(30000, Math.round(pacing.baselineDailyRate || 55000)),
+        rdpuYieldPct: effectiveRdpuYield,
+        variableShockPercent: pcCfg.variableShockPercent,
+        periods: forecastPeriods,
+        optContracts,
+      },
     };
   }
 
@@ -1916,5 +1927,166 @@ export class FinanceSelectors {
       earliestOpenMonth,
       earliestOpenYear,
     });
+  }
+
+  async simulateScenarioForUser(
+    dto: SimulateScenarioDto,
+    userId: number = 1,
+  ) {
+    const def = getPayrollPeriodForDate();
+    const month = dto.month ?? def.month;
+    const year = dto.year ?? def.year;
+    const extraMonthlySavingsRp = Math.round(dto.extraMonthlySavingsRp ?? 0);
+    const oneTimeBonusRp = Math.max(0, Math.round(dto.oneTimeBonusRp ?? 0));
+    const monthlyLivingDeltaRp = Math.round(dto.monthlyLivingDeltaRp ?? 0);
+    const extraDebtPrepaymentRp = Math.max(
+      0,
+      Math.round(dto.extraDebtPrepaymentRp ?? 0),
+    );
+
+    const bundle: any = await this.getIntelligenceBundle(
+      month,
+      year,
+      userId,
+      extraDebtPrepaymentRp,
+    );
+
+    const seed = bundle.scenarioSeed ?? {};
+    const periods = bundle._forecastInputPeriods ?? seed.periods ?? [];
+    const startingLiquid = Math.round(
+      bundle._startingLiquidAssetsRp ?? seed.startingLiquidAssetsRp ?? 0,
+    );
+    const startingVault = Math.round(
+      bundle._startingVaultRp ?? seed.startingVaultRp ?? 0,
+    );
+    const emergencyTarget = Math.round(
+      bundle._emergencyTargetRp ?? seed.emergencyTargetRp ?? 15_000_000,
+    );
+    const dailyBurn = Math.max(
+      30000,
+      Math.round(bundle._baselineDailyBurnRp ?? seed.baselineDailyBurnRp ?? 55000),
+    );
+    const rdpuYield = Number(bundle._rdpuYieldPct ?? seed.rdpuYieldPct ?? 0);
+    const shockPct =
+      dto.variableShockPercent !== undefined
+        ? dto.variableShockPercent
+        : Number(seed.variableShockPercent ?? 15);
+    const optContracts = bundle._optContracts ?? seed.optContracts ?? [];
+
+    const simPeriods = periods.map((p: any, idx: number) => {
+      const bonusHere = idx === 0 ? oneTimeBonusRp : 0;
+      const adjLiving = Math.max(
+        0,
+        Math.round((p.dailyLivingRp || 0) + monthlyLivingDeltaRp),
+      );
+      const debtPayHere = idx === 0 ? extraDebtPrepaymentRp : 0;
+      const adjDebt = Math.max(0, Math.round((p.totalDebtDueRp || 0) - debtPayHere));
+      const adjPersonalDebt = Math.max(
+        0,
+        Math.round((p.personalDebtDueRp || 0) - debtPayHere),
+      );
+      const savingsBoost = Math.round(extraMonthlySavingsRp - monthlyLivingDeltaRp);
+      const adjSavings = Math.max(
+        0,
+        Math.round((p.coreSavingsP1Rp || 0) + savingsBoost),
+      );
+      const adjIncome = Math.max(0, Math.round((p.totalIncomeRp || 0) + bonusHere));
+      return {
+        ...p,
+        totalIncomeRp: adjIncome,
+        dailyLivingRp: adjLiving,
+        totalDebtDueRp: adjDebt,
+        personalDebtDueRp: adjPersonalDebt,
+        coreSavingsP1Rp: adjSavings,
+        dsrPercent:
+          adjIncome > 0 ? Math.round((adjDebt / adjIncome) * 1000) / 10 : 0,
+      };
+    });
+
+    const baseLiving0 = Math.max(1, periods[0]?.dailyLivingRp ?? 1_500_000);
+    const burnMultiplier = Math.max(
+      0.2,
+      (baseLiving0 + monthlyLivingDeltaRp) / baseLiving0,
+    );
+    const simDailyBurn = Math.max(
+      30000,
+      Math.round(dailyBurn * burnMultiplier),
+    );
+
+    const [baselineForecast, simulatedForecast, debtStrategies] = await Promise.all([
+      this.goBridge.runForecast({
+        startingLiquidAssetsRp: startingLiquid,
+        startingP1VaultRp: startingVault,
+        emergencyFundTargetRp: emergencyTarget,
+        baselineDailyBurnRp: dailyBurn,
+        rdpuAnnualYieldPct: rdpuYield,
+        variableShockPercent: shockPct,
+        periods,
+      }),
+      this.goBridge.runForecast({
+        startingLiquidAssetsRp: startingLiquid + oneTimeBonusRp,
+        startingP1VaultRp: startingVault + Math.round(oneTimeBonusRp * 0.5),
+        emergencyFundTargetRp: emergencyTarget,
+        baselineDailyBurnRp: simDailyBurn,
+        rdpuAnnualYieldPct: rdpuYield,
+        variableShockPercent: shockPct,
+        periods: simPeriods,
+      }),
+      this.goBridge.optimizeDebtPayoff({
+        contracts: optContracts,
+        extraLumpSumRp: Math.max(0, extraDebtPrepaymentRp + oneTimeBonusRp),
+      }),
+    ]);
+
+    const series = (baselineForecast.series ?? []).map((bp: any, i: number) => {
+      const sp = simulatedForecast.series?.[i] ?? bp;
+      return {
+        month: bp.month,
+        year: bp.year,
+        label: bp.label,
+        baselineWealthRp: bp.baselineWealthRp,
+        simulatedWealthRp: sp.baselineWealthRp,
+        disciplinedWealthRp: sp.disciplinedWealthRp,
+        shockWealthRp: sp.shockWealthRp,
+        baselineDsrPercent: bp.dsrPercent,
+        simulatedDsrPercent: sp.dsrPercent,
+        remainingPersonalDebtRp: sp.remainingPersonalDebtRp,
+      };
+    });
+
+    return {
+      period: { month, year },
+      inputs: {
+        extraMonthlySavingsRp,
+        oneTimeBonusRp,
+        monthlyLivingDeltaRp,
+        extraDebtPrepaymentRp,
+        variableShockPercent: shockPct,
+      },
+      baseline: {
+        projected6MWealthRp: baselineForecast.projected6MWealthBaselineRp,
+        projected12MWealthRp: baselineForecast.projected12MWealthBaselineRp,
+        freedomDate: baselineForecast.spinjamFreedomDate,
+        lowDsrDate: baselineForecast.lowDsrMilestoneDate,
+        emergencyCompletionDate: baselineForecast.emergencyFundCompletionDate,
+        runwayDays: baselineForecast.pureSurvivalRunwayDays,
+      },
+      simulated: {
+        projected6MWealthRp: simulatedForecast.projected6MWealthBaselineRp,
+        projected12MWealthRp: simulatedForecast.projected12MWealthBaselineRp,
+        freedomDate: simulatedForecast.spinjamFreedomDate,
+        lowDsrDate: simulatedForecast.lowDsrMilestoneDate,
+        emergencyCompletionDate: simulatedForecast.emergencyFundCompletionDate,
+        runwayDays: simulatedForecast.pureSurvivalRunwayDays,
+      },
+      net12MDeltaRp:
+        simulatedForecast.projected12MWealthBaselineRp -
+        baselineForecast.projected12MWealthBaselineRp,
+      runwayDeltaDays:
+        simulatedForecast.pureSurvivalRunwayDays -
+        baselineForecast.pureSurvivalRunwayDays,
+      series,
+      debtStrategies: debtStrategies?.strategies ?? [],
+    };
   }
 }

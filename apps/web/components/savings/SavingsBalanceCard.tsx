@@ -133,12 +133,12 @@ export function SavingsBalanceCard({ vault }: SavingsBalanceCardProps) {
           </div>
         </div>
 
-        {/* Card 2: Total Planned Across Active Year (2026 P1 Sum) */}
+        {/* Card 2: Total Planned Savings Across Active Year */}
         <div className="col-span-4 rounded-lg border border-border bg-surface p-5 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
-                PLANNED 2026 SAVINGS (P1)
+                PLANNED ANNUAL SAVINGS
               </span>
               <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[rgba(16,183,141,0.08)] text-delta-positive border border-[rgba(16,183,141,0.2)]">
                 Jul–Dec 2026
@@ -147,20 +147,20 @@ export function SavingsBalanceCard({ vault }: SavingsBalanceCardProps) {
 
             <div className="my-2.5">
               <div className="flex items-center gap-2.5">
-                <div className="font-mono text-[28px] font-semibold leading-none tracking-tight text-text-primary tabular-nums">
+                <div className="font-mono text-[28px] font-semibold leading-none tracking-tight text-text-primary erp-tabular-currency">
                   {formatRupiah(totalPlanned2026P1, isAmountsMasked)}
                 </div>
                 <PrivacyEyeButton size="xs" />
               </div>
               <p className="text-xs font-sans text-text-secondary mt-1.5">
-                Total Priority 1 salary allocations funded across all 6 active 2026 periods.
+                Total core savings allocations funded across all active 2026 cycles.
               </p>
             </div>
           </div>
 
           <div className="pt-2.5 border-t border-border-subtle flex items-center justify-between text-xs font-mono">
-            <span className="text-text-tertiary">P1 Monthly Pace:</span>
-            <span className="font-semibold text-text-primary tabular-nums">
+            <span className="text-text-tertiary">Monthly Pace:</span>
+            <span className="font-semibold text-text-primary erp-tabular-currency">
               {formatRupiah(avgMonthlySavingsP1, isAmountsMasked)}/mo
             </span>
           </div>
@@ -171,7 +171,7 @@ export function SavingsBalanceCard({ vault }: SavingsBalanceCardProps) {
           <div>
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
-                SAVINGS RATE & RUNWAY
+                SAVINGS RATE &amp; RUNWAY
               </span>
               <ShieldCheck className="w-3.5 h-3.5 text-delta-positive" />
             </div>
@@ -186,7 +186,7 @@ export function SavingsBalanceCard({ vault }: SavingsBalanceCardProps) {
                 </span>
               </div>
               <p className="text-xs font-sans text-text-secondary mt-1.5">
-                Average proportion of net payroll directed into Priority 1 capital reserves.
+                Average proportion of net payroll directed into core savings reserves.
               </p>
             </div>
           </div>

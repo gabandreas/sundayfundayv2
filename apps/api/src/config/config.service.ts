@@ -216,6 +216,24 @@ export class ConfigService {
                 ...patch.sidebarNavigationConfig,
               }
             : curStudio.sidebarNavigationConfig,
+          priorityTiers: Array.isArray(patch?.priorityTiers)
+            ? patch.priorityTiers
+            : curStudio.priorityTiers,
+          savingsPockets: Array.isArray(patch?.savingsPockets)
+            ? patch.savingsPockets
+            : curStudio.savingsPockets,
+          displayPreferences: patch?.displayPreferences
+            ? {
+                ...curStudio.displayPreferences,
+                ...patch.displayPreferences,
+              }
+            : curStudio.displayPreferences,
+          privacyPreferences: patch?.privacyPreferences
+            ? {
+                ...curStudio.privacyPreferences,
+                ...patch.privacyPreferences,
+              }
+            : curStudio.privacyPreferences,
         },
       },
       existing,

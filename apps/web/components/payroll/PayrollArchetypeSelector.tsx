@@ -230,7 +230,7 @@ export function PayrollArchetypeSelector() {
           <button
             type="submit"
             disabled={isSaving || !newLabel.trim()}
-            className="flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium bg-text-primary text-background hover:opacity-90 disabled:opacity-50"
+            className="flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium erp-btn-primary hover:opacity-90 disabled:opacity-50"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Add Row</span>

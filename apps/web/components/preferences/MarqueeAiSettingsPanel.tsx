@@ -85,7 +85,7 @@ export function MarqueeAiSettingsPanel() {
             }
           : prev,
       );
-      setFeedback("New headless X-Marquee-Token generated. Copy it now — only its SHA-256 hash is stored.");
+      setFeedback("New headless X-Marquee-Token generated. Copy it now â€” only its SHA-256 hash is stored.");
     }
   };
 
@@ -280,7 +280,7 @@ export function MarqueeAiSettingsPanel() {
           <button
             type="submit"
             disabled={saving}
-            className="px-4 py-2 rounded bg-text-primary text-canvas text-xs font-medium hover:opacity-90 disabled:opacity-50 cursor-pointer"
+            className="px-4 py-2 rounded erp-btn-primary text-xs font-medium hover:opacity-90 disabled:opacity-50 cursor-pointer"
           >
             {saving ? "Encrypting & Saving..." : "Save AI Configuration"}
           </button>

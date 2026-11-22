@@ -449,8 +449,8 @@ export function ActiveContractsHub({
   }> = [
     {
       key: "PERSONAL_SPINJAM",
-      title: "1. SPinjam & Personal Bridge Loans (Priority Interest)",
-      subtitle: "Carries active compounding interest (~2.95%–3.5%/mo) — clear these first before 0% promos.",
+      title: "1. Personal & Bridge Loans (Priority Interest)",
+      subtitle: "Carries active compounding interest (~2.95%â€“3.5%/mo) â€” clear these first before 0% promos.",
       plans: enrichedPlans.filter((p) => p.group === "PERSONAL_SPINJAM"),
     },
     {
@@ -487,7 +487,7 @@ export function ActiveContractsHub({
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <div className="text-[11px] font-mono uppercase tracking-wider text-amber-300 font-semibold">
-                Focused View: SPinjam Priority Tracker
+                Focused View: Priority Loan Tracker
               </div>
               <h2 className="text-sm font-semibold text-text-primary mt-0.5">
                 {spinjamGroup.plans.length} active SPinjam obligations (
@@ -519,10 +519,10 @@ export function ActiveContractsHub({
             Active Installment Plans · {periodLabel}
           </div>
           <h2 className="text-base font-semibold text-text-primary mt-0.5">
-            {enrichedPlans.length} Active Multi-Month Obligations (Excludes 1/1 &amp; P1 Internal Refunds)
+            {enrichedPlans.length} Active Multi-Month Obligations (Excludes 1/1 &amp; Savings Repayments)
           </h2>
           <p className="text-xs text-text-secondary mt-0.5">
-            Track SPinjam (due 8th / 17th / 23rd / 24th), credit card, and PayLater payoff dates, settle slices, and simulate early payoffs.
+            Track personal loans (due 8th / 17th / 23rd / 24th), credit card, and PayLater payoff dates, settle slices, and simulate early payoffs.
           </p>
         </div>
 
@@ -786,7 +786,7 @@ export function ActiveContractsHub({
                               type="button"
                               disabled={isBusy}
                               onClick={() => void handleAccelerate(plan)}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-text-primary text-canvas hover:opacity-90 text-[11px] font-mono font-medium cursor-pointer disabled:opacity-50"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded erp-btn-primary hover:opacity-90 text-[11px] font-mono font-medium cursor-pointer disabled:opacity-50"
                             >
                               <FastForward className="w-3 h-3" />
                               <span>Accelerate to {periodLabel}</span>
@@ -836,7 +836,7 @@ export function ActiveContractsHub({
               type="button"
               onClick={() => void runOptimizer(lumpSum, simulatedTargetTitle ?? undefined)}
               disabled={loadingIntel}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-text-primary text-canvas text-xs font-medium hover:opacity-90 cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded erp-btn-primary text-xs font-medium hover:opacity-90 cursor-pointer disabled:opacity-50"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loadingIntel ? "animate-spin" : ""}`} />
               <span>Simulate Prepayment</span>
@@ -848,8 +848,8 @@ export function ActiveContractsHub({
           <div className="flex items-start gap-2.5 rounded erp-callout-caution px-3.5 py-2.5 text-xs text-text-secondary">
             <AlertTriangle className="w-4 h-4 text-caution shrink-0 mt-0.5" />
             <div>
-              <span className="font-semibold text-text-primary">SPinjam High-Interest Priority Note:</span>{" "}
-              Active SPinjam / bridge facilities accrue high monthly interest (~2.95%–3.5%/mo), whereas 0% promo installments incur zero incremental carry. Under Avalanche, direct surplus to SPinjam first before accelerating 0% installments.
+              <span className="font-semibold text-text-primary">High-Interest Priority Loan Note:</span>{" "}
+              Active personal &amp; bridge facilities accrue high monthly interest (~2.95%–3.5%/mo), whereas 0% promo installments incur zero incremental carry. Under Avalanche, direct surplus to high-interest loans first before accelerating 0% installments.
             </div>
           </div>
         )}

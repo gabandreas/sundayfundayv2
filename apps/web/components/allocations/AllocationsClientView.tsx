@@ -10,12 +10,15 @@ import {
   fetchIntelligenceBundle,
   fetchSnapshot,
   getCached,
+  resolvePriorityTierLabel,
   setCached,
 } from "@/lib/api";
 import { usePeriodSlice } from "@/hooks/usePeriodSlice";
 import { useSubModule } from "@/hooks/useSubModule";
 import { ALLOCATIONS_SUB_KEYS, AllocationsSubKey } from "@/lib/tabs";
 import { useLanguage } from "@/context/LanguageContext";
+import { usePerspective } from "@/context/PerspectiveContext";
+import { PageHeader } from "@/components/primitives/PageHeader";
 import { SubModuleNav } from "@/components/primitives/SubModuleNav";
 import { EnvelopesAndSinkingPanel } from "@/components/finance/ModuleGoPanels";
 import { MetricCard } from "@/components/primitives/MetricCard";
@@ -52,6 +55,17 @@ export function AllocationsClientView({
   initialData,
 }: AllocationsClientViewProps) {
   const { t } = useLanguage();
+  const { studioConfig } = usePerspective();
+  const savingsLabel = resolvePriorityTierLabel(studioConfig, "SAVINGS", "Core Savings");
+  const surplusLabel = resolvePriorityTierLabel(studioConfig, "DISCRETIONARY", "Flexible Surplus");
+  const activeInstruments = (studioConfig?.instrumentsTable ?? []).filter((i) => i.active);
+  const cutoffSummaryText =
+    activeInstruments.length > 0
+      ? `Cutoffs: ${activeInstruments
+          .slice(0, 4)
+          .map((inst) => `${inst.name} (${inst.cutoffDay > 0 ? `${inst.cutoffDay}th` : "exact"}/${inst.dueDay}th)`)
+          .join(" · ")}`
+      : "Cutoffs driven dynamically by your configured payment instruments";
   const [activeSub, selectSub] = useSubModule<AllocationsSubKey>(ALLOCATIONS_SUB_KEYS, "waterfall");
   const [intel, setIntel] = useState<IntelligenceBundleResponse | null>(null);
   const [revisions, setRevisions] = useState<BudgetRevision[]>([]);
@@ -171,7 +185,7 @@ export function AllocationsClientView({
       label: "Liabilities & Deductions",
       amount: totalDeductions,
       color: "#e06c53",
-      priority: "Upfront — Debt & Card Bills",
+      priority: "Upfront â€” Debt & Card Bills",
     },
     {
       id: "survival",
@@ -181,22 +195,22 @@ export function AllocationsClientView({
       color: "#10b78d",
       priority:
         deficitUncovered > 0
-          ? "Upfront — Baseline Living Need"
-          : "Upfront — Essentials + Living Base",
+          ? "Upfront â€” Baseline Living Need"
+          : "Upfront â€” Essentials + Living Base",
     },
     {
       id: "savings",
-      label: "Locked Core Savings",
+      label: savingsLabel,
       amount: actualSavings,
       color: "#4f5b75",
-      priority: "Priority 1 — Locked Core Savings",
+      priority: savingsLabel,
     },
     {
       id: "self-reward",
-      label: "Self-Reward Surplus",
+      label: surplusLabel,
       amount: selfReward,
       color: "#e59b2c",
-      priority: "Priority 2 — Discretionary Surplus",
+      priority: surplusLabel,
     },
   ];
 
@@ -230,40 +244,18 @@ export function AllocationsClientView({
       {/* Deficit Alert if any deficit exists */}
       <DeficitAlert deficitUncovered={deficitUncovered} />
 
-      {/* Header & Status Bar */}
-      <div className="flex items-center justify-between pb-3 border-b border-border-subtle">
-        <div>
-          <h1 className="text-xl font-bold font-sans tracking-tight text-text-primary">
-            {t("nav.allocations")}
-          </h1>
-          <p className="text-xs font-sans text-text-secondary mt-1">
-            Algorithmic 2-priority cashflow allocation, envelope rollover rules, and budget revisions.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="text-xs font-sans text-text-tertiary">
-            Period:{" "}
-            <span className="font-mono text-text-secondary">
-              {month}/{year}
-            </span>
-          </span>
-          <span
-            className={`px-2 py-0.5 rounded text-[10px] font-mono font-medium border ${
-              isLocked
-                ? "bg-surface-subtle text-text-tertiary border-border-subtle"
-                : "bg-[rgba(16,183,141,0.10)] text-delta-positive border-[rgba(16,183,141,0.25)]"
-            }`}
-          >
-            {snapshot?.status ?? "DRAFT"}
-          </span>
-        </div>
-      </div>
+      <PageHeader
+        title={t("nav.allocations")}
+        subtitle="Sequential cashflow plan, monthly quota simulator, and recurring envelope rollover rules."
+        periodLabel={`${month}/${year}`}
+        status={snapshot?.status ?? "DRAFT"}
+        statusLabel={isLocked ? "Closed" : "Active Draft"}
+      />
 
       <SubModuleNav
         items={[
           { key: "waterfall", label: t("sub.allocations.waterfall") },
           { key: "envelopes", label: t("sub.allocations.envelopes") },
-          { key: "revisions", label: t("sub.allocations.revisions") },
         ]}
         activeKey={activeSub}
         onSelect={selectSub}
@@ -323,20 +315,20 @@ export function AllocationsClientView({
 
           <div className="lg:col-span-3">
             <MetricCard
-              label="Locked Core Savings"
+              label={savingsLabel}
               amount={actualSavings}
               value={formatRupiah(actualSavings)}
-              footer={`Priority 1: Target ${formatRupiah(snapshot?.savings ?? 0)}`}
+              footer={`Target: ${formatRupiah(snapshot?.savings ?? 0)}`}
               statusVariant="default"
             />
           </div>
 
           <div className="lg:col-span-3">
             <MetricCard
-              label="Self-Reward Surplus"
+              label={surplusLabel}
               amount={selfReward}
               value={formatRupiah(selfReward)}
-              footer="Priority 2: Unallocated surplus"
+              footer="Unallocated discretionary pool"
               statusVariant="default"
             />
           </div>
@@ -384,28 +376,28 @@ export function AllocationsClientView({
 
             <div className="flex gap-3 items-start">
               <span className="font-mono text-[10px] font-bold text-text-primary bg-surface-subtle px-1.5 py-0.5 rounded shrink-0 border border-border-subtle">
-                P1
+                STEP 1
               </span>
               <div>
                 <span className="font-medium text-text-primary block">
-                  Locked Core Savings Target
+                  {savingsLabel}
                 </span>
                 <span className="text-[11px] text-text-tertiary leading-relaxed">
-                  Monthly wealth preservation target funded immediately from available surplus once all upfront commitments are satisfied.
+                  Monthly capital preservation target funded immediately from available surplus once all upfront commitments are satisfied.
                 </span>
               </div>
             </div>
 
             <div className="flex gap-3 items-start">
               <span className="font-mono text-[10px] font-bold text-caution bg-[rgba(229,155,44,0.1)] px-1.5 py-0.5 rounded shrink-0">
-                P2
+                STEP 2
               </span>
               <div>
                 <span className="font-medium text-text-primary block">
-                  Self-Reward Discretionary Surplus
+                  {surplusLabel}
                 </span>
                 <span className="text-[11px] text-text-tertiary leading-relaxed">
-                  All residual cashflow overflows into the Self-Reward pocket for guilt-free discretionary luxury and wishlist funding.
+                  All residual cashflow overflows into your flexible discretionary pool for guilt-free personal spending and wishlist funding.
                 </span>
               </div>
             </div>
@@ -428,8 +420,8 @@ export function AllocationsClientView({
                   <th className="text-right py-2.5 px-4">Debt Bills</th>
                   <th className="text-right py-2.5 px-4">Routine Quota</th>
                   <th className="text-right py-2.5 px-4">Daily Living</th>
-                  <th className="text-right py-2.5 px-4">Core P1</th>
-                  <th className="text-right py-2.5 px-4">Self-Reward P2</th>
+                  <th className="text-right py-2.5 px-4">{savingsLabel}</th>
+                  <th className="text-right py-2.5 px-4">{surplusLabel}</th>
                   <th className="text-right py-2.5 px-4">Debt Ratio</th>
                 </tr>
               </thead>
@@ -500,10 +492,10 @@ export function AllocationsClientView({
           </div>
           <div className="px-4 py-2.5 border-t border-border-subtle bg-surface-subtle/50 flex flex-wrap items-center justify-between gap-2 text-[11px] font-sans text-text-tertiary">
             <span>
-              Payday Convention: Period M funds obligations falling due inside M+1 (e.g., 10/2026 funds Nov bills).
+              Payday Convention: Each cycle covers payday-to-payday consumption and pays obligations maturing inside that named month.
             </span>
             <span className="font-mono text-[10px]">
-              Cutoffs: SPayLater (M-15d)/25th · Permata CC 25th/11th · SPinjam 8th
+              {cutoffSummaryText}
             </span>
           </div>
         </div>
@@ -519,7 +511,7 @@ export function AllocationsClientView({
               Interactive Living Quota Planner ({month}/{year})
             </h3>
             <p className="text-xs text-text-tertiary mt-0.5">
-              Preview how adjusting your monthly Daily Living Pool impacts P1 Core Savings, P2 Self-Reward, and work-hours needed.
+              Preview how adjusting your monthly Daily Living Pool impacts {savingsLabel}, {surplusLabel}, and work-hours needed.
             </p>
           </div>
           {isLocked && (
@@ -579,14 +571,14 @@ export function AllocationsClientView({
             return (
               <div className="lg:col-span-5 grid grid-cols-3 gap-3 text-xs font-mono">
                 <div className="rounded border border-border-subtle bg-surface-subtle p-2.5">
-                  <div className="text-[10px] uppercase text-text-tertiary">Projected P1</div>
-                  <div className="text-sm font-semibold text-delta-positive mt-0.5 tabular-nums">
+                  <div className="text-[10px] uppercase text-text-tertiary">Projected Savings</div>
+                  <div className="text-sm font-semibold text-delta-positive mt-0.5 tabular-nums erp-tabular-currency">
                     {formatRupiah(projP1)}
                   </div>
                 </div>
                 <div className="rounded border border-border-subtle bg-surface-subtle p-2.5">
-                  <div className="text-[10px] uppercase text-text-tertiary">Projected P2</div>
-                  <div className="text-sm font-semibold text-caution mt-0.5 tabular-nums">
+                  <div className="text-[10px] uppercase text-text-tertiary">Projected Surplus</div>
+                  <div className="text-sm font-semibold text-caution mt-0.5 tabular-nums erp-tabular-currency">
                     {formatRupiah(projP2)}
                   </div>
                 </div>
@@ -609,7 +601,7 @@ export function AllocationsClientView({
               type="button"
               onClick={handleApplyQuotaPlan}
               disabled={isLocked || quotaSaving || !snapshot}
-              className="w-full px-3 py-2 rounded bg-text-primary text-canvas text-xs font-medium hover:opacity-90 disabled:opacity-40 cursor-pointer"
+              className="w-full px-3 py-2 rounded erp-btn-primary text-xs font-medium hover:opacity-90 disabled:opacity-40 cursor-pointer"
             >
               {quotaSaving ? "Applying..." : "Apply Quota"}
             </button>
@@ -628,99 +620,72 @@ export function AllocationsClientView({
           </div>
         )}
       </section>
+
+      <details className="rounded-lg border border-border-subtle bg-surface overflow-hidden group">
+        <summary className="px-5 py-3.5 cursor-pointer flex items-center justify-between text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-surface-subtle/40 transition-colors">
+          <span>
+            Quota &amp; Target Change Log ({month}/{year}) — {revisions.length} revision(s)
+          </span>
+          <span className="font-mono text-[10px] text-text-tertiary">
+            {snapshot?.isManualOverride ? "Manual Override Active" : "Auto-Engine Active"}
+          </span>
+        </summary>
+        <div className="border-t border-border-subtle">
+          <FormulaEngineSelectorCard />
+          {revisions.length === 0 ? (
+            <div className="p-5 text-xs text-text-tertiary text-center">
+              No quota adjustments recorded for {month}/{year}.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs text-left">
+                <thead className="bg-surface-subtle/50 text-[10px] font-mono uppercase text-text-tertiary border-b border-border-subtle">
+                  <tr>
+                    <th className="px-4 py-2">Date</th>
+                    <th className="px-4 py-2">Category</th>
+                    <th className="px-4 py-2 text-right">Previous</th>
+                    <th className="px-4 py-2 text-right">New Value</th>
+                    <th className="px-4 py-2 text-right">Delta</th>
+                    <th className="px-4 py-2">Reason</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border-subtle">
+                  {revisions.map((rev) => (
+                    <tr key={rev.id} className="hover:bg-surface-hover/40">
+                      <td className="px-4 py-2.5 font-mono text-text-tertiary whitespace-nowrap">
+                        {new Date(rev.createdAt).toLocaleDateString("en-GB")}
+                      </td>
+                      <td className="px-4 py-2.5 font-mono text-text-primary whitespace-nowrap">
+                        {rev.category}
+                      </td>
+                      <td className="px-4 py-2.5 font-mono text-right tabular-nums text-text-secondary">
+                        {formatRupiah(rev.previousValue)}
+                      </td>
+                      <td className="px-4 py-2.5 font-mono text-right tabular-nums text-text-primary">
+                        {formatRupiah(rev.newValue)}
+                      </td>
+                      <td
+                        className={`px-4 py-2.5 font-mono text-right tabular-nums font-medium ${
+                          rev.difference > 0 ? "text-caution" : "text-delta-positive"
+                        }`}
+                      >
+                        {rev.difference >= 0 ? "+" : ""}
+                        {formatRupiah(rev.difference)}
+                      </td>
+                      <td className="px-4 py-2.5 text-text-secondary">{rev.reason}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </details>
         </div>
       )}
 
       {activeSub === "envelopes" && (
         <EnvelopesAndSinkingPanel intel={intel} />
-      )}
-
-      {activeSub === "revisions" && (
-        <div className="space-y-6">
-          <FormulaEngineSelectorCard />
-          <div className="rounded-lg border border-border bg-surface p-5 space-y-3">
-            <h3 className="text-sm font-semibold text-text-primary">
-              Cycle Status &amp; Target Override Controls ({month}/{year})
-            </h3>
-            <p className="text-xs text-text-secondary leading-relaxed">
-              Status: <span className="font-mono font-semibold text-text-primary">{snapshot?.status ?? "DRAFT"}</span>. Manual Override:{" "}
-              <span className="font-mono">{snapshot?.isManualOverride ? "Yes" : "No"}</span>. Locked P1: <span className="font-mono">{formatRupiah(snapshot?.actualSavings ?? 0)}</span>. Locked P2:{" "}
-              <span className="font-mono">{formatRupiah(snapshot?.selfReward ?? 0)}</span>.
-            </p>
-            <div className="text-xs text-text-tertiary">
-              Historical locked periods reject any direct mutations until explicitly reopened.
-            </div>
-          </div>
-
-          {/* Budget Revision Audit Trail Table */}
-          <div className="rounded-lg border border-border bg-surface overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-border-subtle bg-surface-subtle flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-text-primary">
-                Budget Revision Audit History ({month}/{year})
-              </h3>
-              <span className="text-[11px] font-mono text-text-tertiary tabular-nums">
-                {revisions.length} revision(s)
-              </span>
-            </div>
-            {revisions.length === 0 ? (
-              <div className="p-6 text-xs text-text-tertiary text-center">
-                No budget revisions recorded for this billing period.
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs text-left">
-                  <thead className="bg-surface-subtle/50 text-[10px] font-mono uppercase text-text-tertiary border-b border-border-subtle">
-                    <tr>
-                      <th className="px-4 py-2">Date</th>
-                      <th className="px-4 py-2">Category</th>
-                      <th className="px-4 py-2 text-right">Previous</th>
-                      <th className="px-4 py-2 text-right">New Value</th>
-                      <th className="px-4 py-2 text-right">Delta</th>
-                      <th className="px-4 py-2">Reason</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border-subtle">
-                    {revisions.map((rev) => (
-                      <tr key={rev.id} className="hover:bg-surface-hover/40">
-                        <td className="px-4 py-2.5 font-mono text-text-tertiary whitespace-nowrap">
-                          {new Date(rev.createdAt).toLocaleDateString("en-GB")}
-                        </td>
-                        <td className="px-4 py-2.5 font-mono text-text-primary whitespace-nowrap">
-                          {rev.category}
-                        </td>
-                        <td className="px-4 py-2.5 font-mono text-right tabular-nums text-text-secondary">
-                          {formatRupiah(rev.previousValue)}
-                        </td>
-                        <td className="px-4 py-2.5 font-mono text-right tabular-nums text-text-primary">
-                          {formatRupiah(rev.newValue)}
-                        </td>
-                        <td
-                          className={`px-4 py-2.5 font-mono text-right tabular-nums font-medium ${
-                            rev.difference > 0 ? "text-caution" : "text-delta-positive"
-                          }`}
-                        >
-                          {rev.difference >= 0 ? "+" : ""}
-                          {formatRupiah(rev.difference)}
-                        </td>
-                        <td className="px-4 py-2.5 text-text-secondary">{rev.reason}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-
-          <FixedEssentialsTable
-            transport={snapshot?.transport ?? 0}
-            internet={snapshot?.internet ?? 0}
-            vape={snapshot?.vape ?? 0}
-            haircut={snapshot?.haircut ?? 0}
-            dailyOperational={snapshot?.dailyOperational ?? 0}
-            actualDailyOperational={snapshot?.actualDailyOperational}
-            deficitUncovered={deficitUncovered}
-          />
-        </div>
       )}
     </div>
   );

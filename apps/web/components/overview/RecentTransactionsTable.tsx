@@ -270,7 +270,7 @@ export function RecentTransactionsTable({
                       type="button"
                       disabled={isSavingEdit}
                       onClick={() => handleSaveEdit(tx)}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-text-primary text-canvas text-xs font-sans font-medium hover:opacity-90 disabled:opacity-50 cursor-pointer"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded erp-btn-primary text-xs font-sans font-medium hover:opacity-90 disabled:opacity-50 cursor-pointer"
                     >
                       <Check className="w-3 h-3" strokeWidth={2} />
                       {isSavingEdit ? "Saving..." : "Save"}

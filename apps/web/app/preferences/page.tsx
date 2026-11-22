@@ -11,6 +11,7 @@ import {
 import { getDefaultPeriodFromNow } from "@/lib/utils";
 import { isValidPreferencesTab, PreferencesTabKey } from "@/lib/tabs";
 import { PreferencesStudio } from "@/components/preferences/PreferencesStudio";
+import { PageHeader } from "@/components/primitives/PageHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -67,13 +68,22 @@ const FALLBACK_CONFIG: GlobalConfig = {
 const TAB_ALIASES: Record<string, PreferencesTabKey> = {
   payroll: "formula",
   sandbox: "formula",
+  accounts: "instruments",
   policy: "instruments",
   buckets: "templates",
-  modules: "navigation",
-  requests: "navigation",
+  navigation: "display",
+  modules: "display",
+  requests: "display",
+  marquee: "display",
+  copilot: "display",
+  ai: "display",
+  account: "display",
+  privacy: "display",
   killswitch: "notifications",
-  marquee: "ai",
-  copilot: "ai",
+  smtp: "notifications",
+  email: "notifications",
+  database: "backup",
+  restore: "backup",
 };
 
 export default async function PreferencesPage({
@@ -109,14 +119,10 @@ export default async function PreferencesPage({
 
   return (
     <div className="space-y-6 w-full max-w-full">
-      <div>
-        <h1 className="text-xl font-semibold font-sans text-text-primary tracking-tight">
-          Modular ERP Configuration Studio
-        </h1>
-        <p className="text-xs font-sans text-text-tertiary mt-1">
-          Table-driven paycycle &amp; waterfall formulas, payment instrument cutoffs, cash &amp; savings accounts, routine rollover templates, sidebar shortcut builder, and SMTP guard.
-        </p>
-      </div>
+      <PageHeader
+        title="Modular ERP Configuration Studio"
+        subtitle="Calculation rules, payment methods & accounts, routine templates, display & password controls, alerts, and backups."
+      />
 
       <PreferencesStudio
         initialTab={currentTab}

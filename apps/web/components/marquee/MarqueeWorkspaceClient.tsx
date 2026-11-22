@@ -37,7 +37,7 @@ const EXAMPLE_GROUPS = [
     label: "THR Split, Debt & Formulas",
     prompts: [
       "Split my 3.8jt Natal THR bonus",
-      "Cek sisa cicilan aktif SPinjam",
+      "Cek sisa cicilan aktif & payoff",
       "Formula net_income - total_debt - living_pool",
     ],
   },
@@ -126,7 +126,7 @@ export function MarqueeWorkspaceClient() {
             Marquee Financial Co-Pilot
           </h1>
           <p className="text-xs text-text-secondary mt-1">
-            Ask questions about your active paycycle, test purchase cutoffs, compare monthly shifts, or log spending in plain English, Bahasa Indonesia, or 中文.
+            Ask questions about your active paycycle, test purchase cutoffs, compare monthly shifts, or log spending in plain English, Bahasa Indonesia, or ä¸­æ–‡.
           </p>
         </div>
 
@@ -223,7 +223,7 @@ export function MarqueeWorkspaceClient() {
               <button
                 type="submit"
                 disabled={sending || !input.trim()}
-                className="px-4 py-2.5 rounded bg-text-primary text-canvas hover:opacity-90 disabled:opacity-40 cursor-pointer inline-flex items-center gap-1.5 text-xs font-medium"
+                className="px-4 py-2.5 rounded erp-btn-primary hover:opacity-90 disabled:opacity-40 cursor-pointer inline-flex items-center gap-1.5 text-xs font-medium"
               >
                 <Send className="w-3.5 h-3.5" />
                 <span>{sending ? "Running..." : "Execute"}</span>
@@ -270,9 +270,9 @@ export function MarqueeWorkspaceClient() {
                 Installment Payoff Milestones
               </div>
               <ul className="space-y-1 text-[11px] text-text-secondary font-mono">
-                <li>JAN &apos;27 — 11.11 3x plans complete (3/3)</li>
-                <li>FEB &apos;27 — SPinjam personal debt reaches Rp 0</li>
-                <li>SEP &apos;27 — Final 12x card plan matures</li>
+                <li>JAN &apos;27 â€” 11.11 3x plans complete (3/3)</li>
+                <li>FEB &apos;27 — High-interest personal loan reaches Rp 0</li>
+                <li>SEP &apos;27 â€” Final 12x card plan matures</li>
               </ul>
             </div>
 

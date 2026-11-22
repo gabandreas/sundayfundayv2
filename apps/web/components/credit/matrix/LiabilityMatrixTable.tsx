@@ -140,7 +140,7 @@ export function LiabilityMatrixTable({
           title: li.title,
           sourceBadge:
             li.category === "P1_VAULT_REFUND"
-              ? "P1 Repayment · 1/1"
+              ? "Savings Repayment · 1/1"
               : `${li.merchantOrPlatform || "Personal Debt"} · 1/1`,
           dueLabel: li.dueDateIso ? `Due ${li.dueDateIso}` : `Due ${li.dueDay}th`,
           amount: Math.round(li.monthlyAmount),
@@ -282,7 +282,7 @@ export function LiabilityMatrixTable({
               {t("credit.matrix.subtitle")}
             </p>
             <div className="mt-1.5 text-[10px] font-mono text-text-tertiary tabular-nums">
-              Next Due: {DOMAIN_CONSTANTS.SPAYLATER_DUE_DAY}th (SPayLater) · {DOMAIN_CONSTANTS.CC_DUE_DAY}th (Permata CC) | Cutoffs: SPayLater {activeSpaylaterCutoffDay}th / M-15d ({cutoffCountdown.paylaterDays}d) · Permata CC {DOMAIN_CONSTANTS.CC_CUTOFF_DAY}th ({cutoffCountdown.ccDays}d)
+              Next Due: {DOMAIN_CONSTANTS.SPAYLATER_DUE_DAY}th (PayLater) · {DOMAIN_CONSTANTS.CC_DUE_DAY}th (Credit Card) | Cutoffs: PayLater {activeSpaylaterCutoffDay}th / M-15d ({cutoffCountdown.paylaterDays}d) · Credit Card {DOMAIN_CONSTANTS.CC_CUTOFF_DAY}th ({cutoffCountdown.ccDays}d)
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 shrink-0">
@@ -443,7 +443,7 @@ export function LiabilityMatrixTable({
                       ) : (
                         <div className="py-1 px-1.5">
                           <span className="font-mono text-[11px] text-text-tertiary/40 select-none">
-                            —
+                            â€”
                           </span>
                         </div>
                       )}
@@ -561,7 +561,7 @@ export function LiabilityMatrixTable({
               Active Multi-Month Installment Plans in {currentCol.label} ({activePeriodPlans.length})
             </h3>
             <p className="text-[11px] font-sans text-text-tertiary mt-0.5">
-              Only installment schedules carrying an active slice in {currentCol.label} — already included in totals above.
+              Only installment schedules carrying an active slice in {currentCol.label} â€” already included in totals above.
             </p>
           </div>
           <span className="text-[11px] font-mono tabular-nums text-text-secondary whitespace-nowrap">
@@ -581,7 +581,7 @@ export function LiabilityMatrixTable({
                 contract.category === "CREDIT_CARD"
                   ? "Card Installment"
                   : contract.category === "PERSONAL_DEBT"
-                    ? "SPinjam Loan"
+                    ? "Personal Loan"
                     : "PayLater Plan";
               return (
                 <div
@@ -662,7 +662,7 @@ export function LiabilityMatrixTable({
                         type="button"
                         disabled={isAccelerating}
                         onClick={() => handleConfirmAccelerate(contract.parentContractId!)}
-                        className="px-2 py-0.5 rounded bg-text-primary text-canvas text-[10px] font-mono font-semibold disabled:opacity-50"
+                        className="px-2 py-0.5 rounded erp-btn-primary text-[10px] font-mono font-semibold disabled:opacity-50"
                       >
                         {isAccelerating ? "..." : "Settle"}
                       </button>
@@ -681,10 +681,10 @@ export function LiabilityMatrixTable({
           <div className="px-4 py-3 border-b border-border-subtle flex flex-wrap items-center justify-between gap-2 bg-surface-subtle/40">
             <div>
               <h3 className="text-xs font-semibold font-sans text-text-primary">
-                Single-Period Bills &amp; P1 Repayments in {currentCol.label} ({singlePeriodItems.length})
+                Single-Period Bills &amp; Savings Repayments in {currentCol.label} ({singlePeriodItems.length})
               </h3>
               <p className="text-[11px] font-sans text-text-tertiary mt-0.5">
-                One-time charges, recurring subscriptions, and period-specific P1 repayments due strictly inside {currentCol.label}.
+                One-time charges, recurring subscriptions, and period-specific savings repayments due strictly inside {currentCol.label}.
               </p>
             </div>
             <span className="text-[11px] font-mono tabular-nums text-text-secondary whitespace-nowrap">
