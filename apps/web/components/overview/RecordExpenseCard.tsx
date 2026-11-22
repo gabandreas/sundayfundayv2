@@ -1,18 +1,19 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState, useRef, useEffect } from "react";
 import { Plus, Lock, Check } from "lucide-react";
 import {
   createExpenseTransaction,
   FixedEssentialCategory,
 } from "@/lib/api";
 import { formatCurrencyInput, parseCurrencyInput } from "@/lib/utils";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface RecordExpenseCardProps {
   month: number;
   year: number;
   isLocked: boolean;
+  trueHourlyWageRp?: number;
 }
 
 type ExpenseMode = "OPERATIONAL" | "FIXED_ESSENTIAL" | "OPERATIONAL_REFUND";
@@ -38,22 +39,26 @@ export function RecordExpenseCard({
   month,
   year,
   isLocked,
+  trueHourlyWageRp,
 }: RecordExpenseCardProps) {
-  const router = useRouter();
+  const { t } = useLanguage();
   const descInputRef = useRef<HTMLInputElement>(null);
   const [label, setLabel] = useState("");
   const [amount, setAmount] = useState<string>("");
   const [expenseMode, setExpenseMode] = useState<ExpenseMode>("OPERATIONAL");
   const [fixedEssentialCategory, setFixedEssentialCategory] =
     useState<FixedEssentialCategory>("TRANSPORT");
+  const [paymentMethod, setPaymentMethod] = useState<"CASH" | "PAYLATER" | "CC">("CASH");
+  const [paylaterTenor, setPaylaterTenor] = useState<number>(1);
+  const [holdPastCutoff, setHoldPastCutoff] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const submitLockRef = useRef(false);
   const [fieldErrors, setFieldErrors] = useState<{
     label?: string;
     amount?: string;
     general?: string;
   }>({});
   const [isSuccess, setIsSuccess] = useState(false);
-  const [, startTransition] = useTransition();
 
   // Keyboard shortcut "N" to focus Quick Expense input
   useEffect(() => {
@@ -85,7 +90,7 @@ export function RecordExpenseCard({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSubmitting || isLocked) return;
+    if (submitLockRef.current || isSubmitting || isLocked) return;
 
     const errors: { label?: string; amount?: string } = {};
 
@@ -103,10 +108,12 @@ export function RecordExpenseCard({
       return;
     }
 
+    submitLockRef.current = true;
     setFieldErrors({});
     setIsSubmitting(true);
 
     try {
+      const isRefund = expenseMode === "OPERATIONAL_REFUND";
       const res = await createExpenseTransaction({
         month,
         year,
@@ -117,7 +124,10 @@ export function RecordExpenseCard({
           expenseMode === "FIXED_ESSENTIAL"
             ? fixedEssentialCategory
             : undefined,
-        isOperationalRefund: expenseMode === "OPERATIONAL_REFUND",
+        isOperationalRefund: isRefund,
+        paymentMethod: isRefund ? "CASH" : paymentMethod,
+        paylaterTenor: !isRefund && paymentMethod !== "CASH" ? paylaterTenor : undefined,
+        holdPastCutoff: !isRefund && paymentMethod !== "CASH" ? holdPastCutoff : undefined,
       });
 
       if (!res.success) {
@@ -126,16 +136,16 @@ export function RecordExpenseCard({
 
       setLabel("");
       setAmount("");
+      setPaymentMethod("CASH");
+      setPaylaterTenor(1);
+      setHoldPastCutoff(false);
       setIsSuccess(true);
       setTimeout(() => setIsSuccess(false), 2000);
-
-      startTransition(() => {
-        router.refresh();
-      });
     } catch (err: unknown) {
       const error = err as Error;
       setFieldErrors({ general: error.message || "Error saving transaction" });
     } finally {
+      submitLockRef.current = false;
       setIsSubmitting(false);
     }
   };
@@ -145,7 +155,7 @@ export function RecordExpenseCard({
       <div className="flex items-center justify-between gap-2 mb-1">
         <div className="flex items-center gap-1.5">
           <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
-            Record Expense
+            {t("overview.recordExpense")}
           </span>
           {!isLocked && (
             <kbd
@@ -183,7 +193,7 @@ export function RecordExpenseCard({
                   : "text-text-tertiary hover:text-text-secondary"
               }`}
             >
-              Daily Spend
+              {t("overview.dailySpend")}
             </button>
             <button
               type="button"
@@ -194,7 +204,7 @@ export function RecordExpenseCard({
                   : "text-text-tertiary hover:text-text-secondary"
               }`}
             >
-              Routine Bill
+              {t("overview.routineBill")}
             </button>
             <button
               type="button"
@@ -205,7 +215,7 @@ export function RecordExpenseCard({
                   : "text-text-tertiary hover:text-text-secondary"
               }`}
             >
-              Refund / Split
+              {t("overview.refundSplit")}
             </button>
           </div>
 
@@ -230,6 +240,67 @@ export function RecordExpenseCard({
           {expenseMode === "OPERATIONAL_REFUND" && (
             <div className="px-2 py-1 rounded bg-[rgba(16,183,141,0.08)] border border-[rgba(16,183,141,0.25)] text-[10px] font-sans text-text-secondary">
               Restores daily safe-to-spend budget directly without inflating income.
+            </div>
+          )}
+
+          {expenseMode !== "OPERATIONAL_REFUND" && (
+            <div className="space-y-1.5 pt-0.5">
+              <div className="grid grid-cols-3 gap-1 p-0.5 rounded bg-surface-subtle border border-border-subtle">
+                {(
+                  [
+                    { id: "CASH", label: "Living Cash" },
+                    { id: "PAYLATER", label: "PayLater" },
+                    { id: "CC", label: "Credit Card" },
+                  ] as const
+                ).map((pm) => (
+                  <button
+                    key={pm.id}
+                    type="button"
+                    onClick={() => setPaymentMethod(pm.id)}
+                    className={`px-2 py-1 rounded text-[10px] font-mono transition-colors cursor-pointer ${
+                      paymentMethod === pm.id
+                        ? "bg-surface-active text-text-primary border border-border font-semibold"
+                        : "text-text-tertiary hover:text-text-secondary"
+                    }`}
+                  >
+                    {pm.label}
+                  </button>
+                ))}
+              </div>
+
+              {paymentMethod !== "CASH" && (
+                <div className="p-2 rounded bg-surface-subtle border border-border-subtle space-y-1.5 text-[10px]">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono text-text-tertiary">Tenor:</span>
+                    <div className="flex items-center gap-1">
+                      {(paymentMethod === "CC" ? [1, 3, 6, 12] : [1, 3, 6]).map((t) => (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => setPaylaterTenor(t)}
+                          className={`px-1.5 py-0.5 rounded border font-mono ${
+                            paylaterTenor === t
+                              ? "bg-surface-active border-text-secondary text-text-primary font-semibold"
+                              : "bg-canvas border-border text-text-tertiary"
+                          }`}
+                        >
+                          {t}x
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <label className="flex items-center gap-1.5 font-sans text-text-secondary cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={holdPastCutoff}
+                      onChange={(e) => setHoldPastCutoff(e.target.checked)}
+                    />
+                    {paymentMethod === "PAYLATER"
+                      ? "Post-15th cutoff (bill next cycle)"
+                      : "Post-20th cutoff (bill next statement)"}
+                  </label>
+                </div>
+              )}
             </div>
           )}
 
@@ -307,6 +378,17 @@ export function RecordExpenseCard({
                   {fieldErrors.amount}
                 </div>
               )}
+              {(() => {
+                const parsedAmt = parseCurrencyInput(amount);
+                const wage = trueHourlyWageRp && trueHourlyWageRp > 0 ? trueHourlyWageRp : 0;
+                if (parsedAmt <= 0 || wage <= 0) return null;
+                const hrs = Math.round((parsedAmt / wage) * 10) / 10;
+                return (
+                  <div className="text-[10px] font-mono text-caution mt-1 text-right whitespace-nowrap tabular-nums">
+                    = {hrs}h {t("intel.workHoursCost")}
+                  </div>
+                );
+              })()}
             </div>
           </div>
 

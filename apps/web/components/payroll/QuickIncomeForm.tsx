@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState } from "react";
 import { Plus, Lock, Check } from "lucide-react";
 import { createIncomeTransaction } from "@/lib/api";
 
@@ -23,13 +22,11 @@ export function QuickIncomeForm({
   year,
   isLocked,
 }: QuickIncomeFormProps) {
-  const router = useRouter();
   const [label, setLabel] = useState("");
   const [amount, setAmount] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{ label?: string; amount?: string; general?: string }>({});
   const [isSuccess, setIsSuccess] = useState(false);
-  const [, startTransition] = useTransition();
 
   const handlePresetClick = (presetValue: number) => {
     setAmount(presetValue.toString());
@@ -77,11 +74,6 @@ export function QuickIncomeForm({
       setAmount("");
       setIsSuccess(true);
       setTimeout(() => setIsSuccess(false), 2000);
-
-      // Refresh server components
-      startTransition(() => {
-        router.refresh();
-      });
     } catch (err: unknown) {
       const error = err as Error;
       setFieldErrors({ general: error.message || "Error saving transaction" });

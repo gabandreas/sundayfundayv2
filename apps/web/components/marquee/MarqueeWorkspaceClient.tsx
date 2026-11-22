@@ -2,7 +2,8 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { Send, Sparkles, Settings2 } from "lucide-react";
+import { Send, Settings2 } from "lucide-react";
+import { MarqueeMark } from "@/components/primitives/MarqueeMark";
 import { MarqueeChatResponse, sendMarqueeChat } from "@/lib/api";
 import { usePeriod } from "@/context/PeriodContext";
 import { useLanguage } from "@/context/LanguageContext";
@@ -109,7 +110,7 @@ export function MarqueeWorkspaceClient() {
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
         <div>
           <div className="flex items-center gap-2 text-[11px] font-mono uppercase tracking-wider text-text-tertiary">
-            <Sparkles className="w-3.5 h-3.5 text-delta-positive" />
+            <MarqueeMark className="w-3.5 h-3.5 text-delta-positive" />
             <span>3-Tier Deterministic Financial Co-Pilot</span>
           </div>
           <h1 className="text-xl font-semibold tracking-tight text-text-primary mt-0.5">

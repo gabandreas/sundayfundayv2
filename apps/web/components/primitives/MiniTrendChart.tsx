@@ -8,6 +8,34 @@ export interface MiniTrendChartProps {
   statusVariant?: "default" | "caution" | "urgency";
   cycleTemporalState?: "PRE_PAYDAY" | "ACTIVE" | "COMPLETED";
   daysUntilCycleStart?: number;
+  cycleStartDate?: string;
+  cycleEndDate?: string;
+}
+
+const SHORT_MONTHS = [
+  "JAN",
+  "FEB",
+  "MAR",
+  "APR",
+  "MAY",
+  "JUN",
+  "JUL",
+  "AUG",
+  "SEP",
+  "OCT",
+  "NOV",
+  "DEC",
+];
+
+export function formatAxisBoundaryDate(isoDate?: string, fallbackLabel?: string): string {
+  if (!isoDate) return fallbackLabel ?? "";
+  const clean = isoDate.trim().slice(0, 10);
+  const parts = clean.split("-").map((x) => parseInt(x, 10));
+  if (parts.length === 3 && !Number.isNaN(parts[1]) && !Number.isNaN(parts[2])) {
+    const monthIdx = Math.max(0, Math.min(11, parts[1] - 1));
+    return `${parts[2]} ${SHORT_MONTHS[monthIdx]}`;
+  }
+  return fallbackLabel ?? clean;
 }
 
 export function MiniTrendChart({
@@ -18,6 +46,8 @@ export function MiniTrendChart({
   statusVariant = "default",
   cycleTemporalState = "ACTIVE",
   daysUntilCycleStart = 0,
+  cycleStartDate,
+  cycleEndDate,
 }: MiniTrendChartProps) {
   const safeDays = Math.max(daysInCycle || 30, 1);
   const isPrePayday = cycleTemporalState === "PRE_PAYDAY";
@@ -26,7 +56,6 @@ export function MiniTrendChart({
     ? 0
     : Math.min(Math.max(currentDay ?? 1, 0), safeDays);
 
-  // Generate realistic spending pattern if none provided (0 spending when pre-payday)
   const data =
     dailySpend ||
     Array.from({ length: safeDays }, (_, i) => {
@@ -54,25 +83,46 @@ export function MiniTrendChart({
     return "fill-border-strong";
   };
 
-  const todayX = !isPrePayday && safeCurrentDay > 0
-    ? (safeCurrentDay - 1) * (chartWidth / safeDays) + barWidth / 2
-    : NaN;
+  const todayX =
+    !isPrePayday && safeCurrentDay > 0
+      ? (safeCurrentDay - 1) * (chartWidth / safeDays) + barWidth / 2
+      : NaN;
   const isTodayValid = !isNaN(todayX) && isFinite(todayX);
 
+  const startBoundary = formatAxisBoundaryDate(
+    cycleStartDate,
+    isPrePayday ? "27 NOV" : "DAY 1",
+  );
+  const endBoundary = formatAxisBoundaryDate(
+    cycleEndDate,
+    isPrePayday ? "28 DEC" : `DAY ${safeDays}`,
+  );
+
+  const leftAxisLabel = isPrePayday
+    ? startBoundary
+    : cycleStartDate
+      ? `${startBoundary} (DAY 1)`
+      : "DAY 1";
+  const rightAxisLabel = isPrePayday
+    ? endBoundary
+    : cycleEndDate
+      ? `${endBoundary} (DAY ${safeDays})`
+      : `DAY ${safeDays}`;
+
   const centerCaption = isPrePayday
-    ? `DAY 0 OF ${safeDays} · PRE-PAYDAY PLAN${
-        daysUntilCycleStart > 0 ? ` (STARTS IN ${daysUntilCycleStart}D)` : ""
+    ? `DAY 0 OF ${safeDays} · STARTS ${startBoundary}${
+        daysUntilCycleStart > 0 ? ` (IN ${daysUntilCycleStart}D)` : ""
       }`
     : isCompleted
-      ? `CYCLE COMPLETED (${safeDays} OF ${safeDays})`
+      ? `COMPLETED (${safeDays} OF ${safeDays} DAYS)`
       : `TODAY (DAY ${Math.max(1, safeCurrentDay)} OF ${safeDays})`;
 
   return (
     <div className="w-full">
       <div className="flex items-center justify-between text-[10px] font-mono text-text-tertiary mb-1.5">
-        <span>DAY 1</span>
+        <span>{leftAxisLabel}</span>
         <span className="text-text-secondary font-medium">{centerCaption}</span>
-        <span>DAY {safeDays}</span>
+        <span>{rightAxisLabel}</span>
       </div>
 
       <div className="relative w-full h-9">
@@ -81,7 +131,6 @@ export function MiniTrendChart({
           className="w-full h-full overflow-visible"
           preserveAspectRatio="none"
         >
-          {/* Target baseline indicator */}
           <line
             x1="0"
             y1={chartHeight - (targetDailyBudget / maxSpend) * chartHeight}
@@ -92,7 +141,6 @@ export function MiniTrendChart({
             strokeDasharray="2 2"
           />
 
-          {/* Daily spending bars */}
           {data.map((spend, index) => {
             const day = index + 1;
             const height = spend > 0 ? (spend / maxSpend) * (chartHeight - 4) : 2;
@@ -112,7 +160,6 @@ export function MiniTrendChart({
             );
           })}
 
-          {/* Single dashed vertical marker for "today" / "now" */}
           {isTodayValid && (
             <line
               x1={todayX}
@@ -123,8 +170,8 @@ export function MiniTrendChart({
                 statusVariant === "urgency"
                   ? "var(--color-urgency)"
                   : statusVariant === "caution"
-                  ? "var(--color-caution)"
-                  : "var(--color-delta-positive)"
+                    ? "var(--color-caution)"
+                    : "var(--color-delta-positive)"
               }
               strokeWidth="1.2"
               strokeDasharray="2 2"

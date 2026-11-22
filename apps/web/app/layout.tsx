@@ -20,16 +20,37 @@ const newsreader = Newsreader({
 });
 
 export const viewport: Viewport = {
-  themeColor: "#090D16",
+  themeColor: "#0c0e14",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
+  viewportFit: "cover",
 };
 
 export const metadata: Metadata = {
-  title: "Sunday Funday — Personal Finance ERP",
-  description: "Personal finance tracking and waterfall allocation system",
-  manifest: "/manifest.json",
+  title: {
+    default: "Sunday Funday — Personal Finance ERP",
+    template: "%s | Sunday Funday ERP",
+  },
+  description:
+    "Desktop and mobile personal finance ERP for payroll waterfall allocation, 12-month rolling liability tracking, daily safe-to-spend pacing, and audit reporting.",
+  keywords: [
+    "personal finance ERP",
+    "cash flow waterfall",
+    "debt matrix tracker",
+    "payday cycle budgeting",
+    "daily spend pacing",
+  ],
+  robots: {
+    index: false,
+    follow: false,
+  },
+  openGraph: {
+    title: "Sunday Funday — Personal Finance ERP",
+    description:
+      "Payroll waterfall allocation, 12-month debt matrix, and real-time safe-to-spend cash flow control.",
+    type: "website",
+  },
+  manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",

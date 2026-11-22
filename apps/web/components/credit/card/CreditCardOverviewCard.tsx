@@ -70,9 +70,9 @@ export function CreditCardOverviewCard({ summary }: CreditCardOverviewCardProps)
       </div>
 
       {/* Metric Rows */}
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
         {/* Centerpiece / Focus: Current Cycle Due */}
-        <div className="space-y-1 border-r border-border-subtle pr-4">
+        <div className="space-y-1 border-b md:border-b-0 md:border-r border-border-subtle pb-4 md:pb-0 md:pr-4">
           <div className="text-[11px] font-sans font-medium text-text-tertiary">
             CURRENT STATEMENT DUE
           </div>
@@ -88,7 +88,7 @@ export function CreditCardOverviewCard({ summary }: CreditCardOverviewCardProps)
         </div>
 
         {/* Total Outstanding Balance */}
-        <div className="space-y-1 border-r border-border-subtle pr-4">
+        <div className="space-y-1 border-b md:border-b-0 md:border-r border-border-subtle pb-4 md:pb-0 md:pr-4">
           <div className="text-[11px] font-sans font-medium text-text-tertiary">
             TOTAL OUTSTANDING BALANCE
           </div>

@@ -22,7 +22,7 @@ import { usePerspective } from "@/context/PerspectiveContext";
 import { usePeriod } from "@/context/PeriodContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { formatRupiah } from "@/lib/utils";
-import { Plus, Save, Trash2, CheckCircle2, Calendar, Bookmark, RotateCcw, Sparkles, AlertTriangle } from "lucide-react";
+import { Plus, Save, Trash2, CheckCircle2, Calendar, Bookmark, RotateCcw, AlertTriangle } from "lucide-react";
 
 const SHORT_MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -381,7 +381,7 @@ export function PaycycleFormulaStudioCard({ initialConfig }: { initialConfig?: M
             disabled={verifying}
             className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-border text-xs text-text-secondary hover:bg-surface-hover cursor-pointer"
           >
-            <Sparkles className="w-3.5 h-3.5 text-accent" />
+            <CheckCircle2 className="w-3.5 h-3.5 text-accent" />
             {verifying ? "Verifying..." : "Verify Live"}
           </button>
           <button
@@ -975,7 +975,7 @@ export function InstrumentsTableCard({ initialConfig }: { initialConfig?: Modula
   );
 }
 
-// 3. Asset Accounts & Reservoirs Table
+// 3. Asset Accounts & Vaults Table
 export function AssetAccountsTableCard({ initialConfig }: { initialConfig?: ModularStudioConfig }) {
   const { studioConfig, updateStudioConfig } = usePerspective();
   const activeStudio = studioConfig ?? initialConfig;
@@ -1056,7 +1056,7 @@ export function AssetAccountsTableCard({ initialConfig }: { initialConfig?: Modu
                 ...prev,
                 {
                   id: `acc_${Date.now()}`,
-                  name: "New Reservoir Account",
+                  name: "New Vault Account",
                   institution: "Bank / Fund",
                   accountType: "MONEY_MARKET_RDPU",
                   balanceRp: 0,
@@ -1410,7 +1410,7 @@ const MANAGED_SIDEBAR_ROUTES = [
   { href: "/payroll", defaultLabel: "Payroll & Income" },
   { href: "/allocations", defaultLabel: "Allocations" },
   { href: "/credit", defaultLabel: "Credit & Liabilities" },
-  { href: "/savings", defaultLabel: "Savings & Reservoirs" },
+  { href: "/savings", defaultLabel: "Savings & Vaults" },
   { href: "/ledger", defaultLabel: "Transaction Ledger" },
   { href: "/wishlist", defaultLabel: "Wishlist Simulator" },
   { href: "/audit", defaultLabel: "Discipline Audit" },
@@ -1429,7 +1429,7 @@ const SHORTCUT_DESTINATION_CATALOG: Array<{ group: string; items: Array<{ href: 
       { href: "/payroll", label: "Payroll & Income (/payroll)" },
       { href: "/allocations", label: "Allocations (/allocations)" },
       { href: "/credit", label: "Credit & Liabilities (/credit)" },
-      { href: "/savings", label: "Savings & Reservoirs (/savings)" },
+      { href: "/savings", label: "Savings & Vaults (/savings)" },
       { href: "/ledger", label: "Transaction Ledger (/ledger)" },
       { href: "/wishlist", label: "Wishlist Simulator (/wishlist)" },
       { href: "/audit", label: "Discipline Audit (/audit)" },

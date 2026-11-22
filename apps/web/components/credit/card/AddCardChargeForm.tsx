@@ -1,10 +1,15 @@
 "use client";
 
 import React, { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Check, AlertTriangle } from "lucide-react";
 import { createCardCharge, CreditLimitCalculationResult } from "@/lib/api";
-import { formatRupiah, formatCurrencyInput, parseCurrencyInput } from "@/lib/utils";
+import {
+  DOMAIN_CONSTANTS,
+  formatRupiah,
+  formatCurrencyInput,
+  parseCurrencyInput,
+  getJakartaDateParts,
+} from "@/lib/utils";
 
 interface AddCardChargeFormProps {
   currentMonth: number;
@@ -16,14 +21,15 @@ interface AddCardChargeFormProps {
 export function AddCardChargeForm({
   currentMonth,
   currentYear,
-  statementCutoffDay = 20,
+  statementCutoffDay = DOMAIN_CONSTANTS.CC_CUTOFF_DAY,
   currentPeriodLimitData = null,
 }: AddCardChargeFormProps) {
-  const router = useRouter();
-
-  // Default date: format as YYYY-MM-DD
   const pad = (n: number) => String(n).padStart(2, "0");
-  const defaultDateStr = `${currentYear}-${pad(currentMonth)}-10`;
+  const jktToday = getJakartaDateParts();
+  const defaultDateStr =
+    jktToday.month === currentMonth && jktToday.year === currentYear
+      ? jktToday.isoDate
+      : `${currentYear}-${pad(currentMonth)}-10`;
 
   const [label, setLabel] = useState("");
   const [amount, setAmount] = useState("");
@@ -38,11 +44,11 @@ export function AddCardChargeForm({
   const [isSuccess, setIsSuccess] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{ label?: string; amount?: string; general?: string }>({});
 
-  // Compute target billing month based on cutoff day
-  const txDateObj = new Date(transactionDate);
-  const txDay = isNaN(txDateObj.getDate()) ? 10 : txDateObj.getDate();
-  const txMonth = isNaN(txDateObj.getMonth()) ? currentMonth : txDateObj.getMonth() + 1;
-  const txYear = isNaN(txDateObj.getFullYear()) ? currentYear : txDateObj.getFullYear();
+  // Parse YYYY-MM-DD directly so UTC offset never shifts the transaction day
+  const dateParts = transactionDate.split("-").map(Number);
+  const txYear = dateParts.length === 3 && !isNaN(dateParts[0]) ? dateParts[0] : currentYear;
+  const txMonth = dateParts.length === 3 && !isNaN(dateParts[1]) ? dateParts[1] : currentMonth;
+  const txDay = dateParts.length === 3 && !isNaN(dateParts[2]) ? dateParts[2] : 10;
 
   let billingMonth = txMonth;
   let billingYear = txYear;
@@ -138,7 +144,6 @@ export function AddCardChargeForm({
       setEndedAtMonth("");
       setEndedAtYear("");
       setNotes("");
-      router.refresh();
       setTimeout(() => setIsSuccess(false), 2000);
     } else {
       setFieldErrors({ general: res.error || "Failed to create card charge" });
@@ -163,9 +168,9 @@ export function AddCardChargeForm({
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-12 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
           {/* Label / Description */}
-          <div className="col-span-8">
+          <div className="sm:col-span-8">
             <label className="block text-[11px] font-sans font-medium text-text-tertiary mb-1">
               DESCRIPTION / MERCHANT
             </label>
@@ -193,7 +198,7 @@ export function AddCardChargeForm({
           </div>
 
           {/* Amount */}
-          <div className="col-span-4">
+          <div className="sm:col-span-4">
             <label className="block text-[11px] font-sans font-medium text-text-tertiary mb-1">
               AMOUNT (RP)
             </label>
@@ -222,9 +227,9 @@ export function AddCardChargeForm({
           </div>
         </div>
 
-        <div className="grid grid-cols-12 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4">
           {/* Charge Type */}
-          <div className="col-span-4">
+          <div className="sm:col-span-1 lg:col-span-4">
             <label className="block text-[11px] font-sans font-medium text-text-tertiary mb-1">
               CHARGE TYPE
             </label>
@@ -241,7 +246,7 @@ export function AddCardChargeForm({
 
           {/* If Installment: Tenor */}
           {chargeType === "INSTALLMENT" && (
-            <div className="col-span-2">
+            <div className="sm:col-span-1 lg:col-span-2">
               <label className="block text-[11px] font-sans font-medium text-text-tertiary mb-1">
                 TENOR (MO)
               </label>
@@ -259,7 +264,7 @@ export function AddCardChargeForm({
           )}
 
           {/* Category */}
-          <div className={chargeType === "INSTALLMENT" ? "col-span-3" : "col-span-4"}>
+          <div className={chargeType === "INSTALLMENT" ? "sm:col-span-1 lg:col-span-3" : "sm:col-span-1 lg:col-span-4"}>
             <label className="block text-[11px] font-sans font-medium text-text-tertiary mb-1">
               CATEGORY
             </label>
@@ -278,7 +283,7 @@ export function AddCardChargeForm({
           </div>
 
           {/* Transaction Date */}
-          <div className={chargeType === "INSTALLMENT" ? "col-span-3" : "col-span-4"}>
+          <div className={chargeType === "INSTALLMENT" ? "sm:col-span-1 lg:col-span-3" : "sm:col-span-2 lg:col-span-4"}>
             <label className="block text-[11px] font-sans font-medium text-text-tertiary mb-1">
               TRANSACTION DATE
             </label>
@@ -293,7 +298,7 @@ export function AddCardChargeForm({
         </div>
 
         {/* Target Billing Period info note */}
-        <div className="p-3 bg-surface-subtle border border-border-subtle rounded flex items-center justify-between text-xs font-sans">
+        <div className="p-3 bg-surface-subtle border border-border-subtle rounded flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs font-sans">
           <span className="text-text-tertiary">
             Billing Target:{" "}
             <strong className="font-mono text-text-primary">
@@ -343,8 +348,8 @@ export function AddCardChargeForm({
 
         {/* Optional End Period for RECURRING subscriptions */}
         {chargeType === "RECURRING" && (
-          <div className="grid grid-cols-12 gap-4 p-3 rounded bg-surface-subtle border border-border-subtle">
-            <div className="col-span-6">
+          <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 p-3 rounded bg-surface-subtle border border-border-subtle">
+            <div className="sm:col-span-6">
               <div className="text-xs font-medium font-sans text-text-primary">
                 Optional Effective End Period
               </div>
@@ -352,7 +357,7 @@ export function AddCardChargeForm({
                 Leave blank if subscription is ongoing indefinitely. If set, billing stops after the selected month/year.
               </p>
             </div>
-            <div className="col-span-3">
+            <div className="sm:col-span-3">
               <label className="block text-[10px] font-mono uppercase text-text-tertiary mb-1">
                 END MONTH (1-12)
               </label>
@@ -366,7 +371,7 @@ export function AddCardChargeForm({
                 className="w-full bg-surface border border-border rounded px-2.5 py-1.5 text-xs font-mono text-text-primary"
               />
             </div>
-            <div className="col-span-3">
+            <div className="sm:col-span-3">
               <label className="block text-[10px] font-mono uppercase text-text-tertiary mb-1">
                 END YEAR
               </label>

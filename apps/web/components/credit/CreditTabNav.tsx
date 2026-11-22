@@ -1,47 +1,66 @@
 "use client";
 
-import React from "react";
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import React, { useRef } from "react";
+import { TranslationKey, useLanguage } from "@/context/LanguageContext";
+import { handleTabListKeyDown } from "@/lib/tabs";
 
 export type CreditTabType = "matrix" | "card" | "contracts";
 
 interface CreditTabNavProps {
   currentTab: CreditTabType;
-  month: number;
-  year: number;
+  onSelectTab: (tab: CreditTabType) => void;
 }
 
-export function CreditTabNav({ currentTab, month, year }: CreditTabNavProps) {
-  const tabs: Array<{ id: CreditTabType; label: string }> = [
-    { id: "matrix", label: "12-Month Matrix" },
-    { id: "card", label: "Credit Cards" },
-    { id: "contracts", label: "Active Contracts" },
-  ];
+const CREDIT_TABS: Array<{ id: CreditTabType; labelKey: TranslationKey }> = [
+  { id: "matrix", labelKey: "credit.tab.overview" },
+  { id: "card", labelKey: "credit.tab.cards" },
+  { id: "contracts", labelKey: "credit.tab.contracts" },
+];
+
+export function CreditTabNav({ currentTab, onSelectTab }: CreditTabNavProps) {
+  const { t } = useLanguage();
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   return (
-    <div className="w-full">
-      <nav
-        className="bg-[#0B0F19] border border-slate-800/80 p-1 rounded-lg flex items-center gap-1 overflow-x-auto no-scrollbar"
-        aria-label="Credit Tabs"
-      >
-        {tabs.map((tab) => {
-          const isActive = currentTab === tab.id;
-          return (
-            <Link
-              key={tab.id}
-              href={`/credit?month=${month}&year=${year}&tab=${tab.id}`}
-              className={`whitespace-nowrap text-xs font-medium px-3.5 py-2 rounded-md transition-all duration-150 ${
-                isActive
-                  ? "bg-slate-800/90 text-white shadow-sm border border-slate-700/60"
-                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 border border-transparent"
-              }`}
-            >
-              {tab.label}
-            </Link>
-          );
-        })}
-      </nav>
+    <div
+      role="tablist"
+      aria-label="Credit and liability sections"
+      className="flex items-center gap-6 border-b border-border overflow-x-auto no-scrollbar whitespace-nowrap"
+    >
+      {CREDIT_TABS.map((tab, idx) => {
+        const isActive = currentTab === tab.id;
+        return (
+          <button
+            key={tab.id}
+            ref={(el) => {
+              tabRefs.current[idx] = el;
+            }}
+            id={`credit-tab-${tab.id}`}
+            role="tab"
+            type="button"
+            aria-selected={isActive}
+            aria-controls={`credit-panel-${tab.id}`}
+            tabIndex={isActive ? 0 : -1}
+            onClick={() => onSelectTab(tab.id)}
+            onKeyDown={(e) =>
+              handleTabListKeyDown(
+                e,
+                CREDIT_TABS.map((x) => x.id),
+                idx,
+                onSelectTab,
+                tabRefs,
+              )
+            }
+            className={`pb-3 text-xs font-medium font-sans transition-colors border-b-2 -mb-px shrink-0 cursor-pointer ${
+              isActive
+                ? "border-accent text-text-primary"
+                : "border-transparent text-text-tertiary hover:text-text-secondary"
+            }`}
+          >
+            {t(tab.labelKey)}
+          </button>
+        );
+      })}
     </div>
   );
 }

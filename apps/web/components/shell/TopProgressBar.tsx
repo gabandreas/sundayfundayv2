@@ -1,27 +1,25 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
+import { BrandMark } from "@/components/primitives/BrandMark";
 
 export function TopProgressBar() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [progress, setProgress] = useState(0);
-  const [isVisible, setIsVisible] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Complete progress on route change
   useEffect(() => {
-    if (isVisible) {
-      setProgress(100);
-      const timer = setTimeout(() => {
-        setIsVisible(false);
-        setProgress(0);
-      }, 250);
-      return () => clearTimeout(timer);
+    if (isNavigating) {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      const doneTimer = setTimeout(() => {
+        setIsNavigating(false);
+      }, 140);
+      return () => clearTimeout(doneTimer);
     }
-  }, [pathname, searchParams]);
+  }, [pathname, searchParams, isNavigating]);
 
-  // Intercept all internal link clicks to trigger instant visual feedback
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       const target = (e.target as HTMLElement).closest("a");
@@ -43,46 +41,33 @@ export function TopProgressBar() {
         return;
       }
 
-      // Check if target is different from current URL
       const currentUrl = `${window.location.pathname}${window.location.search}`;
       if (href === currentUrl) return;
 
-      setIsVisible(true);
-      setProgress(25);
-
-      const t1 = setTimeout(() => {
-        setProgress((prev) => (prev < 70 ? 70 : prev));
-      }, 150);
-
-      const t2 = setTimeout(() => {
-        setProgress((prev) => (prev < 88 ? 88 : prev));
-      }, 400);
-
-      return () => {
-        clearTimeout(t1);
-        clearTimeout(t2);
-      };
+      setIsNavigating(true);
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => {
+        setIsNavigating(false);
+      }, 6000);
     };
 
     window.addEventListener("click", handleClick, { capture: true });
-    return () => window.removeEventListener("click", handleClick, { capture: true });
+    return () => {
+      window.removeEventListener("click", handleClick, { capture: true });
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
   }, []);
 
-  if (!isVisible && progress === 0) return null;
+  if (!isNavigating) return null;
 
   return (
     <div
-      className="fixed top-0 left-0 right-0 z-50 h-[2.5px] pointer-events-none bg-transparent"
-      aria-hidden="true"
+      className="fixed bottom-4 right-4 z-50 pointer-events-none select-none flex items-center gap-2 px-3 py-1.5 rounded-md border border-border-default bg-surface/95 shadow-lg text-[11px] font-mono text-text-secondary animate-in fade-in duration-150"
+      aria-live="polite"
+      aria-label="Loading view"
     >
-      <div
-        className="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.6)] transition-all ease-out"
-        style={{
-          width: `${progress}%`,
-          transitionDuration: progress === 100 ? "180ms" : "300ms",
-          opacity: progress === 100 ? 0 : 1,
-        }}
-      />
+      <BrandMark size={14} className="animate-pulse shrink-0" />
+      <span>Loading view</span>
     </div>
   );
 }

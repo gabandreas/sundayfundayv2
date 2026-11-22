@@ -28,74 +28,132 @@ export function LedgerSummaryStrip({ transactions, snapshot }: LedgerSummaryStri
 
   const netCashflow = totalInflow - totalOutflow;
 
+  const rawManualDailySpend = transactions
+    .filter(
+      (t) =>
+        t.type === "DEDUCTION" &&
+        (t.sourceType === "MANUAL" || !t.sourceType) &&
+        !t.fixedEssentialCategory
+    )
+    .reduce((sum, t) => sum + t.amount, 0);
+  const operationalRefunds = transactions
+    .filter((t) => t.sourceType === "OPERATIONAL_REFUND")
+    .reduce((sum, t) => sum + t.amount, 0);
+  const manualDailySpend = Math.max(0, rawManualDailySpend - operationalRefunds);
+  const checkpointCount = transactions.filter(
+    (t) =>
+      t.label?.includes("Balance Checkpoint") ||
+      t.label?.includes("High Burn Spike") ||
+      t.label?.includes("Unitemized")
+  ).length;
+  const routineSpent = transactions
+    .filter((t) => t.type === "DEDUCTION" && Boolean(t.fixedEssentialCategory))
+    .reduce((sum, t) => sum + t.amount, 0);
+  const routineBudget =
+    (snapshot?.transport ?? 0) +
+    (snapshot?.internet ?? 0) +
+    (snapshot?.vape ?? 0) +
+    (snapshot?.haircut ?? 0);
+  const dailyBudgetTarget =
+    snapshot?.actualDailyOperational ?? snapshot?.dailyOperational ?? 0;
+  const remainingLiving = Math.max(0, dailyBudgetTarget - manualDailySpend);
+
   return (
-    <div className="grid grid-cols-12 gap-4">
-      {/* Total Inflow */}
-      <div className="col-span-4 rounded-lg border border-border bg-surface p-4 flex flex-col justify-between">
-        <div className="flex items-center justify-between gap-1.5">
-          <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
-            TOTAL PERIOD INFLOW
-          </span>
-          <PrivacyEyeButton size="xs" />
-        </div>
-        <div className="my-2">
-          <div className="font-mono text-[22px] font-semibold leading-none tracking-tight text-delta-positive tabular-nums whitespace-nowrap">
-            +{formatRupiah(totalInflow, isAmountsMasked)}
+    <div className="space-y-3">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+        {/* Total Inflow */}
+        <div className="md:col-span-4 rounded-lg border border-border bg-surface p-4 flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-1.5">
+            <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
+              TOTAL PERIOD INFLOW
+            </span>
+            <PrivacyEyeButton size="xs" />
           </div>
-          <div className="text-xs font-sans text-text-tertiary mt-1.5">
-            Net salary, allowances & auxiliary income
+          <div className="my-2">
+            <div className="font-mono text-[22px] font-semibold leading-none tracking-tight text-delta-positive tabular-nums whitespace-nowrap">
+              +{formatRupiah(totalInflow, isAmountsMasked)}
+            </div>
+            <div className="text-xs font-sans text-text-tertiary mt-1.5">
+              Net salary, allowances & auxiliary income
+            </div>
+          </div>
+          <div className="text-[11px] font-mono text-text-tertiary pt-2 border-t border-border-subtle">
+            {snapshot?.month ?? "-"}/{snapshot?.year ?? "-"} payroll cycle
           </div>
         </div>
-        <div className="text-[11px] font-mono text-text-tertiary pt-2 border-t border-border-subtle">
-          {snapshot?.month ?? "-"}/{snapshot?.year ?? "-"} payroll cycle
+
+        {/* Total Outflow */}
+        <div className="md:col-span-4 rounded-lg border border-border bg-surface p-4 flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-1.5">
+            <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
+              TOTAL PERIOD OUTFLOW
+            </span>
+            <PrivacyEyeButton size="xs" />
+          </div>
+          <div className="my-2">
+            <div className="font-mono text-[22px] font-semibold leading-none tracking-tight text-text-primary tabular-nums whitespace-nowrap">
+              -{formatRupiah(totalOutflow, isAmountsMasked)}
+            </div>
+            <div className="text-xs font-sans text-text-tertiary mt-1.5">
+              Materialized debt, credit bills & daily expenses
+            </div>
+          </div>
+          <div className="text-[11px] font-mono text-text-tertiary pt-2 border-t border-border-subtle">
+            {transactions.filter((t) => t.type !== "INCOME").length} expense & liability items
+          </div>
+        </div>
+
+        {/* Net Period Cashflow */}
+        <div className="md:col-span-4 rounded-lg border border-border bg-surface p-4 flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-1.5">
+            <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
+              NET PERIOD CASHFLOW
+            </span>
+            <PrivacyEyeButton size="xs" />
+          </div>
+          <div className="my-2">
+            <div
+              className={`font-mono text-[22px] font-semibold leading-none tracking-tight tabular-nums whitespace-nowrap ${
+                netCashflow >= 0 ? "text-delta-positive" : "text-delta-negative"
+              }`}
+            >
+              {netCashflow >= 0
+                ? `+${formatRupiah(netCashflow, isAmountsMasked)}`
+                : formatRupiah(netCashflow, isAmountsMasked)}
+            </div>
+            <div className="text-xs font-sans text-text-tertiary mt-1.5">
+              Retained cash before savings & investment allocation
+            </div>
+          </div>
+          <div className="text-[11px] font-mono text-text-tertiary pt-2 border-t border-border-subtle">
+            {transactions.length} total logged transactions
+          </div>
         </div>
       </div>
 
-      {/* Total Outflow */}
-      <div className="col-span-4 rounded-lg border border-border bg-surface p-4 flex flex-col justify-between">
-        <div className="flex items-center justify-between gap-1.5">
-          <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
-            TOTAL PERIOD OUTFLOW
+      {/* Burn Velocity & Bucket Utilization Strip */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="rounded border border-border-subtle bg-surface-subtle px-3.5 py-2.5 flex items-center justify-between text-xs">
+          <span className="text-text-tertiary font-sans">Daily Living Burn</span>
+          <span className="font-mono tabular-nums text-text-primary">
+            {formatRupiah(manualDailySpend, isAmountsMasked)}{" "}
+            <span className="text-text-tertiary">/ {formatRupiah(dailyBudgetTarget, isAmountsMasked)}</span>
           </span>
-          <PrivacyEyeButton size="xs" />
         </div>
-        <div className="my-2">
-          <div className="font-mono text-[22px] font-semibold leading-none tracking-tight text-text-primary tabular-nums whitespace-nowrap">
-            -{formatRupiah(totalOutflow, isAmountsMasked)}
-          </div>
-          <div className="text-xs font-sans text-text-tertiary mt-1.5">
-            Materialized debt, credit bills & daily expenses
-          </div>
-        </div>
-        <div className="text-[11px] font-mono text-text-tertiary pt-2 border-t border-border-subtle">
-          {transactions.filter((t) => t.type !== "INCOME").length} expense & liability items
-        </div>
-      </div>
-
-      {/* Net Period Cashflow */}
-      <div className="col-span-4 rounded-lg border border-border bg-surface p-4 flex flex-col justify-between">
-        <div className="flex items-center justify-between gap-1.5">
-          <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
-            NET PERIOD CASHFLOW
+        <div className="rounded border border-border-subtle bg-surface-subtle px-3.5 py-2.5 flex items-center justify-between text-xs">
+          <span className="text-text-tertiary font-sans">Remaining Living Cash</span>
+          <span className="font-mono tabular-nums font-medium text-delta-positive">
+            {formatRupiah(remainingLiving, isAmountsMasked)}
           </span>
-          <PrivacyEyeButton size="xs" />
         </div>
-        <div className="my-2">
-          <div
-            className={`font-mono text-[22px] font-semibold leading-none tracking-tight tabular-nums whitespace-nowrap ${
-              netCashflow >= 0 ? "text-delta-positive" : "text-delta-negative"
-            }`}
-          >
-            {netCashflow >= 0
-              ? `+${formatRupiah(netCashflow, isAmountsMasked)}`
-              : formatRupiah(netCashflow, isAmountsMasked)}
-          </div>
-          <div className="text-xs font-sans text-text-tertiary mt-1.5">
-            Retained cash before savings & investment allocation
-          </div>
-        </div>
-        <div className="text-[11px] font-mono text-text-tertiary pt-2 border-t border-border-subtle">
-          {transactions.length} total logged transactions
+        <div className="rounded border border-border-subtle bg-surface-subtle px-3.5 py-2.5 flex items-center justify-between text-xs">
+          <span className="text-text-tertiary font-sans">
+            Routine Paid ({checkpointCount} checkpoints)
+          </span>
+          <span className="font-mono tabular-nums text-text-primary">
+            {formatRupiah(routineSpent, isAmountsMasked)}{" "}
+            <span className="text-text-tertiary">/ {formatRupiah(routineBudget, isAmountsMasked)}</span>
+          </span>
         </div>
       </div>
     </div>

@@ -158,7 +158,7 @@ export function PillarsAndExpenseLoggerCard({
             WATERFALL PILLARS
           </span>
           <span className="text-[10px] font-sans text-text-tertiary">
-            Reservoirs
+            Vaults
           </span>
         </div>
 

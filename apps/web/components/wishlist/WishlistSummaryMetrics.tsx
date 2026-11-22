@@ -24,29 +24,44 @@ export function WishlistSummaryMetrics({ items }: WishlistSummaryMetricsProps) {
         amount={totalActiveValue}
         value={formatRupiah(totalActiveValue)}
         isCenterpiece={true}
-        subvalue={`${activeItems.length} planned items`}
+        footer={
+          <span className="text-[11px] font-mono text-text-tertiary">
+            {activeItems.length} planned {activeItems.length === 1 ? "item" : "items"}
+          </span>
+        }
       />
 
       {/* Metric 2: Ready for Execution */}
       <MetricCard
         label="Ready For Purchase"
         value={String(readyCount)}
-        subvalue={readyCount === 1 ? "1 item ready" : `${readyCount} items ready`}
-        statusVariant={readyCount > 0 ? "default" : "default"}
+        footer={
+          <span className="text-[11px] font-mono text-text-tertiary">
+            {readyCount === 1 ? "1 item ready" : `${readyCount} items ready`}
+          </span>
+        }
       />
 
       {/* Metric 3: Under Planning */}
       <MetricCard
         label="In Planning Stage"
         value={String(planningCount)}
-        subvalue={planningCount === 1 ? "1 item queued" : `${planningCount} items queued`}
+        footer={
+          <span className="text-[11px] font-mono text-text-tertiary">
+            {planningCount === 1 ? "1 item queued" : `${planningCount} items queued`}
+          </span>
+        }
       />
 
       {/* Metric 4: Purchased & Converted */}
       <MetricCard
         label="Purchased & Converted"
         value={String(purchasedCount)}
-        subvalue="Materialized obligations"
+        footer={
+          <span className="text-[11px] font-mono text-text-tertiary">
+            Materialized obligations
+          </span>
+        }
       />
     </div>
   );

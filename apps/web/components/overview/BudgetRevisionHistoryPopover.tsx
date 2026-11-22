@@ -48,13 +48,15 @@ export function BudgetRevisionHistoryPopover({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded border border-border-subtle bg-surface-subtle text-text-secondary hover:text-text-primary hover:border-border transition-colors flex items-center gap-1 cursor-pointer"
-        title="View revision audit trail"
+        className="p-1 rounded text-text-tertiary hover:text-text-primary hover:bg-surface-subtle transition-colors inline-flex items-center gap-0.5 cursor-pointer"
+        title={`View revision history (${revisions.length})`}
+        aria-label={`View revision history (${revisions.length})`}
       >
-        <History className="w-3 h-3 text-text-tertiary" />
-        <span>Revised</span>
+        <History className="w-3 h-3" />
         {revisions.length > 1 && (
-          <span className="text-[9px] text-text-tertiary">({revisions.length})</span>
+          <span className="text-[9px] font-mono tabular-nums text-text-tertiary">
+            {revisions.length}
+          </span>
         )}
       </button>
 

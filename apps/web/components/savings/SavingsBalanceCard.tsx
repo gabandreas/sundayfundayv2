@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import { useRouter } from "next/navigation";
 import { ArrowLeftRight, TrendingUp, ShieldCheck } from "lucide-react";
 import {
   SavingsVault,
@@ -18,7 +17,6 @@ interface SavingsBalanceCardProps {
 }
 
 export function SavingsBalanceCard({ vault }: SavingsBalanceCardProps) {
-  const router = useRouter();
   const { isAmountsMasked } = usePrivacyMask();
   const { profileMode, getVaultLabels } = usePerspective();
   const isStandard = profileMode === "STANDARD_GENERAL";
@@ -73,7 +71,6 @@ export function SavingsBalanceCard({ vault }: SavingsBalanceCardProps) {
     setAmount("");
     setNote("");
     setShowRebalance(false);
-    router.refresh();
   };
 
   return (

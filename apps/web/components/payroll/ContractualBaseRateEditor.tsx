@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Check, Settings, Loader2 } from "lucide-react";
 import { GlobalConfig, updateGlobalConfig } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
@@ -19,8 +18,6 @@ export function ContractualBaseRateEditor({
   isLocked,
   config,
 }: ContractualBaseRateEditorProps) {
-  const router = useRouter();
-
   const [baseSalary, setBaseSalary] = useState(
     (config?.baseSalary ?? 5300000).toString()
   );
@@ -68,7 +65,6 @@ export function ContractualBaseRateEditor({
 
       setIsSuccess(true);
       setTimeout(() => setIsSuccess(false), 2500);
-      router.refresh();
     } catch (err: any) {
       setErrorMsg(err.message || "An unexpected error occurred");
     } finally {

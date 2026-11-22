@@ -82,7 +82,7 @@ export function MetricCard({
       </div>
 
       {/* Main Metric Value: Centerpiece uses Newsreader serif display, secondary uses tight tabular font-mono */}
-      <div className="flex items-baseline gap-2 my-1 whitespace-nowrap">
+      <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1 my-1 min-w-0">
         <span
           className={`whitespace-nowrap tabular-nums ${
             isCenterpiece

@@ -11,7 +11,6 @@ import {
 } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
 import {
-  Sparkles,
   ShieldCheck,
   Send,
   Loader2,
@@ -23,12 +22,35 @@ import {
   FileCode2,
 } from "lucide-react";
 
-export function CustomRequestStudio() {
+interface CustomRequestStudioProps {
+  initialRequests?: CustomFeatureRequest[];
+}
+
+function buildEditStatesMap(data: CustomFeatureRequest[]) {
+  const initialEdits: Record<
+    number,
+    {
+      status: "SUBMITTED" | "IN_REVIEW" | "APPROVED_QUOTED" | "IMPLEMENTED";
+      adminNotes: string;
+      estimatedSetupFee: string;
+    }
+  > = {};
+  data.forEach((r) => {
+    initialEdits[r.id] = {
+      status: r.status,
+      adminNotes: r.adminNotes || "",
+      estimatedSetupFee: r.estimatedSetupFee ? r.estimatedSetupFee.toString() : "",
+    };
+  });
+  return initialEdits;
+}
+
+export function CustomRequestStudio({ initialRequests }: CustomRequestStudioProps = {}) {
   const { profileMode } = usePerspective();
   const isSuperadmin = profileMode === "SUPERADMIN_BESPOKE";
 
-  const [requests, setRequests] = useState<CustomFeatureRequest[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [requests, setRequests] = useState<CustomFeatureRequest[]>(initialRequests ?? []);
+  const [loading, setLoading] = useState(initialRequests === undefined);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
 
   // Form state for creating request
@@ -55,29 +77,14 @@ export function CustomRequestStudio() {
         estimatedSetupFee: string;
       }
     >
-  >({});
+  >(() => buildEditStatesMap(initialRequests ?? []));
 
   const loadRequests = async () => {
     setLoading(true);
     try {
       const data = await fetchCustomRequests();
       setRequests(data);
-      const initialEdits: Record<
-        number,
-        {
-          status: "SUBMITTED" | "IN_REVIEW" | "APPROVED_QUOTED" | "IMPLEMENTED";
-          adminNotes: string;
-          estimatedSetupFee: string;
-        }
-      > = {};
-      data.forEach((r) => {
-        initialEdits[r.id] = {
-          status: r.status,
-          adminNotes: r.adminNotes || "",
-          estimatedSetupFee: r.estimatedSetupFee ? r.estimatedSetupFee.toString() : "",
-        };
-      });
-      setEditStates(initialEdits);
+      setEditStates(buildEditStatesMap(data));
     } catch (e) {
       console.error("Failed to load custom requests", e);
     } finally {
@@ -86,8 +93,10 @@ export function CustomRequestStudio() {
   };
 
   useEffect(() => {
-    loadRequests();
-  }, []);
+    if (initialRequests === undefined) {
+      loadRequests();
+    }
+  }, [initialRequests]);
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -197,9 +206,11 @@ export function CustomRequestStudio() {
       {/* Perspective Info Header */}
       <div className="p-4 rounded-lg border border-border bg-surface flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-surface-subtle border border-border flex items-center justify-center text-accent">
-            {isSuperadmin ? <ShieldCheck className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
-          </div>
+          {isSuperadmin ? (
+            <ShieldCheck className="w-4 h-4 text-accent shrink-0" />
+          ) : (
+            <FileCode2 className="w-4 h-4 text-accent shrink-0" />
+          )}
           <div>
             <h3 className="text-sm font-semibold font-sans text-text-primary">
               {isSuperadmin

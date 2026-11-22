@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState, useTransition, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState, useMemo } from "react";
 import {
   Compass,
   Save,
@@ -30,9 +29,6 @@ export function WealthTargetPlannerCard({
   baselineMonth = 10,
   baselineYear = 2026,
 }: WealthTargetPlannerCardProps) {
-  const router = useRouter();
-  const [, startTransition] = useTransition();
-
   const savedConfig = vault.overview?.wealthTargetConfig;
   const initialPlan = vault.overview?.wealthTargetPlan;
   const capacity = vault.overview?.financialCapacity;
@@ -202,9 +198,6 @@ export function WealthTargetPlannerCard({
       setFeedbackMessage({
         type: "success",
         text: "Target wealth plan saved successfully to global financial configuration.",
-      });
-      startTransition(() => {
-        router.refresh();
       });
     } else {
       setFeedbackMessage({

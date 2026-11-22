@@ -104,7 +104,7 @@ export function PayrollArchetypeSelector() {
       <div className="flex items-center justify-between pb-2 border-b border-border-subtle">
         <div>
           <span className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
-            Income Archetype & Custom Streams
+            Payroll Setup &amp; Income Streams
           </span>
           <h3 className="text-xs font-semibold font-sans text-text-primary mt-0.5">
             Select Your Payroll Model & Custom Income / Deduction Rows
@@ -127,7 +127,7 @@ export function PayrollArchetypeSelector() {
               onClick={() => setPayrollMode(arch.key)}
               className={`p-3 rounded border text-left transition-all cursor-pointer ${
                 isActive
-                  ? "bg-surface-subtle border-text-primary text-text-primary"
+                  ? "bg-accent/[0.06] border-accent/50 ring-1 ring-accent/20 text-text-primary"
                   : "bg-surface border-border-subtle text-text-secondary hover:text-text-primary hover:border-border"
               }`}
             >

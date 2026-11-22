@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState } from "react";
 import {
   WishlistFundingType,
   AnalyzeWishlistDraftPayload,
@@ -28,9 +27,6 @@ export function WishlistPlannerForm({
   setIsLoadingAnalysis,
   setAnalysisError,
 }: WishlistPlannerFormProps) {
-  const router = useRouter();
-  const [, startTransition] = useTransition();
-
   const [name, setName] = useState("");
   const [priceStr, setPriceStr] = useState("");
   const [fundingType, setFundingType] = useState<WishlistFundingType>("CASH");
@@ -152,9 +148,6 @@ export function WishlistPlannerForm({
       if (res.success) {
         setSaveSuccess(true);
         setTimeout(() => setSaveSuccess(false), 2500);
-        startTransition(() => {
-          router.refresh();
-        });
       } else {
         setFormError(res.error || "Failed to save wishlist item.");
       }

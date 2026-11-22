@@ -1,100 +1,111 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
+  EmailStatusResponse,
   GlobalConfig,
   KillSwitchItem,
-  KillSwitchResponse,
   KillSwitchNotificationConfig,
-  UpdateKillSwitchNotificationConfigInput,
-  fetchKillSwitches,
+  KillSwitchResponse,
   createKillSwitch,
-  updateKillSwitch,
-  updateGlobalConfig,
   fetchKillSwitchNotificationConfig,
-  updateKillSwitchNotificationConfig,
+  fetchKillSwitches,
   sendKillSwitchReminder,
+  updateGlobalConfig,
+  updateKillSwitch,
 } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
-
-const DEFAULT_KILL_SWITCH_TEMPLATE =
-  "Woi Gab, inget batalin langganan {{name}} sebelum {{deadline}} ({{daysLeft}} hari lagi) biar CC lu ga ke-charge normal Rp {{normalPrice}}/bln! Langsung klik cancel sekarang di: {{cancelUrl}}";
+import { usePrivacyMask } from "@/context/PrivacyMaskContext";
+import { useLanguage } from "@/context/LanguageContext";
+import { Copy, ExternalLink, Eye, Plus, X } from "lucide-react";
+import { SmtpControlPanel } from "./SmtpControlPanel";
 
 interface SubscriptionKillSwitchTabProps {
   config: GlobalConfig;
+  activeMonth: number;
+  activeYear: number;
+  initialKillSwitches?: KillSwitchResponse | null;
+  initialNotificationConfig?: KillSwitchNotificationConfig | null;
+  initialEmailStatus?: EmailStatusResponse | null;
 }
 
-function getHMinus3Dates(promoEndDateStr: string) {
+const DEFAULT_KILL_SWITCH_TEMPLATE =
+  "Notice: Promotional pricing for {{name}} expires on {{deadline}} ({{daysLeft}} remaining). To prevent automatic renewal at the standard rate of Rp {{normalPrice}}/month, cancel through your provider portal prior to cutoff: {{cancelUrl}}";
+
+function getHMinus3Dates(promoEndDateStr: string): {
+  startUtc: string;
+  endUtc: string;
+  deadlineStr: string;
+} {
   const datePart = promoEndDateStr.split("T")[0];
   const [y, m, d] = datePart.split("-").map(Number);
-  // H-3 at 19:00 WIB (12:00:00 UTC)
-  const h3Date = new Date(Date.UTC(y, m - 1, d - 3, 12, 0, 0));
-  const endDate = new Date(Date.UTC(y, m - 1, d - 3, 12, 30, 0));
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() - 3);
 
-  const pad = (n: number) => String(n).padStart(2, "0");
-  const formatIsoUtc = (date: Date) =>
-    `${date.getUTCFullYear()}${pad(date.getUTCMonth() + 1)}${pad(date.getUTCDate())}T${pad(
-      date.getUTCHours()
-    )}${pad(date.getUTCMinutes())}${pad(date.getUTCSeconds())}Z`;
+  const yyyy = dt.getUTCFullYear();
+  const mm = String(dt.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(dt.getUTCDate()).padStart(2, "0");
+  // 19:00 WIB = 12:00 UTC -> 12:30 UTC
+  const startUtc = `${yyyy}${mm}${dd}T120000Z`;
+  const endUtc = `${yyyy}${mm}${dd}T123000Z`;
+  return { startUtc, endUtc, deadlineStr: datePart };
+}
 
-  return {
-    startUtc: formatIsoUtc(h3Date),
-    endUtc: formatIsoUtc(endDate),
-    deadlineStr: datePart,
-  };
+function formatFormalDaysRemaining(daysLeft: number | null | undefined): string {
+  if (daysLeft === null || daysLeft === undefined) return "Pending schedule";
+  if (daysLeft < 0) {
+    const abs = Math.abs(daysLeft);
+    return `${abs} day${abs === 1 ? "" : "s"} overdue`;
+  }
+  if (daysLeft === 0) return "due today (0 days)";
+  return `${daysLeft} day${daysLeft === 1 ? "" : "s"}`;
 }
 
 function buildGoogleCalendarUrl(item: KillSwitchItem): string | null {
   if (!item.promoEndDate) return null;
   const { startUtc, endUtc, deadlineStr } = getHMinus3Dates(item.promoEndDate);
-  const title = `[Kill-Switch] Batalin Langganan ${item.label}`;
+  const title = `[Kill-Switch] Subscription Cancellation Deadline: ${item.label}`;
   const normalPrice = (item.postPromoNormalAmount || item.amount).toLocaleString("id-ID");
-  const details = `Woi Gab, inget batalin langganan ${item.label} sebelum ${deadlineStr} biar CC lu ga ke-charge normal Rp ${normalPrice}/bln!\n\nLink Cancel: ${
-    item.providerCancelUrl || "N/A"
-  }`;
-  const location = item.providerCancelUrl || "";
-
-  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(
-    title
-  )}&dates=${startUtc}/${endUtc}&details=${encodeURIComponent(details)}&location=${encodeURIComponent(
-    location
-  )}`;
+  const details =
+    `Notice: Cancel ${item.label} prior to ${deadlineStr} to avoid automatic renewal at the standard rate of Rp ${normalPrice}/month.\n\n` +
+    `Cancellation Portal: ${item.providerCancelUrl || "Provider Account Settings"}`;
+  const params = new URLSearchParams({
+    action: "TEMPLATE",
+    text: title,
+    dates: `${startUtc}/${endUtc}`,
+    details,
+  });
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }
 
 function downloadIcsFile(item: KillSwitchItem) {
   if (!item.promoEndDate) return;
   const { startUtc, endUtc, deadlineStr } = getHMinus3Dates(item.promoEndDate);
-  const nowUtc = new Date().toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
-  const title = `[Kill-Switch] Batalin Langganan ${item.label}`;
   const normalPrice = (item.postPromoNormalAmount || item.amount).toLocaleString("id-ID");
-  const details = `Woi Gab, inget batalin langganan ${item.label} sebelum ${deadlineStr} biar CC lu ga ke-charge normal Rp ${normalPrice}/bln!\\n\\nLink Cancel: ${
-    item.providerCancelUrl || "N/A"
-  }`;
-  const location = item.providerCancelUrl || "";
+  const summary = `[Kill-Switch] Subscription Cancellation: ${item.label}`;
+  const description =
+    `Promotional period expires ${deadlineStr}. Cancel before cutoff to prevent standard billing at Rp ${normalPrice}/mo. Portal: ${item.providerCancelUrl || "Provider Account Settings"}`;
 
   const icsLines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//MondayMonday ERP//Kill-Switch Reminder//EN",
-    "CALSCALE:GREGORIAN",
-    "METHOD:PUBLISH",
+    "PRODID:-//Sunday Funday ERP//Kill-Switch Guard//EN",
     "BEGIN:VEVENT",
-    `UID:killswitch-${item.id}@mondaymonday.local`,
-    `DTSTAMP:${nowUtc}`,
+    `UID:killswitch-${item.id}@sundayfunday-erp.local`,
+    `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, "").split(".")[0]}Z`,
     `DTSTART:${startUtc}`,
     `DTEND:${endUtc}`,
-    `SUMMARY:${title}`,
-    `DESCRIPTION:${details}`,
-    `LOCATION:${location}`,
-    "STATUS:CONFIRMED",
+    `SUMMARY:${summary}`,
+    `DESCRIPTION:${description.replace(/\n/g, "\\n")}`,
+    item.providerCancelUrl ? `URL:${item.providerCancelUrl}` : "",
     "BEGIN:VALARM",
-    "TRIGGER:-PT0M",
+    "TRIGGER:-PT30M",
     "ACTION:DISPLAY",
-    `DESCRIPTION:Reminder: Batalin ${item.label} sekarang!`,
+    `DESCRIPTION:Cancellation deadline for ${item.label}`,
     "END:VALARM",
     "END:VEVENT",
     "END:VCALENDAR",
-  ];
+  ].filter(Boolean);
 
   const blob = new Blob([icsLines.join("\r\n")], { type: "text/calendar;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -108,21 +119,18 @@ function downloadIcsFile(item: KillSwitchItem) {
   URL.revokeObjectURL(url);
 }
 
-function renderMessagePreview(template: string, sampleItem?: KillSwitchItem | null): string {
-  const tpl = template && template.trim().length > 0 ? template.trim() : DEFAULT_KILL_SWITCH_TEMPLATE;
-  const name = sampleItem?.label || "Gemini AI Pro";
-  const deadline = sampleItem?.promoEndDate
-    ? sampleItem.promoEndDate.split("T")[0]
-    : "2027-01-27";
-  const daysLeft =
-    sampleItem?.daysUntilExpiry !== undefined && sampleItem.daysUntilExpiry !== null
-      ? sampleItem.daysUntilExpiry <= 0
-        ? "HARI INI"
-        : `${sampleItem.daysUntilExpiry}`
-      : "14";
-  const normalPrice = (sampleItem?.postPromoNormalAmount || 309000).toLocaleString("id-ID");
-  const cancelUrl = sampleItem?.providerCancelUrl || "https://one.google.com/settings";
-  const currentPrice = (sampleItem?.amount || 0).toLocaleString("id-ID");
+function renderFormalNoticeText(template: string, item?: KillSwitchItem | null): string {
+  const trimmed = template.trim();
+  const tpl =
+    trimmed.length > 0 && !trimmed.toLowerCase().startsWith("woi gab")
+      ? trimmed
+      : DEFAULT_KILL_SWITCH_TEMPLATE;
+  const name = item?.label || "Sample Subscription";
+  const deadline = item?.promoEndDate ? item.promoEndDate.split("T")[0] : "2027-01-27";
+  const daysLeft = formatFormalDaysRemaining(item?.daysUntilExpiry ?? 14);
+  const normalPrice = (item?.postPromoNormalAmount || item?.amount || 309000).toLocaleString("id-ID");
+  const cancelUrl = item?.providerCancelUrl || "Provider Account Settings";
+  const currentPrice = (item?.amount || 0).toLocaleString("id-ID");
 
   return tpl
     .replace(/\{\{\s*name\s*\}\}/g, name)
@@ -133,36 +141,43 @@ function renderMessagePreview(template: string, sampleItem?: KillSwitchItem | nu
     .replace(/\{\{\s*currentPrice\s*\}\}/g, currentPrice);
 }
 
-export function SubscriptionKillSwitchTab({ config }: SubscriptionKillSwitchTabProps) {
-  const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<KillSwitchResponse | null>(null);
+export function SubscriptionKillSwitchTab({
+  config,
+  activeMonth,
+  activeYear,
+  initialKillSwitches,
+  initialNotificationConfig,
+  initialEmailStatus,
+}: SubscriptionKillSwitchTabProps) {
+  const { locale } = useLanguage();
+  const { isAmountsMasked } = usePrivacyMask();
+  const formDialogRef = useRef<HTMLDialogElement | null>(null);
+  const noticeDialogRef = useRef<HTMLDialogElement | null>(null);
 
-  // Card A: Global Alert Settings
-  const [bannerEnabled, setBannerEnabled] = useState(config.killSwitchBannerEnabled ?? true);
-  const [leadDays, setLeadDays] = useState(config.killSwitchLeadDays ?? 14);
+  const [loading, setLoading] = useState(initialKillSwitches === undefined);
+  const [data, setData] = useState<KillSwitchResponse | null>(initialKillSwitches ?? null);
+
+  // Global Kill-Switch Guard Settings
+  const [bannerEnabled, setBannerEnabled] = useState(
+    initialKillSwitches?.config.killSwitchBannerEnabled ??
+      config.killSwitchBannerEnabled ??
+      true,
+  );
+  const [leadDays, setLeadDays] = useState(
+    initialKillSwitches?.config.killSwitchLeadDays ?? config.killSwitchLeadDays ?? 14,
+  );
   const [savingSettings, setSavingSettings] = useState(false);
   const [settingsSavedMessage, setSettingsSavedMessage] = useState<string | null>(null);
 
-  // Card C: External Notification Channels State
-  const [notifyEmail, setNotifyEmail] = useState("");
-  const [smtpUser, setSmtpUser] = useState("");
-  const [smtpAppPassword, setSmtpAppPassword] = useState("");
-  const [showAppPassword, setShowAppPassword] = useState(false);
-  const [hasSmtpPassword, setHasSmtpPassword] = useState(false);
+  // Formal Notice Template State
+  const [customTemplate, setCustomTemplate] = useState<string>(() => {
+    const raw = initialNotificationConfig?.killSwitchCustomMessageTemplate?.trim() ?? "";
+    return raw.length > 0 && !raw.toLowerCase().startsWith("woi gab") ? raw : "";
+  });
+  const [copiedNoticeId, setCopiedNoticeId] = useState<number | null>(null);
+  const [previewingNoticeItem, setPreviewingNoticeItem] = useState<KillSwitchItem | null>(null);
 
-  const [webhookUrl, setWebhookUrl] = useState("");
-  const [waPhone, setWaPhone] = useState("");
-  const [waApiKey, setWaApiKey] = useState("");
-  const [showApiKey, setShowApiKey] = useState(false);
-  const [hasWaApiKey, setHasWaApiKey] = useState(false);
-
-  const [customTemplate, setCustomTemplate] = useState("");
-
-  const [savingChannels, setSavingChannels] = useState(false);
-  const [channelSuccessMsg, setChannelSuccessMsg] = useState<string | null>(null);
-  const [channelErrorMsg, setChannelErrorMsg] = useState<string | null>(null);
-
-  // Per-row reminders & actions feedback
+  // Per-row reminder / action feedback
   const [remindingId, setRemindingId] = useState<number | null>(null);
   const [reminderFeedback, setReminderFeedback] = useState<{
     id: number;
@@ -171,8 +186,7 @@ export function SubscriptionKillSwitchTab({ config }: SubscriptionKillSwitchTabP
   } | null>(null);
   const [actionProcessingId, setActionProcessingId] = useState<number | null>(null);
 
-  // Modal State for Add / Edit
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  // Add / Edit Native Dialog Form State
   const [editingItem, setEditingItem] = useState<KillSwitchItem | null>(null);
   const [formLabel, setFormLabel] = useState("");
   const [formAmount, setFormAmount] = useState<number>(0);
@@ -190,39 +204,25 @@ export function SubscriptionKillSwitchTab({ config }: SubscriptionKillSwitchTabP
       fetchKillSwitches(),
       fetchKillSwitchNotificationConfig(),
     ]);
-
     if (res) {
       setData(res);
       setBannerEnabled(res.config.killSwitchBannerEnabled);
       setLeadDays(res.config.killSwitchLeadDays);
     }
-
     if (notifRes) {
-      setNotifyEmail(notifRes.killSwitchNotifyEmail || "");
-      setSmtpUser(notifRes.killSwitchSmtpUser || "");
-      setHasSmtpPassword(notifRes.hasSmtpPassword);
-      setWebhookUrl(notifRes.killSwitchWebhookUrl || "");
-      setWaPhone(notifRes.killSwitchWaPhone || "");
-      setHasWaApiKey(notifRes.hasWaApiKey);
-      setCustomTemplate(notifRes.killSwitchCustomMessageTemplate || "");
+      const raw = notifRes.killSwitchCustomMessageTemplate?.trim() ?? "";
+      if (raw.length > 0 && !raw.toLowerCase().startsWith("woi gab")) {
+        setCustomTemplate(raw);
+      }
     }
     setLoading(false);
   };
 
   useEffect(() => {
-    loadData();
-  }, []);
-
-  // Keyboard ergonomics: Escape key closes modal
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isAddModalOpen) {
-        setIsAddModalOpen(false);
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isAddModalOpen]);
+    if (initialKillSwitches === undefined) {
+      loadData();
+    }
+  }, [initialKillSwitches]);
 
   const handleSaveSettings = async () => {
     setSavingSettings(true);
@@ -233,155 +233,78 @@ export function SubscriptionKillSwitchTab({ config }: SubscriptionKillSwitchTabP
     });
     setSavingSettings(false);
     if (res.success) {
-      setSettingsSavedMessage("Alert preferences saved.");
+      setSettingsSavedMessage("Alert guard thresholds updated.");
       setTimeout(() => setSettingsSavedMessage(null), 3000);
       loadData();
     }
   };
 
-  const handleSaveChannelSettings = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    setSavingChannels(true);
-    setChannelSuccessMsg(null);
-    setChannelErrorMsg(null);
-
-    const payload: UpdateKillSwitchNotificationConfigInput = {
-      killSwitchNotifyEmail: notifyEmail.trim() || undefined,
-      killSwitchSmtpUser: smtpUser.trim() || undefined,
-      killSwitchWebhookUrl: webhookUrl.trim() || undefined,
-      killSwitchWaPhone: waPhone.trim() || undefined,
-      killSwitchCustomMessageTemplate: customTemplate.trim() || undefined,
-    };
-
-    if (smtpAppPassword.trim()) {
-      payload.killSwitchSmtpAppPassword = smtpAppPassword.trim();
-    }
-    if (waApiKey.trim()) {
-      payload.killSwitchWaApiKey = waApiKey.trim();
-    }
-
-    const res = await updateKillSwitchNotificationConfig(payload);
-    setSavingChannels(false);
-
-    if (res.success) {
-      setChannelSuccessMsg("Notification channel settings saved.");
-      setSmtpAppPassword("");
-      setWaApiKey("");
-      if (res.data) {
-        setHasSmtpPassword(res.data.hasSmtpPassword);
-        setHasWaApiKey(res.data.hasWaApiKey);
-      }
-      setTimeout(() => setChannelSuccessMsg(null), 3500);
-    } else {
-      setChannelErrorMsg(res.error || "Failed to save notification settings.");
-    }
-  };
-
-  const handleSendReminderRow = async (item: KillSwitchItem) => {
-    setRemindingId(item.id);
-    setReminderFeedback(null);
-    const res = await sendKillSwitchReminder(item.id);
-    setRemindingId(null);
-
-    if (res.success) {
-      const parts: string[] = [];
-      if (res.channels.email) parts.push("Email sent");
-      if (res.channels.webhook) parts.push("Webhook dispatched");
-      if (parts.length === 0 && !res.whatsappUrl) {
-        parts.push("Dispatched (channels unconfigured)");
-      }
-
-      setReminderFeedback({
-        id: item.id,
-        success: true,
-        text: parts.join(", ") || "Reminder sent",
-      });
-
-      // Update lastKillSwitchNotifiedAt in local state
-      setData((prev) =>
-        prev
-          ? {
-              ...prev,
-              items: prev.items.map((i) =>
-                i.id === item.id
-                  ? { ...i, lastKillSwitchNotifiedAt: new Date().toISOString() }
-                  : i
-              ),
-            }
-          : prev
-      );
-
-      // Open WhatsApp direct link if present
-      if (res.whatsappUrl) {
-        window.open(res.whatsappUrl, "_blank", "noopener,noreferrer");
-      }
-
-      setTimeout(() => {
-        setReminderFeedback((cur) => (cur?.id === item.id ? null : cur));
-      }, 5000);
-    } else {
-      setReminderFeedback({
-        id: item.id,
-        success: false,
-        text: res.error || "Failed to dispatch reminder",
-      });
-      setTimeout(() => {
-        setReminderFeedback((cur) => (cur?.id === item.id ? null : cur));
-      }, 5000);
-    }
-  };
-
-  const handleInsertToken = (token: string) => {
-    setCustomTemplate((prev) => {
-      const base = prev.length > 0 ? prev : DEFAULT_KILL_SWITCH_TEMPLATE;
-      return `${base} ${token}`;
-    });
-  };
-
-  const openAddModal = () => {
+  const openAddDialog = () => {
     setEditingItem(null);
     setFormLabel("");
     setFormAmount(0);
     setFormPromoLabel("");
-    setFormPromoEndDate("");
+    setFormPromoEndDate("2027-01-27");
     setFormNormalAmount(309000);
     setFormCancelUrl("");
     setFormKillSwitchEnabled(true);
     setFormError(null);
-    setIsAddModalOpen(true);
+    formDialogRef.current?.showModal();
   };
 
-  const openEditModal = (item: KillSwitchItem) => {
+  const openEditDialog = (item: KillSwitchItem) => {
     setEditingItem(item);
     setFormLabel(item.label);
     setFormAmount(item.amount);
     setFormPromoLabel(item.promoLabel || "");
     setFormPromoEndDate(item.promoEndDate ? item.promoEndDate.split("T")[0] : "");
-    setFormNormalAmount(item.postPromoNormalAmount || item.amount);
+    setFormNormalAmount(item.postPromoNormalAmount || item.amount || 0);
     setFormCancelUrl(item.providerCancelUrl || "");
     setFormKillSwitchEnabled(item.killSwitchEnabled);
     setFormError(null);
-    setIsAddModalOpen(true);
+    formDialogRef.current?.showModal();
   };
 
-  const handleSubmitModal = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError(null);
+  const closeFormDialog = () => {
+    if (formDialogRef.current?.open) {
+      formDialogRef.current.close();
+    }
+  };
 
+  const openNoticePreviewDialog = (item: KillSwitchItem) => {
+    setPreviewingNoticeItem(item);
+    noticeDialogRef.current?.showModal();
+  };
+
+  const closeNoticeDialog = () => {
+    if (noticeDialogRef.current?.open) {
+      noticeDialogRef.current.close();
+    }
+  };
+
+  const handleCopyFormalNotice = async (item: KillSwitchItem) => {
+    const notice = renderFormalNoticeText(customTemplate, item);
+    try {
+      await navigator.clipboard.writeText(notice);
+      setCopiedNoticeId(item.id);
+      setTimeout(() => setCopiedNoticeId(null), 2000);
+    } catch {
+      openNoticePreviewDialog(item);
+    }
+  };
+
+  const handleSubmitKillSwitch = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!formLabel.trim()) {
-      setFormError("Subscription label is required");
+      setFormError("Service label is required.");
       return;
     }
     if (!formPromoEndDate) {
-      setFormError("Promo expiration deadline date is required");
+      setFormError("Cancellation deadline date is required.");
       return;
     }
-    if (formNormalAmount <= 0) {
-      setFormError("Post-promo normal price must be greater than 0");
-      return;
-    }
-
     setSubmittingForm(true);
+    setFormError(null);
 
     if (editingItem) {
       const res = await updateKillSwitch(editingItem.id, {
@@ -395,10 +318,10 @@ export function SubscriptionKillSwitchTab({ config }: SubscriptionKillSwitchTabP
       });
       setSubmittingForm(false);
       if (res.success) {
-        setIsAddModalOpen(false);
+        closeFormDialog();
         loadData();
       } else {
-        setFormError(res.error || "Failed to update kill-switch item");
+        setFormError(res.error || "Failed to update monitored subscription.");
       }
     } else {
       const res = await createKillSwitch({
@@ -412,10 +335,10 @@ export function SubscriptionKillSwitchTab({ config }: SubscriptionKillSwitchTabP
       });
       setSubmittingForm(false);
       if (res.success) {
-        setIsAddModalOpen(false);
+        closeFormDialog();
         loadData();
       } else {
-        setFormError(res.error || "Failed to create subscription kill-switch");
+        setFormError(res.error || "Failed to arm subscription kill-switch.");
       }
     }
   };
@@ -444,204 +367,205 @@ export function SubscriptionKillSwitchTab({ config }: SubscriptionKillSwitchTabP
     }
   };
 
+  const handleSendReminderRow = async (item: KillSwitchItem) => {
+    setRemindingId(item.id);
+    setReminderFeedback(null);
+    const res = await sendKillSwitchReminder(item.id);
+    setRemindingId(null);
+
+    if (res.success) {
+      const sentChannels: string[] = [];
+      if (res.channels?.email) sentChannels.push("Email");
+      if (res.channels?.webhook) sentChannels.push("Webhook");
+      const text =
+        sentChannels.length > 0
+          ? `Notice sent via ${sentChannels.join(" & ")}`
+          : "Notice generated (preview mode — add Gmail App Password below to dispatch SMTP)";
+      setReminderFeedback({ id: item.id, success: true, text });
+      loadData();
+    } else {
+      setReminderFeedback({
+        id: item.id,
+        success: false,
+        text:
+          res.channels?.emailError ||
+          res.channels?.webhookError ||
+          res.error ||
+          "Unable to dispatch cancellation notice.",
+      });
+    }
+  };
+
   const items = data?.items || [];
+  const activeRecurringItems = items.filter((i) => !i.providerCancelConfirmed && i.isActive);
   const actionRequiredCount = items.filter((i) => i.alertState === "ACTION_REQUIRED").length;
-  const totalPenaltyExposure = items.reduce((sum, i) => sum + i.monthlyPenaltyDelta, 0);
+  const monthlyRecurringBurn = activeRecurringItems.reduce((sum, i) => sum + i.amount, 0);
+  const monthlyPenaltyExposure = activeRecurringItems.reduce(
+    (sum, i) => sum + Math.max(i.monthlyPenaltyDelta, i.postPromoNormalAmount ?? i.amount),
+    0,
+  );
+  const annualizedExposure = monthlyPenaltyExposure * 12;
   const sampleItemForPreview = items.length > 0 ? items[0] : null;
+  const formatRp = (val: number) => formatRupiah(val, isAmountsMasked);
+  const apiLocale = (locale?.toUpperCase() || "EN") as "EN" | "ID" | "ZH";
 
   return (
     <div className="space-y-6">
-      {/* Overview Stat Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="rounded-lg border border-[#282e3d] bg-[#161922] p-4">
-          <div className="text-[11px] font-sans font-medium text-text-tertiary uppercase tracking-wider">
-            Tracked Promo Subscriptions
+      {/* Executive Burn & Exposure Summary */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="rounded-lg border border-border bg-surface p-4 flex flex-col justify-between">
+          <div className="text-[11px] font-sans uppercase tracking-wider text-text-tertiary">
+            Active Recurring Guards
           </div>
-          <div className="text-2xl font-mono font-bold text-text-primary mt-1">
-            {items.length}
-          </div>
-          <div className="text-xs font-sans text-text-secondary mt-1">
-            Monitored for unexpected renewals
-          </div>
-        </div>
-
-        <div className="rounded-lg border border-[#282e3d] bg-[#161922] p-4">
-          <div className="text-[11px] font-sans font-medium text-text-tertiary uppercase tracking-wider">
-            Critical Action Required
-          </div>
-          <div
-            className={`text-2xl font-mono font-bold mt-1 ${
-              actionRequiredCount > 0 ? "text-[#e06c75]" : "text-[#10b78d]"
-            }`}
-          >
-            {actionRequiredCount}
-          </div>
-          <div className="text-xs font-sans text-text-secondary mt-1">
-            {actionRequiredCount > 0
-              ? `Within H-${leadDays} deadline window`
-              : "All promotional deadlines safe"}
-          </div>
-        </div>
-
-        <div className="rounded-lg border border-[#282e3d] bg-[#161922] p-4">
-          <div className="text-[11px] font-sans font-medium text-text-tertiary uppercase tracking-wider">
-            Monthly Renewal Jump Protected
-          </div>
-          <div className="text-2xl font-mono font-bold text-text-primary mt-1">
-            {formatRupiah(totalPenaltyExposure)}
-            <span className="text-xs font-sans font-normal text-text-tertiary">/mo</span>
-          </div>
-          <div className="text-xs font-sans text-text-secondary mt-1">
-            Total recurring price delta after promos
-          </div>
-        </div>
-      </div>
-
-      {/* Card A: Global Alert Behavior Settings */}
-      <div className="rounded-lg border border-[#282e3d] bg-[#161922] p-5 space-y-4">
-        <div className="border-b border-[#282e3d] pb-3 flex items-center justify-between">
-          <div>
-            <h2 className="text-sm font-semibold font-sans text-text-primary">
-              Anti-Fatigue Alert Behavior & Timing
-            </h2>
-            <p className="text-xs font-sans text-text-tertiary mt-0.5">
-              Prevent notification fatigue by keeping alerts strictly silent until actionable deadline windows.
-            </p>
-          </div>
-          {settingsSavedMessage && (
-            <span className="text-xs font-sans text-[#10b78d] bg-[rgba(16,183,141,0.1)] px-2.5 py-1 rounded border border-[rgba(16,183,141,0.25)]">
-              {settingsSavedMessage}
+          <div className="text-2xl font-mono font-semibold tabular-nums text-text-primary mt-1.5">
+            {activeRecurringItems.length}
+            <span className="text-xs font-normal text-text-tertiary ml-1.5">
+              / {items.length} tracked
             </span>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-1">
-          {/* Toggle Banner */}
-          <div className="space-y-2">
-            <label className="text-xs font-medium font-sans text-text-secondary block">
-              Overview Dashboard Alert Banner
-            </label>
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setBannerEnabled(!bannerEnabled)}
-                className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors ${
-                  bannerEnabled ? "bg-[#10b78d]" : "bg-[#282e3d]"
-                }`}
-              >
-                <div
-                  className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
-                    bannerEnabled ? "translate-x-5" : "translate-x-0"
-                  }`}
-                />
-              </button>
-              <span className="text-xs font-sans text-text-primary">
-                {bannerEnabled
-                  ? "Enabled (Shows banner only when within deadline)"
-                  : "Disabled (Zero banners on dashboard)"}
-              </span>
-            </div>
-            <p className="text-[11px] font-sans text-text-tertiary">
-              When enabled, a high-contrast action banner appears on Overview only if a subscription is within its lead-time window and unconfirmed.
-            </p>
           </div>
-
-          {/* Lead Days Selector */}
-          <div className="space-y-2">
-            <label className="text-xs font-medium font-sans text-text-secondary block">
-              Alert Lead-Time Window
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { days: 7, label: "7 Days", desc: "Short window" },
-                { days: 14, label: "14 Days", desc: "Recommended" },
-                { days: 30, label: "30 Days", desc: "Early warning" },
-              ].map((opt) => (
-                <button
-                  key={opt.days}
-                  type="button"
-                  onClick={() => setLeadDays(opt.days)}
-                  className={`px-3 py-2 rounded text-left border transition-colors ${
-                    leadDays === opt.days
-                      ? "border-[#10b78d] bg-[rgba(16,183,141,0.08)] text-text-primary"
-                      : "border-[#282e3d] bg-[#1a1f2c] text-text-secondary hover:text-text-primary"
-                  }`}
-                >
-                  <div className="text-xs font-semibold font-mono">{opt.label}</div>
-                  <div className="text-[10px] text-text-tertiary">{opt.desc}</div>
-                </button>
-              ))}
-            </div>
-            <p className="text-[11px] font-sans text-text-tertiary">
-              Subscriptions outside this window will stay completely silent (no banners, no alerts).
-            </p>
+          <div className="text-[11px] font-sans text-text-secondary mt-1">
+            {actionRequiredCount > 0
+              ? `${actionRequiredCount} inside H-${leadDays} cancellation window`
+              : "All promo cutoffs clear"}
           </div>
         </div>
 
-        <div className="pt-2 flex justify-end">
-          <button
-            type="button"
-            onClick={handleSaveSettings}
-            disabled={savingSettings}
-            className="px-4 py-1.5 rounded text-xs font-medium bg-[#282e3d] hover:bg-[#32394c] text-text-primary border border-border-subtle transition-colors disabled:opacity-50"
-          >
-            {savingSettings ? "Saving..." : "Save Alert Settings"}
-          </button>
+        <div className="rounded-lg border border-border bg-surface p-4 flex flex-col justify-between">
+          <div className="text-[11px] font-sans uppercase tracking-wider text-text-tertiary">
+            Monthly Promo Cost
+          </div>
+          <div className="text-2xl font-mono font-semibold tabular-nums text-text-primary mt-1.5">
+            {formatRp(monthlyRecurringBurn)}
+          </div>
+          <div className="text-[11px] font-sans text-text-secondary mt-1">
+            Current discounted / trial billing rate
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-border-strong bg-surface p-4 flex flex-col justify-between">
+          <div className="text-[11px] font-sans uppercase tracking-wider text-text-tertiary">
+            Post-Promo Monthly Exposure
+          </div>
+          <div className="text-3xl font-display font-normal text-text-primary mt-1">
+            {formatRp(monthlyPenaltyExposure)}
+          </div>
+          <div className="text-[11px] font-sans text-text-secondary mt-1">
+            Unmitigated standard monthly charge
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-border bg-surface p-4 flex flex-col justify-between">
+          <div className="text-[11px] font-sans uppercase tracking-wider text-text-tertiary">
+            Annualized Liability Exposure
+          </div>
+          <div className="text-2xl font-mono font-semibold tabular-nums text-caution mt-1.5">
+            {formatRp(annualizedExposure)}
+          </div>
+          <div className="text-[11px] font-sans text-text-secondary mt-1">
+            12-month cost if promos lapse uncanceled
+          </div>
         </div>
       </div>
 
-      {/* Card B: Tracked Promotional Subscriptions Table */}
-      <div className="rounded-lg border border-[#282e3d] bg-[#161922] p-5 space-y-4">
-        <div className="border-b border-[#282e3d] pb-3 flex flex-wrap items-center justify-between gap-3">
+      {/* Global Kill-Switch Threshold Configuration */}
+      <div className="rounded-lg border border-border bg-surface p-5">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h2 className="text-sm font-semibold font-sans text-text-primary">
-              Tracked Promotional Subscriptions & Kill-Switches
+              Kill-Switch Alert Window &amp; Banner Policy
             </h2>
             <p className="text-xs font-sans text-text-tertiary mt-0.5">
-              Armed with automatic expiry warnings, loss jump deltas, 1-click external calendar sync, and provider cancellation shortcuts.
+              Escalates monitored trials and promotional charges onto the Overview banner prior to automatic provider renewal.
             </p>
           </div>
+          <div className="flex flex-wrap items-center gap-4">
+            <label className="flex items-center gap-2 text-xs text-text-secondary cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={bannerEnabled}
+                onChange={(e) => setBannerEnabled(e.target.checked)}
+                className="rounded border-border bg-canvas text-accent focus:ring-0"
+              />
+              Overview escalation banner enabled
+            </label>
+
+            <div className="flex items-center gap-2">
+              <label htmlFor="ks-lead-days" className="text-xs text-text-tertiary">
+                Lead window
+              </label>
+              <select
+                id="ks-lead-days"
+                value={leadDays}
+                onChange={(e) => setLeadDays(Number(e.target.value))}
+                className="px-2.5 py-1 rounded bg-canvas border border-border text-text-primary text-xs font-mono"
+              >
+                <option value={7}>7 days</option>
+                <option value={14}>14 days</option>
+                <option value={21}>21 days</option>
+                <option value={30}>30 days</option>
+              </select>
+            </div>
+
+            <button
+              type="button"
+              disabled={savingSettings}
+              onClick={handleSaveSettings}
+              className="px-3 py-1.5 rounded text-xs font-medium bg-surface-elevated hover:bg-surface-active text-text-primary border border-border-strong transition-colors disabled:opacity-50 cursor-pointer"
+            >
+              {savingSettings ? "Saving..." : "Apply Policy"}
+            </button>
+          </div>
+        </div>
+        {settingsSavedMessage && (
+          <div className="mt-3 text-xs font-mono text-delta-positive">{settingsSavedMessage}</div>
+        )}
+      </div>
+
+      {/* Monitored Promotional & Recurring Commitments Ledger */}
+      <div className="rounded-lg border border-border bg-surface overflow-hidden">
+        <div className="px-5 py-3.5 border-b border-border-subtle flex flex-wrap items-center justify-between gap-3 bg-surface-subtle/40">
+          <div>
+            <h2 className="text-sm font-semibold font-sans text-text-primary">
+              Promotional &amp; Auto-Renew Kill-Switch Watchlist
+            </h2>
+            <p className="text-xs font-sans text-text-tertiary mt-0.5">
+              Review upcoming expiration cutoffs, inspect generated cancellation notices, or record provider confirmation.
+            </p>
+          </div>
+
           <button
             type="button"
-            onClick={openAddModal}
-            className="px-3 py-1.5 rounded text-xs font-medium bg-[#10b78d] hover:bg-[#0ea27c] text-white transition-colors"
+            onClick={openAddDialog}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium bg-text-primary text-canvas hover:opacity-90 transition-opacity cursor-pointer"
           >
-            Track Promo Subscription
+            <Plus className="w-3.5 h-3.5" />
+            Track Promotional Guard
           </button>
         </div>
 
         {loading ? (
-          <div className="py-8 text-center text-xs font-sans text-text-tertiary">
-            Loading subscriptions...
+          <div className="p-8 text-center text-xs font-sans text-text-tertiary">
+            Loading monitored promotional commitments...
           </div>
         ) : items.length === 0 ? (
-          <div className="py-8 text-center space-y-2">
-            <p className="text-xs font-sans text-text-tertiary">
-              No promotional subscriptions currently armed.
-            </p>
-            <button
-              type="button"
-              onClick={openAddModal}
-              className="text-xs text-[#10b78d] hover:underline"
-            >
-              Add your first promo subscription (e.g., Gemini AI, Coursera, Free Trials)
-            </button>
+          <div className="p-8 text-center text-xs font-sans text-text-tertiary">
+            No promotional trials or auto-renew subscriptions are currently armed for Kill-Switch tracking.
           </div>
         ) : (
-          <div className="overflow-x-auto lg:overflow-x-visible">
+          <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-[#282e3d] text-[11px] font-sans font-medium text-text-tertiary uppercase">
-                  <th className="py-2.5 px-2.5">Subscription / Promo</th>
-                  <th className="py-2.5 px-2.5">Current Rate</th>
-                  <th className="py-2.5 px-2.5">Post-Promo Rate</th>
-                  <th className="py-2.5 px-2.5">Loss Jump Delta</th>
-                  <th className="py-2.5 px-2.5">Renewal Deadline</th>
-                  <th className="py-2.5 px-2.5">Status</th>
-                  <th className="py-2.5 px-2.5 text-right">Actions</th>
+                <tr className="border-b border-border-subtle bg-surface-subtle text-[11px] font-sans font-medium uppercase tracking-wider text-text-tertiary">
+                  <th className="py-2.5 px-4">Service &amp; Plan</th>
+                  <th className="py-2.5 px-3">Current Rate</th>
+                  <th className="py-2.5 px-3">Post-Promo Rate</th>
+                  <th className="py-2.5 px-3">Monthly Risk</th>
+                  <th className="py-2.5 px-3">Cutoff Deadline</th>
+                  <th className="py-2.5 px-3">Guard State</th>
+                  <th className="py-2.5 px-4 text-right">Cancellation Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#282e3d]/60 text-xs font-sans">
+              <tbody className="divide-y divide-border-subtle text-xs">
                 {items.map((item) => {
                   const isProcessing = actionProcessingId === item.id;
                   const isReminding = remindingId === item.id;
@@ -650,146 +574,130 @@ export function SubscriptionKillSwitchTab({ config }: SubscriptionKillSwitchTabP
                   const itemFeedback = reminderFeedback?.id === item.id ? reminderFeedback : null;
 
                   return (
-                    <tr
-                      key={item.id}
-                      className={`hover:bg-[#1a1f2c]/50 transition-colors ${
-                        item.alertState === "ACTION_REQUIRED"
-                          ? "bg-[rgba(224,108,117,0.04)]"
-                          : ""
-                      }`}
-                    >
-                      {/* Name & Promo Label */}
-                      <td className="py-2.5 px-2.5">
-                        <div className="font-medium text-text-primary whitespace-nowrap">{item.label}</div>
-                        {item.promoLabel && (
-                          <div className="text-[11px] text-text-tertiary mt-0.5 truncate max-w-[190px]" title={item.promoLabel}>
-                            {item.promoLabel}
-                          </div>
-                        )}
+                    <tr key={item.id} className="hover:bg-surface-subtle/40 transition-colors">
+                      <td className="py-3 px-4">
+                        <div className="font-medium text-text-primary">{item.label}</div>
+                        <div className="text-[11px] text-text-tertiary mt-0.5">
+                          {item.promoLabel || "Promotional Billing"}
+                        </div>
                       </td>
 
-                      {/* Current Amount */}
-                      <td className="py-2.5 px-2.5 font-mono text-text-secondary whitespace-nowrap">
-                        {item.amount === 0 ? "Rp 0 (Trial)" : formatRupiah(item.amount)}
-                        <span className="text-[10px] text-text-tertiary">/mo</span>
+                      <td className="py-3 px-3 font-mono tabular-nums text-text-secondary whitespace-nowrap">
+                        {item.amount === 0 ? "Rp 0 (Trial)" : formatRp(item.amount)}/mo
                       </td>
 
-                      {/* Post Promo Normal Amount */}
-                      <td className="py-2.5 px-2.5 font-mono text-text-primary whitespace-nowrap">
-                        {item.postPromoNormalAmount
-                          ? formatRupiah(item.postPromoNormalAmount)
-                          : "-"}
-                        <span className="text-[10px] text-text-tertiary">/mo</span>
+                      <td className="py-3 px-3 font-mono tabular-nums text-text-primary whitespace-nowrap">
+                        {item.postPromoNormalAmount ? `${formatRp(item.postPromoNormalAmount)}/mo` : "-"}
                       </td>
 
-                      {/* Penalty Jump Delta */}
-                      <td className="py-2.5 px-2.5 font-mono whitespace-nowrap">
+                      <td className="py-3 px-3 font-mono tabular-nums whitespace-nowrap">
                         {item.monthlyPenaltyDelta > 0 ? (
-                          <span className="text-[#e06c75] font-medium">
-                            +{formatRupiah(item.monthlyPenaltyDelta)}
-                            <span className="text-[10px] text-text-tertiary">/mo</span>
+                          <span className="text-delta-negative">
+                            +{formatRp(item.monthlyPenaltyDelta)}/mo
                           </span>
                         ) : (
-                          <span className="text-text-tertiary">No Jump</span>
+                          <span className="text-text-tertiary">None</span>
                         )}
                       </td>
 
-                      {/* Deadline & Days Left */}
-                      <td className="py-2.5 px-2.5 whitespace-nowrap">
+                      <td className="py-3 px-3 whitespace-nowrap">
                         {item.promoEndDate ? (
                           <div>
-                            <div className="font-mono text-text-primary">
+                            <div className="font-mono tabular-nums text-text-primary">
                               {item.promoEndDate.split("T")[0]}
                             </div>
                             <div
-                              className={`text-[10px] font-mono mt-0.5 ${
+                              className={`text-[11px] font-mono tabular-nums ${
                                 daysLeft !== null && daysLeft <= leadDays
-                                  ? "text-[#e06c75] font-semibold"
+                                  ? "text-urgency"
                                   : "text-text-tertiary"
                               }`}
                             >
-                              {daysLeft === null
-                                ? ""
-                                : daysLeft < 0
-                                ? `${Math.abs(daysLeft)}d overdue`
-                                : daysLeft === 0
-                                ? "Expires Today"
-                                : `${daysLeft} days remaining`}
+                              {formatFormalDaysRemaining(daysLeft)}
                             </div>
                           </div>
                         ) : (
-                          <span className="text-text-tertiary font-mono">Unscheduled</span>
+                          <span className="font-mono text-text-tertiary">Unscheduled</span>
                         )}
                       </td>
 
-                      {/* Status Badge */}
-                      <td className="py-2.5 px-2.5 whitespace-nowrap">
-                        {item.statusLabel === "SAFE" ? (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-medium border bg-[rgba(16,183,141,0.12)] text-[#10b78d] border-[rgba(16,183,141,0.25)]">
-                            SAFE
-                          </span>
-                        ) : item.statusLabel === "CRITICAL" ? (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-medium border bg-[rgba(224,108,117,0.15)] text-[#e06c75] border-[rgba(224,108,117,0.3)]">
-                            CRITICAL
-                          </span>
-                        ) : item.statusLabel === "INACTIVE" ? (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-medium border bg-[#1a1f2c] text-text-tertiary border-[#282e3d]">
-                            INACTIVE
-                          </span>
-                        ) : (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-medium border bg-[#1a1f2c] text-text-secondary border-[#282e3d]">
-                            ARMED
-                          </span>
-                        )}
+                      <td className="py-3 px-3 whitespace-nowrap">
+                        <span
+                          className={`px-2 py-0.5 rounded text-[10px] font-mono border ${
+                            item.statusLabel === "SAFE"
+                              ? "border-delta-positive/30 bg-[rgba(16,183,141,0.10)] text-delta-positive"
+                              : item.statusLabel === "CRITICAL"
+                                ? "border-urgency/35 bg-[rgba(255,56,56,0.10)] text-urgency"
+                                : "border-border bg-surface-subtle text-text-secondary"
+                          }`}
+                        >
+                          {item.statusLabel}
+                        </span>
                       </td>
 
-                      {/* Compact Unified Actions Cluster */}
-                      <td className="py-2.5 px-2.5 text-right whitespace-nowrap">
+                      <td className="py-3 px-4 text-right whitespace-nowrap">
                         <div className="flex flex-col items-end gap-1">
                           <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => openNoticePreviewDialog(item)}
+                              title="Inspect formal cancellation notice"
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-sans bg-surface-subtle hover:bg-surface-elevated text-text-secondary hover:text-text-primary border border-border cursor-pointer"
+                            >
+                              <Eye className="w-3 h-3" />
+                              Notice
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleCopyFormalNotice(item)}
+                              title="Copy formal English cancellation notice"
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-sans bg-surface-subtle hover:bg-surface-elevated text-text-secondary hover:text-text-primary border border-border cursor-pointer"
+                            >
+                              <Copy className="w-3 h-3" />
+                              {copiedNoticeId === item.id ? "Copied" : "Copy"}
+                            </button>
+
                             {item.providerCancelUrl && (
                               <a
                                 href={item.providerCancelUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                title="Open provider cancellation page"
-                                className="px-2 py-1 rounded text-[11px] font-medium bg-[#1a1f2c] hover:bg-[#282e3d] text-text-secondary hover:text-text-primary border border-[#282e3d] transition-colors active:scale-[0.99]"
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-sans bg-surface-subtle hover:bg-surface-elevated text-text-secondary hover:text-text-primary border border-border"
                               >
-                                Open ↗
+                                Portal
+                                <ExternalLink className="w-3 h-3" />
                               </a>
                             )}
 
-                            {gCalUrl ? (
+                            {gCalUrl && (
                               <a
                                 href={gCalUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                title="Add 3-day reminder to Google Calendar (19:00 WIB)"
-                                className="px-2 py-1 rounded text-[10px] font-mono font-medium bg-[#1a1f2c] hover:bg-[#282e3d] text-text-secondary hover:text-text-primary border border-[#282e3d] transition-colors active:scale-[0.99]"
+                                className="px-2 py-1 rounded text-[10px] font-mono bg-surface-subtle hover:bg-surface-elevated text-text-secondary hover:text-text-primary border border-border"
                               >
                                 + GCal
                               </a>
-                            ) : null}
+                            )}
 
-                            {item.promoEndDate ? (
+                            {item.promoEndDate && (
                               <button
                                 type="button"
                                 onClick={() => downloadIcsFile(item)}
-                                title="Download .ics event file"
-                                className="px-1.5 py-1 rounded text-[10px] font-mono font-medium bg-[#1a1f2c] hover:bg-[#282e3d] text-text-secondary hover:text-text-primary border border-[#282e3d] transition-colors active:scale-[0.99]"
+                                className="px-2 py-1 rounded text-[10px] font-mono bg-surface-subtle hover:bg-surface-elevated text-text-secondary hover:text-text-primary border border-border cursor-pointer"
                               >
                                 .ics
                               </button>
-                            ) : null}
+                            )}
 
                             <button
                               type="button"
                               onClick={() => handleSendReminderRow(item)}
                               disabled={isReminding}
-                              title="Send test alert via Gmail SMTP / WhatsApp Webhook"
-                              className="px-2 py-1 rounded text-[10px] font-mono font-medium bg-[#1a1f2c] hover:bg-[#282e3d] text-text-secondary hover:text-text-primary border border-[#282e3d] transition-colors active:scale-[0.99] disabled:opacity-50"
+                              className="px-2 py-1 rounded text-[11px] font-medium bg-surface-elevated hover:bg-surface-active text-text-primary border border-border-strong disabled:opacity-50 cursor-pointer"
                             >
-                              {isReminding ? "..." : "Remind"}
+                              {isReminding ? "Sending..." : "Send Notice"}
                             </button>
 
                             {!item.providerCancelConfirmed ? (
@@ -797,18 +705,16 @@ export function SubscriptionKillSwitchTab({ config }: SubscriptionKillSwitchTabP
                                 type="button"
                                 onClick={() => handleConfirmCancel(item)}
                                 disabled={isProcessing}
-                                title="Mark subscription as canceled with provider"
-                                className="px-2 py-1 rounded text-[11px] font-medium bg-[#282e3d] hover:bg-[#363e52] text-text-primary border border-border-subtle transition-colors active:scale-[0.99] disabled:opacity-50"
+                                className="px-2 py-1 rounded text-[11px] font-medium bg-surface-active text-text-primary border border-border-strong hover:opacity-90 disabled:opacity-50 cursor-pointer"
                               >
-                                {isProcessing ? "..." : "Canceled"}
+                                {isProcessing ? "..." : "Mark Canceled"}
                               </button>
                             ) : (
                               <button
                                 type="button"
                                 onClick={() => handleRearm(item)}
                                 disabled={isProcessing}
-                                title="Rearm kill-switch alert guard"
-                                className="px-2 py-1 rounded text-[11px] font-medium bg-[#1a1f2c] hover:bg-[#282e3d] text-text-tertiary hover:text-text-primary border border-[#282e3d] transition-colors active:scale-[0.99] disabled:opacity-50"
+                                className="px-2 py-1 rounded text-[11px] font-medium bg-surface-subtle text-text-tertiary hover:text-text-primary border border-border disabled:opacity-50 cursor-pointer"
                               >
                                 Rearm
                               </button>
@@ -816,9 +722,8 @@ export function SubscriptionKillSwitchTab({ config }: SubscriptionKillSwitchTabP
 
                             <button
                               type="button"
-                              onClick={() => openEditModal(item)}
-                              title="Edit subscription details"
-                              className="px-2 py-1 rounded text-[11px] font-medium text-text-tertiary hover:text-text-primary hover:bg-[#1a1f2c] transition-colors active:scale-[0.99]"
+                              onClick={() => openEditDialog(item)}
+                              className="px-2 py-1 rounded text-[11px] font-sans text-text-tertiary hover:text-text-primary hover:bg-surface-subtle cursor-pointer"
                             >
                               Edit
                             </button>
@@ -826,23 +731,11 @@ export function SubscriptionKillSwitchTab({ config }: SubscriptionKillSwitchTabP
 
                           {itemFeedback && (
                             <div
-                              className={`text-[10px] font-mono ${
-                                itemFeedback.success ? "text-[#10b78d]" : "text-[#e06c75]"
+                              className={`text-[11px] font-mono ${
+                                itemFeedback.success ? "text-delta-positive" : "text-urgency"
                               }`}
                             >
                               {itemFeedback.text}
-                            </div>
-                          )}
-
-                          {!itemFeedback && item.lastKillSwitchNotifiedAt && (
-                            <div className="text-[10px] font-mono text-text-tertiary">
-                              Notified:{" "}
-                              {new Date(item.lastKillSwitchNotifiedAt).toLocaleDateString("id-ID", {
-                                day: "numeric",
-                                month: "short",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
                             </div>
                           )}
                         </div>
@@ -856,425 +749,260 @@ export function SubscriptionKillSwitchTab({ config }: SubscriptionKillSwitchTabP
         )}
       </div>
 
-      {/* Card C: External Multi-Channel Dispatcher (Gmail SMTP & WhatsApp) */}
-      <div className="rounded-lg border border-[#282e3d] bg-[#161922] p-5 space-y-5">
-        <div className="border-b border-[#282e3d] pb-3 flex flex-wrap items-center justify-between gap-3">
+      {/* Formal Cancellation Notice Template Configuration */}
+      <section className="rounded-lg border border-border bg-surface p-5 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h2 className="text-sm font-semibold font-sans text-text-primary">
-              External Multi-Channel Dispatcher (Gmail SMTP & WhatsApp)
-            </h2>
-            <p className="text-xs font-sans text-text-tertiary mt-0.5">
-              Configure external notification channels to dispatch urgent reminder messages directly to your inbox or phone before promo renewal deadlines.
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
+              Formal Cancellation Notice Template (English Business Copy)
+            </h3>
+            <p className="text-[11px] text-text-tertiary mt-0.5">
+              Supported tokens: <code className="font-mono">{"{{name}}"}</code>,{" "}
+              <code className="font-mono">{"{{deadline}}"}</code>,{" "}
+              <code className="font-mono">{"{{daysLeft}}"}</code>,{" "}
+              <code className="font-mono">{"{{normalPrice}}"}</code>,{" "}
+              <code className="font-mono">{"{{cancelUrl}}"}</code>. Saved together with SMTP settings below.
             </p>
           </div>
-          {channelSuccessMsg && (
-            <span className="text-xs font-sans text-[#10b78d] bg-[rgba(16,183,141,0.1)] px-2.5 py-1 rounded border border-[rgba(16,183,141,0.25)]">
-              {channelSuccessMsg}
-            </span>
-          )}
-          {channelErrorMsg && (
-            <span className="text-xs font-sans text-[#e06c75] bg-[rgba(224,108,117,0.1)] px-2.5 py-1 rounded border border-[rgba(224,108,117,0.25)]">
-              {channelErrorMsg}
-            </span>
-          )}
+          <button
+            type="button"
+            onClick={() => setCustomTemplate("")}
+            className="text-[11px] font-mono text-text-tertiary hover:text-text-primary cursor-pointer"
+          >
+            Reset to Standard English Template
+          </button>
         </div>
 
-        <form onSubmit={handleSaveChannelSettings} className="space-y-5">
-          {/* Section 1: Email Channel */}
-          <div className="space-y-3">
-            <div className="text-xs font-semibold font-sans text-text-primary uppercase tracking-wider text-text-secondary">
-              Email Notifications (Gmail SMTP)
+        <textarea
+          rows={3}
+          value={customTemplate}
+          onChange={(e) => setCustomTemplate(e.target.value)}
+          placeholder={DEFAULT_KILL_SWITCH_TEMPLATE}
+          className="w-full px-3 py-2 rounded bg-canvas border border-border text-text-primary text-xs font-sans focus:outline-none focus:border-border-strong"
+        />
+
+        <div className="rounded border border-border-subtle bg-canvas px-3.5 py-2.5 text-xs text-text-secondary">
+          <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary mb-1">
+            Rendered Preview ({sampleItemForPreview?.label || "Sample Subscription"})
+          </div>
+          {renderFormalNoticeText(customTemplate, sampleItemForPreview)}
+        </div>
+      </section>
+
+      {/* Dedicated SMTP & Email Delivery Control Panel */}
+      <SmtpControlPanel
+        initialNotifConfig={initialNotificationConfig}
+        initialEmailStatus={initialEmailStatus}
+        customTemplate={customTemplate}
+        defaultLocale={apiLocale}
+        activeMonth={activeMonth}
+        activeYear={activeYear}
+      />
+
+      {/* Native <dialog>: Add / Edit Kill-Switch Form */}
+      <dialog
+        ref={formDialogRef}
+        aria-labelledby="ks-form-dialog-title"
+        onClick={(e) => {
+          if (e.target === formDialogRef.current) {
+            closeFormDialog();
+          }
+        }}
+        className="erp-dialog max-w-lg shadow-2xl"
+      >
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-border-subtle bg-surface-subtle">
+          <h3 id="ks-form-dialog-title" className="text-sm font-semibold text-text-primary">
+            {editingItem ? "Edit Promotional Guard" : "Track Promotional Subscription"}
+          </h3>
+          <button
+            type="button"
+            onClick={closeFormDialog}
+            aria-label="Close subscription modal"
+            className="p-1.5 rounded text-text-tertiary hover:text-text-primary cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmitKillSwitch} className="p-5 space-y-4 text-xs">
+          {formError && (
+            <div className="p-2.5 rounded border border-urgency/30 bg-[rgba(255,56,56,0.08)] text-urgency">
+              {formError}
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-1">
-                <label className="text-xs font-medium font-sans text-text-secondary block">
-                  Target Notification Email
-                </label>
-                <input
-                  type="email"
-                  value={notifyEmail}
-                  onChange={(e) => setNotifyEmail(e.target.value)}
-                  placeholder="e.g. your-email@gmail.com"
-                  className="w-full px-3 py-1.5 rounded bg-[#1a1f2c] border border-[#282e3d] text-text-primary text-xs focus:outline-none focus:border-[#10b78d]"
-                />
-                <span className="text-[10px] text-text-tertiary block">
-                  Inbox that receives reminder alerts
-                </span>
-              </div>
+          )}
 
-              <div className="space-y-1">
-                <label className="text-xs font-medium font-sans text-text-secondary block">
-                  SMTP Sender Gmail
-                </label>
-                <input
-                  type="email"
-                  value={smtpUser}
-                  onChange={(e) => setSmtpUser(e.target.value)}
-                  placeholder="e.g. sender-bot@gmail.com"
-                  className="w-full px-3 py-1.5 rounded bg-[#1a1f2c] border border-[#282e3d] text-text-primary text-xs focus:outline-none focus:border-[#10b78d]"
-                />
-                <span className="text-[10px] text-text-tertiary block">
-                  Gmail address used to send alerts
-                </span>
-              </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <div className="space-y-1">
+              <label className="text-text-secondary font-medium block">Service Name *</label>
+              <input
+                type="text"
+                required
+                value={formLabel}
+                onChange={(e) => setFormLabel(e.target.value)}
+                placeholder="e.g. Gemini AI Pro"
+                className="w-full px-3 py-1.5 rounded bg-canvas border border-border text-text-primary"
+              />
+            </div>
 
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-medium font-sans text-text-secondary block">
-                    Google App Password
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setShowAppPassword(!showAppPassword)}
-                    className="text-[10px] text-text-tertiary hover:text-text-primary font-mono"
-                  >
-                    {showAppPassword ? "Hide" : "Show"}
-                  </button>
-                </div>
-                <input
-                  type={showAppPassword ? "text" : "password"}
-                  value={smtpAppPassword}
-                  onChange={(e) => setSmtpAppPassword(e.target.value)}
-                  placeholder={
-                    hasSmtpPassword
-                      ? "•••••••••••••••• (Saved - type to change)"
-                      : "16-char Google App Password"
-                  }
-                  className="w-full px-3 py-1.5 rounded bg-[#1a1f2c] border border-[#282e3d] text-text-primary text-xs font-mono focus:outline-none focus:border-[#10b78d]"
-                />
-                <span className="text-[10px] text-text-tertiary block">
-                  Generate in{" "}
-                  <a
-                    href="https://myaccount.google.com/apppasswords"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[#10b78d] hover:underline"
-                  >
-                    Google Account Security
-                  </a>
-                </span>
-              </div>
+            <div className="space-y-1">
+              <label className="text-text-secondary font-medium block">Plan / Promo Tier</label>
+              <input
+                type="text"
+                value={formPromoLabel}
+                onChange={(e) => setFormPromoLabel(e.target.value)}
+                placeholder="e.g. 3-Month Trial Guard"
+                className="w-full px-3 py-1.5 rounded bg-canvas border border-border text-text-primary"
+              />
             </div>
           </div>
 
-          {/* Section 2: WhatsApp & Webhook Channel */}
-          <div className="space-y-3 pt-2 border-t border-[#282e3d]">
-            <div className="text-xs font-semibold font-sans text-text-primary uppercase tracking-wider text-text-secondary">
-              WhatsApp & Webhook Notifications (Fonnte / n8n)
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <div className="space-y-1">
+              <label className="text-text-secondary font-medium block">Current Rate (Rp)</label>
+              <input
+                type="number"
+                min="0"
+                value={formAmount}
+                onChange={(e) => setFormAmount(Number(e.target.value))}
+                className="w-full px-3 py-1.5 rounded bg-canvas border border-border text-text-primary font-mono tabular-nums"
+              />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-1">
-                <label className="text-xs font-medium font-sans text-text-secondary block">
-                  WhatsApp Phone Number
-                </label>
-                <input
-                  type="text"
-                  value={waPhone}
-                  onChange={(e) => setWaPhone(e.target.value)}
-                  placeholder="e.g. 6281234567890"
-                  className="w-full px-3 py-1.5 rounded bg-[#1a1f2c] border border-[#282e3d] text-text-primary text-xs font-mono focus:outline-none focus:border-[#10b78d]"
-                />
-                <span className="text-[10px] text-text-tertiary block">
-                  Target phone with country code (e.g. 628...)
-                </span>
-              </div>
 
-              <div className="space-y-1">
-                <label className="text-xs font-medium font-sans text-text-secondary block">
-                  Webhook URL (Optional)
-                </label>
-                <input
-                  type="url"
-                  value={webhookUrl}
-                  onChange={(e) => setWebhookUrl(e.target.value)}
-                  placeholder="e.g. https://api.fonnte.com/send"
-                  className="w-full px-3 py-1.5 rounded bg-[#1a1f2c] border border-[#282e3d] text-text-primary text-xs focus:outline-none focus:border-[#10b78d]"
-                />
-                <span className="text-[10px] text-text-tertiary block">
-                  Fonnte or automated workflow URL
-                </span>
-              </div>
-
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-medium font-sans text-text-secondary block">
-                    Webhook API Key / Token
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setShowApiKey(!showApiKey)}
-                    className="text-[10px] text-text-tertiary hover:text-text-primary font-mono"
-                  >
-                    {showApiKey ? "Hide" : "Show"}
-                  </button>
-                </div>
-                <input
-                  type={showApiKey ? "text" : "password"}
-                  value={waApiKey}
-                  onChange={(e) => setWaApiKey(e.target.value)}
-                  placeholder={
-                    hasWaApiKey
-                      ? "•••••••••••• (Saved - type to change)"
-                      : "Fonnte token or bearer token"
-                  }
-                  className="w-full px-3 py-1.5 rounded bg-[#1a1f2c] border border-[#282e3d] text-text-primary text-xs font-mono focus:outline-none focus:border-[#10b78d]"
-                />
-                <span className="text-[10px] text-text-tertiary block">
-                  Passed in Authorization header
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Section 3: Indonesian Message Template & Tokens */}
-          <div className="space-y-2 pt-2 border-t border-[#282e3d]">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold font-sans text-text-primary uppercase tracking-wider text-text-secondary">
-                Human Message Template (Indonesian)
+            <div className="space-y-1">
+              <label className="text-text-secondary font-medium block">
+                Post-Promo Standard Rate (Rp) *
               </label>
-              <button
-                type="button"
-                onClick={() => setCustomTemplate("")}
-                className="text-[11px] font-mono text-text-tertiary hover:text-text-primary transition-colors"
-              >
-                Reset to Default Template
-              </button>
+              <input
+                type="number"
+                min="0"
+                required
+                value={formNormalAmount}
+                onChange={(e) => setFormNormalAmount(Number(e.target.value))}
+                className="w-full px-3 py-1.5 rounded bg-canvas border border-border text-text-primary font-mono tabular-nums"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <div className="space-y-1">
+              <label className="text-text-secondary font-medium block">Deadline Date *</label>
+              <input
+                type="date"
+                required
+                value={formPromoEndDate}
+                onChange={(e) => setFormPromoEndDate(e.target.value)}
+                className="w-full px-3 py-1.5 rounded bg-canvas border border-border text-text-primary font-mono"
+              />
             </div>
 
-            <textarea
-              rows={3}
-              value={customTemplate}
-              onChange={(e) => setCustomTemplate(e.target.value)}
-              placeholder={DEFAULT_KILL_SWITCH_TEMPLATE}
-              className="w-full px-3 py-2 rounded bg-[#1a1f2c] border border-[#282e3d] text-text-primary text-xs font-sans focus:outline-none focus:border-[#10b78d] leading-relaxed resize-y"
+            <div className="space-y-1">
+              <label className="text-text-secondary font-medium block">
+                Cancellation Portal URL
+              </label>
+              <input
+                type="url"
+                value={formCancelUrl}
+                onChange={(e) => setFormCancelUrl(e.target.value)}
+                placeholder="https://one.google.com/settings"
+                className="w-full px-3 py-1.5 rounded bg-canvas border border-border text-text-primary font-mono"
+              />
+            </div>
+          </div>
+
+          <label className="flex items-center gap-2 text-text-secondary select-none cursor-pointer">
+            <input
+              type="checkbox"
+              checked={formKillSwitchEnabled}
+              onChange={(e) => setFormKillSwitchEnabled(e.target.checked)}
+              className="rounded border-border bg-canvas text-accent focus:ring-0"
             />
+            Arm automated renewal escalation
+          </label>
 
-            {/* Token Chips */}
-            <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-              <span className="text-[10px] text-text-tertiary mr-1">Insert variable:</span>
-              {[
-                "{{name}}",
-                "{{deadline}}",
-                "{{daysLeft}}",
-                "{{normalPrice}}",
-                "{{cancelUrl}}",
-                "{{currentPrice}}",
-              ].map((token) => (
-                <button
-                  key={token}
-                  type="button"
-                  onClick={() => handleInsertToken(token)}
-                  className="px-2 py-0.5 rounded text-[10px] font-mono bg-[#1a1f2c] hover:bg-[#282e3d] text-text-secondary hover:text-text-primary border border-[#282e3d] transition-colors"
-                >
-                  {token}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Section 4: Live Message Preview */}
-          <div className="space-y-2 pt-2 border-t border-[#282e3d]">
-            <div className="flex items-center justify-between">
-              <div className="text-xs font-semibold font-sans text-text-primary uppercase tracking-wider text-text-secondary">
-                Live Message Preview
-              </div>
-              <span className="text-[10px] font-mono text-text-tertiary">
-                Sample preview: {sampleItemForPreview?.label || "Gemini AI Pro"}
-              </span>
-            </div>
-
-            <div className="rounded border border-[#282e3d] bg-[#12151e] p-3 text-xs font-mono text-text-primary leading-relaxed whitespace-pre-wrap select-all">
-              {renderMessagePreview(customTemplate, sampleItemForPreview)}
-            </div>
-          </div>
-
-          {/* Card C Actions */}
-          <div className="pt-3 border-t border-[#282e3d] flex flex-wrap items-center justify-between gap-3">
-            <div>
-              {sampleItemForPreview ? (
-                <button
-                  type="button"
-                  onClick={() => handleSendReminderRow(sampleItemForPreview)}
-                  disabled={remindingId === sampleItemForPreview.id}
-                  className="px-3 py-1.5 rounded text-xs font-medium bg-[#1a1f2c] hover:bg-[#282e3d] text-text-secondary hover:text-text-primary border border-[#282e3d] transition-colors disabled:opacity-50"
-                >
-                  {remindingId === sampleItemForPreview.id
-                    ? "Dispatching Test..."
-                    : `Send Test Alert (${sampleItemForPreview.label})`}
-                </button>
-              ) : (
-                <span className="text-xs text-text-tertiary font-sans">
-                  Add a promo subscription above to enable test dispatch.
-                </span>
-              )}
-            </div>
-
+          <div className="pt-3 border-t border-border-subtle flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={closeFormDialog}
+              className="px-3 py-1.5 rounded border border-border bg-surface-subtle text-text-secondary hover:text-text-primary cursor-pointer"
+            >
+              Cancel
+            </button>
             <button
               type="submit"
-              disabled={savingChannels}
-              className="px-4 py-1.5 rounded text-xs font-medium bg-[#10b78d] hover:bg-[#0ea27c] text-white transition-colors disabled:opacity-50"
+              disabled={submittingForm}
+              className="px-4 py-1.5 rounded bg-text-primary text-canvas font-medium hover:opacity-90 disabled:opacity-50 cursor-pointer"
             >
-              {savingChannels ? "Saving Settings..." : "Save Channel Settings"}
+              {submittingForm
+                ? "Saving..."
+                : editingItem
+                  ? "Update Subscription"
+                  : "Arm Kill-Switch"}
             </button>
           </div>
         </form>
-      </div>
+      </dialog>
 
-      {/* Add / Edit Subscription Modal */}
-      {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 animate-in fade-in duration-150">
-          <div className="w-full max-w-lg rounded-lg border border-[#282e3d] bg-[#161922] p-5 shadow-xl space-y-4 animate-in zoom-in-95 duration-150">
-            <div className="border-b border-[#282e3d] pb-3 flex items-center justify-between">
-              <h3 className="text-sm font-semibold font-sans text-text-primary">
-                {editingItem ? "Edit Subscription Kill-Switch" : "Track Promotional Subscription"}
-              </h3>
+      {/* Native <dialog>: Formal Notice Preview Modal */}
+      <dialog
+        ref={noticeDialogRef}
+        aria-labelledby="ks-notice-dialog-title"
+        onClick={(e) => {
+          if (e.target === noticeDialogRef.current) {
+            closeNoticeDialog();
+          }
+        }}
+        className="erp-dialog max-w-xl shadow-2xl"
+      >
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-border-subtle bg-surface-subtle">
+          <h3 id="ks-notice-dialog-title" className="text-sm font-semibold text-text-primary">
+            Cancellation Notice — {previewingNoticeItem?.label || "Subscription"}
+          </h3>
+          <button
+            type="button"
+            onClick={closeNoticeDialog}
+            aria-label="Close notice preview"
+            className="p-1.5 rounded text-text-tertiary hover:text-text-primary cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {previewingNoticeItem && (
+          <div className="p-5 space-y-4 text-xs">
+            <div className="rounded border border-border-subtle bg-canvas p-3.5 font-sans text-text-primary leading-relaxed">
+              {renderFormalNoticeText(customTemplate, previewingNoticeItem)}
+            </div>
+            <div className="grid grid-cols-2 gap-3 font-mono text-[11px] text-text-secondary">
+              <div>
+                Deadline: {previewingNoticeItem.promoEndDate?.split("T")[0] || "Unscheduled"}
+              </div>
+              <div>
+                Standard Rate:{" "}
+                {formatRp(
+                  previewingNoticeItem.postPromoNormalAmount ?? previewingNoticeItem.amount,
+                )}
+                /mo
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2 border-t border-border-subtle">
               <button
                 type="button"
-                onClick={() => setIsAddModalOpen(false)}
-                className="text-text-tertiary hover:text-text-primary text-sm font-mono"
+                onClick={() => handleCopyFormalNotice(previewingNoticeItem)}
+                className="px-3 py-1.5 rounded border border-border bg-surface-elevated text-text-primary cursor-pointer"
               >
-                ✕
+                {copiedNoticeId === previewingNoticeItem.id ? "Copied" : "Copy Notice Text"}
+              </button>
+              <button
+                type="button"
+                onClick={closeNoticeDialog}
+                className="px-3 py-1.5 rounded bg-text-primary text-canvas font-medium cursor-pointer"
+              >
+                Close
               </button>
             </div>
-
-            {formError && (
-              <div className="p-2.5 rounded bg-[rgba(224,108,117,0.12)] border border-[rgba(224,108,117,0.25)] text-xs text-[#e06c75]">
-                {formError}
-              </div>
-            )}
-
-            <form onSubmit={handleSubmitModal} className="space-y-4 text-xs font-sans">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-text-secondary block font-medium">
-                    Subscription Name *
-                  </label>
-                  <input
-                    type="text"
-                    value={formLabel}
-                    onChange={(e) => setFormLabel(e.target.value)}
-                    placeholder="e.g. Gemini AI Pro #1"
-                    className="w-full px-3 py-1.5 rounded bg-[#1a1f2c] border border-[#282e3d] text-text-primary focus:outline-none focus:border-[#10b78d]"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-text-secondary block font-medium">
-                    Promo Tag / Description
-                  </label>
-                  <input
-                    type="text"
-                    value={formPromoLabel}
-                    onChange={(e) => setFormPromoLabel(e.target.value)}
-                    placeholder="e.g. 1-Year Free Trial or 3-Month Promo"
-                    className="w-full px-3 py-1.5 rounded bg-[#1a1f2c] border border-[#282e3d] text-text-primary focus:outline-none focus:border-[#10b78d]"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-text-secondary block font-medium">
-                    Current Monthly / Promo Price (Rp)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={formAmount}
-                    onChange={(e) => setFormAmount(Number(e.target.value))}
-                    placeholder="0"
-                    className="w-full px-3 py-1.5 rounded bg-[#1a1f2c] border border-[#282e3d] text-text-primary font-mono focus:outline-none focus:border-[#10b78d]"
-                  />
-                  <span className="text-[10px] text-text-tertiary">
-                    Set 0 for free trials, or discounted monthly rate
-                  </span>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-text-secondary block font-medium">
-                    Post-Promo Normal Price (Rp) *
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={formNormalAmount}
-                    onChange={(e) => setFormNormalAmount(Number(e.target.value))}
-                    placeholder="309000"
-                    className="w-full px-3 py-1.5 rounded bg-[#1a1f2c] border border-[#282e3d] text-text-primary font-mono focus:outline-none focus:border-[#10b78d]"
-                    required
-                  />
-                  <span className="text-[10px] text-text-tertiary">
-                    Normal price charged if not canceled
-                  </span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-text-secondary block font-medium">
-                    Promo Expiration Deadline Date *
-                  </label>
-                  <input
-                    type="date"
-                    value={formPromoEndDate}
-                    onChange={(e) => setFormPromoEndDate(e.target.value)}
-                    className="w-full px-3 py-1.5 rounded bg-[#1a1f2c] border border-[#282e3d] text-text-primary font-mono focus:outline-none focus:border-[#10b78d]"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-text-secondary block font-medium">
-                    Provider Cancellation Direct URL
-                  </label>
-                  <input
-                    type="url"
-                    value={formCancelUrl}
-                    onChange={(e) => setFormCancelUrl(e.target.value)}
-                    placeholder="https://one.google.com/settings"
-                    className="w-full px-3 py-1.5 rounded bg-[#1a1f2c] border border-[#282e3d] text-text-primary focus:outline-none focus:border-[#10b78d]"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 pt-1">
-                <input
-                  type="checkbox"
-                  id="enableKillSwitch"
-                  checked={formKillSwitchEnabled}
-                  onChange={(e) => setFormKillSwitchEnabled(e.target.checked)}
-                  className="rounded border-[#282e3d] bg-[#1a1f2c] text-[#10b78d] focus:ring-0"
-                />
-                <label htmlFor="enableKillSwitch" className="text-xs text-text-secondary select-none">
-                  Enable Kill-Switch auto-renew alert guard
-                </label>
-              </div>
-
-              <div className="pt-3 border-t border-[#282e3d] flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsAddModalOpen(false)}
-                  className="px-3 py-1.5 rounded text-xs text-text-secondary hover:text-text-primary hover:bg-[#1a1f2c] transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submittingForm}
-                  className="px-4 py-1.5 rounded text-xs font-medium bg-[#10b78d] hover:bg-[#0ea27c] text-white transition-colors disabled:opacity-50"
-                >
-                  {submittingForm
-                    ? "Saving..."
-                    : editingItem
-                    ? "Update Subscription"
-                    : "Arm Kill-Switch"}
-                </button>
-              </div>
-            </form>
           </div>
-        </div>
-      )}
+        )}
+      </dialog>
     </div>
   );
 }

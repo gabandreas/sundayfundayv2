@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { Check } from "lucide-react";
 import { updateSnapshot } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
@@ -37,8 +36,6 @@ export function PayrollAdjustmentForm({
   baseSalary = 5300000,
   initialPayrollPayoutDate,
 }: PayrollAdjustmentFormProps) {
-  const router = useRouter();
-
   const [totalWorkingDays, setTotalWorkingDays] = useState(initialWorkingDays.toString());
   const [salaryAdjustment, setSalaryAdjustment] = useState(initialSalaryAdjustment.toString());
   const [cafeteriaDeduction, setCafeteriaDeduction] = useState(initialCafeteriaDeduction.toString());
@@ -202,7 +199,6 @@ export function PayrollAdjustmentForm({
       if (res) {
         setIsSuccess(true);
         setTimeout(() => setIsSuccess(false), 2000);
-        router.refresh();
       } else {
         setFieldErrors({ general: "Failed to update payroll parameters." });
       }
@@ -434,13 +430,13 @@ export function PayrollAdjustmentForm({
                     value={tenureMonths}
                     onChange={(e) => setTenureMonths(e.target.value)}
                     disabled={isLocked || isSubmitting}
-                    className="w-16 px-2 py-1 rounded bg-surface border border-border text-xs font-mono tabular-nums text-text-primary text-center focus:outline-none"
+                    className="w-20 px-2 py-1 rounded bg-surface border border-border text-xs font-mono tabular-nums text-text-primary text-center focus:outline-none"
                   />
                   <span className="text-text-tertiary font-mono">/ 12</span>
                 </div>
               </div>
               <p className="text-[10px] font-sans text-text-tertiary">
-                Formula: Math.round(({tenureMonths || 0} / 12) × {formatRupiah(effectiveBase)}) ={" "}
+                Prorated calc: ({tenureMonths || 0} / 12 mos) × {formatRupiah(effectiveBase)} ={" "}
                 <strong className="font-mono text-text-secondary">{formatRupiah(effectiveThrAmount)}</strong>
               </p>
             </div>

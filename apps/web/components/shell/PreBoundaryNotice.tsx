@@ -18,14 +18,14 @@ export function PreBoundaryNotice({ month, year }: PreBoundaryNoticeProps) {
           Pre-Tracking Boundary ({month}/{year})
         </h2>
         <p className="text-xs font-sans text-text-secondary leading-relaxed">
-          Financial tracking begins in <strong className="text-text-primary">July 2026</strong>. Historical periods prior to July 2026 are before the tracking start date.
+          Financial tracking begins in <strong className="text-text-primary">October 2026</strong>. Historical periods prior to October 2026 are outside the active ledger boundary.
         </p>
         <div className="pt-2">
           <Link
-            href="/?month=7&year=2026"
+            href="/?month=10&year=2026"
             className="inline-flex items-center px-4 py-2 rounded text-xs font-sans font-medium bg-text-primary text-surface hover:opacity-90 transition-opacity"
           >
-            Go to Initial Period (July 2026)
+            Go to Initial Period (October 2026)
           </Link>
         </div>
       </div>

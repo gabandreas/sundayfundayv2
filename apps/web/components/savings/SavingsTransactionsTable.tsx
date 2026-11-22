@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
-import { useRouter } from "next/navigation";
 import { SavingsVault, deleteSavingsTransaction } from "@/lib/api";
-import { formatRupiah, formatDate, formatSavingsInstrumentLabel } from "@/lib/utils";
+import { formatRupiah, formatDate } from "@/lib/utils";
+import { useLanguage } from "@/context/LanguageContext";
 import { DataTableHeader, DataTableRow } from "@/components/primitives/DataTableRow";
 
 interface SavingsTransactionsTableProps {
@@ -13,7 +13,7 @@ interface SavingsTransactionsTableProps {
 export function SavingsTransactionsTable({
   transactions,
 }: SavingsTransactionsTableProps) {
-  const router = useRouter();
+  const { t } = useLanguage();
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,8 +28,6 @@ export function SavingsTransactionsTable({
       const res = await deleteSavingsTransaction(id);
       if (!res.success) {
         setError(res.error || "Failed to delete transaction");
-      } else {
-        router.refresh();
       }
     } catch (err: any) {
       setError(err.message || "An error occurred");
@@ -85,15 +83,17 @@ export function SavingsTransactionsTable({
               const formattedAmt = isPositive
                 ? `+${formatRupiah(tx.amount)}`
                 : formatRupiah(tx.amount);
+              const isRdpu = tx.instrumentType === "INVESTMENT_RDPU";
+              const categoryBadge = isPositive
+                ? t(isRdpu ? "badge.rdpuDeposit" : "badge.emergencyCashDeposit")
+                : t(isRdpu ? "badge.rdpuWithdrawal" : "badge.emergencyWithdrawal");
 
               return (
                 <DataTableRow
                   key={tx.id}
                   date={formatDate(tx.date)}
                   title={tx.label}
-                  category={`${
-                    isPositive ? "Deposit" : "Withdrawal"
-                  } · ${formatSavingsInstrumentLabel(tx.instrumentType)}`}
+                  category={categoryBadge}
                   hideStatusColumn={true}
                   amount={formattedAmt}
                   type={isPositive ? "income" : "deduction"}

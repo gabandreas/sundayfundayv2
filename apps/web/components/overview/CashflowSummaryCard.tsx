@@ -5,6 +5,7 @@ import { MonthlySnapshot, DailyPacing } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
 import { PrivacyEyeButton } from "@/components/shell/PrivacyEyeButton";
 import { usePrivacyMask } from "@/context/PrivacyMaskContext";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface CashflowSummaryCardProps {
   snapshot: MonthlySnapshot;
@@ -13,6 +14,7 @@ interface CashflowSummaryCardProps {
 
 export function CashflowSummaryCard({ snapshot, pacing }: CashflowSummaryCardProps) {
   const { isAmountsMasked } = usePrivacyMask();
+  const { t } = useLanguage();
   const totalIncome = snapshot.finalTotalIncome ?? snapshot.netSalaryIncome ?? 0;
   const totalDeductions = snapshot.totalDeductions ?? 0;
   const dailySpent = pacing?.totalDailySpent ?? 0;
@@ -23,7 +25,7 @@ export function CashflowSummaryCard({ snapshot, pacing }: CashflowSummaryCardPro
       <div>
         <div className="flex items-center justify-between gap-2 mb-4 pb-3 border-b border-border-subtle">
           <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
-            CASHFLOW SUMMARY
+            {t("overview.cashflowSummary")}
           </span>
           <span className="text-[10px] font-mono text-text-tertiary">
             MONTH {snapshot.month} / {snapshot.year}
@@ -34,7 +36,7 @@ export function CashflowSummaryCard({ snapshot, pacing }: CashflowSummaryCardPro
         <div className="space-y-2.5 text-xs font-sans">
           {/* Total Income */}
           <div className="flex items-center justify-between py-1">
-            <span className="text-text-secondary">Total Net Income (Payroll + Adjustments)</span>
+            <span className="text-text-secondary">{t("overview.totalNetIncome")}</span>
             <span className="font-mono tabular-nums text-[13px] font-medium text-delta-positive">
               +{formatRupiah(totalIncome, isAmountsMasked)}
             </span>
@@ -42,7 +44,7 @@ export function CashflowSummaryCard({ snapshot, pacing }: CashflowSummaryCardPro
 
           {/* Total Liabilities & Deductions */}
           <div className="flex items-center justify-between py-1 border-t border-border-subtle">
-            <span className="text-text-secondary">Materialized Liabilities & Debt (Upfront)</span>
+            <span className="text-text-secondary">{t("overview.materializedDebt")}</span>
             <span className="font-mono tabular-nums text-[13px] font-medium text-text-primary">
               -{formatRupiah(totalDeductions, isAmountsMasked)}
             </span>
@@ -50,7 +52,7 @@ export function CashflowSummaryCard({ snapshot, pacing }: CashflowSummaryCardPro
 
           {/* Net Remaining Cashflow */}
           <div className="flex items-center justify-between py-2 border-t border-border mt-2">
-            <span className="font-medium text-text-primary">Net Waterfall Baseline</span>
+            <span className="font-medium text-text-primary">{t("overview.netBaseline")}</span>
             <div className="flex items-center gap-2">
               <span
                 className={`font-mono tabular-nums text-sm font-semibold ${

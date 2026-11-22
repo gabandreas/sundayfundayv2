@@ -7,12 +7,16 @@ interface AuditScorecardViewProps {
 }
 
 export function AuditScorecardView({ report }: AuditScorecardViewProps) {
-  const { healthScorecard, flags } = report;
+  const { healthScorecard, flags, debtBurdenAudit } = report;
 
   // Derive styling for health status
   let statusVariant: "default" | "caution" | "urgency" = "default";
   if (healthScorecard.healthStatus === "CAUTION") statusVariant = "caution";
   if (healthScorecard.healthStatus === "CRITICAL") statusVariant = "urgency";
+
+  const sortedDebtTrail = [...(debtBurdenAudit || [])].sort((a, b) =>
+    a.year !== b.year ? a.year - b.year : a.month - b.month
+  );
 
   return (
     <div className="space-y-6">
@@ -45,6 +49,65 @@ export function AuditScorecardView({ report }: AuditScorecardViewProps) {
           />
         </div>
       </div>
+
+      {/* Debt-to-Income Deleveraging Trajectory */}
+      {sortedDebtTrail.length > 0 && (
+        <div className="rounded-lg border border-border-default bg-surface p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-semibold font-sans text-text-primary">
+                Deleveraging & Debt-to-Income Horizon
+              </h3>
+              <p className="text-xs font-sans text-text-tertiary">
+                Tracking obligation compression toward optimal 20% ceiling across active payroll cycles.
+              </p>
+            </div>
+            <span className="text-[10px] font-mono text-text-tertiary uppercase">
+              Target Ceiling: 35% Safe · 20% Optimal
+            </span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+            {sortedDebtTrail.map((entry) => {
+              const barColor =
+                entry.debtRatio > 50
+                  ? "bg-urgency"
+                  : entry.debtRatio > 35
+                  ? "bg-caution"
+                  : "bg-delta-positive";
+              const textColor =
+                entry.debtRatio > 50
+                  ? "text-urgency"
+                  : entry.debtRatio > 35
+                  ? "text-caution"
+                  : "text-delta-positive";
+              return (
+                <div
+                  key={`${entry.year}-${entry.month}`}
+                  className="p-2.5 rounded border border-border-subtle bg-surface-subtle space-y-1.5"
+                >
+                  <div className="flex items-center justify-between text-[11px] font-mono">
+                    <span className="text-text-secondary">
+                      {entry.month}/{entry.year}
+                    </span>
+                    <span className={`font-semibold tabular-nums ${textColor}`}>
+                      {entry.debtRatio.toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="h-1 w-full rounded-full bg-surface-hover overflow-hidden">
+                    <div
+                      className={`h-full ${barColor}`}
+                      style={{ width: `${Math.min(100, entry.debtRatio)}%` }}
+                    />
+                  </div>
+                  <div className="text-[10px] font-mono text-text-tertiary tabular-nums">
+                    Rp {Math.round(entry.totalBills).toLocaleString("id-ID")}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div>
         <h3 className="text-sm font-semibold font-sans text-text-primary mb-3">

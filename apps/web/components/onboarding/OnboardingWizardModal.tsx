@@ -4,13 +4,11 @@ import React, { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { usePerspective } from "@/context/PerspectiveContext";
 import {
-  Wand2,
   X,
   CheckCircle2,
   ArrowRight,
   ArrowLeft,
   Loader2,
-  Sparkles,
 } from "lucide-react";
 import { formatRupiah } from "@/lib/utils";
 import {
@@ -225,18 +223,13 @@ export function OnboardingWizardModal() {
       <div className="w-full max-w-3xl rounded-lg border border-border bg-surface p-6 shadow-2xl space-y-5 max-h-[92vh] overflow-y-auto animate-in zoom-in-95 duration-150">
         {/* Header */}
         <div className="flex items-start justify-between pb-3 border-b border-border-subtle">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded bg-surface-subtle border border-border-strong flex items-center justify-center text-text-primary">
-              <Wand2 className="w-4 h-4" />
-            </div>
-            <div>
-              <h2 className="text-base font-semibold font-sans text-text-primary tracking-tight">
-                60-Second Life-Stage Financial Setup Wizard (Ages 20–70)
-              </h2>
-              <p className="text-xs font-sans text-text-tertiary mt-0.5">
-                Step {step} of 3 — Select your life-stage blueprint, active modules, and allocation formula.
-              </p>
-            </div>
+          <div>
+            <h2 className="text-base font-semibold font-sans text-text-primary tracking-tight">
+              60-Second Life-Stage Financial Setup (Ages 20–70)
+            </h2>
+            <p className="text-xs font-sans text-text-tertiary mt-0.5">
+              Step {step} of 3 — Select your life-stage preset, active modules, and allocation formula.
+            </p>
           </div>
 
           <button
@@ -656,7 +649,7 @@ export function OnboardingWizardModal() {
                   onClick={() => handleFinish(true)}
                   className="px-3.5 py-1.5 rounded text-xs font-sans font-medium bg-delta-positive text-black hover:bg-delta-positive/90 transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                 >
-                  <Sparkles className="w-3.5 h-3.5" />
+                  <CheckCircle2 className="w-3.5 h-3.5" />
                   <span>Apply to Workspace</span>
                 </button>
               </div>

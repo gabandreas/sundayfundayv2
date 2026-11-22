@@ -1,0 +1,238 @@
+"use client";
+
+import React, { useEffect, useState } from "react";
+import {
+  GlobalConfig,
+  IntelligenceBundleResponse,
+  MonthlySnapshot,
+  PayrollResult,
+  fetchGlobalConfig,
+  fetchIntelligenceBundle,
+  fetchPayroll,
+  fetchSnapshot,
+  getCached,
+  setCached,
+} from "@/lib/api";
+import { usePeriodSlice } from "@/hooks/usePeriodSlice";
+import { useSubModule } from "@/hooks/useSubModule";
+import { PAYROLL_SUB_KEYS, PayrollSubKey } from "@/lib/tabs";
+import { useLanguage } from "@/context/LanguageContext";
+import { SubModuleNav } from "@/components/primitives/SubModuleNav";
+import { TrueHourlyLifeEnergyPanel } from "@/components/finance/ModuleGoPanels";
+import { PayrollStatementTable } from "@/components/payroll/PayrollStatementTable";
+import { PayrollCashflowHighlights } from "@/components/payroll/PayrollCashflowHighlights";
+import { PayrollAdjustmentForm } from "@/components/payroll/PayrollAdjustmentForm";
+import { PayrollArchetypeSelector } from "@/components/payroll/PayrollArchetypeSelector";
+import { ContractualBaseRateEditor } from "@/components/payroll/ContractualBaseRateEditor";
+import { QuickIncomeForm } from "@/components/payroll/QuickIncomeForm";
+import { ThrBonusEstimatorCard } from "@/components/payroll/ThrBonusEstimatorCard";
+import { PaydayTimelineSimulator } from "@/components/finance/PaydayTimelineSimulator";
+import { PreBoundaryNotice } from "@/components/shell/PreBoundaryNotice";
+
+export interface PayrollPeriodData {
+  snapshot: MonthlySnapshot | null;
+  payroll: PayrollResult | null;
+  config: GlobalConfig | null;
+}
+
+interface PayrollClientViewProps {
+  initialMonth: number;
+  initialYear: number;
+  initialData: PayrollPeriodData;
+}
+
+export function PayrollClientView({
+  initialMonth,
+  initialYear,
+  initialData,
+}: PayrollClientViewProps) {
+  const { t } = useLanguage();
+  const [activeSub, selectSub] = useSubModule<PayrollSubKey>(PAYROLL_SUB_KEYS, "payslip");
+  const [intel, setIntel] = useState<IntelligenceBundleResponse | null>(null);
+  const { month, year, data, isPreBoundary } =
+    usePeriodSlice<PayrollPeriodData>({
+      initialMonth,
+      initialYear,
+      initialData,
+      seedCache: (m, y, d) => {
+        if (d.snapshot) setCached(`snapshot:${m}:${y}`, d.snapshot);
+        if (d.payroll) setCached(`payroll:${m}:${y}`, d.payroll);
+        if (d.config) setCached("globalConfig", d.config);
+      },
+      readFromCache: (m, y, prev) => {
+        const snapshot = getCached<MonthlySnapshot | null>(`snapshot:${m}:${y}`);
+        const payroll = getCached<PayrollResult | null>(`payroll:${m}:${y}`);
+        if (snapshot === undefined || payroll === undefined) return undefined;
+        const config = getCached<GlobalConfig | null>("globalConfig") ?? prev.config;
+        return { snapshot, payroll, config };
+      },
+      fetchForPeriod: async (m, y) => {
+        const [snapshot, payroll, config] = await Promise.all([
+          fetchSnapshot(m, y),
+          fetchPayroll(m, y),
+          fetchGlobalConfig(),
+        ]);
+        if (config) setCached("globalConfig", config);
+        return { snapshot, payroll, config };
+      },
+    });
+
+  useEffect(() => {
+    let active = true;
+    const cached = getCached<IntelligenceBundleResponse | null>(`intelligence:${month}:${year}:0`);
+    if (cached) {
+      setIntel(cached);
+    } else {
+      fetchIntelligenceBundle(month, year).then((res) => {
+        if (active && res) setIntel(res);
+      });
+    }
+    return () => {
+      active = false;
+    };
+  }, [month, year]);
+
+  if (isPreBoundary) {
+    return <PreBoundaryNotice month={month} year={year} />;
+  }
+
+  const { snapshot, payroll, config } = data;
+  const isLocked = snapshot?.status === "LOCKED";
+  const finalTotalIncome =
+    payroll?.finalTotalIncome ?? snapshot?.finalTotalIncome ?? 0;
+  const netSalaryIncome =
+    payroll?.netSalaryIncome ?? snapshot?.netSalaryIncome ?? 0;
+  const extraIncome = payroll?.extraIncome ?? snapshot?.extraIncome ?? 0;
+  const workingDays =
+    payroll?.totalWorkingDays ?? snapshot?.totalWorkingDays ?? 0;
+
+  return (
+    <div className="space-y-6 w-full max-w-full">
+      {/* Header & Status Bar */}
+      <div className="flex items-center justify-between pb-3 border-b border-border-subtle">
+        <div>
+          <h1 className="text-xl font-bold font-sans tracking-tight text-text-primary">
+            {t("nav.payroll")}
+          </h1>
+          <p className="text-xs font-sans text-text-secondary mt-1">
+            Calculated monthly payroll statement, multi-wave disbursement timeline, and true hourly life-energy cost.
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-sans text-text-tertiary">
+            Period:{" "}
+            <span className="font-mono text-text-secondary">
+              {month}/{year}
+            </span>
+          </span>
+          <span
+            className={`px-2 py-0.5 rounded text-[10px] font-mono font-medium border ${
+              isLocked
+                ? "bg-surface-subtle text-text-tertiary border-border-subtle"
+                : "bg-[rgba(16,183,141,0.10)] text-delta-positive border-[rgba(16,183,141,0.25)]"
+            }`}
+          >
+            {snapshot?.status ?? "DRAFT"}
+          </span>
+        </div>
+      </div>
+
+      <SubModuleNav
+        items={[
+          { key: "payslip", label: t("sub.payroll.payslip") },
+          { key: "timeline", label: t("sub.payroll.timeline") },
+          { key: "lifeenergy", label: t("sub.payroll.lifeenergy") },
+        ]}
+        activeKey={activeSub}
+        onSelect={selectSub}
+      />
+
+      {activeSub === "payslip" && (
+        <div className="space-y-6">
+          <PayrollArchetypeSelector />
+
+          <section className="space-y-3">
+            <div className="text-[11px] font-sans font-medium text-text-tertiary uppercase tracking-wider">
+              Cashflow Highlights
+            </div>
+            <PayrollCashflowHighlights
+              finalTotalIncome={finalTotalIncome}
+              netSalaryIncome={netSalaryIncome}
+              extraIncome={extraIncome}
+              thrAmount={payroll?.thrAmount ?? snapshot?.thrAmount ?? 0}
+              bonusAmount={payroll?.bonusAmount ?? snapshot?.bonusAmount ?? 0}
+              workingDays={workingDays}
+            />
+          </section>
+
+          <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            <div className="lg:col-span-7 space-y-4">
+              {payroll ? (
+                <PayrollStatementTable payroll={payroll} />
+              ) : (
+                <div className="bg-surface border border-border-subtle rounded-lg p-6 text-center text-xs font-sans text-text-tertiary">
+                  No payroll calculation found for period {month}/{year}.
+                </div>
+              )}
+
+              <ThrBonusEstimatorCard
+                key={`thr-estimator-${month}-${year}-${snapshot?.thrAmount ?? 0}`}
+                baseSalary={payroll?.baseSalary ?? config?.baseSalary ?? 5300000}
+                dailyAllowance={
+                  payroll?.dailyAllowance ?? config?.dailyAllowance ?? 25000
+                }
+                laptopAllowance={
+                  payroll?.laptopAllowance ?? config?.laptopAllowance ?? 250000
+                }
+                currentWorkingDays={workingDays}
+                currentSalaryAdjustment={snapshot?.salaryAdjustment ?? 0}
+                currentCafeteriaDeduction={snapshot?.cafeteriaDeduction ?? 0}
+                currentExtraIncome={extraIncome}
+                currentThrAmount={payroll?.thrAmount ?? snapshot?.thrAmount ?? 0}
+                currentMonth={month}
+              />
+            </div>
+
+            <div className="lg:col-span-5 space-y-6">
+              {snapshot && (
+                <PayrollAdjustmentForm
+                  key={`payroll-form-${snapshot.id}-${month}-${year}`}
+                  snapshotId={snapshot.id}
+                  month={month}
+                  year={year}
+                  isLocked={isLocked}
+                  initialWorkingDays={snapshot.totalWorkingDays ?? 0}
+                  initialSalaryAdjustment={snapshot.salaryAdjustment ?? 0}
+                  initialCafeteriaDeduction={snapshot.cafeteriaDeduction ?? 0}
+                  initialBonusAmount={snapshot.bonusAmount ?? 0}
+                  hasThr={(snapshot.thrAmount ?? 0) > 0}
+                  initialThrAmount={snapshot.thrAmount ?? 0}
+                  baseSalary={config?.baseSalary ?? 5300000}
+                  initialPayrollPayoutDate={snapshot.payrollPayoutDate}
+                />
+              )}
+
+              <ContractualBaseRateEditor
+                key={`contract-rates-${month}-${year}`}
+                month={month}
+                year={year}
+                isLocked={isLocked}
+                config={config}
+              />
+
+              <QuickIncomeForm month={month} year={year} isLocked={isLocked} />
+            </div>
+          </section>
+        </div>
+      )}
+
+      {activeSub === "timeline" && (
+        <PaydayTimelineSimulator month={month} year={year} />
+      )}
+
+      {activeSub === "lifeenergy" && (
+        <TrueHourlyLifeEnergyPanel intel={intel} />
+      )}
+    </div>
+  );
+}

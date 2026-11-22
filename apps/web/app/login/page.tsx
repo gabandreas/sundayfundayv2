@@ -3,6 +3,9 @@
 import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
+import { LanguageSwitcher } from "@/components/shell/LanguageSwitcher";
+import { BrandMark } from "@/components/primitives/BrandMark";
 import {
   ShieldCheck,
   Lock,
@@ -12,10 +15,12 @@ import {
   Eye,
   EyeOff,
   Clock,
+  Loader2,
 } from "lucide-react";
 
 function LoginForm() {
   const { login, demoLogin } = useAuth();
+  const { t } = useLanguage();
   const searchParams = useSearchParams();
   const isExpired = searchParams.get("expired") === "1";
 
@@ -38,6 +43,7 @@ function LoginForm() {
   const [ipLabel, setIpLabel] = useState("");
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -74,11 +80,13 @@ function LoginForm() {
         );
       } else {
         localStorage.removeItem("erp_locked_identity");
+        setIsTransitioning(true);
       }
     } catch (err: any) {
       setErrorMessage(
         err.message || "Authentication failed. Check your credentials."
       );
+      setIsTransitioning(false);
     } finally {
       setIsLoading(false);
     }
@@ -88,8 +96,10 @@ function LoginForm() {
     setIsLoading(true);
     setErrorMessage(null);
     try {
+      setIsTransitioning(true);
       await demoLogin();
     } catch (err: any) {
+      setIsTransitioning(false);
       setErrorMessage(err.message || "Failed to launch General Demo Sandbox.");
     } finally {
       setIsLoading(false);
@@ -106,25 +116,29 @@ function LoginForm() {
   };
 
   return (
-    <div className="w-full max-w-md rounded-xl border border-border bg-surface p-8 shadow-2xl">
+    <div className="w-full max-w-md rounded-xl border border-border bg-surface p-5 sm:p-8 shadow-2xl">
       {/* Brand Header */}
       <div className="mb-6">
-        <div className="text-[11px] font-mono tracking-wider text-text-tertiary uppercase">
-          Sunday Funday ERP
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-[11px] font-mono tracking-wider text-text-tertiary uppercase">
+            <BrandMark size={20} />
+            <span>{t("auth.eyebrow")}</span>
+          </div>
+          <LanguageSwitcher compact />
         </div>
-        <h1 className="text-2xl font-serif text-text-primary font-normal tracking-tight mt-1">
+        <h1 className="text-xl sm:text-2xl font-serif text-text-primary font-normal tracking-tight mt-2">
           {requiresPin
-            ? "Security PIN Verification"
+            ? t("auth.pinTitle")
             : lockedIdentity
-            ? `Session Locked — ${lockedIdentity.fullName}`
-            : "Sign in to ERP Workspace"}
+            ? `${t("auth.lockedPrefix")} — ${lockedIdentity.fullName}`
+            : t("auth.signInTitle")}
         </h1>
         <p className="text-xs text-text-secondary mt-1 font-mono">
           {requiresPin
             ? `Client IP: ${detectedIp || "Unknown"}`
             : lockedIdentity
             ? `User: ${lockedIdentity.fullName || lockedIdentity.username}`
-            : "Enterprise financial workspace access"}
+            : t("auth.signInSubtitle")}
         </p>
       </div>
 
@@ -133,7 +147,7 @@ function LoginForm() {
         <div className="mb-5 p-3 rounded-md border border-amber-500/30 bg-amber-500/10 flex items-start gap-2.5 text-xs text-amber-300">
           <Clock className="w-4 h-4 shrink-0 mt-0.5" />
           <div className="leading-relaxed">
-            Session expired due to inactivity. Enter your password to unlock.
+            {t("auth.sessionExpired")}
           </div>
         </div>
       )}
@@ -153,7 +167,7 @@ function LoginForm() {
             {!lockedIdentity && (
               <div>
                 <label className="block text-xs font-medium text-text-secondary mb-1.5">
-                  Username
+                  {t("auth.username")}
                 </label>
                 <div className="relative">
                   <User className="w-4 h-4 absolute left-3 top-2.5 text-text-tertiary" />
@@ -165,7 +179,7 @@ function LoginForm() {
                     required
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="Enter username"
+                    placeholder={t("auth.usernamePlaceholder")}
                     className="w-full pl-9 pr-3 py-2 text-xs rounded border border-border bg-surface-subtle text-text-primary focus:outline-none focus:border-border-strong font-mono"
                   />
                 </div>
@@ -176,11 +190,11 @@ function LoginForm() {
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="block text-xs font-medium text-text-secondary">
-                  Password
+                  {t("auth.password")}
                 </label>
                 {lockedIdentity && (
                   <span className="text-[11px] font-mono text-emerald-400">
-                    Quick Re-Auth
+                    {t("auth.quickReAuth")}
                   </span>
                 )}
               </div>
@@ -194,7 +208,7 @@ function LoginForm() {
                   autoFocus={Boolean(lockedIdentity)}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter password"
+                  placeholder={t("auth.passwordPlaceholder")}
                   className="w-full pl-9 pr-10 py-2 text-xs rounded border border-border bg-surface-subtle text-text-primary focus:outline-none focus:border-border-strong font-sans"
                 />
                 <button
@@ -276,19 +290,25 @@ function LoginForm() {
         {/* Submit Action */}
         <button
           type="submit"
-          disabled={isLoading}
-          className="w-full mt-2 py-2.5 px-4 rounded font-medium text-xs bg-text-primary text-canvas hover:opacity-95 transition-opacity flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+          disabled={isLoading || isTransitioning}
+          className="w-full mt-2 py-2.5 px-4 rounded font-medium text-xs bg-text-primary text-canvas hover:opacity-95 transition-opacity flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
         >
           <span>
-            {isLoading
-              ? "Authenticating..."
+            {isTransitioning
+              ? t("auth.transitioning")
+              : isLoading
+              ? t("auth.authenticating")
               : requiresPin
-              ? "Verify PIN & Access Workspace"
+              ? t("auth.verifyPin")
               : lockedIdentity
-              ? "Unlock Session"
-              : "Sign in to Workspace"}
+              ? t("auth.unlockSession")
+              : t("auth.signInBtn")}
           </span>
-          <ArrowRight className="w-3.5 h-3.5" />
+          {isLoading || isTransitioning ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <ArrowRight className="w-3.5 h-3.5" />
+          )}
         </button>
 
         {/* Locked Session Switch Account Link */}
@@ -299,7 +319,7 @@ function LoginForm() {
               onClick={handleSwitchAccount}
               className="text-xs text-text-tertiary hover:text-text-secondary underline cursor-pointer transition-colors"
             >
-              Sign in with a different account
+              {t("auth.switchAccount")}
             </button>
           </div>
         )}
@@ -308,25 +328,25 @@ function LoginForm() {
       {/* General Sandbox Entry */}
       <div className="mt-6 pt-5 border-t border-border space-y-2">
         <div className="text-[10px] font-mono text-text-tertiary uppercase tracking-wider text-center">
-          Interactive Evaluation & Demo Sandbox
+          {t("auth.demoEyebrow")}
         </div>
         <button
           type="button"
           onClick={handleDemoLogin}
-          disabled={isLoading}
+          disabled={isLoading || isTransitioning}
           className="w-full py-2 px-3 text-xs rounded border border-emerald-500/30 bg-surface-subtle hover:bg-emerald-950/20 text-text-secondary hover:text-emerald-300 transition-colors flex items-center justify-center gap-1.5 font-mono cursor-pointer disabled:opacity-50"
         >
-          <span>Explore General Sandbox (Demo) &rarr;</span>
+          <span>{t("auth.demoBtn")} &rarr;</span>
         </button>
       </div>
 
       {/* Security Footer Note */}
-      <div className="mt-5 pt-4 border-t border-border flex items-center justify-between text-[11px] text-text-tertiary font-mono">
+      <div className="mt-5 pt-4 border-t border-border flex flex-wrap items-center justify-between gap-2 text-[11px] text-text-tertiary font-mono">
         <div className="flex items-center gap-1.5">
           <ShieldCheck className="w-3.5 h-3.5 text-text-secondary" />
-          <span>Scrypt + 30-min JWT Gate</span>
+          <span>{t("auth.securityNote")}</span>
         </div>
-        <span>Phase 12 Enterprise</span>
+        <span>{t("auth.securityVersion")}</span>
       </div>
     </div>
   );
@@ -334,7 +354,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen w-full bg-canvas flex flex-col justify-center items-center p-6 select-none">
+    <div className="min-h-screen w-full bg-canvas flex flex-col justify-center items-center p-4 sm:p-6 select-none">
       <Suspense fallback={<div className="text-text-tertiary text-xs">Loading...</div>}>
         <LoginForm />
       </Suspense>

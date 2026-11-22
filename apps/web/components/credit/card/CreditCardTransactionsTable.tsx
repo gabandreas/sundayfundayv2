@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   CreditCardTransaction,
   deleteCardCharge,
@@ -41,7 +40,6 @@ export function CreditCardTransactionsTable({
   currentYear = 2026,
   isLocked = false,
 }: CreditCardTransactionsTableProps) {
-  const router = useRouter();
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [editingEndDateId, setEditingEndDateId] = useState<number | null>(null);
   const [endMonthInput, setEndMonthInput] = useState<number>(currentMonth);
@@ -79,9 +77,7 @@ export function CreditCardTransactionsTable({
     setSubmittingRecurring(false);
     setStoppingRecurringId(null);
 
-    if (res.success) {
-      router.refresh();
-    } else {
+    if (!res.success) {
       setErrorMessage(res.error || "Failed to stop recurring subscription");
     }
   };
@@ -93,9 +89,7 @@ export function CreditCardTransactionsTable({
     const res = await resumeRecurringCardSubscription(id);
     setSubmittingRecurring(false);
 
-    if (res.success) {
-      router.refresh();
-    } else {
+    if (!res.success) {
       setErrorMessage(res.error || "Failed to resume recurring subscription");
     }
   };
@@ -112,9 +106,7 @@ export function CreditCardTransactionsTable({
     const res = await deleteCardCharge(id);
     setDeletingId(null);
 
-    if (res.success) {
-      router.refresh();
-    } else {
+    if (!res.success) {
       setErrorMessage(res.error || "Failed to delete card transaction");
     }
   };
@@ -142,7 +134,6 @@ export function CreditCardTransactionsTable({
     setSavingEndDate(false);
     if (res.success) {
       setEditingEndDateId(null);
-      router.refresh();
     } else {
       setErrorMessage(res.error || "Failed to update subscription end period");
     }
@@ -162,7 +153,6 @@ export function CreditCardTransactionsTable({
     setIsSettling(false);
     if (res.success) {
       setSettlingCardId(null);
-      router.refresh();
     } else {
       setErrorMessage(res.error || "Failed to settle installment early");
     }

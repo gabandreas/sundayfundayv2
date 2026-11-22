@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState, useEffect } from "react";
 import { WishlistItem, convertWishlistToContract } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
 import { AlertTriangle, X, RefreshCw, CheckCircle2 } from "lucide-react";
@@ -19,9 +18,6 @@ export function ConvertToContractModal({
   item,
   onSuccess,
 }: ConvertToContractModalProps) {
-  const router = useRouter();
-  const [, startTransition] = useTransition();
-
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -44,9 +40,6 @@ export function ConvertToContractModal({
       const res = await convertWishlistToContract(item.id);
       if (res.success) {
         setIsSuccess(true);
-        startTransition(() => {
-          router.refresh();
-        });
         setTimeout(() => {
           setIsSuccess(false);
           onSuccess?.();
@@ -74,7 +67,7 @@ export function ConvertToContractModal({
   }, [isSubmitting, onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-[2px] animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 animate-in fade-in duration-150">
       <div
         className="w-full max-w-lg rounded-lg border border-border bg-surface p-6 shadow-2xl relative animate-in fade-in zoom-in-95 duration-150 space-y-5"
         role="dialog"

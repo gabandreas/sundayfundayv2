@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { usePerspective } from "@/context/PerspectiveContext";
-import { X, Send, CheckCircle2, Loader2, Sparkles, AlertCircle } from "lucide-react";
+import { X, Send, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
 import { createCustomRequest } from "@/lib/api";
 import Link from "next/link";
 
@@ -78,22 +78,17 @@ export function CustomRuleRequestModal() {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-      <div className="w-full max-w-xl rounded-xl border border-border bg-surface p-6 shadow-2xl space-y-6 animate-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 animate-in fade-in duration-150">
+      <div className="w-full max-w-xl rounded-lg border border-border bg-surface p-6 shadow-2xl space-y-6 animate-in zoom-in-95 duration-150">
         {/* Modal Header */}
         <div className="flex items-start justify-between pb-4 border-b border-border-subtle">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-surface-subtle border border-border flex items-center justify-center text-accent">
-              <Sparkles className="w-4 h-4" />
-            </div>
-            <div>
-              <h2 className="text-base font-semibold font-sans text-text-primary tracking-tight">
-                Request Bespoke Rule or Module
-              </h2>
-              <p className="text-xs font-sans text-text-tertiary mt-0.5">
-                Submit architectural rules, formula adjustments, or custom views to the Superadmin.
-              </p>
-            </div>
+          <div>
+            <h2 className="text-base font-semibold font-sans text-text-primary tracking-tight">
+              Request Bespoke Rule or Module
+            </h2>
+            <p className="text-xs font-sans text-text-tertiary mt-0.5">
+              Submit architectural rules, formula adjustments, or custom views to the Superadmin.
+            </p>
           </div>
 
           <button

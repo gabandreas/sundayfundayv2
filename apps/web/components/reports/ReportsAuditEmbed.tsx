@@ -33,7 +33,7 @@ export function ReportsAuditEmbed() {
   if (loading && !report) {
     return (
       <div className="rounded-lg border border-border bg-surface p-6 text-xs text-text-tertiary">
-        Loading Discipline Audit Scorecard &amp; Telemetry...
+        Loading Discipline Audit Scorecard...
       </div>
     );
   }

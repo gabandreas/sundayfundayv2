@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState, useEffect } from "react";
 import { Lock, Unlock, AlertTriangle, RefreshCw, Check, X } from "lucide-react";
 import { closeSnapshot, recalculateSnapshot, reopenSnapshot } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
@@ -31,9 +30,6 @@ export function ClosePeriodModal({
   deficitUncovered = 0,
   existingPeriodVaultDeposit = 0,
 }: ClosePeriodModalProps) {
-  const router = useRouter();
-  const [, startTransition] = useTransition();
-
   const [isOpen, setIsOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [isRecalculating, setIsRecalculating] = useState(false);
@@ -96,9 +92,6 @@ export function ClosePeriodModal({
       const res = await reopenSnapshot(snapshotId);
       if (res.success) {
         setShowReopenConfirm(false);
-        startTransition(() => {
-          router.refresh();
-        });
       } else {
         setErrorMessage(res.error || "Failed to reopen period");
       }
@@ -122,7 +115,7 @@ export function ClosePeriodModal({
         </button>
 
         {showReopenConfirm && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
             <div className="w-full max-w-md rounded-lg border border-border bg-surface p-5 space-y-4 shadow-xl">
               <div className="flex items-start justify-between pb-2 border-b border-border-subtle">
                 <div className="flex items-center gap-2">
@@ -211,9 +204,6 @@ export function ClosePeriodModal({
       const res = await recalculateSnapshot(snapshotId);
       if (res.success) {
         setRecalcSuccess(true);
-        startTransition(() => {
-          router.refresh();
-        });
         setTimeout(() => setRecalcSuccess(false), 2000);
       } else {
         setErrorMessage(res.error || "Recalculation failed");
@@ -244,9 +234,6 @@ export function ClosePeriodModal({
       });
       if (res.success) {
         setIsOpen(false);
-        startTransition(() => {
-          router.refresh();
-        });
       } else {
         setErrorMessage(res.error || "Failed to close period");
       }
@@ -494,7 +481,7 @@ export function ClosePeriodModal({
                   <strong className="text-text-primary">Final Recalculation:</strong> Runs authoritative payroll, waterfall deductions, and daily pacing calculations one final time.
                 </li>
                 <li>
-                  <strong className="text-text-primary">Contract Amortization:</strong> Decrements remaining tenor by 1 month for all active credit contracts (contracts reaching 0 are retired).
+                  <strong className="text-text-primary">Installment Progress:</strong> Decrements remaining tenor by 1 month for all active credit contracts (contracts reaching 0 are retired).
                 </li>
                 <li>
                   <strong className="text-text-primary">Snapshot Lock:</strong> Transitions period {month}/{year} status to <span className="font-mono text-text-primary font-semibold">LOCKED</span>. All mutations for this period will be permanently rejected.

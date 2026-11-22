@@ -61,12 +61,12 @@ export function DataTableRow({
       } ${className}`}
     >
       {/* Col 1: Date (tabular monospace) */}
-      <div className="w-24 shrink-0 font-mono text-text-tertiary text-[11px] tabular-nums">
+      <div className="w-20 sm:w-24 shrink-0 font-mono text-text-tertiary text-[11px] tabular-nums">
         {date}
       </div>
 
       {/* Col 2: Title & optional subtitle */}
-      <div className="flex-1 min-w-0 pr-4">
+      <div className="flex-1 min-w-0 pr-2 sm:pr-4">
         <div className="flex items-center gap-2">
           <span className="font-medium text-text-primary truncate">{title}</span>
           {tenorInfo && (
@@ -82,8 +82,8 @@ export function DataTableRow({
 
       {/* Col 3: Category / Tag */}
       {category && (
-        <div className="w-32 shrink-0 hidden md:block">
-          <span className="font-mono text-[10px] uppercase text-text-tertiary px-1.5 py-0.5 rounded bg-surface-subtle border border-border-subtle">
+        <div className="min-w-[160px] max-w-[260px] shrink-0 hidden md:flex items-center pr-3">
+          <span className="inline-flex items-center whitespace-nowrap truncate font-sans text-[11px] font-medium text-text-secondary px-2 py-0.5 rounded bg-surface-subtle border border-border-subtle">
             {category}
           </span>
         </div>
@@ -91,10 +91,10 @@ export function DataTableRow({
 
       {/* Col 4: Status / Flag badge */}
       {!hideStatusColumn && (
-        <div className="w-24 shrink-0 flex justify-center">
+        <div className="w-24 sm:w-28 shrink-0 hidden sm:flex justify-center">
           {badge ? (
             <span
-              className={`px-1.5 py-0.5 rounded border text-[10px] font-mono font-medium ${
+              className={`inline-flex items-center whitespace-nowrap px-2 py-0.5 rounded border text-[11px] font-sans font-medium ${
                 badgeVariantStyles[badge.variant || "default"]
               }`}
             >
@@ -105,8 +105,8 @@ export function DataTableRow({
       )}
 
       {/* Col 5: Numeric Amount (strictly tabular monospace) & optional Action */}
-      <div className="w-44 shrink-0 flex items-center justify-end gap-2">
-        <span className={`font-mono text-[13px] tabular-nums ${getAmountColor()}`}>
+      <div className="w-auto sm:w-44 shrink-0 flex items-center justify-end gap-1.5 sm:gap-2">
+        <span className={`font-mono text-xs sm:text-[13px] tabular-nums ${getAmountColor()}`}>
           {amount}
         </span>
         {action ? (
@@ -138,15 +138,15 @@ export function DataTableHeader({
     <div
       className={`flex items-center justify-between py-2 px-3 border-b border-border text-[10px] font-mono tracking-wider font-semibold text-text-tertiary bg-surface-subtle/50 uppercase ${className}`}
     >
-      <div className="w-24 shrink-0">{dateLabel}</div>
-      <div className="flex-1 pr-4">{titleLabel}</div>
+      <div className="w-20 sm:w-24 shrink-0">{dateLabel}</div>
+      <div className="flex-1 min-w-0 pr-2 sm:pr-4">{titleLabel}</div>
       {categoryLabel ? (
-        <div className="w-32 shrink-0 hidden md:block">{categoryLabel}</div>
+        <div className="min-w-[160px] max-w-[260px] shrink-0 hidden md:block pr-3">{categoryLabel}</div>
       ) : null}
       {statusLabel ? (
-        <div className="w-24 shrink-0 text-center">{statusLabel}</div>
+        <div className="w-24 sm:w-28 shrink-0 hidden sm:block text-center">{statusLabel}</div>
       ) : null}
-      <div className="w-44 shrink-0 text-right">{amountLabel}</div>
+      <div className="w-auto sm:w-44 shrink-0 text-right">{amountLabel}</div>
     </div>
   );
 }

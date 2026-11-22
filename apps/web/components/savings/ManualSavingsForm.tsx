@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Check } from "lucide-react";
 import {
   createSavingsTransaction,
@@ -17,7 +16,6 @@ interface ManualSavingsFormProps {
 export function ManualSavingsForm({
   untransferredLockedPeriods = [],
 }: ManualSavingsFormProps) {
-  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
 
   const todayStr = new Date().toISOString().split("T")[0];
@@ -101,7 +99,6 @@ export function ManualSavingsForm({
         setDate(todayStr);
         setAttributedPeriod(null);
         setIsOpen(false);
-        router.refresh();
       }, 1200);
     } catch (err: any) {
       setFieldErrors({ general: err.message || "An unexpected error occurred" });

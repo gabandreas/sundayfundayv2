@@ -100,7 +100,7 @@ export function ModuleManagerTab({ config }: ModuleManagerTabProps) {
             onClick={() => handleSelectDensity("COMMAND_COCKPIT")}
             className={`text-left p-4 rounded border transition-colors ${
               uiDensityMode === "COMMAND_COCKPIT"
-                ? "border-text-primary bg-surface-subtle"
+                ? "border-accent/50 bg-accent/[0.06] ring-1 ring-accent/20"
                 : "border-border bg-surface hover:bg-surface-subtle/50"
             }`}
           >
@@ -122,7 +122,7 @@ export function ModuleManagerTab({ config }: ModuleManagerTabProps) {
             onClick={() => handleSelectDensity("SIMPLE_CLARITY")}
             className={`text-left p-4 rounded border transition-colors ${
               uiDensityMode === "SIMPLE_CLARITY"
-                ? "border-text-primary bg-surface-subtle"
+                ? "border-accent/50 bg-accent/[0.06] ring-1 ring-accent/20"
                 : "border-border bg-surface hover:bg-surface-subtle/50"
             }`}
           >
@@ -225,7 +225,7 @@ export function ModuleManagerTab({ config }: ModuleManagerTabProps) {
                 key={preset.id}
                 className={`p-3.5 rounded border flex items-center justify-between gap-4 ${
                   isCurrent
-                    ? "border-text-primary bg-surface-subtle"
+                    ? "border-accent/50 bg-accent/[0.06] ring-1 ring-accent/20"
                     : "border-border bg-surface"
                 }`}
               >

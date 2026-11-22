@@ -2,7 +2,8 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Send, Sparkles, X, ArrowUpRight } from "lucide-react";
+import { Send, X, ArrowUpRight } from "lucide-react";
+import { MarqueeMark } from "@/components/primitives/MarqueeMark";
 import { MarqueeChatResponse, sendMarqueeChat } from "@/lib/api";
 import { usePeriod } from "@/context/PeriodContext";
 import { useLanguage } from "@/context/LanguageContext";
@@ -149,7 +150,7 @@ export function MarqueeCoPilotDrawer({ isOpen, onClose }: MarqueeCoPilotDrawerPr
       {/* Header */}
       <div className="px-4 py-3.5 border-b border-border flex items-center justify-between gap-2 shrink-0 bg-canvas">
         <div className="flex items-center gap-2 min-w-0">
-          <Sparkles className="w-4 h-4 text-delta-positive shrink-0" />
+          <MarqueeMark className="w-4 h-4 text-delta-positive shrink-0" />
           <div className="min-w-0">
             <h2
               id="marquee-drawer-title"

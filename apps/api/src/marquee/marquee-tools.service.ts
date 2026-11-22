@@ -354,7 +354,7 @@ export class MarqueeToolsService {
         return {
           ok: true,
           tool,
-          summary: `P1 Savings Reservoir holds ${formatRp(totalBal)} (${formatRp(rdpuBal)} in RDPU) across ${goalList.length} tracked goal(s).`,
+          summary: `P1 Savings Vault holds ${formatRp(totalBal)} (${formatRp(rdpuBal)} in RDPU) across ${goalList.length} tracked goal(s).`,
           cards: [
             { label: 'Total P1 Vault', value: formatRp(totalBal), tone: 'positive' },
             { label: 'Money Market (RDPU)', value: formatRp(rdpuBal) },

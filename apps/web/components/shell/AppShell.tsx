@@ -76,7 +76,7 @@ function AppShellProtected({ children }: { children: React.ReactNode }) {
             <div className="fixed inset-0 z-50 lg:hidden flex print-hidden">
               {/* Backdrop */}
               <div
-                className="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity"
+                className="fixed inset-0 bg-black/75 transition-opacity"
                 onClick={() => setIsMobileDrawerOpen(false)}
                 aria-hidden="true"
               />

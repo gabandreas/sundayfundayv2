@@ -349,7 +349,7 @@ export default function ComponentDevShowcasePage() {
               badgeVariant="neutral"
             />
             <SidebarNavItem
-              label="Savings & Reservoirs"
+              label="Savings & Vaults"
               href="#"
               icon={PiggyBank}
               isActive={false}

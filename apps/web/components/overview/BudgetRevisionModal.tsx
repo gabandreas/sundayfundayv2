@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState, useTransition, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState, useEffect } from "react";
 import { X, Check, AlertCircle, RefreshCw } from "lucide-react";
 import { createBudgetRevision, previewBudgetRevision, BudgetRevisionCategory, BudgetRevisionPreview } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
@@ -27,21 +26,28 @@ export function BudgetRevisionModal({
   currentValue,
   onSuccess,
 }: BudgetRevisionModalProps) {
-  const router = useRouter();
-  const [, startTransition] = useTransition();
-
   const [newValueStr, setNewValueStr] = useState<string>("");
   const [reason, setReason] = useState<string>("");
+  const [isOneOff, setIsOneOff] = useState<boolean>(false);
+  const [oneOffLabel, setOneOffLabel] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
   const [preview, setPreview] = useState<BudgetRevisionPreview | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
 
+  const supportsOneOff =
+    category === "TRANSPORT" ||
+    category === "INTERNET" ||
+    category === "VAPE" ||
+    category === "HAIRCUT";
+
   useEffect(() => {
     if (isOpen) {
       setNewValueStr(String(currentValue));
       setReason("");
+      setIsOneOff(false);
+      setOneOffLabel("");
       setErrorMessage(null);
       setIsSuccess(false);
       setPreview(null);
@@ -104,18 +110,21 @@ export function BudgetRevisionModal({
         bucketLabel: categoryLabel,
         newValue: parsedValue,
         reason: reason.trim(),
+        ...(supportsOneOff && isOneOff
+          ? {
+              isOneOff: true,
+              oneOffLabel: oneOffLabel.trim() || categoryLabel,
+            }
+          : {}),
       });
       if (!res.success) {
         throw new Error(res.error || "Failed to record budget revision");
       }
       setIsSuccess(true);
-      startTransition(() => {
-        router.refresh();
-      });
       setTimeout(() => {
         onSuccess?.();
         onClose();
-      }, 700);
+      }, 150);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to record budget revision";
       setErrorMessage(msg);
@@ -140,7 +149,7 @@ export function BudgetRevisionModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-[2px] animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
       <div
         className="w-full max-w-md rounded-lg border border-border bg-surface shadow-2xl p-6 relative animate-in fade-in zoom-in-95 duration-150"
         role="dialog"
@@ -277,6 +286,28 @@ export function BudgetRevisionModal({
                   <div className="text-[11px] font-sans text-text-tertiary">
                     {isPreviewLoading ? "Fetching projection..." : "Enter a target amount to preview downstream changes."}
                   </div>
+                )}
+              </div>
+            )}
+
+            {supportsOneOff && (
+              <div className="p-3 rounded bg-surface-subtle border border-border-subtle space-y-2">
+                <label className="flex items-center gap-2 text-xs font-sans text-text-secondary cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isOneOff}
+                    onChange={(e) => setIsOneOff(e.target.checked)}
+                  />
+                  One-off slot label for this cycle only (does not propagate to future months)
+                </label>
+                {isOneOff && (
+                  <input
+                    type="text"
+                    value={oneOffLabel}
+                    onChange={(e) => setOneOffLabel(e.target.value)}
+                    placeholder="Custom label for this period (e.g. Nov 25 Bill)"
+                    className="w-full px-2.5 py-1.5 text-xs font-sans bg-canvas border border-border rounded text-text-primary placeholder:text-text-tertiary focus:outline-none"
+                  />
                 )}
               </div>
             )}

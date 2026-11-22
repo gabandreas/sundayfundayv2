@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState, useEffect } from "react";
 import { Check, AlertTriangle, Lock } from "lucide-react";
 import {
   CreditLimitCalculationResult,
@@ -11,6 +10,7 @@ import {
 import { formatRupiah } from "@/lib/utils";
 import { PrivacyEyeButton } from "@/components/shell/PrivacyEyeButton";
 import { usePrivacyMask } from "@/context/PrivacyMaskContext";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface CreditUsageLimitPanelProps {
   limitData: CreditLimitCalculationResult;
@@ -62,10 +62,9 @@ function getStatusColorClasses(status: InstrumentLimitEvaluation["status"]): {
 export function CreditUsageLimitPanel({
   limitData,
 }: CreditUsageLimitPanelProps) {
-  const router = useRouter();
   const { isAmountsMasked } = usePrivacyMask();
+  const { t } = useLanguage();
   const formatRp = (amt: number): string => formatRupiah(amt, isAmountsMasked);
-  const [isRefreshing, startTransition] = useTransition();
   const [isEditing, setIsEditing] = useState(false);
   const [ccLimitInput, setCcLimitInput] = useState(
     String(limitData.ccEvaluation.limit || 0)
@@ -140,13 +139,20 @@ export function CreditUsageLimitPanel({
       setIsSaved(true);
       setIsEditing(false);
       setTimeout(() => setIsSaved(false), 2000);
-      startTransition(() => {
-        router.refresh();
-      });
     } else {
       setErrorMessage(res.error || "Failed to update credit usage limits");
     }
   };
+
+  const dueMonthNum =
+    limitData.maturityMonth ?? (limitData.month === 12 ? 1 : limitData.month + 1);
+  const dueYearNum =
+    limitData.maturityYear ?? (limitData.month === 12 ? limitData.year + 1 : limitData.year);
+  const SHORT_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const dueMonthName = SHORT_MONTHS[dueMonthNum - 1] ?? String(dueMonthNum);
+  const duePeriodLabel = `${String(dueMonthNum).padStart(2, "0")}/${dueYearNum}`;
+  const ccDueDay = limitData.ccDueDay ?? 11;
+  const plDueDay = limitData.paylaterDueDay ?? 25;
 
   const optimalConstraintLabel =
     ceilingBreakdown.optimalBindingConstraint === "CASHFLOW_SAVINGS_PROTECTION"
@@ -155,7 +161,7 @@ export function CreditUsageLimitPanel({
 
   const safeConstraintLabel =
     ceilingBreakdown.safeBindingConstraint === "CASHFLOW_DEFICIT_PROTECTION"
-      ? "Constrained by Remaining Cashflow (Prevents Waterfall Deficit)"
+      ? "Formula Ceiling: Remaining Cashflow (Prevents Payroll Deficit)"
       : "Constrained by 35% Max Manageable Debt Ratio";
 
   const renderInstrumentCard = (
@@ -206,7 +212,7 @@ export function CreditUsageLimitPanel({
           </div>
         </div>
 
-        <div className="flex items-center justify-between text-[11px] font-mono pt-1 border-t border-border-subtle/60">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-[11px] font-mono pt-1 border-t border-border-subtle/60">
           {evaluation.status === "EXCEEDED" ? (
             <span className="text-delta-negative">
               Over limit by +{formatRp(evaluation.exceededBy)}
@@ -220,7 +226,7 @@ export function CreditUsageLimitPanel({
               Set a period limit to enable breach alerts
             </span>
           )}
-          <span className="text-text-tertiary">
+          <span className="text-text-tertiary whitespace-nowrap shrink-0">
             Safe max: {formatRp(safeHeadroom)}
           </span>
         </div>
@@ -231,12 +237,11 @@ export function CreditUsageLimitPanel({
   return (
     <div className="rounded-lg border border-border bg-surface p-5 space-y-4">
       {/* Header Row */}
-      <div className="flex items-start justify-between gap-4 border-b border-border-subtle pb-3.5">
-        <div>
-          <div className="flex items-center gap-2.5">
+      <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-3 border-b border-border-subtle pb-3.5">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-sm font-semibold font-sans text-text-primary">
-              Per-Period Credit Usage Limit & Safe Ceiling ({limitData.month}/
-              {limitData.year})
+              {t("credit.limitTitle")} ({limitData.month}/{limitData.year})
             </h2>
             <PrivacyEyeButton size="xs" />
             {isSaved && (
@@ -247,11 +252,11 @@ export function CreditUsageLimitPanel({
             )}
           </div>
           <p className="text-xs font-sans text-text-secondary mt-0.5">
-            Tracks period Credit Card and PayLater obligations against your personal caps and waterfall-bounded safe ceilings.
+            {t("credit.limitDesc")}
           </p>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
           {isLocked ? (
             <span className="inline-flex items-center gap-1.5 text-[11px] font-mono text-text-tertiary">
               <Lock className="w-3 h-3" strokeWidth={1.8} />
@@ -265,7 +270,7 @@ export function CreditUsageLimitPanel({
                 className="px-2.5 py-1.5 rounded border border-border-subtle bg-surface-subtle hover:bg-surface-hover text-[11px] font-sans text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
                 title="Pre-fill period limits using the Savings-Safe Optimal Ceiling"
               >
-                Use Optimal Ceiling
+                {t("credit.btn.optimal")}
               </button>
               <button
                 type="button"
@@ -273,14 +278,14 @@ export function CreditUsageLimitPanel({
                 className="px-2.5 py-1.5 rounded border border-border-subtle bg-surface-subtle hover:bg-surface-hover text-[11px] font-sans text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
                 title="Pre-fill period limits using the Deficit-Safe Maximum Ceiling"
               >
-                Use Safe Ceiling
+                {t("credit.btn.safe")}
               </button>
               <button
                 type="button"
                 onClick={() => setIsEditing((prev) => !prev)}
                 className="px-3 py-1.5 rounded border border-border bg-surface-active hover:bg-border-active text-[11px] font-sans font-medium text-text-primary transition-colors cursor-pointer"
               >
-                {isEditing ? "Close Editor" : "Configure Period Limits"}
+                {isEditing ? "Close Editor" : t("credit.btn.configure")}
               </button>
             </>
           )}
@@ -325,25 +330,25 @@ export function CreditUsageLimitPanel({
       )}
 
       {/* Main 12-Column Asymmetric Layout: 7 cols Instrument Gauges, 5 cols Waterfall Safe Recommendation */}
-      <div className="grid grid-cols-12 gap-4">
-        <div className="col-span-7 grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <div className="col-span-1 lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-4">
           {renderInstrumentCard(
             "Credit Card Period Usage",
-            `Statement due in ${limitData.month}/${limitData.year} (Bank Facility: ${formatRp(limitData.bankCreditLimit)})`,
+            `Statement due ${ccDueDay} ${dueMonthName} ${dueYearNum} (${duePeriodLabel} Maturity · Bank Facility: ${formatRp(limitData.bankCreditLimit)})`,
             ccEvaluation,
             ceilingBreakdown.remainingSafeHeadroomForCc
           )}
           {renderInstrumentCard(
             "PayLater Period Usage",
-            `Bulk PayLater due 25th of ${limitData.month}/${limitData.year}`,
+            `Bulk PayLater due ${plDueDay} ${dueMonthName} ${dueYearNum} (${duePeriodLabel} Maturity)`,
             paylaterEvaluation,
             ceilingBreakdown.remainingSafeHeadroomForPaylater
           )}
         </div>
 
         {/* Right 5 cols: Waterfall-Bounded Safe Recommendation Breakdown */}
-        <div className="col-span-5 p-4 rounded border border-border-subtle bg-surface-subtle/20 flex flex-col justify-between space-y-3">
-          <div className="flex items-center justify-between border-b border-border-subtle/70 pb-2">
+        <div className="col-span-1 lg:col-span-5 p-4 rounded border border-border-subtle bg-surface-subtle/20 flex flex-col justify-between space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-subtle/70 pb-2">
             <span className="text-xs font-semibold font-sans text-text-primary">
               Waterfall-Bounded Safe Ceilings (CC + PayLater)
             </span>
@@ -355,7 +360,7 @@ export function CreditUsageLimitPanel({
             </span>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="p-2.5 rounded bg-surface border border-border-subtle">
               <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
                 Optimal Ceiling (P1 Safe)
@@ -383,7 +388,7 @@ export function CreditUsageLimitPanel({
             </div>
           </div>
 
-          <div className="grid grid-cols-4 gap-2 pt-1 text-[10px] font-mono text-text-tertiary border-t border-border-subtle/60">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-[10px] font-mono text-text-tertiary border-t border-border-subtle/60">
             <div>
               <span className="block text-text-tertiary/80">Income</span>
               <span className="text-text-secondary tabular-nums">
@@ -427,8 +432,8 @@ export function CreditUsageLimitPanel({
             </div>
           )}
 
-          <div className="grid grid-cols-12 gap-4 items-end">
-            <div className="col-span-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4 items-end">
+            <div className="sm:col-span-1 lg:col-span-3">
               <label className="block text-[11px] font-sans font-medium text-text-secondary mb-1">
                 Credit Card Period Limit (Rp)
               </label>
@@ -437,7 +442,7 @@ export function CreditUsageLimitPanel({
                 min={0}
                 value={ccLimitInput}
                 onChange={(e) => setCcLimitInput(e.target.value)}
-                disabled={isSubmitting || isRefreshing}
+                disabled={isSubmitting}
                 className="w-full bg-surface-subtle border border-border focus:border-accent rounded px-3 py-1.5 text-xs font-mono text-text-primary tabular-nums outline-none"
               />
               <span className="text-[10px] font-mono text-text-tertiary mt-0.5 block">
@@ -445,7 +450,7 @@ export function CreditUsageLimitPanel({
               </span>
             </div>
 
-            <div className="col-span-3">
+            <div className="sm:col-span-1 lg:col-span-3">
               <label className="block text-[11px] font-sans font-medium text-text-secondary mb-1">
                 PayLater Period Limit (Rp)
               </label>
@@ -454,7 +459,7 @@ export function CreditUsageLimitPanel({
                 min={0}
                 value={paylaterLimitInput}
                 onChange={(e) => setPaylaterLimitInput(e.target.value)}
-                disabled={isSubmitting || isRefreshing}
+                disabled={isSubmitting}
                 className="w-full bg-surface-subtle border border-border focus:border-accent rounded px-3 py-1.5 text-xs font-mono text-text-primary tabular-nums outline-none"
               />
               <span className="text-[10px] font-mono text-text-tertiary mt-0.5 block">
@@ -462,13 +467,13 @@ export function CreditUsageLimitPanel({
               </span>
             </div>
 
-            <div className="col-span-4 pb-5">
+            <div className="sm:col-span-2 lg:col-span-4 lg:pb-5">
               <label className="inline-flex items-center gap-2 text-xs font-sans text-text-secondary cursor-pointer select-none">
                 <input
                   type="checkbox"
                   checked={saveAsGlobalDefault}
                   onChange={(e) => setSaveAsGlobalDefault(e.target.checked)}
-                  disabled={isSubmitting || isRefreshing}
+                  disabled={isSubmitting}
                   className="rounded border-border bg-surface-subtle"
                 />
                 <span>
@@ -477,10 +482,10 @@ export function CreditUsageLimitPanel({
               </label>
             </div>
 
-            <div className="col-span-2 pb-4 flex justify-end gap-2">
+            <div className="sm:col-span-2 lg:col-span-2 lg:pb-4 flex justify-end gap-2">
               <button
                 type="submit"
-                disabled={isSubmitting || isRefreshing}
+                disabled={isSubmitting}
                 className="px-4 py-1.5 rounded bg-text-primary text-surface text-xs font-sans font-medium hover:opacity-90 transition-opacity disabled:opacity-50 cursor-pointer"
               >
                 {isSubmitting ? "Saving..." : "Save Limits"}

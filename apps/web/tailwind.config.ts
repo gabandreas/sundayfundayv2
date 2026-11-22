@@ -13,6 +13,7 @@ const config: Config = {
         surface: {
           subtle: "#11141c",
           DEFAULT: "#161922",
+          elevated: "#1d222e",
           hover: "#1d222e",
           active: "#242a38",
         },
@@ -27,6 +28,9 @@ const config: Config = {
           tertiary: "#6b7280",
           disabled: "#4b5563",
         },
+        accent: "#10b78d",
+        positive: "#10b78d",
+        negative: "#e06c53",
         // Shifted financial delta colors
         delta: {
           positive: "#10b78d", // Calmer emerald-teal (not generic bright green)

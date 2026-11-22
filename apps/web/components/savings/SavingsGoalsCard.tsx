@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState } from "react";
 import { Plus, Target, Calendar, Trash2, Edit2, CheckCircle2, Loader2 } from "lucide-react";
 import {
   EnrichedSavingsGoal,
@@ -20,9 +19,6 @@ export function SavingsGoalsCard({
   goals,
   avgMonthlySavings,
 }: SavingsGoalsCardProps) {
-  const router = useRouter();
-  const [, startTransition] = useTransition();
-
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<EnrichedSavingsGoal | null>(null);
 
@@ -108,30 +104,17 @@ export function SavingsGoalsCard({
     }
 
     setIsModalOpen(false);
-    startTransition(() => {
-      router.refresh();
-    });
   };
 
   const handleDelete = async (id: number) => {
     if (!confirm("Are you sure you want to delete this savings goal?")) return;
-    const res = await deleteSavingsGoal(id);
-    if (res.success) {
-      startTransition(() => {
-        router.refresh();
-      });
-    }
+    await deleteSavingsGoal(id);
   };
 
   const handleToggleComplete = async (goal: EnrichedSavingsGoal) => {
-    const res = await updateSavingsGoal(goal.id, {
+    await updateSavingsGoal(goal.id, {
       isCompleted: !goal.isCompleted,
     });
-    if (res.success) {
-      startTransition(() => {
-        router.refresh();
-      });
-    }
   };
 
   return (

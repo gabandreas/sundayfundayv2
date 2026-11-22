@@ -3,7 +3,8 @@
 import React, { Suspense } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, Menu, Sparkles } from "lucide-react";
+import { BookOpen, Menu } from "lucide-react";
+import { MarqueeMark } from "@/components/primitives/MarqueeMark";
 import { MonthYearSwitcher } from "./MonthYearSwitcher";
 import { GlobalSearchModal } from "./GlobalSearchModal";
 import { AccountHeaderBadge } from "./AccountHeaderBadge";
@@ -86,7 +87,7 @@ export function AppHeader({ onToggleMobileDrawer }: { onToggleMobileDrawer?: () 
             aria-label="Open Marquee AI Co-Pilot (Alt+M)"
             className="h-8 px-2.5 rounded border border-border bg-surface hover:border-border-strong text-text-secondary hover:text-text-primary flex items-center gap-1.5 text-[11px] font-mono transition-colors cursor-pointer"
           >
-            <Sparkles className="w-3.5 h-3.5 text-delta-positive" />
+            <MarqueeMark className="w-3.5 h-3.5 text-delta-positive" />
             <span className="hidden xl:inline">Marquee</span>
             <kbd className="text-[9px] text-text-tertiary">Alt+M</kbd>
           </button>

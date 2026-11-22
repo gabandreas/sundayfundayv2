@@ -13,6 +13,8 @@ import {
   fetchMe,
   resetDemoSandbox,
   refreshSessionToken,
+  updateProfile,
+  invalidateCache,
 } from "@/lib/api";
 
 interface AuthContextType {
@@ -22,6 +24,13 @@ interface AuthContextType {
   isLoading: boolean;
   remainingSeconds: number;
   isSessionExpiring: boolean;
+  isProfileModalOpen: boolean;
+  openProfileModal: () => void;
+  closeProfileModal: () => void;
+  updateUserProfile: (payload: {
+    fullName?: string;
+    email?: string;
+  }) => Promise<{ success: boolean; error?: string }>;
   refreshSession: () => Promise<void>;
   login: (payload: {
     accountName?: string;
@@ -50,7 +59,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-function parseJwtExp(token: string): number | null {
+function parseJwtPayload(token: string): any | null {
   try {
     const parts = token.split(".");
     if (parts.length < 2) return null;
@@ -61,24 +70,58 @@ function parseJwtExp(token: string): number | null {
         .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
         .join("")
     );
-    const parsed = JSON.parse(json);
-    return parsed.exp ? parsed.exp * 1000 : null;
+    return JSON.parse(json);
   } catch {
     return null;
   }
 }
 
+function parseJwtExp(token: string): number | null {
+  const parsed = parseJwtPayload(token);
+  return parsed?.exp ? parsed.exp * 1000 : null;
+}
+
+function readClientCookie(name: string): string | null {
+  if (typeof document === "undefined") return null;
+  const prefix = `${name}=`;
+  const parts = document.cookie.split(";");
+  for (const part of parts) {
+    const trimmed = part.trim();
+    if (trimmed.startsWith(prefix)) {
+      try {
+        return decodeURIComponent(trimmed.slice(prefix.length));
+      } catch {
+        return trimmed.slice(prefix.length);
+      }
+    }
+  }
+  return null;
+}
+
 function syncCookies(user: AuthenticatedUser | null, token: string | null) {
   if (typeof window === "undefined") return;
   if (user && token) {
-    localStorage.setItem("erp_auth_token", token);
-    localStorage.setItem("erp_auth_user", JSON.stringify(user));
+    const serialized = JSON.stringify(user);
+    try {
+      localStorage.setItem("erp_auth_token", token);
+      localStorage.setItem("erp_auth_user", serialized);
+    } catch {}
+    try {
+      sessionStorage.setItem("erp_auth_token", token);
+      sessionStorage.setItem("erp_auth_user", serialized);
+    } catch {}
     const secureFlag = window.location.protocol === "https:" ? "; Secure" : "";
-    document.cookie = `erp_user_id=${user.id}; path=/; max-age=2592000; SameSite=Lax${secureFlag}`;
-    document.cookie = `erp_auth_token=${encodeURIComponent(token)}; path=/; max-age=2592000; SameSite=Lax${secureFlag}`;
+    document.cookie = `erp_user_id=${user.id}; path=/; max-age=604800; SameSite=Lax${secureFlag}`;
+    document.cookie = `erp_auth_token=${encodeURIComponent(token)}; path=/; max-age=604800; SameSite=Lax${secureFlag}`;
   } else {
-    localStorage.removeItem("erp_auth_token");
-    localStorage.removeItem("erp_auth_user");
+    try {
+      localStorage.removeItem("erp_auth_token");
+      localStorage.removeItem("erp_auth_user");
+    } catch {}
+    try {
+      sessionStorage.removeItem("erp_auth_token");
+      sessionStorage.removeItem("erp_auth_user");
+    } catch {}
     document.cookie = "erp_user_id=; path=/; max-age=0; SameSite=Lax";
     document.cookie = "erp_auth_token=; path=/; max-age=0; SameSite=Lax";
   }
@@ -106,6 +149,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [expiresAt, setExpiresAt] = useState<number | null>(null);
   const [remainingSeconds, setRemainingSeconds] = useState<number>(1800);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState<boolean>(false);
 
   const userRef = useRef<AuthenticatedUser | null>(null);
   userRef.current = user;
@@ -134,6 +178,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setRemainingSeconds(0);
       syncCookies(null, null);
       clearSessionPrivacyStorage();
+      invalidateCache();
       if (isExpired) {
         router.replace("/login?expired=1");
       } else {
@@ -143,19 +188,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [router]
   );
 
-  // Initialize session on mount
+  // Initialize session on mount (triple-backed: localStorage -> sessionStorage -> first-party cookie for Safari iOS)
   useEffect(() => {
     let isMounted = true;
-    const storedToken =
-      typeof window !== "undefined"
-        ? localStorage.getItem("erp_auth_token")
-        : null;
-    const storedUserJson =
-      typeof window !== "undefined"
-        ? localStorage.getItem("erp_auth_user")
-        : null;
+    let storedToken: string | null = null;
+    let storedUserJson: string | null = null;
+    if (typeof window !== "undefined") {
+      try {
+        storedToken = localStorage.getItem("erp_auth_token");
+        storedUserJson = localStorage.getItem("erp_auth_user");
+      } catch {}
+      if (!storedToken) {
+        try {
+          storedToken = sessionStorage.getItem("erp_auth_token");
+          storedUserJson = storedUserJson || sessionStorage.getItem("erp_auth_user");
+        } catch {}
+      }
+      if (!storedToken) {
+        storedToken = readClientCookie("erp_auth_token");
+      }
+    }
 
-    if (!storedToken || !storedUserJson) {
+    if (!storedToken) {
       setUser(null);
       setToken(null);
       setExpiresAt(null);
@@ -169,7 +223,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      const parsedUser = JSON.parse(storedUserJson);
+      let parsedUser: AuthenticatedUser | null = null;
+      if (storedUserJson) {
+        parsedUser = JSON.parse(storedUserJson);
+      } else {
+        const claims = parseJwtPayload(storedToken);
+        if (claims?.sub) {
+          parsedUser = {
+            id: Number(claims.sub),
+            accountName: claims.accountName || claims.username || "member",
+            username: claims.username || claims.accountName || "member",
+            email: claims.email || "",
+            role: (claims.role as AuthenticatedUser["role"]) || "STANDARD_MEMBER",
+            blueprintType:
+              (claims.blueprintType as AuthenticatedUser["blueprintType"]) || "STANDARD_GENERAL",
+            fullName: claims.fullName || claims.username || "Member",
+            status: (claims.status as AuthenticatedUser["status"]) || "ACTIVE",
+          };
+        }
+      }
+      if (!parsedUser) {
+        throw new Error("Missing user session payload");
+      }
       const expMs = parseJwtExp(storedToken);
       const now = Date.now();
 
@@ -277,35 +352,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }): Promise<AuthResponse> => {
       const res = await loginUser(payload);
       if (res.accessToken && res.user) {
+        invalidateCache();
         setUser(res.user);
         setToken(res.accessToken);
         const expMs = parseJwtExp(res.accessToken) || Date.now() + 1800 * 1000;
         setExpiresAt(expMs);
         setRemainingSeconds(Math.max(0, Math.floor((expMs - Date.now()) / 1000)));
-        localStorage.removeItem("erp_locked_identity");
+        try {
+          localStorage.removeItem("erp_locked_identity");
+        } catch {}
         clearSessionPrivacyStorage();
         syncCookies(res.user, res.accessToken);
-        window.location.replace("/");
+        router.replace("/");
+        router.refresh();
       }
       return res;
     },
-    []
+    [router]
   );
 
   const demoLogin = useCallback(async () => {
     const res = await loginDemoUser();
     if (res.accessToken && res.user) {
+      invalidateCache();
       setUser(res.user);
       setToken(res.accessToken);
       const expMs = parseJwtExp(res.accessToken) || Date.now() + 1800 * 1000;
       setExpiresAt(expMs);
       setRemainingSeconds(Math.max(0, Math.floor((expMs - Date.now()) / 1000)));
-      localStorage.removeItem("erp_locked_identity");
+      try {
+        localStorage.removeItem("erp_locked_identity");
+      } catch {}
       clearSessionPrivacyStorage();
       syncCookies(res.user, res.accessToken);
-      window.location.replace("/");
+      router.replace("/");
+      router.refresh();
     }
-  }, []);
+  }, [router]);
 
   const register = useCallback(
     async (payload: {
@@ -320,26 +403,58 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }) => {
       const res = await registerMember(payload);
       if (res.accessToken && res.user) {
+        invalidateCache();
         setUser(res.user);
         setToken(res.accessToken);
         const expMs = parseJwtExp(res.accessToken) || Date.now() + 1800 * 1000;
         setExpiresAt(expMs);
         setRemainingSeconds(Math.max(0, Math.floor((expMs - Date.now()) / 1000)));
         syncCookies(res.user, res.accessToken);
-        window.location.href = "/";
+        router.replace("/");
+        router.refresh();
       }
     },
-    []
+    [router]
   );
 
   const resetDemo = useCallback(async () => {
     await resetDemoSandbox();
+    invalidateCache();
     router.refresh();
   }, [router]);
 
   const switchAccount = useCallback(() => {
     router.push("/login");
   }, [router]);
+
+  const openProfileModal = useCallback(() => {
+    setIsProfileModalOpen(true);
+  }, []);
+
+  const closeProfileModal = useCallback(() => {
+    setIsProfileModalOpen(false);
+  }, []);
+
+  const updateUserProfile = useCallback(
+    async (payload: { fullName?: string; email?: string }) => {
+      const res = await updateProfile(payload);
+      if (!res.success || !res.data?.user) {
+        return { success: false, error: res.error || "Failed to update profile." };
+      }
+      const nextToken = res.data.accessToken || token;
+      invalidateCache();
+      setUser(res.data.user);
+      if (nextToken) {
+        setToken(nextToken);
+        const expMs = parseJwtExp(nextToken) || Date.now() + 1800 * 1000;
+        setExpiresAt(expMs);
+        setRemainingSeconds(Math.max(0, Math.floor((expMs - Date.now()) / 1000)));
+        syncCookies(res.data.user, nextToken);
+      }
+      return { success: true };
+    },
+    [token]
+  );
 
   const isSessionExpiring = remainingSeconds <= 300 && remainingSeconds > 0;
 
@@ -352,6 +467,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading,
         remainingSeconds,
         isSessionExpiring,
+        isProfileModalOpen,
+        openProfileModal,
+        closeProfileModal,
+        updateUserProfile,
         refreshSession,
         login,
         demoLogin,

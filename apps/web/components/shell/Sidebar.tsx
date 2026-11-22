@@ -28,11 +28,11 @@ import {
   Bookmark,
   Compass,
   Calculator,
-  Sparkles,
   CalendarDays,
   ListChecks,
 } from "lucide-react";
 import { SidebarNavItem } from "@/components/primitives/SidebarNavItem";
+import { MarqueeMark } from "@/components/primitives/MarqueeMark";
 
 interface SubModuleDef {
   key: string;
@@ -123,7 +123,11 @@ const PRIMARY_ROUTES: RouteItem[] = [
 ];
 
 const ANALYSIS_ROUTES: RouteItem[] = [
-  { labelKey: "nav.marquee", href: "/marquee", icon: Sparkles },
+  {
+    labelKey: "nav.marquee",
+    href: "/marquee",
+    icon: MarqueeMark as unknown as typeof LayoutDashboard,
+  },
   {
     labelKey: "nav.reports",
     href: "/reports",
@@ -138,7 +142,6 @@ const SHORTCUT_ICONS: Record<string, typeof LayoutDashboard> = {
   Bookmark,
   Compass,
   Calculator,
-  Sparkles,
   Wallet,
   CreditCard,
   PiggyBank,

@@ -41,8 +41,8 @@ export function VerifyPasswordModal() {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
-      <div className="w-full max-w-sm rounded-xl border border-border bg-surface p-6 shadow-2xl animate-in zoom-in-95 duration-150 space-y-4">
+    <div className="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4 animate-in fade-in duration-150">
+      <div className="w-full max-w-sm rounded-lg border border-border bg-surface p-6 shadow-2xl animate-in zoom-in-95 duration-150 space-y-4">
         {/* Modal Header */}
         <div className="flex items-start justify-between">
           <div className="space-y-1">

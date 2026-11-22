@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState, useMemo } from "react";
 import {
   Transaction,
   MonthlySnapshot,
@@ -16,6 +15,7 @@ import {
   formatTransactionType,
 } from "@/lib/utils";
 import { DataTableHeader, DataTableRow } from "@/components/primitives/DataTableRow";
+import { useLanguage } from "@/context/LanguageContext";
 import { exportLedgerToExcel } from "@/lib/exportLedgerExcel";
 import { CashReconciliationModal } from "@/components/finance/CashReconciliationModal";
 import {
@@ -25,7 +25,6 @@ import {
   Edit2,
   TrendingDown,
   Wallet,
-  Sparkles,
   X,
   Loader2,
   AlertTriangle,
@@ -56,12 +55,11 @@ export function LedgerClientView({
   snapshot,
   pacing,
 }: LedgerClientViewProps) {
-  const router = useRouter();
-  const [, startTransition] = useTransition();
-
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<LedgerFilterTab>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Inline edit state
@@ -69,6 +67,8 @@ export function LedgerClientView({
   const [editLabel, setEditLabel] = useState("");
   const [editAmountStr, setEditAmountStr] = useState("");
   const [editDate, setEditDate] = useState("");
+  const [editCategory, setEditCategory] = useState<"" | "TRANSPORT" | "INTERNET" | "VAPE" | "HAIRCUT">("");
+  const [editPaymentMethod, setEditPaymentMethod] = useState<"CASH" | "PAYLATER" | "CC">("CASH");
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateError, setUpdateError] = useState<string | null>(null);
 
@@ -154,10 +154,13 @@ export function LedgerClientView({
 
   // Edit handler
   const handleOpenEdit = (tx: Transaction) => {
+    setConfirmDeleteId(null);
     setEditingTransaction(tx);
     setEditLabel(tx.label);
     setEditAmountStr(tx.amount.toString());
     setEditDate(tx.date.slice(0, 10));
+    setEditCategory((tx.fixedEssentialCategory as "" | "TRANSPORT" | "INTERNET" | "VAPE" | "HAIRCUT") ?? "");
+    setEditPaymentMethod("CASH");
     setUpdateError(null);
   };
 
@@ -166,8 +169,8 @@ export function LedgerClientView({
     if (!editingTransaction) return;
 
     const parsedAmount = parseInt(editAmountStr.replace(/\D/g, ""), 10);
-    if (isNaN(parsedAmount) || parsedAmount < 0) {
-      setUpdateError("Amount must be a non-negative number.");
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      setUpdateError("Amount must be greater than Rp 0.");
       return;
     }
     if (!editLabel.trim()) {
@@ -182,30 +185,23 @@ export function LedgerClientView({
       label: editLabel.trim(),
       amount: parsedAmount,
       date: editDate || undefined,
+      ...(editingTransaction.type === "DEDUCTION" && editingTransaction.sourceType === "MANUAL" && {
+        fixedEssentialCategory: editCategory || null,
+        paymentMethod: editPaymentMethod,
+      }),
     });
 
     setIsUpdating(false);
 
     if (res.success) {
       setEditingTransaction(null);
-      startTransition(() => {
-        router.refresh();
-      });
     } else {
       setUpdateError(res.error || "Failed to update transaction.");
     }
   };
 
   // Delete handler
-  const handleDelete = async (id: number, label: string) => {
-    if (
-      !window.confirm(
-        `Are you sure you want to delete or revert transaction "${label}"? This will automatically recalculate waterfall totals and daily pacing.`
-      )
-    ) {
-      return;
-    }
-
+  const handleDelete = async (id: number) => {
     setDeletingId(id);
     setErrorMessage(null);
     try {
@@ -213,9 +209,7 @@ export function LedgerClientView({
       if (!res.success) {
         setErrorMessage(res.error || "Failed to delete transaction");
       } else {
-        startTransition(() => {
-          router.refresh();
-        });
+        setConfirmDeleteId(null);
       }
     } catch (err: any) {
       setErrorMessage(err.message || "An unexpected error occurred");
@@ -349,9 +343,6 @@ export function LedgerClientView({
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded bg-surface border border-border-subtle flex items-center justify-center text-delta-positive">
-              <Sparkles className="w-4 h-4" />
-            </div>
             <div>
               <span className="text-[10px] text-text-tertiary uppercase block">
                 Current Remaining Cash
@@ -407,6 +398,25 @@ export function LedgerClientView({
                 tx.fixedEssentialCategory
               );
 
+              const localizedCategory =
+                tx.type === "INCOME"
+                  ? t("badge.incomeInflow")
+                  : tx.type === "CREDIT_BILL"
+                  ? t("badge.creditCardBill")
+                  : t("badge.dailyLiving");
+
+              const localizedBadgeText = tx.fixedEssentialCategory
+                ? t("badge.routineBill")
+                : tx.sourceType === "BULK_BILL"
+                ? t("badge.paylaterSettlement")
+                : tx.sourceType === "PERSONAL_DEBT"
+                ? t("badge.personalDebt")
+                : tx.sourceType === "OPERATIONAL_REFUND"
+                ? t("badge.operationalRefund")
+                : tx.sourceType === "CONTRACT" || tx.sourceType === "CC_TRANSACTION"
+                ? t("badge.installment")
+                : sourceBadge?.text;
+
               // Permissions logic:
               const isManualOrRefund =
                 tx.sourceType === "MANUAL" ||
@@ -428,10 +438,13 @@ export function LedgerClientView({
                       ? `Synchronized from ${tx.sourceType.replace(/_/g, " ").toLowerCase()}`
                       : undefined
                   }
-                  category={formatTransactionType(tx.type)}
+                  category={localizedCategory}
                   badge={
                     sourceBadge
-                      ? { text: sourceBadge.text, variant: sourceBadge.variant }
+                      ? {
+                          text: localizedBadgeText || sourceBadge.text,
+                          variant: sourceBadge.variant,
+                        }
                       : undefined
                   }
                   amount={formattedAmt}
@@ -452,19 +465,40 @@ export function LedgerClientView({
 
                       {/* 1-Click Delete / Revert */}
                       {canDelete ? (
-                        <button
-                          type="button"
-                          disabled={deletingId === tx.id}
-                          onClick={() => handleDelete(tx.id, tx.label)}
-                          title="Delete / Revert transaction (triggers automatic recalculation)"
-                          className="p-1 rounded text-text-tertiary hover:text-delta-negative hover:bg-surface-hover transition-colors disabled:opacity-30 cursor-pointer"
-                        >
-                          {deletingId === tx.id ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          ) : (
-                            <Trash2 className="w-3.5 h-3.5" />
-                          )}
-                        </button>
+                        confirmDeleteId === tx.id ? (
+                          <div className="inline-flex items-center gap-1">
+                            <button
+                              type="button"
+                              disabled={deletingId === tx.id}
+                              onClick={() => handleDelete(tx.id)}
+                              className="px-1.5 py-0.5 rounded bg-[rgba(224,108,83,0.14)] border border-delta-negative/40 text-[10px] font-mono text-delta-negative hover:opacity-80 disabled:opacity-40 cursor-pointer"
+                            >
+                              {deletingId === tx.id ? "..." : "Delete"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmDeleteId(null)}
+                              className="p-0.5 rounded text-text-tertiary hover:text-text-primary cursor-pointer"
+                              aria-label="Cancel delete"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={deletingId === tx.id}
+                            onClick={() => setConfirmDeleteId(tx.id)}
+                            title="Delete transaction (recalculates snapshot)"
+                            className="p-1 rounded text-text-tertiary hover:text-delta-negative hover:bg-surface-hover transition-colors disabled:opacity-30 cursor-pointer"
+                          >
+                            {deletingId === tx.id ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Trash2 className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                        )
                       ) : (
                         <button
                           type="button"
@@ -490,7 +524,7 @@ export function LedgerClientView({
 
       {/* Inline Edit Transaction Modal */}
       {editingTransaction && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
           <div className="w-full max-w-md rounded-lg border border-border bg-surface p-5 space-y-4 shadow-xl">
             <div className="flex items-start justify-between pb-2 border-b border-border-subtle">
               <div className="flex items-center gap-2">
@@ -566,8 +600,51 @@ export function LedgerClientView({
                 />
               </div>
 
+              {editingTransaction.type === "DEDUCTION" && editingTransaction.sourceType === "MANUAL" && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-mono text-text-tertiary uppercase tracking-wider block">
+                      Bucket Assignment
+                    </label>
+                    <select
+                      value={editCategory}
+                      onChange={(e) =>
+                        setEditCategory(
+                          e.target.value as "" | "TRANSPORT" | "INTERNET" | "VAPE" | "HAIRCUT"
+                        )
+                      }
+                      className="w-full px-2.5 py-1.5 rounded bg-surface-subtle border border-border text-xs font-mono text-text-primary outline-none focus:border-border-strong"
+                    >
+                      <option value="">Daily Cash</option>
+                      <option value="TRANSPORT">Transport Quota</option>
+                      <option value="INTERNET">Internet Quota</option>
+                      <option value="VAPE">Vape Quota</option>
+                      <option value="HAIRCUT">Haircut Quota</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-mono text-text-tertiary uppercase tracking-wider block">
+                      Funding Source
+                    </label>
+                    <select
+                      value={editPaymentMethod}
+                      onChange={(e) =>
+                        setEditPaymentMethod(e.target.value as "CASH" | "PAYLATER" | "CC")
+                      }
+                      className="w-full px-2.5 py-1.5 rounded bg-surface-subtle border border-border text-xs font-mono text-text-primary outline-none focus:border-border-strong"
+                    >
+                      <option value="CASH">Cash Log</option>
+                      <option value="PAYLATER">Convert to PayLater</option>
+                      <option value="CC">Convert to Credit Card</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+
               <div className="p-2.5 rounded bg-surface-subtle border border-border-subtle text-[11px] font-sans text-text-tertiary leading-relaxed">
-                Saving changes will immediately update the database and trigger an automatic recalculation of this period&apos;s waterfall quotas and safe-to-spend runway.
+                {editPaymentMethod === "CASH"
+                  ? "Saving updates the ledger row and recalculates period waterfall quotas and daily pacing."
+                  : `Converting moves this charge out of cash spend into the ${editPaymentMethod === "PAYLATER" ? "PayLater matrix" : "Credit Card statement"} by cutoff rules.`}
               </div>
 
               {/* Modal Actions */}

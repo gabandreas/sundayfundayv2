@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Scale,
   X,
@@ -45,7 +44,6 @@ export function CashReconciliationModal({
   isLocked,
   systemRemainingBudget = 0,
 }: CashReconciliationModalProps) {
-  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [useMultiAccountCounter, setUseMultiAccountCounter] = useState(false);
   const [accounts, setAccounts] = useState<CashAccountRow[]>(DEFAULT_ACCOUNTS);
@@ -62,8 +60,8 @@ export function CashReconciliationModal({
   );
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const submitLockRef = useRef(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
 
   // Sync default input when modal opens
   useEffect(() => {
@@ -159,7 +157,15 @@ export function CashReconciliationModal({
   };
 
   const handleConfirm = async () => {
-    if (!preview || preview.resolvedActionType === "NO_OP") return;
+    if (
+      submitLockRef.current ||
+      isSubmitting ||
+      !preview ||
+      preview.resolvedActionType === "NO_OP"
+    ) {
+      return;
+    }
+    submitLockRef.current = true;
     setIsSubmitting(true);
     setErrorMessage(null);
 
@@ -175,18 +181,15 @@ export function CashReconciliationModal({
 
       if (!res.success) {
         setErrorMessage(res.error || "Failed to execute cash reconciliation");
-        setIsSubmitting(false);
         return;
       }
 
       setIsOpen(false);
-      setIsSubmitting(false);
       setNote("");
-      startTransition(() => {
-        router.refresh();
-      });
     } catch (err: any) {
       setErrorMessage(err.message || "Unexpected error");
+    } finally {
+      submitLockRef.current = false;
       setIsSubmitting(false);
     }
   };
@@ -439,7 +442,7 @@ export function CashReconciliationModal({
                       }
                       className={`p-2.5 rounded text-left border transition-colors cursor-pointer ${
                         surplusResolutionMode === "INCREASE_OPERATIONAL_TARGET"
-                          ? "bg-surface-elevated border-text-primary text-text-primary"
+                          ? "bg-accent/[0.08] border-accent/50 ring-1 ring-accent/20 text-text-primary"
                           : "bg-surface border-border text-text-secondary hover:text-text-primary"
                       }`}
                     >
@@ -459,7 +462,7 @@ export function CashReconciliationModal({
                       }
                       className={`p-2.5 rounded text-left border transition-colors cursor-pointer ${
                         surplusResolutionMode === "RECORD_OPERATIONAL_REFUND"
-                          ? "bg-surface-elevated border-text-primary text-text-primary"
+                          ? "bg-accent/[0.08] border-accent/50 ring-1 ring-accent/20 text-text-primary"
                           : "bg-surface border-border text-text-secondary hover:text-text-primary"
                       }`}
                     >
@@ -479,7 +482,7 @@ export function CashReconciliationModal({
                       }
                       className={`p-2.5 rounded text-left border transition-colors cursor-pointer ${
                         surplusResolutionMode === "RECORD_INCOME_ADJUSTMENT"
-                          ? "bg-surface-elevated border-text-primary text-text-primary"
+                          ? "bg-accent/[0.08] border-accent/50 ring-1 ring-accent/20 text-text-primary"
                           : "bg-surface border-border text-text-secondary hover:text-text-primary"
                       }`}
                     >
@@ -666,7 +669,6 @@ export function CashReconciliationModal({
                   type="button"
                   disabled={
                     isSubmitting ||
-                    isPending ||
                     isLoadingPreview ||
                     !preview ||
                     preview.resolvedActionType === "NO_OP"

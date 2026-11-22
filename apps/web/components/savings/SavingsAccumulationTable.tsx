@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState } from "react";
 import { Check, ArrowDownToLine, Loader2 } from "lucide-react";
 import {
   SavingsPeriodLedgerItem,
@@ -17,9 +16,6 @@ interface SavingsAccumulationTableProps {
 export function SavingsAccumulationTable({
   ledger,
 }: SavingsAccumulationTableProps) {
-  const router = useRouter();
-  const [, startTransition] = useTransition();
-
   const [activeDepositPeriod, setActiveDepositPeriod] = useState<{
     month: number;
     year: number;
@@ -53,9 +49,6 @@ export function SavingsAccumulationTable({
     }
 
     setActiveDepositPeriod(null);
-    startTransition(() => {
-      router.refresh();
-    });
   };
 
   return (

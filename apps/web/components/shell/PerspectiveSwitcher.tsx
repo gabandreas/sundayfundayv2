@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { usePerspective } from "@/context/PerspectiveContext";
-import { ShieldCheck, Store, Wand2, Send, ChevronDown, Check, RotateCcw } from "lucide-react";
+import { ShieldCheck, Store, SlidersHorizontal, Send, ChevronDown, Check, RotateCcw } from "lucide-react";
 import { resetDemoSandbox } from "@/lib/api";
 
 export function PerspectiveSwitcher() {
@@ -58,7 +58,7 @@ export function PerspectiveSwitcher() {
             className="h-8 px-2.5 rounded text-[11px] font-sans font-medium bg-accent text-white hover:bg-accent/90 transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
             title="Launch 60-Second Onboarding Wizard"
           >
-            <Wand2 className="w-3.5 h-3.5" />
+            <SlidersHorizontal className="w-3.5 h-3.5" />
             <span>Setup Wizard</span>
           </button>
 
@@ -91,7 +91,7 @@ export function PerspectiveSwitcher() {
             <ShieldCheck className="w-3.5 h-3.5 text-accent" />
           )}
           <span>
-            {isStandard ? "Standard Edition" : "Superadmin (Bespoke)"}
+            {isStandard ? "Standard Edition" : "Personal Workspace (Full)"}
           </span>
           <ChevronDown className="w-3 h-3 text-text-tertiary" />
         </button>
@@ -122,7 +122,7 @@ export function PerspectiveSwitcher() {
                 <div>
                   <div className="flex items-center gap-1.5">
                     <ShieldCheck className="w-3.5 h-3.5 text-accent" />
-                    <span>Superadmin (Bespoke)</span>
+                    <span>Personal Workspace (Full)</span>
                   </div>
                   <p className="text-[10px] font-sans text-text-tertiary mt-0.5 leading-snug">
                     Owner mode: attendance 16–15 cutoff, bespoke routine slots (Vape/Haircut), and full admin controls.

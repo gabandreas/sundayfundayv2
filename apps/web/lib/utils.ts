@@ -49,15 +49,51 @@ export function formatRupiah(amount: number | null | undefined, forceMasked?: bo
   return isNegative ? `-Rp ${formatted}` : `Rp ${formatted}`;
 }
 
+export const DOMAIN_CONSTANTS = {
+  ASIA_JAKARTA_TZ: "Asia/Jakarta",
+  DEFAULT_PAYOUT_DAY: 25,
+  PAYDAY_CYCLE_START_DAY: 27,
+  SPAYLATER_CUTOFF_DAY: 15,
+  SPAYLATER_DUE_DAY: 25,
+  CC_CUTOFF_DAY: 20,
+  CC_DUE_DAY: 11,
+  PERSONAL_DEBT_DUE_DAY: 8,
+  LAUNCH_YEAR: 2026,
+  LAUNCH_MONTH: 7,
+  NOTIFICATION_EMAIL: "sundayfundayerp@gmail.com",
+} as const;
+
+const JAKARTA_DATE_FORMATTER = new Intl.DateTimeFormat("en-CA", {
+  timeZone: DOMAIN_CONSTANTS.ASIA_JAKARTA_TZ,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
 /**
- * Formats a date string to a concise display string.
+ * Extracts year, month (1-12), day (1-31) in Asia/Jakarta (WIB / UTC+7)
+ * so client and Vercel UTC SSR agree identically on active cycle and due dates.
+ */
+export function getJakartaDateParts(refDate: Date = new Date()): {
+  year: number;
+  month: number;
+  day: number;
+  isoDate: string;
+} {
+  const isoDate = JAKARTA_DATE_FORMATTER.format(refDate);
+  const [year, month, day] = isoDate.split("-").map(Number);
+  return { year, month, day, isoDate };
+}
+
+/**
+ * Formats a date string to a concise display string anchored to Asia/Jakarta (WIB).
  * Example: "2026-09-11T10:00:00Z" -> "11 Sep 2026"
  */
 export function formatDate(dateString: string | null | undefined): string {
   if (!dateString) return "-";
   const d = new Date(dateString);
   if (isNaN(d.getTime())) return dateString;
-  const day = d.getDate().toString().padStart(2, "0");
+  const { year, month, day } = getJakartaDateParts(d);
   const months = [
     "Jan",
     "Feb",
@@ -72,9 +108,8 @@ export function formatDate(dateString: string | null | undefined): string {
     "Nov",
     "Dec",
   ];
-  const month = months[d.getMonth()];
-  const year = d.getFullYear();
-  return `${day} ${month} ${year}`;
+  const monthLabel = months[month - 1];
+  return `${String(day).padStart(2, "0")} ${monthLabel} ${year}`;
 }
 
 /**
@@ -201,24 +236,23 @@ export function getChargeTypeBadge(
 }
 
 /**
- * Resolves the default payroll period whose consumption window contains a reference date.
- * Under the payday-to-payday consumption cycle, a calendar date belongs to:
- * - Period M (current calendar month) if reference date >= payroll payout day (default 25)
- * - Period M - 1 (previous calendar month) if reference date < payroll payout day
+ * Resolves the default payroll period whose consumption window contains a reference date
+ * in Asia/Jakarta (WIB / UTC+7).
+ * Under the 28th–26th / 27th–27th payday consumption cycle:
+ * - Period M (current calendar month) if Jakarta day >= cycleTransitionDay (default 27)
+ * - Period M - 1 (previous calendar month) if Jakarta day < cycleTransitionDay
  * Clamped to the system launch boundary at July 2026 (7/2026).
  */
 export function getDefaultPayrollPeriod(
   refDate: Date = new Date(),
-  payoutDay: number = 25
+  cycleTransitionDay: number = DOMAIN_CONSTANTS.PAYDAY_CYCLE_START_DAY
 ): { month: number; year: number } {
-  const calDay = refDate.getDate();
-  const calMonth = refDate.getMonth() + 1; // 1-indexed (1..12)
-  const calYear = refDate.getFullYear();
+  const { year: calYear, month: calMonth, day: calDay } = getJakartaDateParts(refDate);
 
   let month: number;
   let year: number;
 
-  if (calDay >= payoutDay) {
+  if (calDay >= cycleTransitionDay) {
     month = calMonth;
     year = calYear;
   } else {
@@ -232,8 +266,11 @@ export function getDefaultPayrollPeriod(
   }
 
   // Application launch boundary clamp: July 2026
-  if (year < 2026 || (year === 2026 && month < 7)) {
-    return { month: 7, year: 2026 };
+  if (
+    year < DOMAIN_CONSTANTS.LAUNCH_YEAR ||
+    (year === DOMAIN_CONSTANTS.LAUNCH_YEAR && month < DOMAIN_CONSTANTS.LAUNCH_MONTH)
+  ) {
+    return { month: DOMAIN_CONSTANTS.LAUNCH_MONTH, year: DOMAIN_CONSTANTS.LAUNCH_YEAR };
   }
 
   return { month, year };

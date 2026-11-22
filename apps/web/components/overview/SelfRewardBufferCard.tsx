@@ -6,6 +6,7 @@ import { formatRupiah } from "@/lib/utils";
 import { EditableTarget } from "./EditableTarget";
 import { PrivacyEyeButton } from "@/components/shell/PrivacyEyeButton";
 import { usePrivacyMask } from "@/context/PrivacyMaskContext";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface SelfRewardBufferCardProps {
   snapshot: MonthlySnapshot | null;
@@ -17,6 +18,7 @@ export function SelfRewardBufferCard({
   isLocked,
 }: SelfRewardBufferCardProps) {
   const { isAmountsMasked } = usePrivacyMask();
+  const { t } = useLanguage();
   const actualSelfReward = snapshot?.selfReward ?? 0;
   const targetSelfReward = snapshot?.selfRewardTarget ?? 0;
   const bufferPocket = snapshot?.bufferPocket ?? 0;
@@ -28,7 +30,7 @@ export function SelfRewardBufferCard({
       <div>
         <div className="flex items-center justify-between gap-2 mb-2">
           <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
-            Self-Reward & Buffer (P2)
+            {t("overview.selfRewardBuffer")}
           </span>
           <span className="text-[10px] font-mono text-text-tertiary">
             Secondary Allocations
@@ -77,7 +79,7 @@ export function SelfRewardBufferCard({
           {/* Emergency Buffer */}
           <div className="flex items-center justify-between pt-1 border-t border-border-subtle">
             <span className="text-text-secondary text-xs font-sans">
-              Emergency Buffer
+              {t("overview.emergencyBuffer")}
             </span>
             <div className="flex items-center gap-1.5">
               <span className="font-mono tabular-nums text-xs font-medium text-text-primary">

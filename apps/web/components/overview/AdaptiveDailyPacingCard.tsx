@@ -480,9 +480,9 @@ export function AdaptiveDailyPacingCard({
           </div>
         )}
 
-        {/* 3 Runway Metric Badges */}
-        <div className="grid grid-cols-3 gap-2 mt-3 pt-2.5 border-t border-border-subtle">
-          <div className="p-2 rounded bg-surface-subtle border border-border-subtle">
+        {/* 3 Runway Metric Strip (Hairline-divided typographic hierarchy — zero nested box clutter) */}
+        <div className="grid grid-cols-3 divide-x divide-border-subtle border-y border-border-subtle py-2.5 mt-3">
+          <div className="pr-3">
             <span className="text-[10px] text-text-tertiary uppercase font-sans block">
               {t("overview.weekdayRate")}
             </span>
@@ -494,7 +494,7 @@ export function AdaptiveDailyPacingCard({
             </span>
           </div>
 
-          <div className="p-2 rounded bg-surface-subtle border border-border-subtle">
+          <div className="px-3">
             <span className="text-[10px] text-text-tertiary uppercase font-sans block">
               {t("overview.weekendRate")}
             </span>
@@ -506,7 +506,7 @@ export function AdaptiveDailyPacingCard({
             </span>
           </div>
 
-          <div className="p-2 rounded bg-surface-subtle border border-border-subtle">
+          <div className="pl-3">
             <span className="text-[10px] text-text-tertiary uppercase font-sans block">
               7-Day Runway
             </span>
@@ -525,6 +525,8 @@ export function AdaptiveDailyPacingCard({
             statusVariant={statusVariant}
             cycleTemporalState={temporalState}
             daysUntilCycleStart={daysUntilStart}
+            cycleStartDate={pacing?.cycleStartDate}
+            cycleEndDate={pacing?.cycleEndDate}
           />
         </div>
 

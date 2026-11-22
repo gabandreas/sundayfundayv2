@@ -9,6 +9,8 @@ interface PayrollCashflowHighlightsProps {
   finalTotalIncome: number;
   netSalaryIncome: number;
   extraIncome: number;
+  thrAmount?: number;
+  bonusAmount?: number;
   workingDays: number;
 }
 
@@ -16,9 +18,13 @@ export function PayrollCashflowHighlights({
   finalTotalIncome,
   netSalaryIncome,
   extraIncome,
+  thrAmount = 0,
+  bonusAmount = 0,
   workingDays,
 }: PayrollCashflowHighlightsProps) {
   const { isAmountsMasked } = usePrivacyMask();
+  const supplementalTotal = Math.round((thrAmount || 0) + (bonusAmount || 0) + (extraIncome || 0));
+  const hasThrOrBonus = thrAmount > 0 || bonusAmount > 0;
 
   return (
     <div className="grid grid-cols-12 gap-4">
@@ -47,14 +53,18 @@ export function PayrollCashflowHighlights({
         />
       </div>
 
-      {/* Windfall / Extra */}
+      {/* Windfall / Extra / THR */}
       <div className="col-span-2">
         <MetricCard
-          label="Extra / Windfall"
-          amount={extraIncome}
-          value={formatRupiah(extraIncome, isAmountsMasked)}
+          label={hasThrOrBonus ? "THR, Bonus & Windfall" : "Extra / Windfall"}
+          amount={supplementalTotal}
+          value={formatRupiah(supplementalTotal, isAmountsMasked)}
           hasCurrency={true}
-          footer="Freelance & bonuses"
+          footer={
+            hasThrOrBonus
+              ? `THR ${formatRupiah(thrAmount, isAmountsMasked)} + extras`
+              : "Freelance & bonuses"
+          }
           statusVariant="default"
         />
       </div>

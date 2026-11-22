@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useTransition } from "react";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import React, { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   ChevronLeft,
   ChevronRight,
@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { initializeNewPeriod } from "@/lib/api";
 import { getDefaultPayrollPeriod } from "@/lib/utils";
+import { usePeriod } from "@/context/PeriodContext";
 
 const MONTH_SHORT = [
   "Jan",
@@ -30,22 +31,13 @@ const MONTH_SHORT = [
 ];
 
 const START_YEAR = 2026;
-const START_MONTH = 7; // July 2026 (app launch boundary)
+const START_MONTH = 10; // October 2026 (ledger epoch boundary)
 
 export function MonthYearSwitcher() {
   const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const [isPending, startTransition] = useTransition();
+  const { month: currentMonth, year: currentYear, setPeriod, refreshPeriod } = usePeriod();
 
   const defaultPeriod = getDefaultPayrollPeriod();
-
-  // Read from search params, with fallback to active funding payroll period (M-1)
-  const monthParam = searchParams.get("month");
-  const yearParam = searchParams.get("year");
-
-  const currentMonth = monthParam ? parseInt(monthParam, 10) : defaultPeriod.month;
-  const currentYear = yearParam ? parseInt(yearParam, 10) : defaultPeriod.year;
 
   const isCurrentPeriod =
     currentMonth === defaultPeriod.month && currentYear === defaultPeriod.year;
@@ -108,6 +100,8 @@ export function MonthYearSwitcher() {
       setIsNewPeriodModalOpen(false);
       setIsInitializing(false);
       navigateToPeriod(newMonth, newYear);
+      refreshPeriod();
+      router.refresh();
     } catch (err: any) {
       setInitError(err.message || "Failed to initialize period");
       setIsInitializing(false);
@@ -115,12 +109,7 @@ export function MonthYearSwitcher() {
   };
 
   const navigateToPeriod = (newMonth: number, newYear: number) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("month", newMonth.toString());
-    params.set("year", newYear.toString());
-    startTransition(() => {
-      router.push(`${pathname}?${params.toString()}`);
-    });
+    setPeriod(newMonth, newYear);
   };
 
   const handlePrevMonth = () => {
@@ -153,18 +142,14 @@ export function MonthYearSwitcher() {
 
   return (
     <div className="relative" ref={dropdownRef}>
-      {/* Unified Period Capsule: [ ‹  Oct 2026 ▾  › ] */}
-      <div
-        className={`flex items-center h-8 rounded-md border border-border bg-surface shadow-xs transition-opacity ${
-          isPending ? "opacity-60" : "opacity-100"
-        }`}
-      >
+      {/* Unified Popover Dropdown */}
+      <div className="flex items-center h-8 rounded-md border border-border bg-surface shadow-xs transition-opacity opacity-100">
         {/* Previous Month Button: ‹ */}
         <button
           type="button"
           onClick={handlePrevMonth}
           disabled={isAtStartBoundary}
-          title={isAtStartBoundary ? "Historical boundary reached (July 2026)" : "Previous Month"}
+          title={isAtStartBoundary ? "Historical boundary reached (October 2026)" : "Previous Month"}
           aria-label="Previous Month"
           className={`h-full px-2 flex items-center justify-center transition-colors rounded-l-md ${
             isAtStartBoundary
@@ -297,7 +282,7 @@ export function MonthYearSwitcher() {
 
       {/* New Period Initialization Modal */}
       {isNewPeriodModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
           <div className="bg-surface border border-border rounded-lg max-w-sm w-full p-5 shadow-2xl relative">
             <div className="flex items-center justify-between pb-3 border-b border-border">
               <div className="flex items-center gap-2">

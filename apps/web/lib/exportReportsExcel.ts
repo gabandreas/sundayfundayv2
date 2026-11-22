@@ -1,626 +1,617 @@
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { ExecutiveReportPayload } from "./api";
 
-function finalizeFormattedSheet(
-  rows: Array<Record<string, string | number>>,
-  descriptionKeys: string[] = []
-): XLSX.WorkSheet {
-  const ws = XLSX.utils.json_to_sheet(rows);
-  const keys = rows.length > 0 ? Object.keys(rows[0]) : [];
-  const descSet = new Set(descriptionKeys);
+const IDR_FMT = '"Rp "#,##0;-"Rp "#,##0;"Rp "0';
+const PCT_FMT = "0.0%";
 
-  // Apply #,##0 number format to every numeric cell in the sheet
-  const range = ws["!ref"] ? XLSX.utils.decode_range(ws["!ref"]) : null;
-  if (range) {
-    for (let R = range.s.r; R <= range.e.r; ++R) {
-      for (let C = range.s.c; C <= range.e.c; ++C) {
-        const ref = XLSX.utils.encode_cell({ r: R, c: C });
-        const cell = ws[ref];
-        if (cell && cell.t === "n") {
-          cell.z = "#,##0";
-        }
-      }
-    }
-  }
+const COLORS = {
+  bannerBg: "FF0F172A",
+  bannerText: "FFF8FAFC",
+  sectionBg: "FF1E293B",
+  sectionText: "FFF1F5F9",
+  headerBg: "FF334155",
+  headerText: "FFFFFFFF",
+  totalBg: "FFE2E8F0",
+  totalBorderTop: "FF64748B",
+  totalBorderBottom: "FF0F172A",
+  gridBorder: "FFCBD5E1",
+  zebraEven: "FFFFFFFF",
+  zebraOdd: "FFF8FAFC",
+  emeraldFill: "FFECFDF5",
+  emeraldText: "FF065F46",
+  amberFill: "FFFFFBEB",
+  amberText: "FF92400E",
+  roseFill: "FFFFF1F2",
+  roseText: "FF9F1239",
+  ink: "FF0F172A",
+};
 
-  // Dynamically calculate column widths (wch) from header + cell contents (+4 buffer)
-  ws["!cols"] = keys.map((key) => {
-    let maxLen = key.length;
-    for (const row of rows) {
-      const val = row[key];
-      if (val === null || val === undefined) continue;
-      const str =
-        typeof val === "number"
-          ? val.toLocaleString("en-US")
-          : String(val);
-      if (str.length > maxLen) {
-        maxLen = str.length;
-      }
-    }
-    const minWidth = descSet.has(key) ? 36 : 14;
-    const computed = Math.max(minWidth, Math.min(84, maxLen + 4));
-    return { wch: computed };
-  });
+type Tone = "neutral" | "zebra" | "emerald" | "amber" | "rose" | "total";
 
-  return ws;
+function fillForTone(tone: Tone, rowIndex = 0): ExcelJS.Fill {
+  let argb = COLORS.zebraEven;
+  if (tone === "zebra") argb = rowIndex % 2 === 1 ? COLORS.zebraOdd : COLORS.zebraEven;
+  else if (tone === "emerald") argb = COLORS.emeraldFill;
+  else if (tone === "amber") argb = COLORS.amberFill;
+  else if (tone === "rose") argb = COLORS.roseFill;
+  else if (tone === "total") argb = COLORS.totalBg;
+  return { type: "pattern", pattern: "solid", fgColor: { argb } };
 }
 
-export function buildExecutiveReportWorkbook(
+function textColorForTone(tone: Tone): string {
+  if (tone === "emerald") return COLORS.emeraldText;
+  if (tone === "amber") return COLORS.amberText;
+  if (tone === "rose") return COLORS.roseText;
+  return COLORS.ink;
+}
+
+function addBanner(ws: ExcelJS.Worksheet, colCount: number, title: string, subtitle: string) {
+  const r1 = ws.addRow([title]);
+  ws.mergeCells(r1.number, 1, r1.number, colCount);
+  r1.height = 28;
+  for (let c = 1; c <= colCount; c++) {
+    const cell = r1.getCell(c);
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: COLORS.bannerBg } };
+    cell.font = { name: "Calibri", bold: true, color: { argb: COLORS.bannerText }, size: 13 };
+    cell.alignment = { vertical: "middle", horizontal: "left" };
+  }
+  const r2 = ws.addRow([subtitle]);
+  ws.mergeCells(r2.number, 1, r2.number, colCount);
+  r2.height = 19;
+  for (let c = 1; c <= colCount; c++) {
+    const cell = r2.getCell(c);
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: COLORS.totalBg } };
+    cell.font = { name: "Calibri", italic: true, color: { argb: COLORS.ink }, size: 10 };
+    cell.alignment = { vertical: "middle", horizontal: "left" };
+  }
+  ws.addRow([]);
+}
+
+function addSectionTitle(ws: ExcelJS.Worksheet, colCount: number, title: string) {
+  const row = ws.addRow([title]);
+  ws.mergeCells(row.number, 1, row.number, colCount);
+  row.height = 21;
+  for (let c = 1; c <= colCount; c++) {
+    const cell = row.getCell(c);
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: COLORS.sectionBg } };
+    cell.font = { name: "Calibri", bold: true, color: { argb: COLORS.sectionText }, size: 10 };
+    cell.alignment = { vertical: "middle", horizontal: "left" };
+  }
+}
+
+function addTableHeaders(ws: ExcelJS.Worksheet, headers: string[], rightCols: number[] = []) {
+  const row = ws.addRow(headers);
+  row.height = 22;
+  for (let c = 1; c <= headers.length; c++) {
+    const cell = row.getCell(c);
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: COLORS.headerBg } };
+    cell.font = { name: "Calibri", bold: true, color: { argb: COLORS.headerText }, size: 10 };
+    cell.alignment = {
+      vertical: "middle",
+      horizontal: rightCols.includes(c) ? "right" : "left",
+    };
+    cell.border = {
+      top: { style: "thin", color: { argb: COLORS.gridBorder } },
+      left: { style: "thin", color: { argb: COLORS.gridBorder } },
+      bottom: { style: "thin", color: { argb: COLORS.gridBorder } },
+      right: { style: "thin", color: { argb: COLORS.gridBorder } },
+    };
+  }
+}
+
+function styleDataRow(
+  row: ExcelJS.Row,
+  colCount: number,
+  tone: Tone = "zebra",
+  opts: {
+    currencyCols?: number[];
+    pctCols?: number[];
+    centerCols?: number[];
+    leftCols?: number[];
+  } = {},
+  rowIndex = 0,
+  isTotal = false
+) {
+  row.height = isTotal ? 22 : 19;
+  const fill = fillForTone(isTotal ? "total" : tone, rowIndex);
+  const ink = isTotal ? COLORS.ink : textColorForTone(tone);
+
+  for (let c = 1; c <= colCount; c++) {
+    const cell = row.getCell(c);
+    cell.fill = fill;
+    cell.font = { name: "Calibri", bold: isTotal, color: { argb: ink }, size: 10 };
+    cell.border = isTotal
+      ? {
+          top: { style: "thin", color: { argb: COLORS.totalBorderTop } },
+          left: { style: "thin", color: { argb: COLORS.gridBorder } },
+          bottom: { style: "double", color: { argb: COLORS.totalBorderBottom } },
+          right: { style: "thin", color: { argb: COLORS.gridBorder } },
+        }
+      : {
+          top: { style: "thin", color: { argb: COLORS.gridBorder } },
+          left: { style: "thin", color: { argb: COLORS.gridBorder } },
+          bottom: { style: "thin", color: { argb: COLORS.gridBorder } },
+          right: { style: "thin", color: { argb: COLORS.gridBorder } },
+        };
+
+    if (opts.currencyCols?.includes(c)) {
+      cell.numFmt = IDR_FMT;
+      cell.alignment = { horizontal: "right", vertical: "middle" };
+    } else if (opts.pctCols?.includes(c)) {
+      cell.numFmt = PCT_FMT;
+      cell.alignment = { horizontal: "right", vertical: "middle" };
+    } else if (opts.centerCols?.includes(c)) {
+      cell.alignment = { horizontal: "center", vertical: "middle" };
+    } else {
+      cell.alignment = {
+        horizontal: opts.leftCols?.includes(c) ? "left" : "right",
+        vertical: "middle",
+      };
+    }
+  }
+}
+
+function autoFitColumns(ws: ExcelJS.Worksheet, minWidth = 12, maxWidth = 44) {
+  ws.columns?.forEach((col) => {
+    let maxLen = minWidth;
+    col.eachCell?.({ includeEmpty: false }, (cell) => {
+      const val = cell.value;
+      const text =
+        val && typeof val === "object" && "result" in val
+          ? String((val as { result?: unknown }).result ?? "")
+          : String(val ?? "");
+      if (text.length + 4 > maxLen) {
+        maxLen = text.length + 4;
+      }
+    });
+    col.width = Math.min(maxWidth, maxLen);
+  });
+}
+
+export async function buildExecutiveReportWorkbook(
   report: ExecutiveReportPayload,
-  profileMode: "SUPERADMIN_BESPOKE" | "STANDARD_GENERAL" = "SUPERADMIN_BESPOKE"
-): XLSX.WorkBook {
-  const wb = XLSX.utils.book_new();
+  _profileMode: "SUPERADMIN_BESPOKE" | "STANDARD_GENERAL" = "SUPERADMIN_BESPOKE"
+): Promise<ExcelJS.Workbook> {
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "Sunday Funday ERP";
+  wb.created = new Date();
+
   const cs = report.closingStatement;
   const uw = cs.upfrontAndWaterfall;
-  const p = cs.payroll;
-  const gov = cs.governance;
   const mc = cs.moneyCycle;
-
-  type CycleRow = {
-    Step_Or_Section: string;
-    Line_Item_Description: string;
-    Initial_Plan_IDR: number | string;
-    Current_Budget_IDR: number | string;
-    Actual_Or_Funded_IDR: number | string;
-    Plain_Language_Notes: string;
-  };
-
-  const blankCycleRow = (): CycleRow => ({
-    Step_Or_Section: "",
-    Line_Item_Description: "",
-    Initial_Plan_IDR: "",
-    Current_Budget_IDR: "",
-    Actual_Or_Funded_IDR: "",
-    Plain_Language_Notes: "",
-  });
-
-  const dividerCycleRow = (title: string, subtitle = ""): CycleRow => ({
-    Step_Or_Section: `=== ${title} ===`,
-    Line_Item_Description: subtitle,
-    Initial_Plan_IDR: "",
-    Current_Budget_IDR: "",
-    Actual_Or_Funded_IDR: "",
-    Plain_Language_Notes: "",
-  });
-
-  // ---------------------------------------------------------------------------
-  // Sheet 1: 1_Monthly_Money_Cycle
-  // ---------------------------------------------------------------------------
-  const cycleRows: CycleRow[] = [
-    dividerCycleRow(
-      `MONTHLY MONEY CYCLE STATEMENT — ${cs.periodLabel.toUpperCase()}`,
-      `Period Status: ${cs.status === "LOCKED" ? "Closed & Locked" : cs.status === "DRAFT" ? "Active Draft Period" : "Uninitialized Forecast"}`
-    ),
-    {
-      Step_Or_Section: "TOP KPI 1",
-      Line_Item_Description: "Total Money In (Take-Home Pay + Extra Inflow)",
-      Initial_Plan_IDR: mc.kpis.netPaycheck,
-      Current_Budget_IDR: mc.kpis.totalMoneyIn,
-      Actual_Or_Funded_IDR: mc.kpis.totalMoneyIn,
-      Plain_Language_Notes: `Net paycheck Rp ${mc.kpis.netPaycheck.toLocaleString("id-ID")} + extra inflow Rp ${mc.kpis.extraInflow.toLocaleString("id-ID")}`,
-    },
-    {
-      Step_Or_Section: "TOP KPI 2",
-      Line_Item_Description: "Total Debt & Bills Paid (Upfront Credit Bills)",
-      Initial_Plan_IDR: "-",
-      Current_Budget_IDR: mc.kpis.totalDebtAndBillsPaid,
-      Actual_Or_Funded_IDR: mc.kpis.totalDebtAndBillsPaid,
-      Plain_Language_Notes: `${mc.kpis.debtShareOfIncomePercent}% of Total Money In`,
-    },
-    {
-      Step_Or_Section: "TOP KPI 3",
-      Line_Item_Description: "Living & Routine Spend (Routine Bills + Daily Living + Manual Spend)",
-      Initial_Plan_IDR: uw.fixedEssentialsBaseline + uw.dailyOperationalBaseline,
-      Current_Budget_IDR: uw.fixedEssentialsRevised + uw.dailyOperationalRevised,
-      Actual_Or_Funded_IDR: mc.kpis.livingAndRoutineSpend,
-      Plain_Language_Notes: `${mc.kpis.livingShareOfIncomePercent}% of Total Money In`,
-    },
-    {
-      Step_Or_Section: "TOP KPI 4",
-      Line_Item_Description: "Net Saved & Leftover (Core Savings P1 + Self-Reward P2)",
-      Initial_Plan_IDR: uw.savingsBaseline + uw.selfRewardBaseline,
-      Current_Budget_IDR: uw.savingsRevised + uw.selfRewardRevised,
-      Actual_Or_Funded_IDR: mc.kpis.netSavedAndLeftover,
-      Plain_Language_Notes: mc.savingsBottomLine.verdictHeadline,
-    },
-    blankCycleRow(),
-    dividerCycleRow(
-      "WHERE YOUR MONEY WENT & WHY THIS MONTH CHANGED",
-      mc.driversAndSpikes.biggestCostDriversHeadline
-    ),
-    ...mc.driversAndSpikes.costDrivers.map((d, idx) => ({
-      Step_Or_Section: `COST DRIVER #${idx + 1}`,
-      Line_Item_Description: d.label,
-      Initial_Plan_IDR: "-",
-      Current_Budget_IDR: d.amount,
-      Actual_Or_Funded_IDR: d.amount,
-      Plain_Language_Notes: `${d.shareOfIncomePercent}% of Money In — ${d.detail}`,
-    })),
-    ...mc.driversAndSpikes.spikes.map((s) => ({
-      Step_Or_Section: "MOM CHANGE",
-      Line_Item_Description: s.label,
-      Initial_Plan_IDR: s.previousAmount,
-      Current_Budget_IDR: s.currentAmount,
-      Actual_Or_Funded_IDR: s.deltaAmount,
-      Plain_Language_Notes: s.explanation,
-    })),
-    ...(mc.driversAndSpikes.budgetRevisionSummaryText
-      ? [
-          {
-            Step_Or_Section: "MID-MONTH EDITS",
-            Line_Item_Description: "Target Adjustments Summary",
-            Initial_Plan_IDR: "-",
-            Current_Budget_IDR: "-",
-            Actual_Or_Funded_IDR: "-",
-            Plain_Language_Notes: mc.driversAndSpikes.budgetRevisionSummaryText,
-          },
-        ]
-      : []),
-    blankCycleRow(),
-    dividerCycleRow(
-      "PAYDAY EXECUTION CHECKLIST (TRANSFER & PAYMENT GUIDE)",
-      "Exact transfers and bill reserves to execute when salary lands"
-    ),
-    {
-      Step_Or_Section: "CHECKLIST 1",
-      Line_Item_Description: `Set Aside for Debt & Bills (PayLater due ${mc.paydayChecklist.paylaterDueDay}th, CC due ${mc.paydayChecklist.creditDueDay}th)`,
-      Initial_Plan_IDR: "-",
-      Current_Budget_IDR: mc.paydayChecklist.step1SetAsideForDebt.totalAmount,
-      Actual_Or_Funded_IDR: mc.paydayChecklist.step1SetAsideForDebt.totalAmount,
-      Plain_Language_Notes: `PayLater Rp ${uw.paylaterBills.toLocaleString("id-ID")} | CC Statement Rp ${uw.creditCardBills.toLocaleString("id-ID")} | Personal Debt Rp ${uw.personalDebtBills.toLocaleString("id-ID")}`,
-    },
-    {
-      Step_Or_Section: "CHECKLIST 2",
-      Line_Item_Description: "Keep in Operational Account (Routine Bills + Funded Daily Living)",
-      Initial_Plan_IDR: uw.fixedEssentialsBaseline + uw.dailyOperationalBaseline,
-      Current_Budget_IDR: mc.paydayChecklist.step2KeepInOperationalAccount.totalAmount,
-      Actual_Or_Funded_IDR: mc.paydayChecklist.step2KeepInOperationalAccount.totalAmount,
-      Plain_Language_Notes: `Routine pool Rp ${mc.paydayChecklist.step2KeepInOperationalAccount.fixedRoutinePoolAmount.toLocaleString("id-ID")} + Daily living Rp ${mc.paydayChecklist.step2KeepInOperationalAccount.fundedDailyLivingAmount.toLocaleString("id-ID")}`,
-    },
-    {
-      Step_Or_Section: "CHECKLIST 3",
-      Line_Item_Description: "Transfer to Savings Vault (Core Savings P1)",
-      Initial_Plan_IDR: uw.savingsBaseline,
-      Current_Budget_IDR: mc.paydayChecklist.step3TransferToSavingsVault.fundedP1Savings,
-      Actual_Or_Funded_IDR: mc.paydayChecklist.step3TransferToSavingsVault.realizedInVault,
-      Plain_Language_Notes: `${mc.paydayChecklist.step3TransferToSavingsVault.statusLabel} (Pending: Rp ${mc.paydayChecklist.step3TransferToSavingsVault.pendingTransferAmount.toLocaleString("id-ID")})`,
-    },
-    {
-      Step_Or_Section: "CHECKLIST 4",
-      Line_Item_Description: "Free / Self-Reward Allowance (Priority 2 Surplus)",
-      Initial_Plan_IDR: uw.selfRewardBaseline,
-      Current_Budget_IDR: uw.selfRewardRevised,
-      Actual_Or_Funded_IDR: mc.paydayChecklist.step4FreeSelfRewardAllowance.fundedP2Allowance,
-      Plain_Language_Notes: "Guilt-free discretionary surplus after P1 Savings",
-    },
-    blankCycleRow(),
-    dividerCycleRow(
-      "STEP 1: MONEY IN (PAYROLL & EXTRA INFLOW)",
-      `Attendance Cutoff Window: ${cs.workingDaysWindowLabel}`
-    ),
-    {
-      Step_Or_Section: "STEP 1: MONEY IN",
-      Line_Item_Description: "Base Salary",
-      Initial_Plan_IDR: p.baseSalary,
-      Current_Budget_IDR: p.baseSalary,
-      Actual_Or_Funded_IDR: p.baseSalary,
-      Plain_Language_Notes: "Monthly contractual base salary",
-    },
-    {
-      Step_Or_Section: "STEP 1: MONEY IN",
-      Line_Item_Description: "Salary Adjustment",
-      Initial_Plan_IDR: 0,
-      Current_Budget_IDR: p.salaryAdjustment,
-      Actual_Or_Funded_IDR: p.salaryAdjustment,
-      Plain_Language_Notes: "Period salary adjustment",
-    },
-    {
-      Step_Or_Section: "STEP 1: MONEY IN",
-      Line_Item_Description: "BPJS Deduction (3%)",
-      Initial_Plan_IDR: -p.bpjsDeduction,
-      Current_Budget_IDR: -p.bpjsDeduction,
-      Actual_Or_Funded_IDR: -p.bpjsDeduction,
-      Plain_Language_Notes: "3% statutory payroll deduction",
-    },
-    {
-      Step_Or_Section: "STEP 1: MONEY IN",
-      Line_Item_Description: "Laptop Allowance",
-      Initial_Plan_IDR: p.laptopAllowance,
-      Current_Budget_IDR: p.laptopAllowance,
-      Actual_Or_Funded_IDR: p.laptopAllowance,
-      Plain_Language_Notes: "Fixed monthly laptop allowance",
-    },
-    {
-      Step_Or_Section: "STEP 1: MONEY IN",
-      Line_Item_Description: `Attendance Allowance (${p.totalWorkingDays} days @ Rp ${p.dailyAllowance.toLocaleString("id-ID")})`,
-      Initial_Plan_IDR: p.totalDailyAllowance,
-      Current_Budget_IDR: p.totalDailyAllowance,
-      Actual_Or_Funded_IDR: p.totalDailyAllowance,
-      Plain_Language_Notes: `${p.totalWorkingDays} working days in ${cs.workingDaysWindowLabel}`,
-    },
-    {
-      Step_Or_Section: "STEP 1: MONEY IN",
-      Line_Item_Description: "Cafeteria Deduction",
-      Initial_Plan_IDR: 0,
-      Current_Budget_IDR: -p.cafeteriaDeduction,
-      Actual_Or_Funded_IDR: -p.cafeteriaDeduction,
-      Plain_Language_Notes: "Office cafeteria deduction",
-    },
-    {
-      Step_Or_Section: "STEP 1: MONEY IN",
-      Line_Item_Description: "Net Paycheck (Take-Home Salary)",
-      Initial_Plan_IDR: p.netSalaryIncome,
-      Current_Budget_IDR: p.netSalaryIncome,
-      Actual_Or_Funded_IDR: p.netSalaryIncome,
-      Plain_Language_Notes: "Base + Attendance + Laptop - BPJS - Cafeteria",
-    },
-    {
-      Step_Or_Section: "STEP 1: MONEY IN",
-      Line_Item_Description: "THR & Performance Bonus",
-      Initial_Plan_IDR: 0,
-      Current_Budget_IDR: p.thrAmount + p.bonusAmount,
-      Actual_Or_Funded_IDR: p.thrAmount + p.bonusAmount,
-      Plain_Language_Notes: `THR Rp ${p.thrAmount.toLocaleString("id-ID")} | Bonus Rp ${p.bonusAmount.toLocaleString("id-ID")}`,
-    },
-    {
-      Step_Or_Section: "STEP 1: MONEY IN",
-      Line_Item_Description: "Extra Income (Non-Payroll Inflows)",
-      Initial_Plan_IDR: 0,
-      Current_Budget_IDR: p.extraIncome,
-      Actual_Or_Funded_IDR: p.extraIncome,
-      Plain_Language_Notes: `${p.incomeTransactions.length} extra income entries`,
-    },
-    {
-      Step_Or_Section: "STEP 1: MONEY IN",
-      Line_Item_Description: "TOTAL MONEY IN",
-      Initial_Plan_IDR: p.finalTotalIncome,
-      Current_Budget_IDR: p.finalTotalIncome,
-      Actual_Or_Funded_IDR: p.finalTotalIncome,
-      Plain_Language_Notes: "100% Inflow Base for Monthly Money Cycle",
-    },
-    blankCycleRow(),
-    dividerCycleRow(
-      "STEP 2: DEBT & CREDIT BILLS (DEDUCTED FIRST)",
-      "Upfront credit and debt obligations paid before discretionary spending"
-    ),
-    {
-      Step_Or_Section: "STEP 2: DEBT BILLS",
-      Line_Item_Description: "PayLater Bill (Due 25th)",
-      Initial_Plan_IDR: "-",
-      Current_Budget_IDR: uw.paylaterBills,
-      Actual_Or_Funded_IDR: uw.paylaterBills,
-      Plain_Language_Notes:
-        gov.paylaterUsageLimit > 0
-          ? `Period Cap: Rp ${gov.paylaterUsageLimit.toLocaleString("id-ID")}`
-          : "No period cap set",
-    },
-    {
-      Step_Or_Section: "STEP 2: DEBT BILLS",
-      Line_Item_Description: "Credit Card Statement (Due 11th)",
-      Initial_Plan_IDR: "-",
-      Current_Budget_IDR: uw.creditCardBills,
-      Actual_Or_Funded_IDR: uw.creditCardBills,
-      Plain_Language_Notes: `${mc.itemizedCreditCardCharges.length} active charges billed this period`,
-    },
-    {
-      Step_Or_Section: "STEP 2: DEBT BILLS",
-      Line_Item_Description: "Personal / Pre-Payday Debt",
-      Initial_Plan_IDR: "-",
-      Current_Budget_IDR: uw.personalDebtBills,
-      Actual_Or_Funded_IDR: uw.personalDebtBills,
-      Plain_Language_Notes: "Informal personal borrowing settled on payday",
-    },
-    {
-      Step_Or_Section: "STEP 2: DEBT BILLS",
-      Line_Item_Description: "Fixed Installment Contracts",
-      Initial_Plan_IDR: "-",
-      Current_Budget_IDR: uw.contractInstallments,
-      Actual_Or_Funded_IDR: uw.contractInstallments,
-      Plain_Language_Notes: "Scheduled multi-month contract installments",
-    },
-    {
-      Step_Or_Section: "STEP 2: DEBT BILLS",
-      Line_Item_Description: "TOTAL DEBT & CREDIT BILLS",
-      Initial_Plan_IDR: "-",
-      Current_Budget_IDR: uw.totalCreditBills,
-      Actual_Or_Funded_IDR: uw.totalCreditBills,
-      Plain_Language_Notes: `${mc.kpis.debtShareOfIncomePercent}% of Total Money In`,
-    },
-    ...mc.itemizedCreditCardCharges.map((cc) => ({
-      Step_Or_Section: "CC STATEMENT ITEM",
-      Line_Item_Description: `${cc.label} (${cc.sliceBadge ?? cc.chargeTypeLabel})`,
-      Initial_Plan_IDR: cc.totalAmount,
-      Current_Budget_IDR: cc.dueAmount,
-      Actual_Or_Funded_IDR: cc.dueAmount,
-      Plain_Language_Notes: `${cc.chargeTypeLabel}${cc.isNewThisPeriod ? " · New charge this period" : ""}${cc.remainingPrincipalAfterPeriod > 0 ? ` · Remaining principal after period: Rp ${cc.remainingPrincipalAfterPeriod.toLocaleString("id-ID")}` : ""}`,
-    })),
-    blankCycleRow(),
-    dividerCycleRow(
-      profileMode === "STANDARD_GENERAL"
-        ? "STEP 3: MONTHLY ROUTINE BILLS & ENVELOPES"
-        : "STEP 3: MONTHLY ROUTINE BILLS (TRANSPORT, INTERNET, VAPE, HAIRCUT)",
-      "4-Column Comparison: Initial Plan -> Revised Budget -> Logged Realization -> Remaining Pool"
-    ),
-    ...mc.routineBillsRealization.rows.map((r) => ({
-      Step_Or_Section: "STEP 3: ROUTINE BILL",
-      Line_Item_Description: r.label,
-      Initial_Plan_IDR: r.initialPlan,
-      Current_Budget_IDR: r.revisedBudget,
-      Actual_Or_Funded_IDR: r.loggedRealization,
-      Plain_Language_Notes: `Remaining Pool: Rp ${r.remainingPool.toLocaleString("id-ID")} | Status: ${r.statusLabel}`,
-    })),
-    {
-      Step_Or_Section: "STEP 3: ROUTINE BILL",
-      Line_Item_Description: "TOTAL MONTHLY ROUTINE BILLS POOL",
-      Initial_Plan_IDR: mc.routineBillsRealization.totalInitialPlan,
-      Current_Budget_IDR: mc.routineBillsRealization.totalRevisedBudget,
-      Actual_Or_Funded_IDR: uw.fixedEssentialsActual,
-      Plain_Language_Notes: `Logged realization: Rp ${mc.routineBillsRealization.totalLoggedRealization.toLocaleString("id-ID")} | Remaining pool: Rp ${mc.routineBillsRealization.totalRemainingPool.toLocaleString("id-ID")}`,
-    },
-    blankCycleRow(),
-    dividerCycleRow(
-      "STEP 4: DAILY LIVING & FOOD BUDGET (DAILY OPERATIONAL)",
-      `Consumption Cycle: ${mc.dailyLiving.cycleDateLabel} (${mc.dailyLiving.daysInCycle} days)`
-    ),
-    {
-      Step_Or_Section: "STEP 4: DAILY LIVING",
-      Line_Item_Description: "Monthly Daily Living & Food Budget Pool",
-      Initial_Plan_IDR: mc.dailyLiving.initialPlan,
-      Current_Budget_IDR: mc.dailyLiving.currentMonthlyCap,
-      Actual_Or_Funded_IDR: mc.dailyLiving.fundedAmount,
-      Plain_Language_Notes: `Baseline daily rate: Rp ${mc.dailyLiving.baselineDailyRate.toLocaleString("id-ID")}/day`,
-    },
-    {
-      Step_Or_Section: "STEP 4: DAILY LIVING",
-      Line_Item_Description: "Net Daily Spend Used (Logged Spend - Refunds)",
-      Initial_Plan_IDR: 0,
-      Current_Budget_IDR: mc.dailyLiving.fundedAmount,
-      Actual_Or_Funded_IDR: mc.dailyLiving.netDailySpendUsed,
-      Plain_Language_Notes: `Gross logged: Rp ${mc.dailyLiving.grossDailyExpensesLogged.toLocaleString("id-ID")} | Refunds offset: -Rp ${mc.dailyLiving.operationalRefundsOffset.toLocaleString("id-ID")}`,
-    },
-    {
-      Step_Or_Section: "STEP 4: DAILY LIVING",
-      Line_Item_Description: "Remaining Operational Cash",
-      Initial_Plan_IDR: mc.dailyLiving.initialPlan,
-      Current_Budget_IDR: mc.dailyLiving.fundedAmount,
-      Actual_Or_Funded_IDR: mc.dailyLiving.remainingOperationalCash,
-      Plain_Language_Notes: `Safe to spend today: Rp ${mc.dailyLiving.safeToSpendToday.toLocaleString("id-ID")}/day (${mc.dailyLiving.daysRemaining} days left)`,
-    },
-    ...mc.dailyLiving.itemizedDailyExpenses.map((exp) => ({
-      Step_Or_Section: "LOGGED EXPENSE / REFUND",
-      Line_Item_Description: exp.label,
-      Initial_Plan_IDR: "-",
-      Current_Budget_IDR: exp.signedAmount,
-      Actual_Or_Funded_IDR: exp.signedAmount,
-      Plain_Language_Notes: `${exp.kindLabel}${exp.fixedEssentialCategoryLabel ? ` (${exp.fixedEssentialCategoryLabel})` : ""} · ${exp.date.slice(0, 10)}`,
-    })),
-    blankCycleRow(),
-    dividerCycleRow(
-      "STEP 5: SAVINGS & BOTTOM LINE (WHAT YOU KEPT)",
-      mc.savingsBottomLine.verdictHeadline
-    ),
-    {
-      Step_Or_Section: "STEP 5: BOTTOM LINE",
-      Line_Item_Description: "Core Savings (Priority 1)",
-      Initial_Plan_IDR: mc.savingsBottomLine.p1Baseline,
-      Current_Budget_IDR: mc.savingsBottomLine.p1Target,
-      Actual_Or_Funded_IDR: mc.savingsBottomLine.p1Funded,
-      Plain_Language_Notes:
-        profileMode === "STANDARD_GENERAL"
-          ? `Realized in Vault: Rp ${mc.savingsBottomLine.realizedInVaultTotal.toLocaleString("id-ID")} (Liquid Cash Rp ${mc.savingsBottomLine.realizedInVaultLiquidCash.toLocaleString("id-ID")} / Investment Portfolio Rp ${mc.savingsBottomLine.realizedInVaultInvestmentRdpu.toLocaleString("id-ID")})`
-          : `Realized in Vault: Rp ${mc.savingsBottomLine.realizedInVaultTotal.toLocaleString("id-ID")} (Liquid Cash Rp ${mc.savingsBottomLine.realizedInVaultLiquidCash.toLocaleString("id-ID")} / RDPU Rp ${mc.savingsBottomLine.realizedInVaultInvestmentRdpu.toLocaleString("id-ID")})`,
-    },
-    {
-      Step_Or_Section: "STEP 5: BOTTOM LINE",
-      Line_Item_Description: "Self-Reward / Surplus (Priority 2)",
-      Initial_Plan_IDR: uw.selfRewardBaseline,
-      Current_Budget_IDR: mc.savingsBottomLine.p2Target,
-      Actual_Or_Funded_IDR: mc.savingsBottomLine.p2Funded,
-      Plain_Language_Notes: "Free surplus after Core Savings (P1)",
-    },
-    {
-      Step_Or_Section: "STEP 5: BOTTOM LINE",
-      Line_Item_Description: "Cumulative Savings Vault Balance (All Periods)",
-      Initial_Plan_IDR: mc.savingsBottomLine.vaultLiquidCashBalance,
-      Current_Budget_IDR: mc.savingsBottomLine.vaultInvestmentRdpuBalance,
-      Actual_Or_Funded_IDR: mc.savingsBottomLine.vaultTotalBalance,
-      Plain_Language_Notes:
-        profileMode === "STANDARD_GENERAL"
-          ? `Liquid Cash: Rp ${mc.savingsBottomLine.vaultLiquidCashBalance.toLocaleString("id-ID")} | Investment Portfolio: Rp ${mc.savingsBottomLine.vaultInvestmentRdpuBalance.toLocaleString("id-ID")}`
-          : `Liquid Cash: Rp ${mc.savingsBottomLine.vaultLiquidCashBalance.toLocaleString("id-ID")} | Investment RDPU: Rp ${mc.savingsBottomLine.vaultInvestmentRdpuBalance.toLocaleString("id-ID")}`,
-    },
-    {
-      Step_Or_Section: "STEP 5: BOTTOM LINE",
-      Line_Item_Description: "NET SAVED & LEFTOVER (PERIOD VERDICT)",
-      Initial_Plan_IDR: uw.savingsBaseline + uw.selfRewardBaseline,
-      Current_Budget_IDR: uw.savingsRevised + uw.selfRewardRevised,
-      Actual_Or_Funded_IDR: mc.savingsBottomLine.netSavedAndLeftover,
-      Plain_Language_Notes: mc.savingsBottomLine.verdictDescription,
-    },
-  ];
-
-  const wsCycle = finalizeFormattedSheet(cycleRows, [
-    "Line_Item_Description",
-    "Plain_Language_Notes",
-  ]);
-  XLSX.utils.book_append_sheet(wb, wsCycle, "1_Monthly_Money_Cycle");
-
-  // ---------------------------------------------------------------------------
-  // Sheet 2: 2_Month_Comparison
-  // ---------------------------------------------------------------------------
   const comp = report.comparativeStatement;
-  const momRows = [
-    ...comp.periods.map((r) => ({
-      Month: r.periodLabel,
-      Status: r.status === "LOCKED" ? "Closed" : "Draft",
-      Money_In_IDR: r.finalTotalIncome,
-      Debt_Bills_IDR: r.creditBillsAmount,
-      Debt_Share_Percent: `${r.creditDebtRatioPercent}%`,
-      Routine_And_Daily_Living_IDR: r.routineAndDailyLivingAmount,
-      Saved_P1_IDR: r.actualSavings,
-      Transferred_To_Vault_IDR: r.realizedVaultAmount,
-      Leftover_P2_IDR: r.selfReward,
-      Discipline_Score: r.disciplineScore,
-      Change_Vs_Last_Month: r.changeVsLastMonthSummary,
-    })),
-    {
-      Month: `TOTAL / AVERAGE (${comp.periodCount} Months)`,
-      Status: comp.scope === "locked" ? "Locked Only" : "All Periods",
-      Money_In_IDR: comp.totals.totalIncome,
-      Debt_Bills_IDR: comp.totals.totalCreditBills,
-      Debt_Share_Percent: `${comp.totals.averageCreditDebtRatioPercent}%`,
-      Routine_And_Daily_Living_IDR:
-        comp.totals.totalFixedEssentials +
-        comp.totals.totalDailyOperational +
-        comp.totals.totalBufferPocket +
-        comp.totals.totalManualDeductions,
-      Saved_P1_IDR: comp.totals.totalSavings,
-      Transferred_To_Vault_IDR: comp.totals.totalRealizedVault,
-      Leftover_P2_IDR: comp.totals.totalSelfReward,
-      Discipline_Score: comp.totals.averageDisciplineScore,
-      Change_Vs_Last_Month: `Avg Savings Rate: ${comp.totals.averageSavingsRatePercent}%`,
-    },
-  ];
-
-  const wsMom = finalizeFormattedSheet(momRows, ["Change_Vs_Last_Month"]);
-  XLSX.utils.book_append_sheet(wb, wsMom, "2_Month_Comparison");
-
-  // ---------------------------------------------------------------------------
-  // Sheet 3: 3_Debt_Payoff_Schedule
-  // ---------------------------------------------------------------------------
   const amort = report.amortizationSchedule;
-  const scheduleRows = [
-    ...amort.months.map((m) => ({
-      Month: m.periodLabel,
-      PayLater_Bill_IDR: m.paylaterAmount,
-      Credit_Card_Statement_IDR: m.creditCardAmount,
-      Personal_Debt_IDR: m.personalDebtAmount,
-      Contract_Installments_IDR: m.contractInstallmentsAmount,
-      Total_Debt_Due_IDR: m.totalLiabilityDue,
-      Payoff_Progress_Percent: `${m.cumulativeSettledPercent}%`,
-      Active_Installments_Countdown:
-        m.activeInstallmentSlices.length > 0
-          ? m.activeInstallmentSlices
-              .map((s) => `${s.label} [${s.sliceBadge}]`)
-              .join(", ")
-          : "None",
-      Dropping_Off_After_This_Month:
-        m.droppingOffAfterThisMonth.length > 0
-          ? m.droppingOffAfterThisMonth.join(", ")
-          : "—",
-    })),
-    {
-      Month: "12-MONTH TOTAL",
-      PayLater_Bill_IDR: amort.summary.totalPaylater12M,
-      Credit_Card_Statement_IDR: amort.summary.totalCreditCard12M,
-      Personal_Debt_IDR: amort.summary.totalPersonalDebt12M,
-      Contract_Installments_IDR: amort.summary.totalContracts12M,
-      Total_Debt_Due_IDR: amort.summary.total12MonthObligations,
-      Payoff_Progress_Percent: `Peak: ${amort.summary.peakMonthLabel}`,
-      Active_Installments_Countdown: `Peak Month Due: Rp ${amort.summary.peakMonthAmount.toLocaleString("id-ID")}`,
-      Dropping_Off_After_This_Month: amort.summary.firstDebtFreeMonthLabel
-        ? `First Debt-Free Month: ${amort.summary.firstDebtFreeMonthLabel}`
-        : "Ongoing recurring subscriptions",
-    },
-  ];
-
-  const wsSchedule = finalizeFormattedSheet(scheduleRows, [
-    "Active_Installments_Countdown",
-    "Dropping_Off_After_This_Month",
-  ]);
-  XLSX.utils.book_append_sheet(wb, wsSchedule, "3_Debt_Payoff_Schedule");
-
-  // ---------------------------------------------------------------------------
-  // Sheet 4: 4_Budget_Edits_Log
-  // ---------------------------------------------------------------------------
   const dos = report.dossier;
-  const dossierRows: Array<Record<string, string | number>> = [
-    ...dos.revisions.map((r) => ({
-      Entry_Type: "Budget Target Edit",
-      Month: r.periodLabel,
-      What_Changed: r.categoryLabel,
-      Before_IDR: r.previousValue,
-      After_IDR: r.newValue,
-      Difference_IDR: r.difference,
-      Reason_Or_Notes: r.reason,
-      Recorded_At: r.createdAt.slice(0, 19).replace("T", " "),
-    })),
-    ...dos.periodAudits.map((a) => ({
-      Entry_Type: "Monthly Discipline Scorecard",
-      Month: a.periodLabel,
-      What_Changed: "7-Rule Financial Health Check",
-      Before_IDR: a.status === "LOCKED" ? "Closed" : "Draft",
-      After_IDR: a.disciplineScore,
-      Difference_IDR: `${a.greenCount} Passed / ${a.redCount} Attention`,
-      Reason_Or_Notes: a.flags
-        .map((f) => `${f.type === "GREEN" ? "PASS" : "ALERT"}: ${f.title}`)
-        .join(" | "),
-      Recorded_At: "—",
-    })),
-    ...dos.recentGovernanceLogs.map((l) => ({
-      Entry_Type: l.actionLabel,
-      Month: l.month && l.year ? `${l.month}/${l.year}` : "System",
-      What_Changed: l.categoryLabel,
-      Before_IDR: l.severity,
-      After_IDR: "—",
-      Difference_IDR: "—",
-      Reason_Or_Notes: `${l.summary}${l.details ? ` — ${l.details}` : ""}`,
-      Recorded_At: l.createdAt.slice(0, 19).replace("T", " "),
-    })),
-  ];
+  const horizon = report.horizonMetrics;
+  const settlementTot = report.settlementTotalsForSelectedPeriod;
 
-  const wsDossier = finalizeFormattedSheet(dossierRows, [
-    "What_Changed",
-    "Reason_Or_Notes",
+  // -------------------------------------------------------------------------
+  // Sheet 1: Executive Summary
+  // -------------------------------------------------------------------------
+  const ws1 = wb.addWorksheet("Executive Summary");
+  addBanner(
+    ws1,
+    9,
+    `Sunday Funday ERP — ${cs.periodLabel} Executive Summary`,
+    `Status: ${cs.status} | Window: ${cs.workingDaysWindowLabel} | Scope: ${report.scope.toUpperCase()}`
+  );
+  addSectionTitle(ws1, 9, `SECTION A: ${cs.periodLabel.toUpperCase()} WATERFALL & KPI RATIOS`);
+  addTableHeaders(
+    ws1,
+    ["Waterfall Component", "Amount (Rp)", "Share / Ratio", "Commentary", "", "", "", "", ""],
+    [2, 3]
+  );
+
+  const incomeRow = ws1.addRow([
+    "Total Money In (Net Salary + Extra Inflow)",
+    mc.kpis.totalMoneyIn,
+    1,
+    `Net Payroll: Rp ${Math.round(mc.kpis.netPaycheck).toLocaleString("id-ID")}`,
   ]);
-  XLSX.utils.book_append_sheet(wb, wsDossier, "4_Budget_Edits_Log");
+  styleDataRow(incomeRow, 9, "total", { currencyCols: [2], pctCols: [3], leftCols: [1, 4] }, 0, true);
+  const incomeRowNum = incomeRow.number;
 
-  // ---------------------------------------------------------------------------
-  // Sheet 5: 5_3Month_Forecast
-  // ---------------------------------------------------------------------------
-  const lf = report.liquidityForecast;
-  const forecastRows = (lf?.months ?? []).map((m) => ({
-    Horizon: `Month +${m.monthOffset}`,
-    Period: m.periodLabel,
-    Expected_Payday: m.expectedPaydayLabel,
-    Cycle_Window: m.cycleDateLabel,
-    Projected_Money_In_IDR: m.projectedFinalTotalIncome,
-    Projected_Debt_Bills_IDR: m.liabilities.projectedTotalDeductions,
-    Credit_Card_Bills_IDR: m.liabilities.creditCardsTotal,
-    PayLater_And_Personal_Debt_IDR: m.liabilities.bulkBillsTotal,
-    Contracts_And_Scheduled_IDR:
-      m.liabilities.contractsTotal + m.liabilities.scheduledBillsTotal,
-    Debt_Ratio_Percent: `${m.liabilities.debtRatioPercent}%`,
-    Routine_Bills_And_Buffer_IDR:
-      m.projectedFixedEssentials + m.projectedBufferPocket,
-    Projected_Daily_Living_IDR: m.waterfall.projectedDailyOperational,
-    P1_Savings_Target_IDR: m.waterfall.p1SavingsTarget,
-    Projected_Funded_Savings_IDR: m.waterfall.projectedFundedSavings,
-    Projected_Leftover_P2_IDR: m.waterfall.projectedSelfRewardSurplus,
-    Forecast_Verdict:
-      m.liquidityStatus === "HEALTHY_SURPLUS"
-        ? "Healthy Surplus"
-        : m.liquidityStatus === "SAVINGS_COMPRESSED"
-          ? "Savings Compressed"
-          : "Deficit Squeeze",
-    Recommended_P1_Adjustment_IDR: m.recommendedP1SavingsReduction,
-    Plain_Language_Warning: m.squeezeBannerText ?? "All bills and savings targets covered.",
-  }));
-
-  const wsForecast = finalizeFormattedSheet(forecastRows, [
-    "Plain_Language_Warning",
+  const debtStart = ws1.lastRow!.number + 1;
+  [
+    ["PayLater Bills (Due 25th M+1)", uw.paylaterBills, "Matrix PayLater Bucket"],
+    ["Credit Card Charges (Due 11th M+1)", uw.creditCardBills, "Statement Period Due"],
+    ["Personal & Informal Debt (Due 8th/Exact)", uw.personalDebtBills, "SPinjam & P1 Vault Refunds"],
+    ["Direct Contract Installments", uw.contractInstallments, "Non-duplicated contracts"],
+  ].forEach(([label, amt, note], i) => {
+    const rNum = ws1.lastRow!.number + 1;
+    const row = ws1.addRow([
+      label,
+      amt,
+      {
+        formula: `IF($B$${incomeRowNum}>0,B${rNum}/$B$${incomeRowNum},0)`,
+        result: mc.kpis.totalMoneyIn > 0 ? Number(amt) / mc.kpis.totalMoneyIn : 0,
+      },
+      note,
+    ]);
+    styleDataRow(row, 9, "zebra", { currencyCols: [2], pctCols: [3], leftCols: [1, 4] }, i);
+  });
+  const debtEnd = ws1.lastRow!.number;
+  const debtTotNum = debtEnd + 1;
+  const debtTotRow = ws1.addRow([
+    "Total Debt Obligations (Tier 1)",
+    { formula: `SUM(B${debtStart}:B${debtEnd})`, result: mc.kpis.totalDebtAndBillsPaid },
+    { formula: `IF($B$${incomeRowNum}>0,B${debtTotNum}/$B$${incomeRowNum},0)`, result: mc.kpis.debtShareOfIncomePercent / 100 },
+    "Debt Service Ratio (DSR)",
   ]);
-  XLSX.utils.book_append_sheet(wb, wsForecast, "5_3Month_Forecast");
+  styleDataRow(debtTotRow, 9, "total", { currencyCols: [2], pctCols: [3], leftCols: [1, 4] }, 0, true);
+
+  [
+    ["Fixed Routine Essentials Pool", uw.fixedEssentialsActual, "Transport, Internet, Vape, Haircut"],
+    ["Daily Living Budget (Daily Operational)", uw.actualDailyOperational, `Remaining: Rp ${Math.round(mc.dailyLiving.remainingOperationalCash).toLocaleString("id-ID")}`],
+    ["Emergency Buffer Pocket", uw.actualBufferPocket, "Protected reserve"],
+    ["Core Savings (P1 Allocation)", uw.actualSavings, `Realized Vault: Rp ${Math.round(mc.savingsBottomLine.realizedInVaultTotal).toLocaleString("id-ID")}`],
+    ["Self-Reward Allowance (P2)", uw.actualSelfReward, "Discretionary P2 surplus"],
+    ["Deficit Uncovered", uw.deficitUncovered, uw.isDeficit ? "Cap exceeds inflow" : "Fully covered"],
+  ].forEach(([label, amt, note], i) => {
+    const rNum = ws1.lastRow!.number + 1;
+    const row = ws1.addRow([
+      label,
+      amt,
+      {
+        formula: `IF($B$${incomeRowNum}>0,B${rNum}/$B$${incomeRowNum},0)`,
+        result: mc.kpis.totalMoneyIn > 0 ? Number(amt) / mc.kpis.totalMoneyIn : 0,
+      },
+      note,
+    ]);
+    styleDataRow(row, 9, "zebra", { currencyCols: [2], pctCols: [3], leftCols: [1, 4] }, i);
+  });
+
+  if (horizon) {
+    const r1 = ws1.addRow([
+      "Effective Daily Living Rate",
+      horizon.effectiveDailyLivingRate,
+      mc.dailyLiving.daysInCycle + "d cycle",
+      `Safe today: Rp ${Math.round(mc.dailyLiving.safeToSpendToday).toLocaleString("id-ID")}`,
+    ]);
+    styleDataRow(r1, 9, "zebra", { currencyCols: [2], leftCols: [1, 4], centerCols: [3] }, 0);
+    const r2 = ws1.addRow([
+      "Debt Burn-Down Velocity (/mo)",
+      horizon.debtBurnDownVelocityRp,
+      horizon.netSavingsRatePercent / 100,
+      horizon.nextMilestoneLabel,
+    ]);
+    styleDataRow(r2, 9, "emerald", { currencyCols: [2], pctCols: [3], leftCols: [1, 4] }, 1);
+  }
+
+  ws1.addRow([]);
+  addSectionTitle(ws1, 9, `SECTION B: MULTI-PERIOD COMPARATIVE WATERFALL (${comp.periodCount} PERIODS)`);
+  addTableHeaders(
+    ws1,
+    [
+      "Period",
+      "Total Income",
+      "Debt Bills",
+      "Routine & Daily Ops",
+      "Core Savings P1",
+      "Self-Reward P2",
+      "DSR %",
+      "Score",
+      "Narrative Driver",
+    ],
+    [2, 3, 4, 5, 6, 7, 8]
+  );
+
+  const compStart = ws1.lastRow!.number + 1;
+  comp.periods.forEach((p, idx) => {
+    const rNum = ws1.lastRow!.number + 1;
+    const row = ws1.addRow([
+      p.periodLabel,
+      p.finalTotalIncome,
+      p.creditBillsAmount,
+      p.routineAndDailyLivingAmount,
+      p.actualSavings,
+      p.selfReward,
+      { formula: `IF(B${rNum}>0,C${rNum}/B${rNum},0)`, result: p.creditDebtRatioPercent / 100 },
+      p.disciplineScore,
+      p.changeVsLastMonthSummary,
+    ]);
+    styleDataRow(row, 9, "zebra", { currencyCols: [2, 3, 4, 5, 6], pctCols: [7], leftCols: [1, 9] }, idx);
+  });
+  const compEnd = ws1.lastRow!.number;
+  if (comp.periods.length > 0) {
+    const compTot = ws1.addRow([
+      "TOTAL / AVG",
+      { formula: `SUM(B${compStart}:B${compEnd})`, result: comp.totals.totalIncome },
+      { formula: `SUM(C${compStart}:C${compEnd})`, result: comp.totals.totalCreditBills },
+      { formula: `SUM(D${compStart}:D${compEnd})`, result: comp.totals.totalFixedEssentials + comp.totals.totalDailyOperational },
+      { formula: `SUM(E${compStart}:E${compEnd})`, result: comp.totals.totalSavings },
+      { formula: `SUM(F${compStart}:F${compEnd})`, result: comp.totals.totalSelfReward },
+      { formula: `AVERAGE(G${compStart}:G${compEnd})`, result: comp.totals.averageCreditDebtRatioPercent / 100 },
+      { formula: `ROUND(AVERAGE(H${compStart}:H${compEnd}),0)`, result: Math.round(comp.totals.averageDisciplineScore) },
+      `${comp.periodCount} periods`,
+    ]);
+    styleDataRow(compTot, 9, "total", { currencyCols: [2, 3, 4, 5, 6], pctCols: [7], leftCols: [1, 9] }, 0, true);
+  }
+  autoFitColumns(ws1, 13, 44);
+
+  // -------------------------------------------------------------------------
+  // Sheet 2: Due-Date & Settlement Schedule
+  // -------------------------------------------------------------------------
+  const ws2 = wb.addWorksheet("Due-Date & Settlement Schedule");
+  addBanner(
+    ws2,
+    8,
+    `Due-Date & Settlement Schedule — ${cs.periodLabel}`,
+    settlementTot
+      ? `Period Total: Rp ${settlementTot.totalDue.toLocaleString("id-ID")} | Bank Hold Needed: Rp ${settlementTot.bankHoldNeeded.toLocaleString("id-ID")} | Paid: Rp ${settlementTot.paidAmount.toLocaleString("id-ID")}`
+      : "8th Personal Debt · 11th Credit Card · 25th SPayLater"
+  );
+  addSectionTitle(ws2, 8, "SECTION A: 12-MONTH MATURITY SCHEDULE");
+  addTableHeaders(
+    ws2,
+    ["Period", "Status", "PayLater (25th)", "Credit Card (11th)", "Personal Debt (8th)", "Contracts", "Total Due", "Dropping Off"],
+    [3, 4, 5, 6, 7]
+  );
+
+  const mStart = ws2.lastRow!.number + 1;
+  amort.months.forEach((m, idx) => {
+    const rNum = ws2.lastRow!.number + 1;
+    const row = ws2.addRow([
+      m.periodLabel,
+      m.cumulativeSettledPercent >= 100 ? "CLEARED" : "SCHEDULED",
+      m.paylaterAmount,
+      m.creditCardAmount,
+      m.personalDebtAmount,
+      m.contractInstallmentsAmount,
+      { formula: `SUM(C${rNum}:F${rNum})`, result: m.totalLiabilityDue },
+      m.droppingOffAfterThisMonth.join(", ") || "-",
+    ]);
+    styleDataRow(row, 8, "zebra", { currencyCols: [3, 4, 5, 6, 7], leftCols: [1, 2, 8] }, idx);
+  });
+  const mEnd = ws2.lastRow!.number;
+  if (amort.months.length > 0) {
+    const mTot = ws2.addRow([
+      "12M TOTAL",
+      "-",
+      { formula: `SUM(C${mStart}:C${mEnd})`, result: amort.summary.totalPaylater12M },
+      { formula: `SUM(D${mStart}:D${mEnd})`, result: amort.summary.totalCreditCard12M },
+      { formula: `SUM(E${mStart}:E${mEnd})`, result: amort.summary.totalPersonalDebt12M },
+      { formula: `SUM(F${mStart}:F${mEnd})`, result: amort.summary.totalContracts12M },
+      { formula: `SUM(G${mStart}:G${mEnd})`, result: amort.summary.total12MonthObligations },
+      amort.summary.firstDebtFreeMonthLabel ? `Free: ${amort.summary.firstDebtFreeMonthLabel}` : "-",
+    ]);
+    styleDataRow(mTot, 8, "total", { currencyCols: [3, 4, 5, 6, 7], leftCols: [1, 2, 8] }, 0, true);
+  }
+
+  ws2.addRow([]);
+  addSectionTitle(ws2, 8, "SECTION B: ITEMIZED SETTLEMENT CHECKLIST (PAID / RESERVED / UNPAID)");
+  addTableHeaders(
+    ws2,
+    ["Period", "Due Date", "Category", "Platform", "Item Title", "Slice", "Amount (Rp)", "State"],
+    [7]
+  );
+  const liStart = ws2.lastRow!.number + 1;
+  let liIdx = 0;
+  let liSum = 0;
+  for (const li of report.liabilityLineItems ?? []) {
+    liSum += li.monthlyAmount;
+    const tone: Tone =
+      li.settlementState === "PAID"
+        ? "emerald"
+        : li.settlementState === "RESERVED"
+          ? "amber"
+          : "zebra";
+    const row = ws2.addRow([
+      li.periodLabel,
+      li.dueDateIso,
+      li.category,
+      li.merchantOrPlatform,
+      li.title,
+      `${li.installmentIndex}/${li.tenorMonths}`,
+      li.monthlyAmount,
+      li.settlementState,
+    ]);
+    styleDataRow(row, 8, tone, { currencyCols: [7], leftCols: [1, 2, 3, 4, 5], centerCols: [6, 8] }, liIdx++);
+  }
+  for (const cc of report.creditCardScheduleItems ?? []) {
+    liSum += cc.amount;
+    const tone: Tone =
+      cc.settlementState === "PAID"
+        ? "emerald"
+        : cc.settlementState === "RESERVED"
+          ? "amber"
+          : "zebra";
+    const row = ws2.addRow([
+      cc.periodLabel,
+      cc.dueDateIso,
+      "CREDIT_CARD",
+      cc.chargeType,
+      cc.label,
+      cc.sliceBadge ?? "1/1",
+      cc.amount,
+      cc.settlementState,
+    ]);
+    styleDataRow(row, 8, tone, { currencyCols: [7], leftCols: [1, 2, 3, 4, 5], centerCols: [6, 8] }, liIdx++);
+  }
+  const liEnd = ws2.lastRow!.number;
+  if (liIdx > 0) {
+    const liTot = ws2.addRow([
+      "TOTAL",
+      "-",
+      `${liIdx} items`,
+      "-",
+      "All itemized liabilities & card obligations",
+      "-",
+      { formula: `SUM(G${liStart}:G${liEnd})`, result: liSum },
+      "-",
+    ]);
+    styleDataRow(liTot, 8, "total", { currencyCols: [7], leftCols: [1, 2, 3, 4, 5], centerCols: [6, 8] }, 0, true);
+  }
+  autoFitColumns(ws2, 12, 42);
+
+  // -------------------------------------------------------------------------
+  // Sheet 3: Active Contracts Burn-Down
+  // -------------------------------------------------------------------------
+  const ws3 = wb.addWorksheet("Active Contracts Burn-Down");
+  addBanner(
+    ws3,
+    8,
+    "Active Contracts & Installments Burn-Down",
+    `Active Plans: ${(report.activeContractsSummary ?? []).length} | Next Milestone: ${horizon?.nextMilestoneLabel ?? "N/A"}`
+  );
+  addSectionTitle(ws3, 8, "SECTION A: ACTIVE MULTI-MONTH CONTRACTS & INSTALLMENT LANES");
+  addTableHeaders(
+    ws3,
+    ["Contract / Plan Title", "Category", "Platform", "Tenor", "Total Principal", "Monthly Slice", "Remaining Principal", "Payoff Horizon"],
+    [5, 6, 7]
+  );
+
+  const contracts = report.activeContractsSummary ?? [];
+  const acStart = ws3.lastRow!.number + 1;
+  contracts.forEach((c, idx) => {
+    const row = ws3.addRow([
+      c.title,
+      c.category,
+      c.merchantOrPlatform,
+      `${c.totalTenor} mo`,
+      c.principalAmount,
+      c.monthlyInstallment,
+      c.remainingPrincipal,
+      c.payoffDateLabel,
+    ]);
+    styleDataRow(row, 8, "zebra", { currencyCols: [5, 6, 7], leftCols: [1, 2, 3, 8], centerCols: [4] }, idx);
+  });
+  const acEnd = ws3.lastRow!.number;
+  if (contracts.length > 0) {
+    const acTot = ws3.addRow([
+      "TOTAL COMMITMENTS",
+      "-",
+      `${contracts.length} active`,
+      "-",
+      { formula: `SUM(E${acStart}:E${acEnd})`, result: contracts.reduce((s, c) => s + c.principalAmount, 0) },
+      { formula: `SUM(F${acStart}:F${acEnd})`, result: contracts.reduce((s, c) => s + c.monthlyInstallment, 0) },
+      { formula: `SUM(G${acStart}:G${acEnd})`, result: contracts.reduce((s, c) => s + c.remainingPrincipal, 0) },
+      "-",
+    ]);
+    styleDataRow(acTot, 8, "total", { currencyCols: [5, 6, 7], leftCols: [1, 2, 3, 8] }, 0, true);
+  }
+
+  ws3.addRow([]);
+  addSectionTitle(ws3, 8, "SECTION B: CASHFLOW FREED UP MILESTONES");
+  addTableHeaders(
+    ws3,
+    ["Freed Period", "Contracts Completed", "Monthly Cashflow Freed", "Cumulative Freed (/mo)", "", "", "", ""],
+    [3, 4]
+  );
+  (horizon?.freedUpMilestones ?? []).forEach((m, idx) => {
+    const row = ws3.addRow([
+      m.periodLabel,
+      m.endingContracts.join(", "),
+      m.freedMonthlyRp,
+      m.cumulativeFreedRp,
+    ]);
+    styleDataRow(row, 8, "emerald", { currencyCols: [3, 4], leftCols: [1, 2] }, idx);
+  });
+  autoFitColumns(ws3, 12, 42);
+
+  // -------------------------------------------------------------------------
+  // Sheet 4: Line-Item Audit Ledger
+  // -------------------------------------------------------------------------
+  const ws4 = wb.addWorksheet("Line-Item Audit Ledger");
+  addBanner(
+    ws4,
+    5,
+    `Line-Item Audit Ledger — ${cs.periodLabel}`,
+    `Discipline Score: ${cs.governance.disciplineScore}/100 | Revisions: ${dos.revisions.length} | Logs: ${dos.recentGovernanceLogs.length}`
+  );
+  addTableHeaders(ws4, ["Date / Timestamp", "Label / Description", "Category / Kind", "Signed Amount (Rp)", "Notes / Context"], [4]);
+
+  const txStart = ws4.lastRow!.number + 1;
+  let lIdx = 0;
+  let txNet = 0;
+  for (const inc of cs.payroll.incomeTransactions) {
+    txNet += inc.amount;
+    const row = ws4.addRow([inc.date.slice(0, 10), inc.label, "INCOME", inc.amount, "Cash Inflow"]);
+    styleDataRow(row, 5, "emerald", { currencyCols: [4], leftCols: [1, 2, 3, 5] }, lIdx++);
+  }
+  for (const cc of mc.itemizedCreditCardCharges) {
+    txNet -= cc.dueAmount;
+    const row = ws4.addRow([
+      cc.transactionDate.slice(0, 10),
+      cc.label,
+      cc.sliceBadge ? `${cc.chargeTypeLabel} (${cc.sliceBadge})` : cc.chargeTypeLabel,
+      -cc.dueAmount,
+      `Remaining Principal: Rp ${Math.round(cc.remainingPrincipalAfterPeriod).toLocaleString("id-ID")}`,
+    ]);
+    styleDataRow(row, 5, "zebra", { currencyCols: [4], leftCols: [1, 2, 3, 5] }, lIdx++);
+  }
+  for (const exp of mc.dailyLiving.itemizedDailyExpenses) {
+    txNet -= exp.signedAmount;
+    const row = ws4.addRow([
+      exp.date.slice(0, 10),
+      exp.label,
+      exp.fixedEssentialCategoryLabel || exp.kindLabel,
+      -exp.signedAmount,
+      exp.kind,
+    ]);
+    styleDataRow(row, 5, "zebra", { currencyCols: [4], leftCols: [1, 2, 3, 5] }, lIdx++);
+  }
+  const txEnd = ws4.lastRow!.number;
+  if (lIdx > 0) {
+    const txTot = ws4.addRow([
+      "NET LEDGER FLOW",
+      `${lIdx} entries`,
+      "Selected Period",
+      { formula: `SUM(D${txStart}:D${txEnd})`, result: txNet },
+      "Income minus itemized outflow",
+    ]);
+    styleDataRow(txTot, 5, "total", { currencyCols: [4], leftCols: [1, 2, 3, 5] }, 0, true);
+  }
+
+  ws4.addRow([]);
+  addSectionTitle(ws4, 5, "REVISIONS & GOVERNANCE AUDIT TRAIL");
+  addTableHeaders(ws4, ["Timestamp", "Action / Category", "Period / Severity", "Delta (Rp)", "Summary / Reason"], [4]);
+  let gIdx = 0;
+  for (const rev of dos.revisions) {
+    const row = ws4.addRow([
+      rev.createdAt.slice(0, 19).replace("T", " "),
+      `REVISION: ${rev.categoryLabel}`,
+      rev.periodLabel,
+      rev.difference,
+      `${rev.reason} (Rp ${Math.round(rev.previousValue).toLocaleString("id-ID")} -> Rp ${Math.round(rev.newValue).toLocaleString("id-ID")})`,
+    ]);
+    styleDataRow(row, 5, "zebra", { currencyCols: [4], leftCols: [1, 2, 3, 5] }, gIdx++);
+  }
+  for (const log of dos.recentGovernanceLogs) {
+    const row = ws4.addRow([
+      log.createdAt.slice(0, 19).replace("T", " "),
+      log.actionLabel,
+      log.severity,
+      0,
+      log.summary,
+    ]);
+    styleDataRow(row, 5, "zebra", { currencyCols: [4], leftCols: [1, 2, 3, 5] }, gIdx++);
+  }
+  autoFitColumns(ws4, 12, 46);
 
   return wb;
 }
 
-export function exportExecutiveReportToExcel(
+export async function exportExecutiveReportToExcel(
   report: ExecutiveReportPayload,
   profileMode: "SUPERADMIN_BESPOKE" | "STANDARD_GENERAL" = "SUPERADMIN_BESPOKE"
 ) {
-  const wb = buildExecutiveReportWorkbook(report, profileMode);
+  const wb = await buildExecutiveReportWorkbook(report, profileMode);
   const mm = String(report.selectedMonth).padStart(2, "0");
   const fileName = `SundayFunday_ERP_Report_${report.selectedYear}_${mm}.xlsx`;
-  XLSX.writeFile(wb, fileName);
+
+  const buffer = await wb.xlsx.writeBuffer();
+  if (typeof window !== "undefined") {
+    const blob = new Blob([buffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
 }

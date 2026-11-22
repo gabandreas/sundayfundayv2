@@ -292,14 +292,14 @@ export function PaydayWizardClient({
             </Link>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 text-xs">
-            <div className="p-3 rounded border border-border-subtle bg-surface-subtle/40">
+          <div className="grid grid-cols-2 divide-x divide-border-subtle border-y border-border-subtle py-2.5 text-xs">
+            <div className="pr-3">
               <div className="text-[10px] font-mono uppercase text-text-tertiary">Final Net Income</div>
               <div className="font-mono text-base font-semibold text-text-primary mt-1 tabular-nums">
                 {formatRp(snapshot?.finalTotalIncome ?? 0)}
               </div>
             </div>
-            <div className="p-3 rounded border border-border-subtle bg-surface-subtle/40">
+            <div className="pl-3">
               <div className="text-[10px] font-mono uppercase text-text-tertiary">Working Days &amp; Payout</div>
               <div className="font-mono text-base font-semibold text-text-primary mt-1 tabular-nums">
                 {snapshot?.totalWorkingDays ?? payroll?.totalWorkingDays ?? 0}d ·{" "}
@@ -351,14 +351,14 @@ export function PaydayWizardClient({
 
           {prevSnapshot ? (
             <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3 text-xs">
-                <div className="p-3 rounded border border-border-subtle bg-surface-subtle/40">
+              <div className="grid grid-cols-2 divide-x divide-border-subtle border-y border-border-subtle py-2.5 text-xs">
+                <div className="pr-3">
                   <div className="text-[10px] font-mono uppercase text-text-tertiary">{prevLabel} Funded P1</div>
                   <div className="font-mono text-sm font-semibold text-delta-positive mt-1 tabular-nums">
                     {formatRp(prevSnapshot.actualSavings ?? 0)}
                   </div>
                 </div>
-                <div className="p-3 rounded border border-border-subtle bg-surface-subtle/40">
+                <div className="pl-3">
                   <div className="text-[10px] font-mono uppercase text-text-tertiary">{prevLabel} Living Pool</div>
                   <div className="font-mono text-sm font-semibold text-text-primary mt-1 tabular-nums">
                     {formatRp(prevSnapshot.actualDailyOperational ?? 0)}
@@ -490,8 +490,8 @@ export function PaydayWizardClient({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-            <div className="p-4 rounded border border-border-subtle bg-surface-subtle/40">
+          <div className="grid grid-cols-1 md:grid-cols-12 divide-y md:divide-y-0 md:divide-x divide-border-subtle border-y border-border-subtle py-3 text-xs">
+            <div className="md:col-span-5 md:pr-4 pb-3 md:pb-0">
               <div className="text-[10px] font-mono uppercase text-text-tertiary">
                 Funded Daily Living Pool
               </div>
@@ -505,11 +505,11 @@ export function PaydayWizardClient({
               )}
             </div>
 
-            <div className="p-4 rounded border border-border-subtle bg-surface-subtle/40">
+            <div className="md:col-span-3 md:px-4 py-3 md:py-0">
               <div className="text-[10px] font-mono uppercase text-text-tertiary">
                 Routine Envelopes Funded
               </div>
-              <div className="font-mono text-xl font-semibold text-text-primary mt-1 tabular-nums">
+              <div className="font-mono text-lg font-semibold text-text-primary mt-1 tabular-nums">
                 {formatRp(
                   (snapshot?.transport ?? 0) +
                     (snapshot?.internet ?? 0) +
@@ -522,12 +522,12 @@ export function PaydayWizardClient({
               </div>
             </div>
 
-            <div className="p-4 rounded border border-border-subtle bg-surface-subtle/40 flex flex-col justify-between">
+            <div className="md:col-span-4 md:pl-4 pt-3 md:pt-0 flex flex-col justify-between">
               <div>
                 <div className="text-[10px] font-mono uppercase text-text-tertiary">
                   Core Savings (P1) Transfer
                 </div>
-                <div className="font-mono text-xl font-semibold text-delta-positive mt-1 tabular-nums">
+                <div className="font-mono text-lg font-semibold text-delta-positive mt-1 tabular-nums">
                   {formatRp(plannedP1Savings)}
                 </div>
               </div>

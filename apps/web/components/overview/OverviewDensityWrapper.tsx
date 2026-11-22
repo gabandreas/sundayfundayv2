@@ -51,7 +51,7 @@ export function OverviewDensityWrapper({
 
   return (
     <section className="space-y-6">
-      <div className="flex items-center justify-between bg-surface border border-border rounded-md px-5 py-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-surface border border-border rounded-md px-4 sm:px-5 py-4">
         <div>
           <h2 className="text-lg font-semibold text-text-primary">
             Simple Clarity Overview
@@ -60,7 +60,7 @@ export function OverviewDensityWrapper({
             High-contrast essential numbers with enlarged typography ({formulaEngineType.replace(/_/g, " ")}).
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <Link
             href="/preferences?tab=modules"
             className="px-4 py-2 text-sm font-medium rounded border border-border bg-surface-subtle text-text-primary hover:bg-surface transition-colors"
@@ -78,7 +78,7 @@ export function OverviewDensityWrapper({
       </div>
 
       {/* 4 High-Contrast Senior / Minimalist Cards */}
-      <div className="grid grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
         {/* Card 1: Monthly Income & Pension */}
         <div className="bg-surface border border-border rounded-md p-6 flex flex-col justify-between">
           <div>
