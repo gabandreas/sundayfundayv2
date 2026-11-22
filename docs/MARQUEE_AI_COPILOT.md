@@ -10,12 +10,12 @@ Large language models must **never** invent Rupiah balances, Debt Service Ratios
 1. **`MarqueeContextHydrator` (`apps/api/src/marquee/marquee-context.service.ts`)** hydrates the authenticated user's live, `userId`-isolated state:
    - Active paycycle & temporal state (`PRE_PAYDAY` / `ACTIVE` / `COMPLETED`, days until payday, two-stage payday law: `25th attendance & payslip cutoff + H+2 working days transfer`),
    - Multi-cycle snapshots (`10/2026..03/2027` income, total debt, funded living pool, uncovered shortfall, P1 Core Vault, P2 buffer under the Consumption & Bill-Maturity Month convention where period `M` covers `Payday(M-1)` through `Day before Payday(M)` and pays Month `M` bills),
-   - Due-day calendar (`[8, 11, 17, 23, 24, 25]` and cutoff rules: SPayLater `24th -> 8th`, Credit Card `27th -> 25th`),
+   - Due-day calendar (`[11, 17, 23, 24, 25]` with H-1 business-day weekend shifts on the 11th when on Sat/Sun; dynamic SPayLater cutoff `daysInMonth - 15 -> 25th`, Permata Credit Card cutoff `25th -> 11th H-1`),
    - Installment payoff milestones (`JAN '27` SPinjam #1 retires, `FEB '27` 11.11 3x plans and SPinjam #2/#3 finish, `MAR '27` SPinjam reaches `Rp 0`, `SEP '27` final 12x card & 48/48 Mandiri KSM installments mature),
-   - Proactive reminders (`proactiveReminders`: upcoming SPayLater 24th cutoff, CC 27th cutoff, Nov 27 payday transition, and daily safe-to-spend allowance),
+   - Proactive reminders (`proactiveReminders`: upcoming SPayLater dynamic `15th`/`16th` cutoff, Permata CC `25th` cutoff, next payday transition, and daily safe-to-spend allowance),
    - Active UI route & sub-tab context (`activeRoute`, `activeSubTab`, `locale`).
-2. User intent is resolved either by **Tier 1** (deterministic in-process trilingual NLU in `<5ms`) or **Tier 2** (encrypted BYOK tool-calling via **OpenCode Zen** `https://opencode.ai/zen/v1` / `deepseek-v4.1-flash-free`, **DeepSeek** `deepseek-chat` / `deepseek-reasoner`, **Google Gemini** `gemini-3.8-flash` via `@google/genai`, or **Groq** `llama-3.3-70b-versatile`).
-3. Reasoning blocks (`<think>...</think>`) emitted by reasoning models are automatically stripped from the visible answer via `stripReasoningBlocks` and rendered inside a collapsible `<details>` block (`Show reasoning notes`), while HTTP `400`/`422` tool-Unsupported endpoints automatically retry in JSON-intent mode and `sk-...` keys automatically bridge to DeepSeek API on `401`.
+2. User intent is resolved via **Tier 2** live conversational + two-turn tool-calling LLM (`deepseek-flash` / DeepSeek V4.1 Flash primary via `api.deepseek.com` with `sk-...` auto-bridge, **OpenCode Zen** `deepseek-v4.1-flash-free`, **Google Gemini** `gemini-3.8-flash`, or **Groq** `llama-3.3-70b-versatile`) with automatic graceful **Tier 1** (`<5ms` trilingual NLU) offline fallback when no LLM key is configured or unreachable. Casual conversational prompts (`tool: null`, e.g., `"hi"`) respond naturally without forcing heavy ledger dumps.
+3. Reasoning blocks (`<think>...</think>`) and emojis emitted by reasoning models are automatically stripped from the visible answer (`stripReasoningBlocks`), while developer trace tags (`TIER1_NLU`, raw tool names) are never surfaced in consumer chat chrome. Responses render clean GitHub-style Markdown (headings, lists, bold figures, inline code, tables).
 4. The resolved intent executes one of **8 canonical deterministic tools** in `MarqueeToolsService`, returning exact figures and human-written explanations obeying the 6 Human Writing Laws.
 
 ---
@@ -29,8 +29,8 @@ Large language models must **never** invent Rupiah balances, Debt Service Ratios
 
 ### Tier 2 — Encrypted BYOK LLM Tool-Calling (`marquee-llm.service.ts`)
 Configured per user at `/preferences?sub=ai` (or via environment variables `DEEPSEEK_API_KEY`, `OPENCODE_API_KEY`, `GEMINI_API_KEY`, `GROQ_API_KEY`):
-- **DeepSeek (`DEEPSEEK`):** OpenAI-compatible function calling via `https://api.deepseek.com/v1/chat/completions` supporting both `deepseek-chat` (DeepSeek-V3) and `deepseek-reasoner` (DeepSeek-R1).
-- **OpenCode (`OPENCODE`):** OpenCode Zen / OpenAI-compatible function calling via configurable `opencodeBaseUrl` (default `https://api.opencode.ai/v1`) and `opencodeModel` (default `opencode-chat`).
+- **DeepSeek (`DEEPSEEK`):** OpenAI-compatible function calling via `https://api.deepseek.com/v1/chat/completions` supporting **`deepseek-flash`** (DeepSeek V4.1 Flash, default), `deepseek-chat` (DeepSeek-V3), and `deepseek-reasoner` (DeepSeek-R1), with two-turn `synthesizeToolResult` natural synthesis and conversational `tool: null` handling.
+- **OpenCode (`OPENCODE`):** OpenCode Zen / OpenAI-compatible function calling via configurable `opencodeBaseUrl` (default `https://opencode.ai/zen/v1`) and `opencodeModel` (default `deepseek-v4.1-flash-free`), auto-bridging `sk-...` DeepSeek keys cleanly.
 - **Google Gemini (`GEMINI`):** Uses `@google/genai` (`new GoogleGenAI({ apiKey })`) and `ai.interactions.create({ model: 'gemini-3.8-flash', input, tools })`.
 - **Groq (`GROQ`):** Uses `llama-3.3-70b-versatile` tool calling via `https://api.groq.com/openai/v1/chat/completions`.
 - **Auto Cascade (`AUTO`):** Tries configured providers in order (`DEEPSEEK -> OPENCODE -> GEMINI -> GROQ -> TIER1_ONLY`).
@@ -46,7 +46,7 @@ Configured per user at `/preferences?sub=ai` (or via environment variables `DEEP
 | Canonical Tool Name | Legacy Alias(es) | Authoritative Service / Selector | Behavior |
 | :--- | :--- | :--- | :--- |
 | `get_paycycle_pulse` | `get_financial_pulse` | `SnapshotsSelectors.getDefaultActivePeriod`, `FinanceSelectors.getPacing` | Read-only 3-state pacing (`PRE_PAYDAY` / `ACTIVE` / `COMPLETED`), safe-to-spend today, funded living pool, and shortfall. |
-| `simulate_purchase_cutoff` | `evaluate_affordability` | `FinanceSelectors.simulateCutoffForUser` | Simulates SPayLater (15th cutoff -> 25th due) or Card (20th cutoff -> 11th due) landing cycle and post-purchase DSR verdict. |
+| `simulate_purchase_cutoff` | `evaluate_affordability` | `FinanceSelectors.simulateCutoffForUser` | Simulates SPayLater (dynamic `daysInMonth - 15` cutoff -> 25th due) or Permata Card (25th cutoff -> 11th H-1 business-day due) landing cycle and post-purchase DSR verdict for an optional `purchaseDate`. |
 | `optimize_payday_thr_split` | — | `SnapshotsSelectors.getOrCreateDraftSnapshot` | Recommends deterministic split of a THR/holiday bonus across shortfall cover, P1 Core Vault, debt prepayment, and holiday living buffer. |
 | `analyze_debt_burndown` | `get_debt_burndown`, `simulate_debt_payoff` | `FinanceSelectors.getContractsBurndown`, `FinanceSelectors.getIntelligenceBundle` | Summarizes active installment plans, remaining principal, Snowball/Avalanche prepayment impact, and `JAN '27` / `FEB '27` / `SEP '27` milestones. |
 | `evaluate_custom_formula` | — | `SnapshotsSelectors.getOrCreateDraftSnapshot`, `FinanceSelectors.getPacing` | Evaluates custom arithmetic formulas over live cycle variables (`net_income`, `total_debt`, `living_pool`, `shortfall`, `p1_savings`, `p2_buffer`, `daily_rate`). |

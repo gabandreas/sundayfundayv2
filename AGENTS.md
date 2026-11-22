@@ -151,6 +151,7 @@ Read `.agent/skills/test-driven-development/SKILL.md` and `docs/TDD_AND_ERROR_CA
   2. `cd apps/api && npx jest --no-cache` — NestJS API calculators, guards, crypto, Marquee AI tools, and Go-TS parity specs.
   3. `npx tsx scripts/verify-zero-defect-erp.ts` & `npx tsx scripts/erp-bug-bounty.ts [--live]` — Neon Cloud User #1 read-only Golden Baseline + Demo Sandbox (`userId = 2`) mutation conservation & IDOR isolation.
   4. `npx tsx scripts/erp-ux-flow-e2e.ts [--live]`, `npx tsx scripts/erp-pentest.ts [--live]`, `npx tsx scripts/erp-email-e2e.ts [--live]` — Headless DOM flows (`EN`/`ID`/`ZH`), security hardening, and SMTP workflows.
+  5. **Layer 5 Visual Browser QA (Mandatory on UI/Production changes):** Subagent screenshot audit across `/`, `/calendar`, `/credit`, `/payday-wizard`, and Marquee drawer inspecting rendered dark-slate border contrast, zero dev-trace leakage, and exact ledger numbers via `read_file`.
 
 ---
 

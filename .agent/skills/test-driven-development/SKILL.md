@@ -92,4 +92,5 @@ Before committing or claiming work complete:
 - [ ] Watched every new test fail for the expected reason before editing production code.
 - [ ] Wrote minimal production code to pass (`GREEN`).
 - [ ] Full project test suites pass (`npm run erp:go:test`, `npx jest --no-cache`, integration harnesses) with zero skipped assertions.
+- [ ] For UI or production changes, Layer 5 Visual Browser QA verified rendered screenshots with zero visual/border regressions or dev-trace leakage.
 - [ ] Cleaned up duplication during `REFACTOR` while staying green.

@@ -33,7 +33,7 @@ Quantitative analysis, cutoff simulation, waterfall projection, debt payoff comp
 
 ### Legacy / Core Hybrid Packages
 - `cutoff` (`SimulateCutoff`, `ComputeSlices`) — Lossless installment splitting and `waitPastCutoff` purchase timing simulation.
-- `timeline` (`SimulateTimeline`, `EvaluateWalletGuard`) — Cashflow simulation including individual itemized December SPinjam due dates (`PersonalDebtItems`) and Wallet Balance Guard delta analysis.
+- `timeline` (`SimulateTimeline`, `EvaluateWalletGuard`, `BuildCashRadar` / `buildCashRadarTs`) — Cashflow simulation including individual itemized December SPinjam due dates (`PersonalDebtItems`), Wallet Balance Guard delta analysis, and payday-to-payday Cash Radar calendar events with dynamic cutoffs, `H-1` business-day shifts, and **Lowest Cash Point** trough detection (`GET /api/finance/cash-radar`).
 - `report` (`BuildExecutiveHorizon`) — Multi-month executive horizon aggregation.
 - `doctor` (`RunAudit`) — Zero-drift ledger verification across snapshot history.
 - `format` (`Rp`) — Shared integer Rupiah string formatter.

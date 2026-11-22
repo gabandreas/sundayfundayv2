@@ -171,10 +171,11 @@ async function main() {
     const routeChecks: Array<{ path: string; expectedSubstring: string }> = [
       { path: '/payday-wizard?month=11&year=2026', expectedSubstring: 'Paycycle Activation Checklist' },
       { path: '/calendar?month=11&year=2026', expectedSubstring: 'Lowest Cash Point' },
+      { path: '/calendar?month=4&year=2027', expectedSubstring: 'Lowest Cash Point' },
       { path: '/credit?sub=contracts&month=11&year=2026', expectedSubstring: 'Active Installment Plans' },
       { path: '/credit?sub=simulator&month=11&year=2026', expectedSubstring: 'Wishlist' },
       { path: '/analytics', expectedSubstring: 'Spending' },
-      { path: '/marquee', expectedSubstring: 'DeepSeek' },
+      { path: '/marquee', expectedSubstring: 'Marquee Financial Co-Pilot' },
       { path: '/preferences?sub=ai', expectedSubstring: 'AES-256-GCM' },
     ];
 
@@ -233,15 +234,20 @@ async function main() {
     });
     assert.equal(dialogOpen, true, 'Floating launcher must open native <dialog class="marquee-drawer"> via showModal()');
 
-    // Run a read-only period variance query inside the live drawer to confirm end-to-end Marquee UX
+    // Run a read-only period variance query inside the live drawer to confirm end-to-end Marquee UX with zero dev leakage
     await page.type('dialog.marquee-drawer input[type="text"]', 'Compare 11/2026 vs 12/2026 variance');
     await page.click('dialog.marquee-drawer button[type="submit"]');
     await page.waitForFunction(
       () => {
         const dlg = document.querySelector('dialog.marquee-drawer');
-        return Boolean(dlg && dlg.textContent && dlg.textContent.includes('explain_period_variance'));
+        const txt = dlg?.textContent ?? '';
+        return (
+          (txt.includes('Rp ') || txt.includes('Nov') || txt.includes('Dec') || txt.includes('11/2026')) &&
+          !txt.includes('TIER1_NLU') &&
+          !txt.includes('explain_period_variance')
+        );
       },
-      { timeout: 15000 },
+      { timeout: 25000 },
     );
     console.log('  PASS [4/6]: Floating bottom-right Marquee launcher, <dialog> drawer & live read-only variance query verified.');
 

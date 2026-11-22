@@ -6,19 +6,21 @@ Authoritative accounting and cutoff specifications for Sunday Funday ERP.
 
 - Period `M/YYYY` (e.g., `11/2026` / `NOV '26`) is funded by the late-`M-1` paycheck (`Payday(M-1)`, e.g., `28 Oct` for `11/2026`) and spans until the day before period `M+1`'s `payrollPayoutDate` (`Day before Payday(M)`, e.g., `26 Nov` for `11/2026`).
 - Consequently, period `M` cashflow pays bills falling due directly in calendar month **`M`** (`maturityMonth === periodMonth`, `dueMonth === periodMonth`):
-  - `OCT '26` (`10/2026`, `28 Sep - 27 Oct 2026`): Pays October due dates (`8, 11, 25 Oct`).
-  - `NOV '26` (`11/2026`, `28 Oct - 26 Nov 2026`, `ACTIVE` on 22 Nov 2026 at Day 26 of 30): Pays November due dates (`8, 11, 25 Nov`).
-  - `DEC '26` (`12/2026`, `27 Nov - 27 Dec 2026`, `PRE_PAYDAY` on 22 Nov 2026 at Day 0 of 31): Pays December due dates (`8, 11, 17, 23, 24, 25 Dec`).
-  - `JAN '27` (`01/2027`, `28 Dec 2026 - 26 Jan 2027`, funded by Dec 28 payday + Natal THR): Pays January due dates (`8, 11, 17, 23, 24, 25 Jan`).
+  - `OCT '26` (`10/2026`, `28 Sep - 27 Oct 2026`): Pays October due dates (`11, 25 Oct`).
+  - `NOV '26` (`11/2026`, `28 Oct - 26 Nov 2026`, `ACTIVE` on 22 Nov 2026 at Day 26 of 30): Pays November due dates (`11, 25 Nov`).
+  - `DEC '26` (`12/2026`, `27 Nov - 27 Dec 2026`, `PRE_PAYDAY` on 22 Nov 2026 at Day 0 of 31): Pays December due dates (`11, 17, 23, 24, 25 Dec`).
+  - `JAN '27` (`01/2027`, `28 Dec 2026 - 26 Jan 2027`, funded by Dec 28 payday + Natal THR): Pays January due dates (`11, 17, 23, 24, 25 Jan`).
+  - `FEB '27 – SEP '27` (`02/2027..09/2027`): Post-2026 horizon with `Rp 1.500.000/mo` baseline daily ops; `FEB '27` retires `11.11` & `SPinjam #2/#3` (`3/3`), `04/2027` shifts Sunday Apr 11 Permata CC due date H-1 to `2027-04-09`, and `09/2027` retires `48/48` Mandiri KSM (`Rp 293.044`).
 
 ## 2. Cutoff Routing Rules
 
-- **SPayLater (Due 8th, Cutoff 24th):**
-  - Order completed on `day <= cutoff` (and `holdPastCutoff = false`) bills in the **next billing period `purchaseMonth + 1`** (due in `purchaseMonth + 1`).
+- **SPayLater (Due 25th, Dynamic Cutoff `daysInMonth - 15` — 15th in 30-day months, 16th in 31-day months):**
+  - Order completed on `day <= cutoff` (and `holdPastCutoff = false`) bills in the **next billing period `purchaseMonth + 1`** (due on the 25th of `purchaseMonth + 1`, e.g., Oct 2026 purchases `<= 16 Oct` due `25 Nov 2026`).
   - Order completed on `day > cutoff` OR held past cutoff (`holdPastCutoff = true`) defers to **`purchaseMonth + 2`**.
   - Splitting a partial payment in `MatrixCellDrawer` cleanly divides a single `LiabilityLineItem` across the cutoff boundary.
-- **Credit Card (Due 25th, Cutoff 27th):**
-  - Transactions dated `<= cutoff` land in billing period `purchaseMonth + 1`; transactions `> cutoff` roll into `purchaseMonth + 2`.
+- **Permata Credit Card (Due 11th + H-1 Business-Day Shift, Fixed Statement Cutoff 25th):**
+  - Transactions dated `<= 25th` land in billing period `purchaseMonth + 1` (due on the 11th of `purchaseMonth + 1`, shifted **H-1 business day earlier** to Friday if the 11th falls on Sat/Sun — e.g., Sunday `2027-04-11` -> Friday `2027-04-09`).
+  - Transactions dated `> 25th` (`26th`–end of month, including Nov 26–30) close on the 25th of `purchaseMonth + 1` and fall due on the 11th of **`purchaseMonth + 2`** (`> 25 Nov` -> `11 Jan 2027`, cycle `01/2027`).
 - **Personal & Informal Debt (`SPinjam`, Peer, P1 Vault Refunds):**
   - Scheduled explicitly per repayment due cycle (`M`). Early full payoff (`accelerateBridgeLoan`) consolidates all remaining unsettled slices of a `parentContractId` into a chosen target month and triggers recalculation.
 
