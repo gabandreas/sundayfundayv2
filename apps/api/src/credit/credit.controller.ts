@@ -11,9 +11,11 @@ import {
   ParseIntPipe,
   BadRequestException,
   Req,
+  UseInterceptors,
 } from '@nestjs/common';
 import { CreditService } from './credit.service';
 import { CreditSelectors } from './credit.selectors';
+import { IdempotencyInterceptor } from '../common/idempotency/idempotency.interceptor';
 import { CreateCreditContractDto } from './dto/create-credit-contract.dto';
 import { UpdateCreditContractDto } from './dto/update-credit-contract.dto';
 import { CreateCreditCardTransactionDto } from './dto/create-credit-card-transaction.dto';
@@ -390,6 +392,7 @@ export class CreditController {
   }
 
   @Patch('line-items/:id/settle')
+  @UseInterceptors(IdempotencyInterceptor)
   async toggleLineItemSettled(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: SettleLineItemDto,
@@ -411,6 +414,7 @@ export class CreditController {
   }
 
   @Patch('line-items/:id/settlement-state')
+  @UseInterceptors(IdempotencyInterceptor)
   async updateLineItemSettlementState(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: SettleLineItemDto,

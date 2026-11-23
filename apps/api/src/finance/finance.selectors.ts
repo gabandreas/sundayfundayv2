@@ -48,6 +48,7 @@ import { resolveStudioConfig } from '../config/studio.defaults';
 import { computePaycycleHorizonTs } from '../calculator/erp-engines';
 import { evaluateModularPayroll } from '../calculator/modular-engine';
 import { SimulateScenarioDto } from './dto/hybrid-finance.dto';
+import { listConfiguredSsoProviders } from '../auth/sso.service';
 
 export type EnrichedPacingResult = PacingResult & {
   fixedEssentialsRealization: FixedEssentialsRealizationSummary;
@@ -2164,6 +2165,184 @@ export class FinanceSelectors {
         baselineForecast.pureSurvivalRunwayDays,
       series,
       debtStrategies: debtStrategies?.strategies ?? [],
+    };
+  }
+
+  /**
+   * Read-only consolidated boot payload for native mobile clients (Android, Huawei, iOS).
+   * Calls existing authoritative selectors strictly without duplicating calculation formulas.
+   */
+  async getMobileBoot(
+    userId: number = 1,
+    requestedMonth?: number,
+    requestedYear?: number,
+  ) {
+    const resolvedDefault = await this.snapshotsSelectors.getDefaultActivePeriod(userId);
+    const month =
+      requestedMonth && requestedMonth >= 1 && requestedMonth <= 12
+        ? requestedMonth
+        : resolvedDefault.month;
+    const year =
+      requestedYear && requestedYear >= 2020 ? requestedYear : resolvedDefault.year;
+
+    const [
+      userRow,
+      config,
+      snapshotRow,
+      pacing,
+      walletGuard,
+      cashRadar,
+      lineItems,
+      biometricDevicesCount,
+    ] = await Promise.all([
+      this.prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          accountName: true,
+          username: true,
+          email: true,
+          fullName: true,
+          role: true,
+          status: true,
+          blueprintType: true,
+          lifeStagePreset: true,
+          uiDensityMode: true,
+          securityPinHash: true,
+          ipWhitelistEnforced: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      }),
+      (async () =>
+        (await this.prisma.globalConfig.findFirst({ where: { userId } })) ||
+        (await this.prisma.globalConfig.findFirst({ where: { userId: 1 } })))(),
+      this.prisma.monthlySnapshot.findUnique({
+        where: { userId_month_year: { userId, month, year } },
+      }),
+      this.getPacing(month, year, undefined, undefined, userId),
+      this.getWalletGuardStatus(month, year, userId),
+      this.getCashRadarProjection(month, year, userId),
+      this.creditSelectors
+        ? this.creditSelectors.listLineItems(month, year, undefined, userId)
+        : Promise.resolve([]),
+      typeof (this.prisma as any)?.mobileDevice?.count === 'function'
+        ? (this.prisma as any).mobileDevice.count({
+            where: { userId, biometricEnabled: true, revokedAt: null },
+          })
+        : Promise.resolve(0),
+    ]);
+
+    const studioConfig = resolveStudioConfig(userId, config?.formulaParamsJson, config);
+    const routineBillsTotal = Math.round(
+      (snapshotRow?.transport ?? config?.transport ?? 0) +
+        (snapshotRow?.internet ?? config?.internet ?? 0) +
+        (snapshotRow?.vape ?? config?.vape ?? 0) +
+        (snapshotRow?.haircut ?? config?.haircut ?? 0),
+    );
+
+    const priorityTierMap = new Map(
+      (studioConfig.priorityTiers ?? []).map((t) => [t.key, t]),
+    );
+    const coreSavingsLabel =
+      priorityTierMap.get('SAVINGS')?.label || 'Core Savings Reserve';
+    const flexibleSurplusLabel =
+      priorityTierMap.get('DISCRETIONARY')?.label || 'Flexible Surplus';
+
+    const billsList = Array.isArray(lineItems) ? lineItems : [];
+    const unpaidItems = billsList.filter((item: any) => !item.isSettled);
+    const paidItems = billsList.filter((item: any) => Boolean(item.isSettled));
+
+    return {
+      period: {
+        month,
+        year,
+        status: snapshotRow?.status ?? 'DRAFT',
+        strategy: resolvedDefault.strategy,
+        skippedLockedPeriod: resolvedDefault.skippedLockedPeriod,
+      },
+      user: userRow
+        ? {
+            id: userRow.id,
+            accountName: userRow.accountName,
+            username: userRow.username,
+            email: userRow.email,
+            fullName: userRow.fullName,
+            role: userRow.role,
+            status: userRow.status,
+            blueprintType: userRow.blueprintType,
+            lifeStagePreset: userRow.lifeStagePreset,
+            uiDensityMode: userRow.uiDensityMode,
+            ipWhitelistEnforced: userRow.ipWhitelistEnforced,
+          }
+        : null,
+      pacing,
+      allocationSummary: {
+        finalTotalIncome: Math.round(snapshotRow?.finalTotalIncome ?? 0),
+        totalDeductions: Math.round(snapshotRow?.totalDeductions ?? 0),
+        routineBillsTotal,
+        dailyLivingTarget: Math.round(
+          snapshotRow?.dailyOperational ?? config?.dailyOperational ?? 0,
+        ),
+        dailyLivingFunded: Math.round(snapshotRow?.actualDailyOperational ?? 0),
+        coreSavingsTarget: Math.round(
+          snapshotRow?.savings ?? config?.baseSavings ?? 0,
+        ),
+        coreSavingsActual: Math.round(snapshotRow?.actualSavings ?? 0),
+        flexibleSurplusTarget: Math.round(snapshotRow?.selfRewardTarget ?? 0),
+        flexibleSurplusActual: Math.round(snapshotRow?.selfReward ?? 0),
+        deficitUncovered: Math.round(snapshotRow?.deficitUncovered ?? 0),
+        tiers: [
+          {
+            key: 'SAVINGS',
+            label: coreSavingsLabel,
+            targetRp: Math.round(snapshotRow?.savings ?? config?.baseSavings ?? 0),
+            actualRp: Math.round(snapshotRow?.actualSavings ?? 0),
+            enabled: priorityTierMap.get('SAVINGS')?.enabled ?? true,
+          },
+          {
+            key: 'DISCRETIONARY',
+            label: flexibleSurplusLabel,
+            targetRp: Math.round(snapshotRow?.selfRewardTarget ?? 0),
+            actualRp: Math.round(snapshotRow?.selfReward ?? 0),
+            enabled: priorityTierMap.get('DISCRETIONARY')?.enabled ?? true,
+          },
+        ],
+      },
+      walletGuard,
+      bills: {
+        totalCount: billsList.length,
+        unpaidCount: unpaidItems.length,
+        settledCount: paidItems.length,
+        items: billsList.slice(0, 40),
+      },
+      cashRadarSummary: {
+        lowestCashPointRp: cashRadar?.lowestCashPoint?.balanceRp ?? 0,
+        lowestCashDateIso: cashRadar?.lowestCashPoint?.dateIso ?? null,
+        lowestCashLabel: cashRadar?.lowestCashPoint?.contextLabel ?? null,
+        isTightOrDeficit: Boolean(cashRadar?.lowestCashPoint?.isTightOrDeficit),
+        endingCashBufferRp: cashRadar?.endingCashBufferRp ?? 0,
+        eventCount: Array.isArray(cashRadar?.events) ? cashRadar.events.length : 0,
+        upcomingEvents: Array.isArray(cashRadar?.events)
+          ? cashRadar.events.slice(0, 12)
+          : [],
+      },
+      displayPreferences: {
+        defaultLanguage: studioConfig.displayPreferences?.defaultLanguage ?? 'en',
+        numberFormat: studioConfig.displayPreferences?.numberFormat ?? 'id-ID',
+        maskBalancesByDefault:
+          studioConfig.privacyPreferences?.maskBalancesByDefault ?? false,
+        weekendWeightMultiplier:
+          studioConfig.paycycleFormulaConfig?.weekendWeightMultiplier ?? 1.5,
+      },
+      mobileCapabilities: {
+        hasSecurityPin: Boolean(userRow?.securityPinHash),
+        biometricDevicesCount: Number(biometricDevicesCount ?? 0),
+        ssoProviders: listConfiguredSsoProviders(),
+        offlineCacheTtlSeconds: 300,
+        apiContractVersion: '2026-11-v1',
+        serverTimeIso: new Date().toISOString(),
+      },
     };
   }
 }

@@ -9,8 +9,10 @@ import {
   Req,
   ParseIntPipe,
   BadRequestException,
+  UseInterceptors,
 } from '@nestjs/common';
 import { SnapshotsSelectors } from './snapshots.selectors';
+import { IdempotencyInterceptor } from '../common/idempotency/idempotency.interceptor';
 import { getUserIdOrThrow } from '../auth/auth.utils';
 import { SnapshotsService } from './snapshots.service';
 import { UpdateSnapshotDto } from './dto/update-snapshot.dto';
@@ -103,6 +105,7 @@ export class SnapshotsController {
   }
 
   @Post(':id/close')
+  @UseInterceptors(IdempotencyInterceptor)
   async close(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto?: ClosePeriodDto,
@@ -151,6 +154,7 @@ export class SnapshotsController {
   }
 
   @Post(':id/borrow-p1')
+  @UseInterceptors(IdempotencyInterceptor)
   async borrowFromP1Vault(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: BorrowFromP1Dto,

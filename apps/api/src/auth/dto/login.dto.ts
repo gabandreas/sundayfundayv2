@@ -1,4 +1,4 @@
-import { IsEmail, IsNotEmpty, IsOptional, IsString, IsBoolean } from 'class-validator';
+import { IsEmail, IsIn, IsNotEmpty, IsOptional, IsString, IsBoolean } from 'class-validator';
 
 export class LoginDto {
   @IsString()
@@ -28,5 +28,20 @@ export class LoginDto {
   @IsString()
   @IsOptional()
   ipLabel?: string;
-}
 
+  @IsString()
+  @IsOptional()
+  deviceId?: string;
+
+  @IsString()
+  @IsOptional()
+  deviceName?: string;
+
+  @IsIn(['IOS', 'ANDROID', 'HUAWEI_HARMONY', 'WEB'])
+  @IsOptional()
+  platform?: 'IOS' | 'ANDROID' | 'HUAWEI_HARMONY' | 'WEB';
+
+  @IsString()
+  @IsOptional()
+  appVersion?: string;
+}

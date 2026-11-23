@@ -1,3 +1,4 @@
+import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import { NestFactory } from '@nestjs/core';
@@ -45,7 +46,14 @@ export function applySecurityMiddleware(app: {
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
-  app.use((_req: Request, res: Response, next: NextFunction) => {
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    const incomingReqId = req.headers['x-request-id'];
+    const rawReqId = Array.isArray(incomingReqId) ? incomingReqId[0] : incomingReqId;
+    const reqId =
+      typeof rawReqId === 'string' && /^[A-Za-z0-9._-]{1,64}$/.test(rawReqId)
+        ? rawReqId
+        : crypto.randomUUID();
+    res.setHeader('X-Request-Id', reqId);
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
@@ -82,14 +90,24 @@ export function applySecurityMiddleware(app: {
       'X-Requested-With',
       'Accept',
       'Origin',
+      'idempotency-key',
+      'Idempotency-Key',
+      'x-device-id',
+      'X-Device-Id',
+      'x-device-platform',
+      'X-Device-Platform',
+      'x-app-version',
+      'X-App-Version',
       'x-user-id',
       'X-User-Id',
       'x-snapshot-id',
       'X-Snapshot-Id',
       'x-marquee-token',
       'X-Marquee-Token',
+      'x-request-id',
+      'X-Request-Id',
     ],
-    exposedHeaders: ['Authorization'],
+    exposedHeaders: ['Authorization', 'X-Idempotency-Replayed', 'X-Request-Id'],
   });
 }
 

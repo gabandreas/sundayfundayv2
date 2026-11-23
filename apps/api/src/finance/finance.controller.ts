@@ -12,10 +12,12 @@ import {
   Inject,
   forwardRef,
   Req,
+  UseInterceptors,
 } from '@nestjs/common';
 import { FinanceService } from './finance.service';
 import { FinanceSelectors } from './finance.selectors';
 import { CreditService } from '../credit/credit.service';
+import { IdempotencyInterceptor } from '../common/idempotency/idempotency.interceptor';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
 import {
@@ -43,6 +45,24 @@ export class FinanceController {
     private readonly creditService: CreditService,
   ) {}
 
+  @Get('mobile-boot')
+  async getMobileBoot(
+    @Query('month') monthStr?: string,
+    @Query('year') yearStr?: string,
+    @Req() req?: any,
+  ) {
+    const userId = getUserIdOrThrow(req);
+    const month = monthStr ? parseInt(monthStr, 10) : undefined;
+    const year = yearStr ? parseInt(yearStr, 10) : undefined;
+    if (month !== undefined && (Number.isNaN(month) || month < 1 || month > 12)) {
+      throw new BadRequestException('Valid month (1-12) is required');
+    }
+    if (year !== undefined && (Number.isNaN(year) || year < 2020)) {
+      throw new BadRequestException('Valid year (>= 2020) is required');
+    }
+    return this.financeSelectors.getMobileBoot(userId, month, year);
+  }
+
   @Get('transactions')
   async listTransactions(
     @Query('month') monthStr: string,
@@ -61,6 +81,7 @@ export class FinanceController {
   }
 
   @Post('transactions')
+  @UseInterceptors(IdempotencyInterceptor)
   async createTransaction(@Body() dto: CreateTransactionDto, @Req() req?: any) {
     const userId = getUserIdOrThrow(req);
     return this.financeService.createTransaction(dto, userId);
@@ -259,6 +280,7 @@ export class FinanceController {
   }
 
   @Post('wallet-guard')
+  @UseInterceptors(IdempotencyInterceptor)
   async evaluateWalletGuard(
     @Body() dto: WalletGuardEvaluateDto,
     @Req() req?: any,

@@ -10,7 +10,10 @@ export function getUserIdOrThrow(req: any): number {
   return userId;
 }
 
-const PEPPER_SECRET = process.env.PASSWORD_PEPPER || process.env.JWT_SECRET || 'SundayFunday2026ProductionSecretKey998877';
+const PEPPER_SECRET =
+  process.env.PASSWORD_PEPPER ||
+  process.env.JWT_SECRET ||
+  'SundayFunday2026ProductionSecretKey998877';
 
 function pepperPassword(password: string): string {
   return crypto.createHmac('sha256', PEPPER_SECRET).update(password).digest('hex');
@@ -23,11 +26,16 @@ export function isPasswordHashV2(storedHash: string | null | undefined): boolean
 export function hashPassword(password: string): string {
   const peppered = pepperPassword(password);
   const salt = crypto.randomBytes(16).toString('hex');
-  const derivedKey = crypto.scryptSync(peppered, salt, 64, { N: 16384, r: 8, p: 1 }).toString('hex');
+  const derivedKey = crypto
+    .scryptSync(peppered, salt, 64, { N: 16384, r: 8, p: 1 })
+    .toString('hex');
   return `scryptv2$${salt}$${derivedKey}`;
 }
 
-export function verifyPasswordWithStatus(password: string, storedHash: string): { isValid: boolean; needsUpgrade: boolean } {
+export function verifyPasswordWithStatus(
+  password: string,
+  storedHash: string,
+): { isValid: boolean; needsUpgrade: boolean } {
   if (!storedHash || !password) return { isValid: false, needsUpgrade: false };
 
   try {
@@ -40,7 +48,10 @@ export function verifyPasswordWithStatus(password: string, storedHash: string): 
       const peppered = pepperPassword(password);
       const derivedKey = crypto.scryptSync(peppered, salt, 64, { N: 16384, r: 8, p: 1 });
       const expectedKey = Buffer.from(expectedKeyHex, 'hex');
-      if (derivedKey.length === expectedKey.length && crypto.timingSafeEqual(derivedKey, expectedKey)) {
+      if (
+        derivedKey.length === expectedKey.length &&
+        crypto.timingSafeEqual(derivedKey, expectedKey)
+      ) {
         return { isValid: true, needsUpgrade: false };
       }
       return { isValid: false, needsUpgrade: false };
@@ -52,7 +63,10 @@ export function verifyPasswordWithStatus(password: string, storedHash: string): 
       if (salt && keyHex) {
         const derivedKey = crypto.scryptSync(password, salt, 64);
         const expectedKey = Buffer.from(keyHex, 'hex');
-        if (derivedKey.length === expectedKey.length && crypto.timingSafeEqual(derivedKey, expectedKey)) {
+        if (
+          derivedKey.length === expectedKey.length &&
+          crypto.timingSafeEqual(derivedKey, expectedKey)
+        ) {
           return { isValid: true, needsUpgrade: true };
         }
       }
@@ -78,10 +92,98 @@ export function verifyPin(pin: string, storedHash: string): boolean {
   return verifyPassword(pin, storedHash);
 }
 
+const WEAK_PIN_SET = new Set([
+  '000000',
+  '111111',
+  '222222',
+  '333333',
+  '444444',
+  '555555',
+  '666666',
+  '777777',
+  '888888',
+  '999999',
+  '123456',
+  '654321',
+  '012345',
+  '543210',
+  '112233',
+  '121212',
+  '123123',
+]);
+
+export function isWeakPin(pin: string): boolean {
+  if (!/^\d{6}$/.test(pin)) return true;
+  if (WEAK_PIN_SET.has(pin)) return true;
+  if (/^(\d)\1{5}$/.test(pin)) return true;
+  const sequentialUp = '01234567890';
+  const sequentialDown = '98765432109';
+  return sequentialUp.includes(pin) || sequentialDown.includes(pin);
+}
+
+export function hashOpaqueToken(rawToken: string): string {
+  return crypto.createHash('sha256').update(rawToken).digest('hex');
+}
+
+export function generateOpaqueRefreshToken(): { raw: string; hash: string } {
+  const raw = `sf_rt_${crypto.randomBytes(32).toString('hex')}`;
+  return { raw, hash: hashOpaqueToken(raw) };
+}
+
+export function normalizeAndValidatePublicKeyPem(
+  publicKeyPem: string,
+  expectedAlgorithm: 'ED25519' | 'ECDSA_P256' = 'ECDSA_P256',
+): { pem: string; keyAlgorithm: 'ED25519' | 'ECDSA_P256' } | null {
+  try {
+    const trimmed = (publicKeyPem || '').trim();
+    if (!trimmed.includes('BEGIN PUBLIC KEY')) return null;
+    const keyObj = crypto.createPublicKey(trimmed);
+    const keyType = keyObj.asymmetricKeyType;
+    if (expectedAlgorithm === 'ED25519') {
+      if (keyType !== 'ed25519') return null;
+      return {
+        pem: keyObj.export({ type: 'spki', format: 'pem' }).toString(),
+        keyAlgorithm: 'ED25519',
+      };
+    }
+    if (keyType === 'ec' && keyObj.asymmetricKeyDetails?.namedCurve === 'prime256v1') {
+      return {
+        pem: keyObj.export({ type: 'spki', format: 'pem' }).toString(),
+        keyAlgorithm: 'ECDSA_P256',
+      };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function verifyBiometricSignature(params: {
+  publicKeyPem: string;
+  keyAlgorithm: string;
+  payload: string;
+  signatureBase64: string;
+}): boolean {
+  try {
+    const keyObj = crypto.createPublicKey(params.publicKeyPem);
+    const sigBuf = Buffer.from(params.signatureBase64, 'base64');
+    if (sigBuf.length === 0) return false;
+    const dataBuf = Buffer.from(params.payload, 'utf8');
+    if (params.keyAlgorithm === 'ED25519') {
+      return crypto.verify(null, dataBuf, keyObj, sigBuf);
+    }
+    return crypto.verify('sha256', dataBuf, keyObj, sigBuf);
+  } catch {
+    return false;
+  }
+}
+
 const JWT_SECRET = process.env.JWT_SECRET || 'sunday-funday-secret-key-2026';
 
 export interface JwtPayload {
   sub: number;
+  jti?: string;
+  sid?: string;
   accountName?: string;
   username?: string;
   email: string;
@@ -93,11 +195,17 @@ export interface JwtPayload {
   exp?: number;
 }
 
-export function signToken(payload: Omit<JwtPayload, 'exp' | 'iat'>, expiresInSec: number = 1800): string {
+export function signToken(
+  payload: Omit<JwtPayload, 'exp' | 'iat'>,
+  expiresInSec: number = 1800,
+): string {
   const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
   const now = Math.floor(Date.now() / 1000);
   const exp = now + expiresInSec;
-  const body = Buffer.from(JSON.stringify({ ...payload, iat: now, exp })).toString('base64url');
+  const jti = payload.jti || crypto.randomBytes(12).toString('hex');
+  const body = Buffer.from(
+    JSON.stringify({ ...payload, jti, iat: now, exp }),
+  ).toString('base64url');
   const signature = crypto
     .createHmac('sha256', JWT_SECRET)
     .update(`${header}.${body}`)
@@ -157,24 +265,17 @@ export function extractClientIp(req: any): string {
   const headers = req.headers || {};
   let candidate: string | undefined;
 
-  // 1. cf-connecting-ip (Cloudflare)
   if (headers['cf-connecting-ip']) {
     const val = headers['cf-connecting-ip'];
     candidate = Array.isArray(val) ? val[0] : val;
-  }
-  // 2. first IP in x-forwarded-for (Standard proxies)
-  else if (headers['x-forwarded-for']) {
+  } else if (headers['x-forwarded-for']) {
     const val = headers['x-forwarded-for'];
     const str = Array.isArray(val) ? val[0] : val;
     candidate = str.split(',')[0]?.trim();
-  }
-  // 3. x-real-ip (Nginx)
-  else if (headers['x-real-ip']) {
+  } else if (headers['x-real-ip']) {
     const val = headers['x-real-ip'];
     candidate = Array.isArray(val) ? val[0] : val;
-  }
-  // 4. req.ip or req.socket.remoteAddress (Direct / local)
-  else if (req.ip) {
+  } else if (req.ip) {
     candidate = req.ip;
   } else if (req.socket?.remoteAddress) {
     candidate = req.socket.remoteAddress;
@@ -192,4 +293,3 @@ export function isLocalhost(ip: string | undefined): boolean {
     normalized === '0.0.0.0'
   );
 }
-

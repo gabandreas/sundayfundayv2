@@ -1,3 +1,4 @@
+import * as crypto from 'crypto';
 import {
   Injectable,
   OnModuleInit,
@@ -13,6 +14,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { RateLimiterService } from './rate-limiter.service';
 import { EmailService } from '../email/email.service';
 import { ConfigService } from '../config/config.service';
+import { SsoService } from './sso.service';
 import { isSyntheticProbeIdentifier } from '../email/smtp-transport.util';
 import {
   hashPassword,
@@ -21,6 +23,11 @@ import {
   isPasswordHashV2,
   hashPin,
   verifyPin,
+  isWeakPin,
+  hashOpaqueToken,
+  generateOpaqueRefreshToken,
+  normalizeAndValidatePublicKeyPem,
+  verifyBiometricSignature,
   signToken,
   verifyToken,
   normalizeIp,
@@ -30,6 +37,15 @@ import {
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import {
+  RefreshTokenDto,
+  SetupPinDto,
+  VerifyPinDto,
+  EnrollBiometricDto,
+  BiometricChallengeDto,
+  VerifyBiometricDto,
+  SsoExchangeDto,
+} from './dto/mobile-auth.dto';
 import {
   AuthenticatedUser,
   BlueprintType,
@@ -42,12 +58,142 @@ import {
 
 @Injectable()
 export class AuthService implements OnModuleInit {
+  private readonly REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+  private readonly BIOMETRIC_CHALLENGE_TTL_MS = 120 * 1000;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly rateLimiter: RateLimiterService,
     @Optional() private readonly emailService?: EmailService,
     @Optional() private readonly configService?: ConfigService,
+    @Optional() private readonly ssoService?: SsoService,
   ) {}
+
+  private hasMobileAuthStore(): boolean {
+    return typeof (this.prisma as any)?.refreshToken?.create === 'function';
+  }
+
+  private async recordSecurityAudit(params: {
+    userId: number;
+    action: string;
+    severity?: 'INFO' | 'WARNING' | 'DEFICIT' | 'ADJUSTMENT';
+    summary: string;
+    details?: Record<string, any>;
+  }) {
+    if (typeof (this.prisma as any)?.auditLog?.create !== 'function') return;
+    await (this.prisma as any).auditLog
+      .create({
+        data: {
+          userId: params.userId,
+          category: 'SETTINGS',
+          action: params.action,
+          severity: params.severity ?? 'INFO',
+          summary: params.summary,
+          details: params.details ? JSON.stringify(params.details) : undefined,
+        },
+      })
+      .catch(() => {});
+  }
+
+  private async issueSessionBundle(
+    user: any,
+    meta?: {
+      deviceId?: string;
+      deviceName?: string;
+      platform?: string;
+      appVersion?: string;
+      clientIp?: string;
+      familyId?: string;
+      rotatedFromId?: string;
+    },
+  ) {
+    let refreshToken: string | undefined;
+    let sessionId: string | undefined;
+
+    if (this.hasMobileAuthStore()) {
+      const platform = meta?.platform || (meta?.deviceId ? 'ANDROID' : 'WEB');
+      if (
+        meta?.deviceId &&
+        typeof (this.prisma as any)?.mobileDevice?.upsert === 'function'
+      ) {
+        await (this.prisma as any).mobileDevice.upsert({
+          where: {
+            userId_deviceId: { userId: user.id, deviceId: meta.deviceId },
+          },
+          create: {
+            userId: user.id,
+            deviceId: meta.deviceId,
+            deviceName: meta.deviceName || meta.deviceId,
+            platform,
+            appVersion: meta.appVersion,
+            biometricEnabled: false,
+            lastActiveAt: new Date(),
+          },
+          update: {
+            deviceName: meta.deviceName || undefined,
+            platform,
+            appVersion: meta.appVersion || undefined,
+            lastActiveAt: new Date(),
+            revokedAt: null,
+          },
+        });
+      }
+
+      const opaque = generateOpaqueRefreshToken();
+      const familyId = meta?.familyId || crypto.randomUUID();
+      const expiresAt = new Date(Date.now() + this.REFRESH_TTL_MS);
+
+      const created = await (this.prisma as any).refreshToken.create({
+        data: {
+          userId: user.id,
+          familyId,
+          tokenHash: opaque.hash,
+          deviceId: meta?.deviceId ?? null,
+          deviceName: meta?.deviceName ?? null,
+          platform,
+          clientIp: meta?.clientIp ?? null,
+          expiresAt,
+        },
+      });
+
+      if (meta?.rotatedFromId) {
+        await (this.prisma as any).refreshToken.update({
+          where: { id: meta.rotatedFromId },
+          data: {
+            revokedAt: new Date(),
+            revokeReason: 'ROTATED',
+            replacedById: created.id,
+          },
+        });
+      }
+
+      refreshToken = opaque.raw;
+      sessionId = created.id;
+    }
+
+    const accessToken = signToken(
+      {
+        sub: user.id,
+        sid: sessionId,
+        accountName: user.accountName || 'cheeseburger',
+        username: user.username || 'cheeseburger',
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+        blueprintType: user.blueprintType,
+      },
+      1800,
+    );
+
+    return {
+      accessToken,
+      ...(refreshToken ? { refreshToken } : {}),
+      ...(sessionId ? { sessionId } : {}),
+      expiresIn: 1800,
+      hasSecurityPin: Boolean(user.securityPinHash),
+      user: this.toAuthenticatedUser(user),
+    };
+  }
 
   private async checkRateLimit(rateLimitKey: string, clientIp: string): Promise<void> {
     if (typeof (this.rateLimiter as any).checkAsync === 'function') {
@@ -473,21 +619,13 @@ export class AuthService implements OnModuleInit {
     // Authentication succeeded: reset failed attempts counter for this key
     await this.recordRateLimitSuccess(rateLimitKey || user.email, clientIp);
 
-    const token = signToken({
-      sub: user.id,
-      accountName: user.accountName || 'cheeseburger',
-      username: user.username || 'cheeseburger',
-      email: user.email,
-      fullName: user.fullName,
-      role: user.role,
-      blueprintType: user.blueprintType,
-    }, 1800); // Strict 30-minute ERP session
-
-    return {
-      accessToken: token,
-      expiresIn: 1800,
-      user: this.toAuthenticatedUser(user),
-    };
+    return this.issueSessionBundle(user, {
+      deviceId: dto.deviceId,
+      deviceName: dto.deviceName,
+      platform: dto.platform,
+      appVersion: dto.appVersion,
+      clientIp: normalizedClientIp,
+    });
   }
 
   async demoLogin() {
@@ -522,21 +660,7 @@ export class AuthService implements OnModuleInit {
       throw new NotFoundException('Demo user not found.');
     }
 
-    const token = signToken({
-      sub: demoUser.id,
-      accountName: demoUser.accountName || 'demo',
-      username: demoUser.username || 'guest',
-      email: demoUser.email,
-      fullName: demoUser.fullName,
-      role: demoUser.role,
-      blueprintType: demoUser.blueprintType,
-    }, 1800);
-
-    return {
-      accessToken: token,
-      expiresIn: 1800,
-      user: this.toAuthenticatedUser(demoUser),
-    };
+    return this.issueSessionBundle(demoUser, { platform: 'WEB' });
   }
 
   async verifyPassword(userId: number, password: string, clientIp: string = '127.0.0.1') {
@@ -879,7 +1003,571 @@ export class AuthService implements OnModuleInit {
       where: { id: userId },
       data: { passwordHash: hashPassword(dto.newPassword) },
     });
+
+    if (this.hasMobileAuthStore()) {
+      await (this.prisma as any).refreshToken.updateMany({
+        where: { userId, revokedAt: null },
+        data: { revokedAt: new Date(), revokeReason: 'PASSWORD_CHANGED' },
+      });
+    }
+
     return { success: true, message: 'Account password updated cleanly.' };
+  }
+
+  async rotateRefreshToken(dto: RefreshTokenDto, clientIp: string = '127.0.0.1') {
+    if (!dto?.refreshToken || !this.hasMobileAuthStore()) {
+      throw new UnauthorizedException('Valid refresh token is required.');
+    }
+
+    const tokenHash = hashOpaqueToken(dto.refreshToken.trim());
+    const existing = await (this.prisma as any).refreshToken.findUnique({
+      where: { tokenHash },
+      include: { user: true },
+    });
+
+    if (!existing) {
+      throw new UnauthorizedException('Invalid or expired refresh token.');
+    }
+
+    // Theft / replay protection: presenting an already-rotated or revoked refresh token kills the entire session family
+    if (existing.revokedAt !== null) {
+      await (this.prisma as any).refreshToken.updateMany({
+        where: { familyId: existing.familyId, revokedAt: null },
+        data: { revokedAt: new Date(), revokeReason: 'REUSE_DETECTED' },
+      });
+      await this.recordSecurityAudit({
+        userId: existing.userId,
+        action: 'REFRESH_TOKEN_REUSE_DETECTED',
+        severity: 'WARNING',
+        summary: `Revoked refresh token family (${existing.familyId}) after token reuse attempt from ${normalizeIp(clientIp)}.`,
+        details: { familyId: existing.familyId, deviceId: existing.deviceId, clientIp: normalizeIp(clientIp) },
+      });
+      throw new UnauthorizedException(
+        'Session revoked due to refresh token reuse. Sign in again to restore access.',
+      );
+    }
+
+    if (
+      new Date(existing.expiresAt).getTime() <= Date.now() ||
+      !existing.user ||
+      existing.user.status === 'SUSPENDED'
+    ) {
+      await (this.prisma as any).refreshToken.update({
+        where: { id: existing.id },
+        data: { revokedAt: new Date(), revokeReason: 'EXPIRED' },
+      });
+      throw new UnauthorizedException('Refresh session expired. Sign in again.');
+    }
+
+    if (dto.deviceId && existing.deviceId && dto.deviceId !== existing.deviceId) {
+      await (this.prisma as any).refreshToken.updateMany({
+        where: { familyId: existing.familyId, revokedAt: null },
+        data: { revokedAt: new Date(), revokeReason: 'DEVICE_MISMATCH' },
+      });
+      throw new UnauthorizedException('Device mismatch detected for refresh session.');
+    }
+
+    return this.issueSessionBundle(existing.user, {
+      familyId: existing.familyId,
+      rotatedFromId: existing.id,
+      deviceId: dto.deviceId || existing.deviceId || undefined,
+      deviceName: dto.deviceName || existing.deviceName || undefined,
+      platform: dto.platform || existing.platform || undefined,
+      clientIp: normalizeIp(clientIp),
+    });
+  }
+
+  async listSessions(userId: number, currentSessionId?: string) {
+    if (!this.hasMobileAuthStore()) return [];
+    const rows = await (this.prisma as any).refreshToken.findMany({
+      where: { userId, revokedAt: null },
+      orderBy: { lastUsedAt: 'desc' },
+    });
+    const now = Date.now();
+    return rows
+      .filter((r: any) => new Date(r.expiresAt).getTime() > now)
+      .map((r: any) => ({
+        sessionId: r.id,
+        deviceId: r.deviceId,
+        deviceName: r.deviceName || r.deviceId || 'Web Browser',
+        platform: r.platform,
+        clientIp: r.clientIp,
+        lastUsedAt: r.lastUsedAt,
+        createdAt: r.createdAt,
+        expiresAt: r.expiresAt,
+        isCurrent: Boolean(currentSessionId && r.id === currentSessionId),
+      }));
+  }
+
+  async revokeSession(userId: number, sessionId: string) {
+    if (!this.hasMobileAuthStore()) {
+      throw new NotFoundException('Session store unavailable.');
+    }
+    const existing = await (this.prisma as any).refreshToken.findFirst({
+      where: { id: sessionId, userId },
+    });
+    if (!existing) {
+      throw new NotFoundException('Session not found.');
+    }
+    await (this.prisma as any).refreshToken.update({
+      where: { id: existing.id },
+      data: { revokedAt: new Date(), revokeReason: 'USER_REVOKED' },
+    });
+    return { success: true, revokedSessionId: sessionId };
+  }
+
+  async logoutSession(params: {
+    userId?: number;
+    sessionId?: string;
+    refreshToken?: string;
+  }) {
+    if (this.hasMobileAuthStore()) {
+      if (params.refreshToken) {
+        const tokenHash = hashOpaqueToken(params.refreshToken.trim());
+        const existing = await (this.prisma as any).refreshToken.findUnique({
+          where: { tokenHash },
+        });
+        if (existing && (!params.userId || existing.userId === params.userId)) {
+          await (this.prisma as any).refreshToken.updateMany({
+            where: { familyId: existing.familyId, revokedAt: null },
+            data: { revokedAt: new Date(), revokeReason: 'LOGOUT' },
+          });
+        }
+      } else if (params.sessionId) {
+        await (this.prisma as any).refreshToken
+          .updateMany({
+            where: {
+              id: params.sessionId,
+              ...(params.userId ? { userId: params.userId } : {}),
+              revokedAt: null,
+            },
+            data: { revokedAt: new Date(), revokeReason: 'LOGOUT' },
+          })
+          .catch(() => {});
+      }
+    }
+    return { success: true, message: 'Logged out successfully.' };
+  }
+
+  async logoutAll(userId: number) {
+    if (this.hasMobileAuthStore()) {
+      await (this.prisma as any).refreshToken.updateMany({
+        where: { userId, revokedAt: null },
+        data: { revokedAt: new Date(), revokeReason: 'USER_LOGOUT_ALL' },
+      });
+    }
+    if (typeof (this.prisma as any)?.biometricChallenge?.updateMany === 'function') {
+      await (this.prisma as any).biometricChallenge
+        .updateMany({
+          where: { userId, consumedAt: null },
+          data: { consumedAt: new Date() },
+        })
+        .catch(() => {});
+    }
+    return { success: true, message: 'All sessions signed out.' };
+  }
+
+  async setupSecurityPin(
+    userId: number,
+    dto: SetupPinDto,
+    clientIp: string = '127.0.0.1',
+  ) {
+    if (!dto?.newPin || isWeakPin(dto.newPin)) {
+      throw new BadRequestException(
+        'Security PIN must be 6 digits and cannot be sequential or repeated (e.g. 123456, 111111).',
+      );
+    }
+
+    await this.verifyPassword(userId, dto.currentPassword, clientIp);
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { securityPinHash: hashPin(dto.newPin) },
+    });
+
+    await this.recordRateLimitSuccess(`pin_verify:${userId}`, clientIp);
+    await this.recordSecurityAudit({
+      userId,
+      action: 'SECURITY_PIN_UPDATED',
+      summary: 'Configured 6-digit mobile app Security PIN.',
+    });
+
+    return { success: true, hasSecurityPin: true };
+  }
+
+  async verifySecurityPin(
+    params: VerifyPinDto & { userId?: number },
+    clientIp: string = '127.0.0.1',
+  ) {
+    let targetUserId = params.userId;
+
+    if (!targetUserId && params.refreshToken && params.deviceId && this.hasMobileAuthStore()) {
+      const tokenHash = hashOpaqueToken(params.refreshToken.trim());
+      const rt = await (this.prisma as any).refreshToken.findUnique({
+        where: { tokenHash },
+      });
+      if (
+        rt &&
+        rt.revokedAt === null &&
+        rt.deviceId === params.deviceId &&
+        new Date(rt.expiresAt).getTime() > Date.now()
+      ) {
+        targetUserId = rt.userId;
+      }
+    }
+
+    if (!targetUserId) {
+      throw new UnauthorizedException(
+        'Active session or bound device token is required to verify PIN.',
+      );
+    }
+
+    const rateKey = `pin_verify:${targetUserId}`;
+    await this.checkRateLimit(rateKey, clientIp);
+
+    const user = await this.prisma.user.findUnique({ where: { id: targetUserId } });
+    if (!user || user.status === 'SUSPENDED') {
+      throw new UnauthorizedException('User account is inactive.');
+    }
+    if (!user.securityPinHash) {
+      throw new BadRequestException('Security PIN is not configured for this account.');
+    }
+
+    const ok = verifyPin(params.pin || '', user.securityPinHash);
+    if (!ok) {
+      await this.recordLoginFailureWithAlert(rateKey, clientIp, user.id);
+      throw new UnauthorizedException('Invalid Security PIN.');
+    }
+
+    await this.recordRateLimitSuccess(rateKey, clientIp);
+    if (params.rotateSession && params.refreshToken) {
+      const session = await this.rotateRefreshToken(
+        { refreshToken: params.refreshToken, deviceId: params.deviceId },
+        clientIp,
+      );
+      return { verified: true, ...session };
+    }
+
+    return { verified: true };
+  }
+
+  async enrollBiometricDevice(userId: number, dto: EnrollBiometricDto) {
+    if (!dto?.deviceId?.trim()) {
+      throw new BadRequestException('Device ID is required.');
+    }
+    const normalized = normalizeAndValidatePublicKeyPem(
+      dto.publicKeyPem,
+      dto.keyAlgorithm || 'ECDSA_P256',
+    );
+    if (!normalized) {
+      throw new BadRequestException(
+        'Invalid hardware biometric public key (expected valid SPKI PEM ECDSA_P256 or ED25519).',
+      );
+    }
+
+    const saved = await (this.prisma as any).mobileDevice.upsert({
+      where: {
+        userId_deviceId: { userId, deviceId: dto.deviceId.trim() },
+      },
+      create: {
+        userId,
+        deviceId: dto.deviceId.trim(),
+        deviceName: dto.deviceName?.trim() || dto.deviceId.trim(),
+        platform: dto.platform || 'ANDROID',
+        appVersion: dto.appVersion,
+        publicKeyPem: normalized.pem,
+        keyAlgorithm: normalized.keyAlgorithm,
+        biometricEnabled: true,
+        lastActiveAt: new Date(),
+      },
+      update: {
+        deviceName: dto.deviceName?.trim() || undefined,
+        platform: dto.platform || undefined,
+        appVersion: dto.appVersion || undefined,
+        publicKeyPem: normalized.pem,
+        keyAlgorithm: normalized.keyAlgorithm,
+        biometricEnabled: true,
+        revokedAt: null,
+        lastActiveAt: new Date(),
+      },
+    });
+
+    await this.recordSecurityAudit({
+      userId,
+      action: 'BIOMETRIC_DEVICE_ENROLLED',
+      summary: `Enrolled biometric key (${normalized.keyAlgorithm}) for ${saved.deviceName}.`,
+      details: { deviceId: saved.deviceId, platform: saved.platform, keyAlgorithm: normalized.keyAlgorithm },
+    });
+
+    return {
+      success: true,
+      deviceId: saved.deviceId,
+      biometricEnabled: true,
+      keyAlgorithm: normalized.keyAlgorithm,
+    };
+  }
+
+  async disableBiometricDevice(userId: number, deviceId: string) {
+    const res = await (this.prisma as any).mobileDevice.updateMany({
+      where: { userId, deviceId },
+      data: { biometricEnabled: false, publicKeyPem: null },
+    });
+    if (!res?.count) {
+      throw new NotFoundException('Mobile device not found.');
+    }
+    return { success: true, deviceId, biometricEnabled: false };
+  }
+
+  async createBiometricChallenge(dto: BiometricChallengeDto) {
+    if (!dto?.deviceId || !dto?.refreshToken || !this.hasMobileAuthStore()) {
+      throw new UnauthorizedException('Device binding and active refresh token required.');
+    }
+
+    const rtHash = hashOpaqueToken(dto.refreshToken.trim());
+    const rt = await (this.prisma as any).refreshToken.findUnique({
+      where: { tokenHash: rtHash },
+    });
+
+    if (
+      !rt ||
+      rt.revokedAt !== null ||
+      new Date(rt.expiresAt).getTime() <= Date.now() ||
+      rt.deviceId !== dto.deviceId
+    ) {
+      throw new UnauthorizedException('Active session for this device was not found.');
+    }
+
+    const device = await (this.prisma as any).mobileDevice.findFirst({
+      where: {
+        userId: rt.userId,
+        deviceId: dto.deviceId,
+        revokedAt: null,
+      },
+    });
+
+    if (!device || !device.biometricEnabled || !device.publicKeyPem) {
+      throw new BadRequestException('Biometric unlock is not enrolled on this device.');
+    }
+
+    const nonce = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + this.BIOMETRIC_CHALLENGE_TTL_MS);
+
+    const row = await (this.prisma as any).biometricChallenge.create({
+      data: {
+        userId: rt.userId,
+        deviceId: dto.deviceId,
+        nonce,
+        expiresAt,
+      },
+    });
+
+    return {
+      challengeId: row.id,
+      nonce,
+      signingPayload: `${nonce}:${dto.deviceId}`,
+      expiresAt: expiresAt.toISOString(),
+    };
+  }
+
+  async verifyBiometricChallenge(
+    dto: VerifyBiometricDto,
+    clientIp: string = '127.0.0.1',
+  ) {
+    const rateKey = `biometric:${dto.deviceId}`;
+    await this.checkRateLimit(rateKey, clientIp);
+
+    const challenge = await (this.prisma as any).biometricChallenge.findUnique({
+      where: { id: dto.challengeId },
+    });
+
+    if (
+      !challenge ||
+      challenge.deviceId !== dto.deviceId ||
+      challenge.consumedAt !== null ||
+      new Date(challenge.expiresAt).getTime() <= Date.now()
+    ) {
+      throw new UnauthorizedException('Biometric challenge invalid or expired.');
+    }
+
+    // Atomic single-use claim prevents concurrent challenge replay races
+    const claimed = await (this.prisma as any).biometricChallenge.updateMany({
+      where: { id: challenge.id, consumedAt: null },
+      data: { consumedAt: new Date() },
+    });
+    if (!claimed?.count) {
+      throw new UnauthorizedException('Biometric challenge already consumed.');
+    }
+
+    const device = await (this.prisma as any).mobileDevice.findFirst({
+      where: {
+        userId: challenge.userId,
+        deviceId: dto.deviceId,
+        revokedAt: null,
+      },
+    });
+
+    if (!device || !device.biometricEnabled || !device.publicKeyPem) {
+      throw new UnauthorizedException('Biometric device enrollment disabled.');
+    }
+
+    const signatureOk = verifyBiometricSignature({
+      publicKeyPem: device.publicKeyPem,
+      keyAlgorithm: device.keyAlgorithm || 'ECDSA_P256',
+      payload: `${challenge.nonce}:${dto.deviceId}`,
+      signatureBase64: dto.signatureBase64,
+    });
+
+    if (!signatureOk) {
+      await this.recordLoginFailureWithAlert(rateKey, clientIp, challenge.userId);
+      throw new UnauthorizedException('Invalid biometric signature.');
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { id: challenge.userId } });
+    if (!user || user.status === 'SUSPENDED') {
+      throw new UnauthorizedException('User account suspended or unavailable.');
+    }
+
+    await this.recordRateLimitSuccess(rateKey, clientIp);
+
+    // Rotate active refresh token if one is open for this device
+    let familyId: string | undefined;
+    let rotatedFromId: string | undefined;
+    if (this.hasMobileAuthStore()) {
+      const openRt = await (this.prisma as any).refreshToken.findFirst({
+        where: { userId: user.id, deviceId: dto.deviceId, revokedAt: null },
+      });
+      if (openRt) {
+        familyId = openRt.familyId;
+        rotatedFromId = openRt.id;
+      }
+    }
+
+    return this.issueSessionBundle(user, {
+      deviceId: device.deviceId,
+      deviceName: device.deviceName,
+      platform: device.platform,
+      appVersion: dto.appVersion || device.appVersion || undefined,
+      clientIp: normalizeIp(clientIp),
+      familyId,
+      rotatedFromId,
+    });
+  }
+
+  listSsoProviders() {
+    if (!this.ssoService) return [];
+    return this.ssoService.listProviders();
+  }
+
+  async loginWithSso(dto: SsoExchangeDto, clientIp: string = '127.0.0.1') {
+    if (!this.ssoService) {
+      throw new BadRequestException('SSO service is not enabled on this server.');
+    }
+
+    const claims = await this.ssoService.verifyIdToken(dto.provider, dto.idToken);
+    let user: any = null;
+
+    if (typeof (this.prisma as any)?.userIdentity?.findUnique === 'function') {
+      const identity = await (this.prisma as any).userIdentity.findUnique({
+        where: {
+          provider_subject: { provider: claims.provider, subject: claims.subject },
+        },
+        include: { user: true },
+      });
+      if (identity?.user) {
+        user = identity.user;
+      }
+    }
+
+    if (!user) {
+      user = await this.prisma.user.findUnique({
+        where: { email: claims.email },
+      });
+    }
+
+    if (!user || user.status === 'SUSPENDED') {
+      throw new UnauthorizedException(
+        'No active Sunday Funday account is associated with this SSO email.',
+      );
+    }
+
+    if (typeof (this.prisma as any)?.userIdentity?.upsert === 'function') {
+      await (this.prisma as any).userIdentity.upsert({
+        where: {
+          provider_subject: { provider: claims.provider, subject: claims.subject },
+        },
+        create: {
+          userId: user.id,
+          provider: claims.provider,
+          subject: claims.subject,
+          email: claims.email,
+          lastLoginAt: new Date(),
+        },
+        update: {
+          email: claims.email,
+          lastLoginAt: new Date(),
+        },
+      });
+    }
+
+    const session = await this.issueSessionBundle(user, {
+      deviceId: dto.deviceId,
+      deviceName: dto.deviceName,
+      platform: dto.platform,
+      appVersion: dto.appVersion,
+      clientIp: normalizeIp(clientIp),
+    });
+
+    return {
+      ...session,
+      ssoProvider: claims.provider,
+    };
+  }
+
+  async linkSsoIdentity(userId: number, dto: SsoExchangeDto) {
+    if (!this.ssoService) {
+      throw new BadRequestException('SSO service is not enabled.');
+    }
+    const claims = await this.ssoService.verifyIdToken(dto.provider, dto.idToken);
+    const existing = await (this.prisma as any).userIdentity.findUnique({
+      where: {
+        provider_subject: { provider: claims.provider, subject: claims.subject },
+      },
+    });
+    if (existing && existing.userId !== userId) {
+      throw new ConflictException(
+        'This external SSO identity is already linked to another account.',
+      );
+    }
+    const saved = await (this.prisma as any).userIdentity.upsert({
+      where: {
+        provider_subject: { provider: claims.provider, subject: claims.subject },
+      },
+      create: {
+        userId,
+        provider: claims.provider,
+        subject: claims.subject,
+        email: claims.email,
+      },
+      update: {
+        email: claims.email,
+      },
+    });
+    return {
+      id: saved.id,
+      provider: saved.provider,
+      email: saved.email,
+      linked: true,
+    };
+  }
+
+  async unlinkSsoIdentity(userId: number, identityId: number) {
+    const res = await (this.prisma as any).userIdentity.deleteMany({
+      where: { id: identityId, userId },
+    });
+    if (!res?.count) {
+      throw new NotFoundException('Linked SSO identity not found.');
+    }
+    return { success: true };
   }
 
   toAuthenticatedUser(user: any): AuthenticatedUser {

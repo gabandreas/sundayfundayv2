@@ -45,6 +45,11 @@ Every tenant-owned model stores an indexed `userId` foreign key referencing `Use
 | `AuditLog` | `userId -> User` | `@@index([userId])` | Categorized mutation & compliance trail |
 | `CustomFeatureRequest` | `userId -> User` | `@@index([userId])` | User-submitted custom rule / module requests |
 | `AuthRateLimit` | Global `(key)` PK | `@@index([lockedUntil])` | Serverless brute-force attempt counter & lockout window |
+| `RefreshToken` | `userId -> User` | `tokenHash` (UK), `@@index([userId, revokedAt])`, `@@index([familyId])` | Opaque rotating session refresh tokens + token-family reuse theft revocation |
+| `MobileDevice` | `userId -> User` | `(userId, deviceId)` (UK), `@@index([userId, revokedAt])` | Registered mobile devices storing Secure Enclave / Keystore SPKI public keys |
+| `BiometricChallenge` | `userId -> User` | `nonce` (UK), `@@index([userId, deviceId])`, `@@index([expiresAt])` | Single-use 120s anti-replay cryptographic challenges for Face ID / Biometrics |
+| `UserIdentity` | `userId -> User` | `(provider, subject)` (UK), `@@index([userId])` | Federated SSO identities (`GOOGLE`, `APPLE`, `OIDC`) bound to verified users |
+| `IdempotencyRecord` | `userId -> User` | `(userId, method, path, key)` (UK), `@@index([expiresAt])` | 24h HTTP mutation deduplication store for `Idempotency-Key` retries |
 
 Full Mermaid schema details are maintained in [`docs/ERD.md`](file:///d:/Projects/Project%20Hijack/mondaymondayv2/docs/ERD.md).
 
@@ -69,18 +74,25 @@ Mobile clients **must never re-implement** payroll, waterfall, pacing, or cutoff
 
 ## 4. Mobile API Endpoint Inventory
 
-### A. Auth & Profile (`/api/auth`)
-- `POST /api/auth/login` — Authenticate and receive JWT + user metadata
+### A. Auth, Biometrics, PIN, Sessions & Federated SSO (`/api/auth`)
+- `POST /api/auth/login` — Authenticate with `{ accountName?, username?, email?, password, securityPin?, trustIp?, deviceId?, deviceName?, platform?, appVersion? }` and receive `{ accessToken, refreshToken, sessionId, expiresIn: 1800, hasSecurityPin, user }`
+- `POST /api/auth/refresh` — Rotate opaque `refreshToken` (SHA-256 stored with family-wide reuse theft revocation) and receive new `{ accessToken, refreshToken, sessionId, expiresIn, user }`
+- `GET /api/auth/sessions` / `DELETE /api/auth/sessions/:sessionId` — List active mobile/web sessions and revoke specific sessions cleanly (strictly tenant-scoped)
+- `POST /api/auth/logout` / `POST /api/auth/logout-all` — Revoke active session / all user sessions (revoked JWT `sid` blocked immediately by `AuthMiddleware`)
+- `POST /api/auth/pin/setup` / `POST /api/auth/pin/verify` — Configure 6-digit numeric Security PIN (rejects sequential/repeated PINs) and verify PIN under distributed `AuthRateLimit` lockout
+- `POST /api/auth/biometric/enroll` / `DELETE /api/auth/biometric/:deviceId` — Enroll Secure Enclave / Android Keystore `ECDSA_P256` or `ED25519` SPKI PEM public key for Face ID / Fingerprint
+- `POST /api/auth/biometric/challenge` / `POST /api/auth/biometric/verify` — Issue 120s single-use challenge nonce (`{ challengeId, nonce, signingPayload }`) and verify signed asymmetric response into fresh rotating session
+- `GET /api/auth/sso/providers` / `POST /api/auth/sso/exchange` / `POST /api/auth/sso/link` / `DELETE /api/auth/sso/:id` — Cryptographic `RS256`/`ES256` OIDC ID-token verification (`GOOGLE`, `APPLE`, `OIDC`) bound strictly to existing verified user accounts
 - `POST /api/auth/verify-password` — Re-authenticate before sensitive actions
-- `POST /api/auth/refresh` — Rotate active JWT
 - `GET /api/auth/session` — Lightweight session probe
 - `GET /api/auth/me` — Current user profile, role, blueprint & density settings
 - `PATCH /api/auth/profile` — Update `email` / `fullName`
-- `POST /api/auth/change-password` — Rotate password (`scryptv2`)
+- `POST /api/auth/change-password` — Rotate password (`scryptv2`, automatically revoking all active mobile/web refresh sessions)
 - `POST /api/auth/demo-login` / `POST /api/auth/reset-demo` — Sandbox evaluation session
-- `POST /api/auth/logout` — End client session
 
 ### B. Paycycle Cockpit, Overview & Pacing (`/api/snapshots`, `/api/finance`)
+- `GET /api/finance/mobile-boot?month=&year=` — Single-roundtrip read-only mobile cockpit payload aggregating default period, 3-state `pacing`, human-labeled `allocationSummary` tiers, `walletGuard`, `bills`, `cashRadarSummary`, display preferences, and `mobileCapabilities`
+- `Idempotency-Key` header support (`IdempotencyInterceptor` -> 24h `IdempotencyRecord`, returns `X-Idempotency-Replayed: true|false`, rejects payload mismatch with `409 Conflict`) active on `POST /api/finance/transactions`, `POST /api/finance/wallet-guard`, `PATCH /api/credit/line-items/:id/settle`, `PATCH /api/credit/line-items/:id/settlement-state`, `POST /api/snapshots/:id/close`, and `POST /api/snapshots/:id/borrow-p1`
 - `GET /api/snapshots/default-period` — Resolve user's landing `(month, year)` (`EARLIEST_OPEN_ACTIVE` vs `CALENDAR_WINDOW`)
 - `GET /api/snapshots?month=&year=` — Resolve/read single paycycle snapshot
 - `GET /api/snapshots/horizon?startMonth=&startYear=&count=` — Batch 12-month horizon summary

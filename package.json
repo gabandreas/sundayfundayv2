@@ -15,6 +15,7 @@
     "erp:backup:email": "npx tsx scripts/erp-cli.ts backup:email",
     "erp:benchmark": "npx tsx scripts/erp-benchmark.ts",
     "erp:pentest": "npm run build --workspace=apps/api && npx tsx scripts/erp-pentest.ts",
+    "erp:mobile:e2e": "npm run build --workspace=apps/api && npx tsx scripts/erp-mobile-e2e.ts",
     "erp:email:e2e": "npm run build --workspace=apps/api && npx tsx scripts/erp-email-e2e.ts",
     "erp:go:test": "cd apps/go-engine && go test -v ./...",
     "erp:go:build": "cd apps/go-engine && go build -o bin/go-engine.exe ./cmd/engine",

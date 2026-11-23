@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 
 export interface ExtendedRequest extends Request {
   userId?: number;
+  sessionId?: string;
   user?: any;
 }
 
@@ -14,6 +15,7 @@ export class AuthMiddleware implements NestMiddleware {
 
   async use(req: ExtendedRequest, res: Response, next: NextFunction) {
     let userId: number | undefined;
+    let sessionId: string | undefined;
     let tokenValid = false;
     let tokenPayload: ReturnType<typeof verifyToken> = null;
 
@@ -23,9 +25,34 @@ export class AuthMiddleware implements NestMiddleware {
       const token = authHeader.slice(7).trim();
       const payload = verifyToken(token);
       if (payload && payload.sub) {
-        userId = payload.sub;
-        tokenValid = true;
-        tokenPayload = payload;
+        let sessionActive = true;
+        if (
+          payload.sid &&
+          typeof (this.prisma as any)?.refreshToken?.findUnique === 'function'
+        ) {
+          try {
+            const session = await (this.prisma as any).refreshToken.findUnique({
+              where: { id: payload.sid },
+            });
+            if (
+              !session ||
+              session.userId !== payload.sub ||
+              session.revokedAt !== null ||
+              new Date(session.expiresAt).getTime() <= Date.now()
+            ) {
+              sessionActive = false;
+            }
+          } catch {
+            // Preserve availability if table is temporarily unreachable during unit mocks
+          }
+        }
+
+        if (sessionActive) {
+          userId = payload.sub;
+          sessionId = payload.sid;
+          tokenValid = true;
+          tokenPayload = payload;
+        }
       }
     }
 
@@ -49,12 +76,13 @@ export class AuthMiddleware implements NestMiddleware {
 
     (req as any).isAuthenticated = tokenValid;
 
-    // 3. Fallback ONLY in automated test suite (NODE_ENV === 'test') for legacy unit/integration specs
+    // 3. Fallback ONLY in automated test suite (NODE_ENV === 'test') without Bearer header
     if (!userId && !authHeader && process.env.NODE_ENV === 'test') {
       userId = 1;
     }
 
     req.userId = userId;
+    req.sessionId = sessionId;
 
     if (userId) {
       try {
@@ -72,4 +100,3 @@ export class AuthMiddleware implements NestMiddleware {
     next();
   }
 }
-

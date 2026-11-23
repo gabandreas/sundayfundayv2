@@ -18,10 +18,12 @@ import { EmailModule } from './email/email.module';
 import { AuthMiddleware } from './auth/auth.middleware';
 import { CalculatorModule } from './calculator/calculator.module';
 import { MarqueeModule } from './marquee/marquee.module';
+import { IdempotencyModule } from './common/idempotency/idempotency.module';
 
 @Module({
   imports: [
     PrismaModule,
+    IdempotencyModule,
     CalculatorModule,
     SnapshotsModule,
     CreditModule,

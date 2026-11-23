@@ -123,6 +123,11 @@ model User {
   updatedAt           DateTime @updatedAt
 
   trustedIpAddresses     TrustedIpAddress[]
+  refreshTokens          RefreshToken[]
+  mobileDevices          MobileDevice[]
+  biometricChallenges    BiometricChallenge[]
+  userIdentities         UserIdentity[]
+  idempotencyRecords     IdempotencyRecord[]
   globalConfig           GlobalConfig?
   monthlySnapshots       MonthlySnapshot[]
   creditContracts        CreditContract[]
@@ -568,4 +573,112 @@ model AuthRateLimit {
   updatedAt      DateTime  @updatedAt
 
   @@index([lockedUntil])
+}
+
+// ─────────────────────────────────────────────
+// 14. RefreshToken — Opaque Rotating Mobile/Web Sessions + Reuse Detection
+// ─────────────────────────────────────────────
+
+model RefreshToken {
+  id           String    @id @default(cuid())
+  userId       Int
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  familyId     String
+  tokenHash    String    @unique
+  deviceId     String?
+  deviceName   String?
+  platform     String    @default("WEB") // "IOS" | "ANDROID" | "HUAWEI_HARMONY" | "WEB"
+  clientIp     String?
+  userAgent    String?
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  revokeReason String?
+  replacedById String?
+  lastUsedAt   DateTime  @default(now())
+  createdAt    DateTime  @default(now())
+
+  @@index([userId, revokedAt])
+  @@index([familyId])
+  @@index([userId, deviceId])
+}
+
+// ─────────────────────────────────────────────
+// 15. MobileDevice — Enrolled Hardware Biometric Keystore Devices
+// ─────────────────────────────────────────────
+
+model MobileDevice {
+  id               Int       @id @default(autoincrement())
+  userId           Int
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceId         String
+  deviceName       String
+  platform         String    @default("ANDROID") // "IOS" | "ANDROID" | "HUAWEI_HARMONY"
+  appVersion       String?
+  publicKeyPem     String?   @db.Text
+  keyAlgorithm     String    @default("ECDSA_P256") // "ED25519" | "ECDSA_P256"
+  biometricEnabled Boolean   @default(false)
+  lastActiveAt     DateTime  @default(now())
+  revokedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@unique([userId, deviceId])
+  @@index([userId, revokedAt])
+}
+
+// ─────────────────────────────────────────────
+// 16. BiometricChallenge — Single-Use Nonce for Hardware Asymmetric Auth
+// ─────────────────────────────────────────────
+
+model BiometricChallenge {
+  id         String    @id @default(cuid())
+  userId     Int
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceId   String
+  nonce      String    @unique
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId, deviceId])
+  @@index([expiresAt])
+}
+
+// ─────────────────────────────────────────────
+// 17. UserIdentity — Federated SSO Links (Google / Apple / Enterprise OIDC)
+// ─────────────────────────────────────────────
+
+model UserIdentity {
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider    String    // "GOOGLE" | "APPLE" | "OIDC"
+  subject     String
+  email       String?
+  lastLoginAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@unique([provider, subject])
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────
+// 18. IdempotencyRecord — 24h Deduplication for Mobile Mutation Retries
+// ─────────────────────────────────────────────
+
+model IdempotencyRecord {
+  id           Int      @id @default(autoincrement())
+  userId       Int
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  method       String
+  path         String
+  key          String
+  requestHash  String
+  statusCode   Int
+  responseJson Json
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  @@unique([userId, method, path, key])
+  @@index([expiresAt])
 }

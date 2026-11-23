@@ -503,6 +503,11 @@ describe('System-Wide Anti-AI-Slop Visual Design, Temporal Chart Axis & Human Co
       'AuditLog',
       'CustomFeatureRequest',
       'TrustedIpAddress',
+      'RefreshToken',
+      'MobileDevice',
+      'BiometricChallenge',
+      'UserIdentity',
+      'IdempotencyRecord',
     ];
     for (const modelName of tenantModels) {
       const rx = new RegExp(`model\\s+${modelName}\\s+\\{([\\s\\S]*?)\\n\\}`, 'm');
