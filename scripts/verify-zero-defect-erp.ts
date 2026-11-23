@@ -106,9 +106,9 @@ async function main() {
     assert.equal(Math.round(decPacing.totalOperationalBudget), 1500000, '12/2026 pacing totalOperationalBudget must be 1,500,000');
 
     assert.equal(Math.round(jan27?.finalTotalIncome ?? -1), 5941000, '01/2027 Total Income (THR moved to 12/2026) must be 5,941,000');
-    assert.equal(Math.round(jan27?.totalDeductions ?? -1), 3171115, '01/2027 Total Debt must be 3,171,115');
+    assert.equal(Math.round(jan27?.totalDeductions ?? -1), 3223115, '01/2027 Total Debt (incl. Nov 23 Americano & Dunhill Rp 52k) must be 3,223,115');
     assert.equal(Math.round(jan27?.dailyOperational ?? -1), 1500000, '01/2027 dailyOperational must be 1,500,000');
-    assert.equal(Math.round(jan27?.actualSavings ?? -1), 734885, '01/2027 P1 must be 734,885');
+    assert.equal(Math.round(jan27?.actualSavings ?? -1), 682885, '01/2027 P1 must be 682,885');
     assert.equal(Math.round(jan27?.selfReward ?? -1), 0, '01/2027 P2 must be 0');
 
     assert.equal(Math.round(feb27?.totalDeductions ?? -1), 1967159, '02/2027 Total Debt must be 1,967,159');

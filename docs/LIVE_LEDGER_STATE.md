@@ -1,6 +1,6 @@
 # Live Ledger State (`userId = 1` / Gabriel)
 
-Generated from Neon PostgreSQL Cloud at 2026-11-22T13:16:18.113Z.
+Generated from Neon PostgreSQL Cloud at 2026-11-23T01:55:27.261Z.
 Regenerate anytime via `npm run erp:report -- --write`.
 
 ## Global Configuration
@@ -21,7 +21,7 @@ Regenerate anytime via `npm run erp:report -- --write`.
 | 10/2026 | LOCKED | NO | Rp 5.791.000 | Rp 4.082.655 | Rp 991.000 | Rp 328.345 | Rp 0 | Rp 0 | 2026-09-28 |
 | 11/2026 | DRAFT | YES | Rp 5.891.000 | Rp 4.522.976 | Rp 1.720.316 | Rp 6.341 | Rp 250.000 | Rp 108.633 | 2026-10-28 |
 | 12/2026 | DRAFT | NO | Rp 9.737.425 | Rp 4.110.341 | Rp 1.500.000 | Rp 1.000.000 | Rp 2.827.084 | Rp 0 | 2026-11-27 |
-| 01/2027 | DRAFT | NO | Rp 5.941.000 | Rp 3.171.115 | Rp 1.500.000 | Rp 734.885 | Rp 0 | Rp 0 | 2026-12-28 |
+| 01/2027 | DRAFT | NO | Rp 5.941.000 | Rp 3.223.115 | Rp 1.500.000 | Rp 682.885 | Rp 0 | Rp 0 | 2026-12-28 |
 | 02/2027 | DRAFT | NO | Rp 5.891.000 | Rp 1.967.159 | Rp 1.500.000 | Rp 1.000.000 | Rp 888.841 | Rp 0 | 2027-01-27 |
 | 03/2027 | DRAFT | NO | Rp 5.891.000 | Rp 835.996 | Rp 1.500.000 | Rp 1.000.000 | Rp 2.020.004 | Rp 0 | 2027-02-26 |
 | 04/2027 | DRAFT | NO | Rp 5.766.000 | Rp 697.726 | Rp 1.500.000 | Rp 1.000.000 | Rp 2.033.274 | Rp 0 | 2027-03-29 |
@@ -40,7 +40,7 @@ Regenerate anytime via `npm run erp:report -- --write`.
 | OCT '26 (10/2026) | Rp 2.687.091 | Rp 720.564 | Rp 200.000 | Rp 3.607.655 |
 | NOV '26 (11/2026) | Rp 3.264.116 | Rp 1.060.900 | Rp 197.960 | Rp 4.522.976 |
 | DEC '26 (12/2026) | Rp 2.783.115 | Rp 657.256 | Rp 669.970 | Rp 4.110.341 |
-| JAN '27 (1/2027) | Rp 1.622.889 | Rp 628.256 | Rp 919.970 | Rp 3.171.115 |
+| JAN '27 (1/2027) | Rp 1.674.889 | Rp 628.256 | Rp 919.970 | Rp 3.223.115 |
 | FEB '27 (2/2027) | Rp 816.893 | Rp 628.256 | Rp 522.010 | Rp 1.967.159 |
 | MAR '27 (3/2027) | Rp 207.740 | Rp 628.256 | Rp 0 | Rp 835.996 |
 | APR '27 (4/2027) | Rp 88.182 | Rp 609.544 | Rp 0 | Rp 697.726 |
@@ -82,6 +82,7 @@ Regenerate anytime via `npm run erp:report -- --write`.
 | 35 | JAN '27 | PERSONAL_DEBT | SPinjam Rp 200k — Oct 24 Loan (3/3) | SPinjam | 3/3 | Rp 74.573 | NO |
 | 37 | JAN '27 | PERSONAL_DEBT | SPinjam Rp 900k — Nov 08 Loan (2/3) | SPinjam | 2/3 | Rp 335.578 | NO |
 | 40 | JAN '27 | PERSONAL_DEBT | SPinjam Bridge Rp 500k — Nov 17 Loan (2/3) | SPinjam | 2/3 | Rp 186.432 | NO |
+| 318 | JAN '27 | PAYLATER | Americano & Dunhill | SPayLater | 1/1 | Rp 52.000 | NO |
 | 16 | FEB '27 | PAYLATER | SPayLater Baseline Installments | SPayLater | 1/1 | Rp 626.323 | NO |
 | 17 | FEB '27 | PAYLATER | 11.11 Promo Checkout (3x 0%) | SPayLater | 3/3 | Rp 159.904 | NO |
 | 27 | FEB '27 | PAYLATER | 11.11 Early Settlement Batch (3x) | SPayLater | 3/3 | Rp 30.666 | NO |
