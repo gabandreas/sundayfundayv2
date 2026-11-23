@@ -253,7 +253,7 @@ export function WishlistPlannerForm({
         {/* Conditional Installment Parameters */}
         {fundingType === "INSTALLMENT" && (
           <div className="p-3 rounded bg-surface-subtle/50 border border-border-subtle space-y-3">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary block">
+            <span className="text-[10px] font-mono text-text-tertiary block">
               Financing Specifications
             </span>
 

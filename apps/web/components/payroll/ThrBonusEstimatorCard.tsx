@@ -177,7 +177,7 @@ export function ThrBonusEstimatorCard({
       {/* Projected Output Summary */}
       <div className="p-3 rounded bg-surface-subtle border border-border-subtle grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
         <div>
-          <span className="text-[10px] font-sans uppercase text-text-tertiary block">
+          <span className="text-[10px] font-sans text-text-tertiary block">
             Attendance
           </span>
           <span className="font-mono font-medium text-text-primary tabular-nums mt-0.5 block">
@@ -185,7 +185,7 @@ export function ThrBonusEstimatorCard({
           </span>
         </div>
         <div>
-          <span className="text-[10px] font-sans uppercase text-text-tertiary block">
+          <span className="text-[10px] font-sans text-text-tertiary block">
             Est. THR
           </span>
           <span className="font-mono font-medium text-text-primary tabular-nums mt-0.5 block">
@@ -193,7 +193,7 @@ export function ThrBonusEstimatorCard({
           </span>
         </div>
         <div>
-          <span className="text-[10px] font-sans uppercase text-text-tertiary block">
+          <span className="text-[10px] font-sans text-text-tertiary block">
             Regular Net Pay
           </span>
           <span className="font-mono font-medium text-text-primary tabular-nums mt-0.5 block">
@@ -201,7 +201,7 @@ export function ThrBonusEstimatorCard({
           </span>
         </div>
         <div>
-          <span className="text-[10px] font-sans uppercase text-text-tertiary block">
+          <span className="text-[10px] font-sans text-text-tertiary block">
             Total Projected
           </span>
           <span className="font-mono font-semibold text-delta-positive tabular-nums mt-0.5 block">

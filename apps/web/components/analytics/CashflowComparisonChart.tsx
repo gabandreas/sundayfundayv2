@@ -52,7 +52,7 @@ export function CashflowComparisonChart({
       {/* Header & Legend Row */}
       <div className="flex items-start justify-between gap-6 border-b border-border-subtle pb-4">
         <div>
-          <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans block">
+          <span className="text-[11px] font-semibold text-text-tertiary font-sans block">
             Multi-Period Cashflow & Deleveraging Trajectory
           </span>
           <h2 className="text-base font-semibold font-sans text-text-primary mt-0.5">
@@ -84,7 +84,7 @@ export function CashflowComparisonChart({
       {/* Trajectory Summary Strip (Clean Header Strip — Zero SVG Clutter) */}
       <div className="grid grid-cols-4 gap-4 rounded border border-border-subtle bg-surface-subtle/50 px-4 py-3">
         <div>
-          <span className="text-[10px] font-sans uppercase tracking-wider text-text-tertiary block">
+          <span className="text-[10px] font-sans text-text-tertiary block">
             Peak Liability Burden
           </span>
           {trajectory.peakDebtPeriod ? (
@@ -102,7 +102,7 @@ export function CashflowComparisonChart({
         </div>
 
         <div>
-          <span className="text-[10px] font-sans uppercase tracking-wider text-text-tertiary block">
+          <span className="text-[10px] font-sans text-text-tertiary block">
             Safe Debt Threshold (&le;35%)
           </span>
           {trajectory.debtSafeInflectionPeriod ? (
@@ -122,7 +122,7 @@ export function CashflowComparisonChart({
         </div>
 
         <div>
-          <span className="text-[10px] font-sans uppercase tracking-wider text-text-tertiary block">
+          <span className="text-[10px] font-sans text-text-tertiary block">
             Surplus Overtakes Debt
           </span>
           {trajectory.surplusCrossoverPeriod ? (
@@ -142,7 +142,7 @@ export function CashflowComparisonChart({
         </div>
 
         <div>
-          <span className="text-[10px] font-sans uppercase tracking-wider text-text-tertiary block">
+          <span className="text-[10px] font-sans text-text-tertiary block">
             Horizon Debt Ratio Shift
           </span>
           <div className="mt-0.5 flex items-baseline gap-2">

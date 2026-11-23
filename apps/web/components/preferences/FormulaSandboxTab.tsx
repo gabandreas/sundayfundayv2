@@ -76,7 +76,7 @@ export function FormulaSandboxTab({ config }: FormulaSandboxTabProps) {
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
-            <label className="block text-[11px] font-sans text-text-tertiary uppercase tracking-wider mb-1.5">
+            <label className="block text-[11px] font-sans text-text-tertiary mb-1.5">
               Hypothetical Base Paycheck
             </label>
             <div className="relative">
@@ -92,7 +92,7 @@ export function FormulaSandboxTab({ config }: FormulaSandboxTabProps) {
           </div>
 
           <div>
-            <label className="block text-[11px] font-sans text-text-tertiary uppercase tracking-wider mb-1.5">
+            <label className="block text-[11px] font-sans text-text-tertiary mb-1.5">
               Hypothetical Debt Bills
             </label>
             <div className="relative">
@@ -108,7 +108,7 @@ export function FormulaSandboxTab({ config }: FormulaSandboxTabProps) {
           </div>
 
           <div>
-            <label className="block text-[11px] font-sans text-text-tertiary uppercase tracking-wider mb-1.5">
+            <label className="block text-[11px] font-sans text-text-tertiary mb-1.5">
               Consumption Cycle Days
             </label>
             <input
@@ -123,7 +123,7 @@ export function FormulaSandboxTab({ config }: FormulaSandboxTabProps) {
           </div>
 
           <div>
-            <label className="block text-[11px] font-sans text-text-tertiary uppercase tracking-wider mb-1.5">
+            <label className="block text-[11px] font-sans text-text-tertiary mb-1.5">
               Attendance Working Days
             </label>
             <input
@@ -151,7 +151,7 @@ export function FormulaSandboxTab({ config }: FormulaSandboxTabProps) {
           {/* Key Simulation KPIs */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="p-4 rounded-lg border border-[#282e3d] bg-[#161922]">
-              <span className="block text-[10px] font-mono text-text-tertiary uppercase tracking-wider">
+              <span className="block text-[10px] font-mono text-text-tertiary">
                 Simulated Net Income
               </span>
               <span className="block text-xl font-serif font-bold text-text-primary mt-1 tabular-nums">
@@ -163,7 +163,7 @@ export function FormulaSandboxTab({ config }: FormulaSandboxTabProps) {
             </div>
 
             <div className="p-4 rounded-lg border border-[#282e3d] bg-[#161922]">
-              <span className="block text-[10px] font-mono text-text-tertiary uppercase tracking-wider">
+              <span className="block text-[10px] font-mono text-text-tertiary">
                 Debt Burden Ratio
               </span>
               <span className="block text-xl font-mono font-bold text-text-primary mt-1 tabular-nums">
@@ -187,7 +187,7 @@ export function FormulaSandboxTab({ config }: FormulaSandboxTabProps) {
             </div>
 
             <div className="p-4 rounded-lg border border-[#282e3d] bg-[#161922]">
-              <span className="block text-[10px] font-mono text-text-tertiary uppercase tracking-wider">
+              <span className="block text-[10px] font-mono text-text-tertiary">
                 Core Savings Rate
               </span>
               <span className="block text-xl font-mono font-bold text-emerald-400 mt-1 tabular-nums">
@@ -199,7 +199,7 @@ export function FormulaSandboxTab({ config }: FormulaSandboxTabProps) {
             </div>
 
             <div className="p-4 rounded-lg border border-[#282e3d] bg-[#161922]">
-              <span className="block text-[10px] font-mono text-text-tertiary uppercase tracking-wider">
+              <span className="block text-[10px] font-mono text-text-tertiary">
                 Waterfall Outcome
               </span>
               <span
@@ -225,7 +225,7 @@ export function FormulaSandboxTab({ config }: FormulaSandboxTabProps) {
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="border-b border-[#282e3d] text-text-tertiary uppercase text-[10px] tracking-wider">
+                  <tr className="border-b border-[#282e3d] text-text-tertiary text-[10px]">
                     <th className="py-2 px-3">Priority Tier</th>
                     <th className="py-2 px-3">Bucket</th>
                     <th className="py-2 px-3">Group</th>

@@ -14,6 +14,7 @@ import {
 } from "@/lib/utils";
 import { useLanguage } from "@/context/LanguageContext";
 import { usePerspective } from "@/context/PerspectiveContext";
+import { useToast } from "@/context/ToastContext";
 
 interface RecordExpenseCardProps {
   month: number;
@@ -38,6 +39,7 @@ export function RecordExpenseCard({
   trueHourlyWageRp,
 }: RecordExpenseCardProps) {
   const { t } = useLanguage();
+  const { toast } = useToast();
   const {
     studioConfig,
     getRoutineLabel,
@@ -205,9 +207,16 @@ export function RecordExpenseCard({
       setBillingCycleOverride("auto");
       setIsSuccess(true);
       setTimeout(() => setIsSuccess(false), 2000);
+      toast({
+        title: "Expense recorded",
+        description: `${label.trim()} · Rp ${numAmount.toLocaleString("id-ID")}`,
+        variant: "success",
+      });
     } catch (err: unknown) {
       const error = err as Error;
-      setFieldErrors({ general: error.message || "Error saving transaction" });
+      const msg = error.message || "Error saving transaction";
+      setFieldErrors({ general: msg });
+      toast({ title: "Could not save expense", description: msg, variant: "error" });
     } finally {
       submitLockRef.current = false;
       setIsSubmitting(false);
@@ -218,7 +227,7 @@ export function RecordExpenseCard({
     <div className="rounded-lg border border-border bg-surface p-4 flex flex-col justify-between space-y-3">
       <div className="flex items-center justify-between gap-2 mb-1">
         <div className="flex items-center gap-1.5">
-          <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
+          <span className="text-[11px] font-semibold text-text-tertiary font-sans">
             {t("overview.recordExpense")}
           </span>
           {!isLocked && (
@@ -361,7 +370,7 @@ export function RecordExpenseCard({
                   </div>
                   <div className="grid grid-cols-2 gap-1.5">
                     <label className="space-y-0.5">
-                      <span className="font-mono text-[9px] uppercase text-text-tertiary block">
+                      <span className="font-mono text-[9px] text-text-tertiary block">
                         {t("overview.purchaseDate", "Purchase Date")}
                       </span>
                       <input
@@ -372,7 +381,7 @@ export function RecordExpenseCard({
                       />
                     </label>
                     <label className="space-y-0.5">
-                      <span className="font-mono text-[9px] uppercase text-text-tertiary block">
+                      <span className="font-mono text-[9px] text-text-tertiary block">
                         {t("overview.billingCycle", "Billing Cycle")}
                       </span>
                       <select

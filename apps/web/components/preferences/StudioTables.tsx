@@ -670,7 +670,7 @@ export function PaycycleFormulaStudioCard({ initialConfig }: { initialConfig?: M
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[780px] text-xs text-left">
-            <thead className="bg-surface-subtle/50 text-[10px] font-mono uppercase text-text-tertiary border-b border-border-subtle">
+            <thead className="bg-surface-subtle/50 text-[10px] font-mono text-text-tertiary border-b border-border-subtle">
               <tr>
                 <th className="px-3 py-2">Period</th>
                 <th className="px-3 py-2">Stage 1: Payslip</th>
@@ -958,7 +958,7 @@ export function InstrumentsTableCard({ initialConfig }: { initialConfig?: Modula
               {/* Row 1: Identity, Instrument Type, Rate, Limit, Active & Action */}
               <div className="grid grid-cols-12 gap-3 items-end">
                 <label className="col-span-4 space-y-1">
-                  <span className="block text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+                  <span className="block text-[10px] font-mono text-text-tertiary">
                     Instrument Name
                   </span>
                   <input
@@ -974,7 +974,7 @@ export function InstrumentsTableCard({ initialConfig }: { initialConfig?: Modula
                 </label>
 
                 <label className="col-span-2 space-y-1">
-                  <span className="block text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+                  <span className="block text-[10px] font-mono text-text-tertiary">
                     Type
                   </span>
                   <select
@@ -993,7 +993,7 @@ export function InstrumentsTableCard({ initialConfig }: { initialConfig?: Modula
                 </label>
 
                 <label className="col-span-2 space-y-1">
-                  <span className="block text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+                  <span className="block text-[10px] font-mono text-text-tertiary">
                     Rate (% / mo)
                   </span>
                   <input
@@ -1011,7 +1011,7 @@ export function InstrumentsTableCard({ initialConfig }: { initialConfig?: Modula
                 </label>
 
                 <label className="col-span-3 space-y-1">
-                  <span className="block text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+                  <span className="block text-[10px] font-mono text-text-tertiary">
                     Limit (Rp)
                   </span>
                   <input
@@ -1055,7 +1055,7 @@ export function InstrumentsTableCard({ initialConfig }: { initialConfig?: Modula
               {/* Row 2: Cutoff Formula, Boundary Rule, Pre/Post Cycle Offsets & Due Schedule */}
               <div className="grid grid-cols-12 gap-3 items-start pt-2.5 border-t border-border-subtle/70">
                 <div className="col-span-4 space-y-1">
-                  <span className="block text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+                  <span className="block text-[10px] font-mono text-text-tertiary">
                     Cutoff Formula
                   </span>
                   {isLoan ? (
@@ -1110,7 +1110,7 @@ export function InstrumentsTableCard({ initialConfig }: { initialConfig?: Modula
                 </div>
 
                 <div className="col-span-3 space-y-1">
-                  <span className="block text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+                  <span className="block text-[10px] font-mono text-text-tertiary">
                     Boundary Rule
                   </span>
                   {isLoan ? (
@@ -1137,7 +1137,7 @@ export function InstrumentsTableCard({ initialConfig }: { initialConfig?: Modula
                 </div>
 
                 <div className="col-span-2 space-y-1">
-                  <span className="block text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+                  <span className="block text-[10px] font-mono text-text-tertiary">
                     Offsets (Pre / Post)
                   </span>
                   <div className="flex items-center gap-1.5 font-mono">
@@ -1172,7 +1172,7 @@ export function InstrumentsTableCard({ initialConfig }: { initialConfig?: Modula
                 </div>
 
                 <div className="col-span-3 space-y-1">
-                  <span className="block text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+                  <span className="block text-[10px] font-mono text-text-tertiary">
                     Due Day / Shift
                   </span>
                   {isLoan ? (
@@ -1216,7 +1216,7 @@ export function InstrumentsTableCard({ initialConfig }: { initialConfig?: Modula
 
       {/* Live Multi-Month & February 28/29 Cutoff Tester */}
       <div className="rounded border border-border-subtle bg-surface-subtle/60 p-3.5 space-y-2">
-        <div className="text-[11px] font-mono uppercase tracking-wider text-text-tertiary">
+        <div className="text-[11px] font-mono text-text-tertiary">
           Live Calendar &amp; February Clamping Verification
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2.5 text-[11px] font-mono">
@@ -1390,7 +1390,7 @@ export function AssetAccountsTableCard({ initialConfig }: { initialConfig?: Modu
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[780px] text-xs text-left">
-            <thead className="bg-surface-subtle text-[10px] font-mono uppercase text-text-tertiary border-b border-border">
+            <thead className="bg-surface-subtle text-[10px] font-mono text-text-tertiary border-b border-border">
               <tr>
                 <th className="px-2.5 py-2">Account Name</th>
                 <th className="px-2.5 py-2">Institution</th>
@@ -1575,7 +1575,7 @@ export function RoutineTemplatesTableCard({ initialConfig }: { initialConfig?: M
 
       <div className="overflow-x-auto">
         <table className="w-full min-w-[780px] text-xs text-left">
-          <thead className="bg-surface-subtle text-[10px] font-mono uppercase text-text-tertiary border-b border-border">
+          <thead className="bg-surface-subtle text-[10px] font-mono text-text-tertiary border-b border-border">
             <tr>
               <th className="px-2.5 py-2">Template Label</th>
               <th className="px-2.5 py-2">Slot Key</th>
@@ -1933,7 +1933,7 @@ export function SidebarMenuBuilderCard({ initialConfig }: { initialConfig?: Modu
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[780px] text-xs text-left">
-            <thead className="bg-surface-subtle text-[10px] font-mono uppercase text-text-tertiary border-b border-border">
+            <thead className="bg-surface-subtle text-[10px] font-mono text-text-tertiary border-b border-border">
               <tr>
                 <th className="px-3 py-2">Route</th>
                 <th className="px-3 py-2">Default Name</th>

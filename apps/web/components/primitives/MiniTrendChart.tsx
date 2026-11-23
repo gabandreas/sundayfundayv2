@@ -13,18 +13,18 @@ export interface MiniTrendChartProps {
 }
 
 const SHORT_MONTHS = [
-  "JAN",
-  "FEB",
-  "MAR",
-  "APR",
-  "MAY",
-  "JUN",
-  "JUL",
-  "AUG",
-  "SEP",
-  "OCT",
-  "NOV",
-  "DEC",
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
 ];
 
 export function formatAxisBoundaryDate(isoDate?: string, fallbackLabel?: string): string {
@@ -91,31 +91,31 @@ export function MiniTrendChart({
 
   const startBoundary = formatAxisBoundaryDate(
     cycleStartDate,
-    isPrePayday ? "27 NOV" : "DAY 1",
+    isPrePayday ? "27 Nov" : "Day 1",
   );
   const endBoundary = formatAxisBoundaryDate(
     cycleEndDate,
-    isPrePayday ? "28 DEC" : `DAY ${safeDays}`,
+    isPrePayday ? "28 Dec" : `Day ${safeDays}`,
   );
 
   const leftAxisLabel = isPrePayday
     ? startBoundary
     : cycleStartDate
-      ? `${startBoundary} (DAY 1)`
-      : "DAY 1";
+      ? `${startBoundary} (Day 1)`
+      : "Day 1";
   const rightAxisLabel = isPrePayday
     ? endBoundary
     : cycleEndDate
-      ? `${endBoundary} (DAY ${safeDays})`
-      : `DAY ${safeDays}`;
+      ? `${endBoundary} (Day ${safeDays})`
+      : `Day ${safeDays}`;
 
   const centerCaption = isPrePayday
-    ? `DAY 0 OF ${safeDays} · STARTS ${startBoundary}${
-        daysUntilCycleStart > 0 ? ` (IN ${daysUntilCycleStart}D)` : ""
+    ? `Day 0 of ${safeDays} · Starts ${startBoundary}${
+        daysUntilCycleStart > 0 ? ` (in ${daysUntilCycleStart}d)` : ""
       }`
     : isCompleted
-      ? `COMPLETED (${safeDays} OF ${safeDays} DAYS)`
-      : `TODAY (DAY ${Math.max(1, safeCurrentDay)} OF ${safeDays})`;
+      ? `Completed (${safeDays} of ${safeDays} days)`
+      : `Today (Day ${Math.max(1, safeCurrentDay)} of ${safeDays})`;
 
   return (
     <div className="w-full">

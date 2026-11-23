@@ -9,6 +9,7 @@ import {
   deleteSavingsGoal,
 } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
+import { useToast } from "@/context/ToastContext";
 
 interface SavingsGoalsCardProps {
   goals: EnrichedSavingsGoal[];
@@ -32,6 +33,7 @@ export function SavingsGoalsCard({
   goals,
   avgMonthlySavings,
 }: SavingsGoalsCardProps) {
+  const { toast } = useToast();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<EnrichedSavingsGoal | null>(null);
 
@@ -112,10 +114,17 @@ export function SavingsGoalsCard({
     setSubmitting(false);
 
     if (!res.success) {
-      setError(res.error || "Failed to save savings goal");
+      const msg = res.error || "Failed to save savings goal";
+      setError(msg);
+      toast({ title: "Savings goal error", description: msg, variant: "error" });
       return;
     }
 
+    toast({
+      title: editingGoal ? "Savings goal updated" : "Savings goal created",
+      description: name.trim(),
+      variant: "success",
+    });
     setIsModalOpen(false);
   };
 
@@ -134,7 +143,7 @@ export function SavingsGoalsCard({
     <div className="rounded-lg border border-border bg-surface p-5 space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-text-primary">
+          <h2 className="text-sm font-semibold text-text-primary">
             Target Savings Goals & Projections
           </h2>
           <p className="text-xs text-text-secondary mt-0.5">
@@ -261,7 +270,7 @@ export function SavingsGoalsCard({
                 {/* Projections row */}
                 <div className="mt-3 pt-2.5 border-t border-border-subtle grid grid-cols-2 gap-2 text-xs font-mono">
                   <div>
-                    <span className="text-[10px] text-text-tertiary uppercase block">
+                    <span className="text-[10px] text-text-tertiary block">
                       Required Monthly
                     </span>
                     <span className="text-text-primary font-medium">
@@ -272,7 +281,7 @@ export function SavingsGoalsCard({
                   </div>
 
                   <div>
-                    <span className="text-[10px] text-text-tertiary uppercase block">
+                    <span className="text-[10px] text-text-tertiary block">
                       Projected Date
                     </span>
                     <span className="text-text-primary font-medium">
@@ -309,7 +318,7 @@ export function SavingsGoalsCard({
 
             <form onSubmit={handleSubmit} className="space-y-3 text-xs font-sans">
               <div>
-                <label className="text-[11px] font-mono uppercase text-text-tertiary block mb-1">
+                <label className="text-[11px] font-mono text-text-tertiary block mb-1">
                   Goal Name
                 </label>
                 <input
@@ -324,7 +333,7 @@ export function SavingsGoalsCard({
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[11px] font-mono uppercase text-text-tertiary block mb-1">
+                  <label className="text-[11px] font-mono text-text-tertiary block mb-1">
                     Target Amount (Rp)
                   </label>
                   <input
@@ -338,7 +347,7 @@ export function SavingsGoalsCard({
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-mono uppercase text-text-tertiary block mb-1">
+                  <label className="text-[11px] font-mono text-text-tertiary block mb-1">
                     Current Allocated (Rp)
                   </label>
                   <input
@@ -353,7 +362,7 @@ export function SavingsGoalsCard({
 
               <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <label className="text-[11px] font-mono uppercase text-text-tertiary block mb-1">
+                  <label className="text-[11px] font-mono text-text-tertiary block mb-1">
                     Target Month
                   </label>
                   <select
@@ -370,7 +379,7 @@ export function SavingsGoalsCard({
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-mono uppercase text-text-tertiary block mb-1">
+                  <label className="text-[11px] font-mono text-text-tertiary block mb-1">
                     Target Year
                   </label>
                   <select
@@ -387,7 +396,7 @@ export function SavingsGoalsCard({
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-mono uppercase text-text-tertiary block mb-1">
+                  <label className="text-[11px] font-mono text-text-tertiary block mb-1">
                     Category
                   </label>
                   <select

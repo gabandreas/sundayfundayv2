@@ -119,31 +119,31 @@ async function main() {
       'Sidebar must not contain "Savings & Reservoirs"',
     );
     assert.ok(
-      overviewText.includes('28 OCT') && overviewText.includes('26 NOV'),
-      'Overview ACTIVE 11/2026 Daily Pacing chart must display cycle boundary dates "28 OCT" and "26 NOV"',
+      overviewText.includes('28 Oct') && overviewText.includes('26 Nov'),
+      'Overview ACTIVE 11/2026 Daily Pacing chart must display cycle boundary dates "28 Oct" and "26 Nov"',
     );
     assert.ok(
       !overviewText.includes('Burn-Rate Telemetry'),
       'Overview must not contain robotic "Burn-Rate Telemetry" copy',
     );
 
-    // Also verify 12/2026 PRE_PAYDAY cycle boundary dates ("27 NOV" and "27 DEC")
+    // Also verify 12/2026 PRE_PAYDAY cycle boundary dates ("27 Nov" and "27 Dec")
     await page.goto(`${WEB_URL}/?month=12&year=2026`, { waitUntil: 'networkidle2', timeout: 60000 });
     await page.waitForFunction(
-      () => document.body.innerText.includes('27 NOV'),
+      () => document.body.innerText.includes('27 Nov'),
       { timeout: 15000 },
     );
     const decOverviewText = await page.evaluate(() => document.body.innerText);
     assert.ok(
-      decOverviewText.includes('27 NOV') && decOverviewText.includes('27 DEC'),
-      'Overview PRE_PAYDAY 12/2026 Daily Pacing chart must display cycle boundary dates "27 NOV" and "27 DEC"',
+      decOverviewText.includes('27 Nov') && decOverviewText.includes('27 Dec'),
+      'Overview PRE_PAYDAY 12/2026 Daily Pacing chart must display cycle boundary dates "27 Nov" and "27 Dec"',
     );
     assert.ok(
-      !decOverviewText.includes('DAY 32'),
-      'Overview PRE_PAYDAY Daily Pacing chart must not show generic "DAY 32" axis label',
+      !decOverviewText.includes('Day 32') && !decOverviewText.includes('DAY 32'),
+      'Overview PRE_PAYDAY Daily Pacing chart must not show generic "Day 32" axis label',
     );
     console.log(
-      '  PASS [1/6]: User #1 consumer role hides Platform Admin, renders "Savings & Emergency Fund" & "Spending & Trend Review", verifies 11/2026 ACTIVE (28 OCT–26 NOV) & 12/2026 PRE_PAYDAY (27 NOV–27 DEC), and eliminates AI-slop labels.',
+      '  PASS [1/6]: User #1 consumer role hides Platform Admin, renders "Savings & Emergency Fund" & "Spending & Trend Review", verifies 11/2026 ACTIVE (28 Oct–26 Nov) & 12/2026 PRE_PAYDAY (27 Nov–27 Dec), and eliminates AI-slop labels.',
     );
 
     // 3. Verify Trilingual Switcher (EN / ID / ZH) renders localized human terms with zero raw translation keys
@@ -372,10 +372,85 @@ async function main() {
       { timeout: 10000 },
     );
     console.log(
-      '  PASS [6/7]: Auth routes (/login, /forgot-password, /reset-password), US Standard Sandbox workspace, and Superadmin Console verified.',
+      '  PASS [6/8]: Auth routes (/login, /forgot-password, /reset-password), US Standard Sandbox workspace, and Superadmin Console verified.',
     );
 
-    console.log('  PASS [7/7]: Full Headless DOM & UX Flow E2E completed with 0 defects.');
+    // 7. Single Privacy Eye, Monogram Account Popover Menu, Zero CAPSLOCK Header/Overview, Marquee Greeting & Scenarios Go Workbench
+    await page.evaluate(
+      (token, user) => {
+        const serialized = JSON.stringify(user);
+        localStorage.setItem('erp_auth_token', token);
+        localStorage.setItem('erp_auth_user', serialized);
+        localStorage.setItem('erp_locale', 'en');
+        sessionStorage.setItem('erp_auth_token', token);
+        sessionStorage.setItem('erp_auth_user', serialized);
+        document.cookie = `erp_user_id=${user.id}; path=/; max-age=604800; SameSite=Lax`;
+        document.cookie = `erp_auth_token=${encodeURIComponent(token)}; path=/; max-age=604800; SameSite=Lax`;
+      },
+      u1.token,
+      u1.user,
+    );
+    await page.goto(`${WEB_URL}/?month=11&year=2026`, { waitUntil: 'networkidle2', timeout: 60000 });
+    await page.waitForSelector('#account-menu-trigger', { timeout: 15000 });
+
+    const headerAudit = await page.evaluate(() => {
+      const eyeBtns = document.querySelectorAll(
+        'button[aria-label="Hide amounts"], button[aria-label="Show amounts"]',
+      );
+      const acctBtn = document.getElementById('account-menu-trigger');
+      const acctTriggerText = acctBtn?.textContent?.trim() ?? '';
+      acctBtn?.click();
+      const pop = document.getElementById('account-menu-popover');
+      const popText = pop?.innerText ?? '';
+      const bodyText = document.body.innerText;
+      return {
+        eyeCount: eyeBtns.length,
+        acctTriggerText,
+        popText,
+        hasAllCapsHeaderCopy:
+          /SAFE-TO-SPEND TODAY|MONTHLY BUDGET OVERVIEW|PERSONAL ERP|BURNING FAST/.test(bodyText),
+      };
+    });
+    assert.equal(headerAudit.eyeCount, 1, `Expected exactly 1 Privacy Eye button on Overview, got ${headerAudit.eyeCount}`);
+    assert.ok(
+      headerAudit.acctTriggerText.length > 0 && headerAudit.acctTriggerText.length <= 3,
+      `Account trigger must be icon-only monogram, got "${headerAudit.acctTriggerText}"`,
+    );
+    assert.ok(!headerAudit.popText.includes('Privacy Stealth'), 'Account menu must not show Privacy Stealth');
+    assert.ok(!headerAudit.popText.includes('Switch Account'), 'Account menu must not show Switch Account');
+    assert.ok(!headerAudit.hasAllCapsHeaderCopy, 'Overview must not show CAPSLOCK header strings');
+
+    // Verify /marquee "hi" responds cleanly with zero model/Tier leaks
+    await page.goto(`${WEB_URL}/marquee`, { waitUntil: 'networkidle2', timeout: 60000 });
+    await page.waitForSelector('input[type="text"]', { timeout: 15000 });
+    await page.type('input[type="text"]', 'hi');
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(
+      () =>
+        !document.body.innerText.includes('Choose a command below') &&
+        !document.body.innerText.includes('Running...') &&
+        document.body.innerText.includes('Marquee'),
+      { timeout: 25000 },
+    );
+    const marqueeUiText = await page.evaluate(() => document.body.innerText);
+    assert.ok(
+      !/Gemini 3\.8|DeepSeek-V|Llama 3\.3|Tier 1|Tier 2|Provider:|deepseek-flash/i.test(marqueeUiText),
+      'Marquee UI must not leak internal model/provider/Tier strings',
+    );
+
+    // Verify /scenarios renders Monte Carlo Stress Test & Surplus Allocation Frontier
+    await page.goto(`${WEB_URL}/scenarios?month=11&year=2026`, { waitUntil: 'networkidle2', timeout: 60000 });
+    await page.waitForFunction(
+      () =>
+        document.body.innerText.includes('12-Month Survival Rate') &&
+        document.body.innerText.includes('Surplus Allocation Frontier'),
+      { timeout: 20000 },
+    );
+    console.log(
+      '  PASS [7/8]: Single Privacy Eye, monogram popover menu, zero CAPSLOCK labels, Marquee clean "hi" response, and Go /scenarios stress-test UI verified.',
+    );
+
+    console.log('  PASS [8/8]: Full Headless DOM & UX Flow E2E completed with 0 defects.');
   } finally {
     await browser.close();
   }

@@ -225,7 +225,7 @@ export function MarqueeResponseCards({
               key={`${card.label}-${idx}`}
               className="rounded border border-border-subtle bg-canvas/80 px-2.5 py-2"
             >
-              <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary truncate">
+              <div className="text-[11px] font-mono text-text-tertiary truncate">
                 {card.label}
               </div>
               <div

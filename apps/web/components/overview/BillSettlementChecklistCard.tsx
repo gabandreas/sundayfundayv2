@@ -125,19 +125,19 @@ export function BillSettlementChecklistCard({
       {/* Bank Reservation vs Free Cash Strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-xs font-mono tabular-nums">
         <div className="rounded border border-border-subtle bg-canvas p-2.5">
-          <div className="text-[10px] uppercase text-text-tertiary">Total Bills</div>
+          <div className="text-[10px] text-text-tertiary">Total Bills</div>
           <div className="text-sm font-semibold text-text-primary mt-0.5">
             {formatRp(totalScheduled)}
           </div>
         </div>
         <div className="rounded border border-border-subtle bg-canvas p-2.5">
-          <div className="text-[10px] uppercase text-text-tertiary">Already Paid</div>
+          <div className="text-[10px] text-text-tertiary">Already Paid</div>
           <div className="text-sm font-semibold text-delta-positive mt-0.5">
             {formatRp(paidAmount)}
           </div>
         </div>
         <div className="rounded border border-border-subtle bg-canvas p-2.5">
-          <div className="text-[10px] uppercase text-text-tertiary">
+          <div className="text-[10px] text-text-tertiary">
             Bank Hold Needed
           </div>
           <div className="text-sm font-semibold text-caution mt-0.5">
@@ -148,7 +148,7 @@ export function BillSettlementChecklistCard({
           </div>
         </div>
         <div className="rounded border border-border-subtle bg-canvas p-2.5">
-          <div className="text-[10px] uppercase text-text-tertiary">
+          <div className="text-[10px] text-text-tertiary">
             {savedWalletBalance !== null && savedWalletBalance !== undefined
               ? "Free Cash (Wallet - Hold)"
               : "Planned Living Cash"}

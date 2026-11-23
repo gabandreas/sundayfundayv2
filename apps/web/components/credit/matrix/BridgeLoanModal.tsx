@@ -140,7 +140,7 @@ export function BridgeLoanModal({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
-              <label className="text-[10px] font-mono uppercase text-text-tertiary">
+              <label className="text-[10px] font-mono text-text-tertiary">
                 Loan Description
               </label>
               <input
@@ -152,7 +152,7 @@ export function BridgeLoanModal({
               />
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-mono uppercase text-text-tertiary">
+              <label className="text-[10px] font-mono text-text-tertiary">
                 Platform / Lender
               </label>
               <input
@@ -166,7 +166,7 @@ export function BridgeLoanModal({
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="space-y-1">
-              <label className="text-[10px] font-mono uppercase text-text-tertiary">
+              <label className="text-[10px] font-mono text-text-tertiary">
                 Principal Disbursed
               </label>
               <input
@@ -179,7 +179,7 @@ export function BridgeLoanModal({
               />
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-mono uppercase text-text-tertiary">
+              <label className="text-[10px] font-mono text-text-tertiary">
                 Monthly Installment
               </label>
               <input
@@ -192,7 +192,7 @@ export function BridgeLoanModal({
               />
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-mono uppercase text-text-tertiary">
+              <label className="text-[10px] font-mono text-text-tertiary">
                 Tenor (Months)
               </label>
               <input
@@ -209,7 +209,7 @@ export function BridgeLoanModal({
           {/* Cash Inflow Split */}
           <div className="p-3 rounded border border-border-subtle bg-surface-subtle space-y-2.5">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-              <span className="text-[10px] font-mono uppercase text-text-tertiary">
+              <span className="text-[10px] font-mono text-text-tertiary">
                 Cash Inflow Split
               </span>
               <span className="text-[11px] font-mono tabular-nums text-text-secondary">
@@ -288,7 +288,7 @@ export function BridgeLoanModal({
           {/* Repayment Schedule */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
             <div className="space-y-1">
-              <label className="text-[10px] font-mono uppercase text-text-tertiary">
+              <label className="text-[10px] font-mono text-text-tertiary">
                 1st Installment Period
               </label>
               <select

@@ -18,9 +18,9 @@ import { EditableTarget } from "./EditableTarget";
 import { usePerspective } from "@/context/PerspectiveContext";
 import { useAuth } from "@/context/AuthContext";
 import { formatRupiah } from "@/lib/utils";
-import { PrivacyEyeButton } from "@/components/shell/PrivacyEyeButton";
 import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { useToast } from "@/context/ToastContext";
 
 interface RoutineBillsQuotaCardProps {
   snapshot: MonthlySnapshot | null;
@@ -85,6 +85,7 @@ export function RoutineBillsQuotaCard({
   const [customAmount, setCustomAmount] = useState<string>("");
   const [showInactiveQuotas, setShowInactiveQuotas] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const { toast } = useToast();
 
   // Inline rename state for Standard Edition
   const [renamingCategory, setRenamingCategory] = useState<string | null>(null);
@@ -280,7 +281,9 @@ export function RoutineBillsQuotaCard({
       if (!res.success) {
         if (paymentMethod === "CASH") invalidateCache();
         setSuccessCategory(null);
-        setErrorMessage(res.error || "Failed to record transaction");
+        const msg = res.error || "Failed to record transaction";
+        setErrorMessage(msg);
+        toast({ title: "Bill entry failed", description: msg, variant: "error" });
         return;
       }
 
@@ -288,10 +291,17 @@ export function RoutineBillsQuotaCard({
         setSuccessCategory(categoryKey);
         setTimeout(() => setSuccessCategory(null), 1400);
       }
+      toast({
+        title: paymentMethod === "PAYLATER" ? "Rolled to PayLater" : "Routine bill logged",
+        description: `${categoryLabel} · ${formatIdr(rounded)}`,
+        variant: "success",
+      });
     } catch (err: any) {
       if (paymentMethod === "CASH") invalidateCache();
       setSuccessCategory(null);
-      setErrorMessage(err.message || "Failed to submit expense");
+      const msg = err.message || "Failed to submit expense";
+      setErrorMessage(msg);
+      toast({ title: "Bill entry failed", description: msg, variant: "error" });
     } finally {
       setSubmittingCategory(null);
     }
@@ -315,7 +325,7 @@ export function RoutineBillsQuotaCard({
       <div>
         {/* Header — Plain-English Financial Terminology */}
         <div className="flex items-center justify-between gap-2 mb-2">
-          <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
+          <span className="text-[11px] font-semibold text-text-tertiary font-sans">
             {t("overview.routineBills")}
           </span>
           <span className="text-[10px] font-mono text-accent tabular-nums font-medium">
@@ -323,12 +333,11 @@ export function RoutineBillsQuotaCard({
           </span>
         </div>
 
-        <div className="flex items-baseline justify-between my-1">
+        <div className="flex flex-wrap items-baseline justify-between gap-2 my-1">
           <div className="flex items-center gap-2">
-            <span className="font-mono text-[24px] font-semibold leading-none tracking-tight text-text-primary tabular-nums">
+            <span className="font-mono text-[24px] font-semibold leading-none tracking-tight text-text-primary tabular-nums whitespace-nowrap">
               {formatIdr(baselineTotal)}
             </span>
-            <PrivacyEyeButton size="sm" />
           </div>
           <span className="text-xs font-sans text-text-tertiary">
             {t("overview.totalMonthlyBudget")}
@@ -346,7 +355,7 @@ export function RoutineBillsQuotaCard({
           {/* Daily Food & Living Budget (Top Line Item) */}
           <div className="p-2.5 rounded bg-surface-subtle border border-border-subtle space-y-1">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-[10px] text-text-tertiary uppercase font-semibold font-sans">
+              <span className="text-[10px] text-text-tertiary font-semibold font-sans">
                 {t("overview.dailyFoodLiving")}
               </span>
               <div className="flex items-center gap-1.5 shrink-0">
@@ -502,10 +511,10 @@ export function RoutineBillsQuotaCard({
                       )}
                     </div>
 
-                    <div className="flex items-center gap-2 text-right">
-                      <span className="font-mono text-xs tabular-nums text-text-primary">
+                    <div className="flex items-center gap-2 text-right shrink-0">
+                      <span className="font-mono text-xs tabular-nums text-text-primary whitespace-nowrap">
                         {formatIdr(spent)}
-                        <span className="text-text-tertiary"> / {formatIdr(target)}</span>
+                        <span className="text-text-tertiary whitespace-nowrap"> / {formatIdr(target)}</span>
                       </span>
                     </div>
                   </div>
@@ -528,7 +537,7 @@ export function RoutineBillsQuotaCard({
                       </span>
                     ) : (
                       <>
-                        <span>
+                        <span className="inline-flex items-center gap-2">
                           {remainingPool > 0 ? (
                             <span className="text-text-secondary">
                               Remaining:{" "}
@@ -537,7 +546,27 @@ export function RoutineBillsQuotaCard({
                               </strong>
                             </span>
                           ) : (
-                            <span className="text-delta-positive">Settled in full</span>
+                            <>
+                              <span className="text-delta-positive">Settled in full</span>
+                              {!isLocked && (
+                                <button
+                                  type="button"
+                                  disabled={isSubmittingThis}
+                                  onClick={() => {
+                                    if (isCustomOpen) {
+                                      setActiveCustomCategory(null);
+                                      setCustomAmount("");
+                                    } else {
+                                      setActiveCustomCategory(cat.key);
+                                      setCustomAmount("");
+                                    }
+                                  }}
+                                  className="text-[10px] font-mono text-text-tertiary hover:text-text-primary underline-offset-2 hover:underline cursor-pointer"
+                                >
+                                  {isCustomOpen ? "Close" : "+ Extra"}
+                                </button>
+                              )}
+                            </>
                           )}
                         </span>
                         {overage > 0 && (
@@ -549,35 +578,31 @@ export function RoutineBillsQuotaCard({
                     )}
                   </div>
 
-                  {/* Clean Action Bar */}
-                  {!isLocked && (
+                  {/* Clean Action Bar — shown when quota remains open; hidden on settled rows */}
+                  {!isLocked && remainingPool > 0 && (
                     <div className="mt-2.5 flex flex-wrap items-center justify-between gap-1.5">
                       <div className="flex flex-wrap items-center gap-1.5">
-                        {remainingPool > 0 && (
-                          <>
-                            <button
-                              type="button"
-                              disabled={isSubmittingThis}
-                              onClick={() =>
-                                handleQuickSpend(cat.key, cat.label, remainingPool, "CASH")
-                              }
-                              className="px-2.5 py-1 rounded text-[11px] font-mono bg-delta-positive/10 border border-delta-positive/30 text-delta-positive hover:bg-delta-positive/15 transition-colors cursor-pointer disabled:opacity-50"
-                            >
-                              Pay Full · {formatIdr(remainingPool).replace("Rp ", "")}
-                            </button>
-                            <button
-                              type="button"
-                              disabled={isSubmittingThis}
-                              onClick={() =>
-                                handleQuickSpend(cat.key, cat.label, remainingPool, "PAYLATER")
-                              }
-                              title="Move remaining quota onto the PayLater Debt Matrix without spending cash today"
-                              className="px-2 py-1 rounded text-[11px] font-sans bg-surface border border-border-default text-text-secondary hover:text-text-primary hover:bg-surface-hover transition-colors cursor-pointer disabled:opacity-50"
-                            >
-                              Roll to PayLater
-                            </button>
-                          </>
-                        )}
+                        <button
+                          type="button"
+                          disabled={isSubmittingThis}
+                          onClick={() =>
+                            handleQuickSpend(cat.key, cat.label, remainingPool, "CASH")
+                          }
+                          className="px-2.5 py-1 rounded text-[11px] font-mono bg-delta-positive/10 border border-delta-positive/30 text-delta-positive hover:bg-delta-positive/15 transition-colors cursor-pointer disabled:opacity-50"
+                        >
+                          Pay Full · {formatIdr(remainingPool).replace("Rp ", "")}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isSubmittingThis}
+                          onClick={() =>
+                            handleQuickSpend(cat.key, cat.label, remainingPool, "PAYLATER")
+                          }
+                          title="Move remaining quota onto the PayLater Debt Matrix without spending cash today"
+                          className="px-2 py-1 rounded text-[11px] font-sans bg-surface border border-border-default text-text-secondary hover:text-text-primary hover:bg-surface-hover transition-colors cursor-pointer disabled:opacity-50"
+                        >
+                          Roll to PayLater
+                        </button>
 
                         <button
                           type="button"

@@ -33,6 +33,7 @@ import {
   SimulateCutoffDto,
   SimulateScenarioDto,
   SimulateTimelineDto,
+  StressTestScenarioDto,
   WalletGuardEvaluateDto,
 } from './dto/hybrid-finance.dto';
 
@@ -215,17 +216,24 @@ export class FinanceController {
   async stopRecurringSubscription(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: { stopFromMonth: number; stopFromYear: number },
+    @Req() req?: any,
   ) {
+    const userId = getUserIdOrThrow(req);
     return this.creditService.stopRecurringSubscription(
       id,
       dto.stopFromMonth,
       dto.stopFromYear,
+      userId,
     );
   }
 
   @Patch('credit-card/:id/resume-recurring')
-  async resumeRecurringSubscription(@Param('id', ParseIntPipe) id: number) {
-    return this.creditService.resumeRecurringSubscription(id);
+  async resumeRecurringSubscription(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req?: any,
+  ) {
+    const userId = getUserIdOrThrow(req);
+    return this.creditService.resumeRecurringSubscription(id, userId);
   }
 
   @Post('cutoff-simulate')
@@ -338,5 +346,11 @@ export class FinanceController {
   async simulateScenario(@Body() dto: SimulateScenarioDto, @Req() req?: any) {
     const userId = getUserIdOrThrow(req);
     return this.financeSelectors.simulateScenarioForUser(dto, userId);
+  }
+
+  @Post('scenarios/stress-test')
+  async runStressTest(@Body() dto: StressTestScenarioDto, @Req() req?: any) {
+    const userId = getUserIdOrThrow(req);
+    return this.financeSelectors.runStressTestForUser(dto, userId);
   }
 }

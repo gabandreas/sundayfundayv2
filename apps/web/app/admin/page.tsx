@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/context/ToastContext";
 import {
   AdminUserSummary,
   AdminAuditLogItem,
@@ -93,12 +94,22 @@ type AdminTab = "ACCOUNTS" | "BLUEPRINT" | "REQUESTS" | "SECURITY";
 
 export default function AdminConsolePage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<AdminTab>("ACCOUNTS");
   const [isLoading, setIsLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{
     type: "success" | "error";
     text: string;
   } | null>(null);
+
+  useEffect(() => {
+    if (!statusMessage) return;
+    toast({
+      title: statusMessage.type === "success" ? "Platform Admin" : "Admin Action Failed",
+      description: statusMessage.text,
+      variant: statusMessage.type,
+    });
+  }, [statusMessage, toast]);
 
   // Data states
   const [users, setUsers] = useState<AdminUserSummary[]>([]);
@@ -414,7 +425,7 @@ export default function AdminConsolePage() {
       );
       setStatusMessage({
         type: "success",
-        text: `Strict IP whitelist enforcement ${enforce ? "ENABLED" : "DISABLED"}`,
+        text: `Strict IP whitelist enforcement ${enforce ? "Enabled" : "Disabled"}`,
       });
     } catch (err: any) {
       setStatusMessage({ type: "error", text: err.message });
@@ -608,7 +619,7 @@ export default function AdminConsolePage() {
         <ShieldCheck className="w-10 h-10 text-negative mx-auto mb-3" />
         <h2 className="text-lg font-medium text-text-primary">Access Restricted</h2>
         <p className="text-xs text-text-secondary mt-2">
-          The Platform Admin Console is strictly reserved for SUPERADMIN accounts.
+          The Platform Admin Console is strictly reserved for Superadmin accounts.
         </p>
       </div>
     );
@@ -619,7 +630,7 @@ export default function AdminConsolePage() {
       {/* Top Banner / Executive Title */}
       <div className="flex items-center justify-between border-b border-border pb-5">
         <div>
-          <div className="text-[11px] font-mono uppercase tracking-wider text-text-tertiary">
+          <div className="text-[11px] font-mono text-text-tertiary">
             System Administration
           </div>
           <h1 className="text-2xl font-serif text-text-primary tracking-tight mt-1">
@@ -664,7 +675,7 @@ export default function AdminConsolePage() {
           <button
             type="button"
             onClick={() => setStatusMessage(null)}
-            className="text-[11px] font-mono uppercase underline ml-4"
+            className="text-[11px] font-mono underline ml-4"
           >
             Dismiss
           </button>
@@ -674,7 +685,7 @@ export default function AdminConsolePage() {
       {/* Metric Cards Banner */}
       <div className="grid grid-cols-4 gap-4">
         <div className="p-4 rounded-lg border border-border bg-surface">
-          <div className="text-[10px] font-mono text-text-tertiary uppercase">Total Accounts</div>
+          <div className="text-[10px] font-mono text-text-tertiary">Total Accounts</div>
           <div className="text-2xl font-serif font-medium text-text-primary mt-1">
             {users.length}
           </div>
@@ -684,7 +695,7 @@ export default function AdminConsolePage() {
         </div>
 
         <div className="p-4 rounded-lg border border-border bg-surface">
-          <div className="text-[10px] font-mono text-text-tertiary uppercase">Active Snapshots</div>
+          <div className="text-[10px] font-mono text-text-tertiary">Active Snapshots</div>
           <div className="text-2xl font-serif font-medium text-text-primary mt-1">
             {users.reduce((sum, u) => sum + (u.snapshotCount || 0), 0)}
           </div>
@@ -692,7 +703,7 @@ export default function AdminConsolePage() {
         </div>
 
         <div className="p-4 rounded-lg border border-border bg-surface">
-          <div className="text-[10px] font-mono text-text-tertiary uppercase">Pending Requests</div>
+          <div className="text-[10px] font-mono text-text-tertiary">Pending Requests</div>
           <div className="text-2xl font-serif font-medium text-text-primary mt-1">
             {featureRequests.filter((r) => r.status === "SUBMITTED" || r.status === "IN_REVIEW").length}
           </div>
@@ -700,7 +711,7 @@ export default function AdminConsolePage() {
         </div>
 
         <div className="p-4 rounded-lg border border-border bg-surface">
-          <div className="text-[10px] font-mono text-text-tertiary uppercase">IP Whitelist</div>
+          <div className="text-[10px] font-mono text-text-tertiary">IP Whitelist</div>
           <div className="text-2xl font-serif font-medium text-text-primary mt-1">
             {securitySettings?.ipWhitelistEnforced ? "STRICT" : "PERMISSIVE"}
           </div>
@@ -795,7 +806,7 @@ export default function AdminConsolePage() {
 
           <div className="rounded-lg border border-border bg-surface overflow-x-auto">
             <table className="w-full text-xs text-left">
-              <thead className="bg-surface-subtle border-b border-border text-[10px] font-mono uppercase text-text-tertiary">
+              <thead className="bg-surface-subtle border-b border-border text-[10px] font-mono text-text-tertiary">
                 <tr>
                   <th className="px-4 py-3">ID / User</th>
                   <th className="px-4 py-3">Role</th>
@@ -963,7 +974,7 @@ export default function AdminConsolePage() {
                     }}
                     className="w-full px-3 py-2 text-xs rounded border border-border bg-surface-subtle text-text-primary font-mono"
                   >
-                    <option value="SUPERADMIN_BESPOKE">SUPERADMIN_BESPOKE (Owner ERP)</option>
+                    <option value="SUPERADMIN_BESPOKE">Bespoke Owner ERP</option>
                     {LIFE_STAGE_PRESET_CATALOG.map((p) => (
                       <option key={p.id} value={p.id}>
                         {p.title}
@@ -1048,8 +1059,8 @@ export default function AdminConsolePage() {
                     }
                     className="w-full px-3 py-2 text-xs rounded border border-border bg-surface-subtle text-text-primary font-mono"
                   >
-                    <option value="STANDARD_GENERAL">STANDARD_GENERAL (Commercial)</option>
-                    <option value="SUPERADMIN_BESPOKE">SUPERADMIN_BESPOKE (Bespoke)</option>
+                    <option value="STANDARD_GENERAL">Standard Edition (Commercial)</option>
+                    <option value="SUPERADMIN_BESPOKE">Bespoke Owner ERP</option>
                   </select>
                 </div>
 
@@ -1073,7 +1084,7 @@ export default function AdminConsolePage() {
 
               {/* Remote Module Registry Checkboxes */}
               <div className="border-t border-border pt-5">
-                <div className="text-xs font-mono uppercase text-text-tertiary mb-3">
+                <div className="text-xs font-mono text-text-tertiary mb-3">
                   Enabled ERP Modules (Odoo-Style Tenant Module Registry)
                 </div>
                 <div className="grid grid-cols-3 gap-2.5">
@@ -1121,7 +1132,7 @@ export default function AdminConsolePage() {
 
               {/* Monthly Envelopes */}
               <div className="border-t border-border pt-5">
-                <div className="text-xs font-mono uppercase text-text-tertiary mb-3">
+                <div className="text-xs font-mono text-text-tertiary mb-3">
                   Monthly Baseline Allocation Envelopes (IDR)
                 </div>
                 <div className="grid grid-cols-4 gap-4">
@@ -1216,7 +1227,7 @@ export default function AdminConsolePage() {
 
           <div className="rounded-lg border border-border bg-surface overflow-x-auto">
             <table className="w-full text-xs text-left">
-              <thead className="bg-surface-subtle border-b border-border text-[10px] font-mono uppercase text-text-tertiary">
+              <thead className="bg-surface-subtle border-b border-border text-[10px] font-mono text-text-tertiary">
                 <tr>
                   <th className="px-4 py-3">ID / Title</th>
                   <th className="px-4 py-3">Category</th>
@@ -1564,7 +1575,7 @@ export default function AdminConsolePage() {
                 <span className="text-xs font-mono text-text-tertiary">
                   Current Status:{" "}
                   <strong className="text-text-primary">
-                    {securitySettings?.ipWhitelistEnforced ? "ENABLED" : "DISABLED"}
+                    {securitySettings?.ipWhitelistEnforced ? "Enabled" : "Disabled"}
                   </strong>
                 </span>
                 <button
@@ -1586,7 +1597,7 @@ export default function AdminConsolePage() {
             {/* Current Client IP Detected */}
             <div className="flex items-center justify-between p-3 rounded-md bg-surface-subtle border border-border">
               <div>
-                <div className="text-[10px] font-mono uppercase text-text-tertiary">
+                <div className="text-[10px] font-mono text-text-tertiary">
                   Your Current Detected IP
                 </div>
                 <div className="text-sm font-mono text-text-primary font-medium mt-0.5">
@@ -1614,12 +1625,12 @@ export default function AdminConsolePage() {
 
             {/* Whitelisted IPs Table */}
             <div>
-              <div className="text-xs font-mono uppercase text-text-tertiary mb-2">
+              <div className="text-xs font-mono text-text-tertiary mb-2">
                 Trusted Network Addresses
               </div>
               <div className="rounded-md border border-border overflow-hidden">
                 <table className="w-full text-xs text-left">
-                  <thead className="bg-surface-subtle text-[10px] font-mono uppercase text-text-tertiary border-b border-border">
+                  <thead className="bg-surface-subtle text-[10px] font-mono text-text-tertiary border-b border-border">
                     <tr>
                       <th className="px-4 py-2.5">IP Address</th>
                       <th className="px-4 py-2.5">Label</th>
@@ -1707,7 +1718,7 @@ export default function AdminConsolePage() {
             ) : (
               <div className="rounded-md border border-border overflow-x-auto max-h-80 overflow-y-auto">
                 <table className="w-full text-xs text-left">
-                  <thead className="bg-surface-subtle text-[10px] font-mono uppercase text-text-tertiary border-b border-border">
+                  <thead className="bg-surface-subtle text-[10px] font-mono text-text-tertiary border-b border-border">
                     <tr>
                       <th className="px-3 py-2">Time</th>
                       <th className="px-3 py-2">Action</th>
@@ -1848,8 +1859,8 @@ export default function AdminConsolePage() {
                     }
                     className="w-full px-3 py-2 text-xs rounded border border-border bg-surface-subtle text-text-primary font-mono"
                   >
-                    <option value="STANDARD_GENERAL">STANDARD_GENERAL (Sunday Funday Standard)</option>
-                    <option value="SUPERADMIN_BESPOKE">SUPERADMIN_BESPOKE (Bespoke Full ERP)</option>
+                    <option value="STANDARD_GENERAL">Sunday Funday Standard</option>
+                    <option value="SUPERADMIN_BESPOKE">Bespoke Full ERP</option>
                   </select>
                 </div>
               </div>

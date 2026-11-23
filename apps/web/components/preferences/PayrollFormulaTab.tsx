@@ -158,7 +158,7 @@ export function PayrollFormulaTab({ config }: PayrollFormulaTabProps) {
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
-            <label className="block text-[11px] font-sans text-text-tertiary uppercase tracking-wider mb-1.5">
+            <label className="block text-[11px] font-sans text-text-tertiary mb-1.5">
               Base Monthly Salary
             </label>
             <div className="relative">
@@ -176,7 +176,7 @@ export function PayrollFormulaTab({ config }: PayrollFormulaTabProps) {
           </div>
 
           <div>
-            <label className="block text-[11px] font-sans text-text-tertiary uppercase tracking-wider mb-1.5">
+            <label className="block text-[11px] font-sans text-text-tertiary mb-1.5">
               Attendance Daily Rate
             </label>
             <div className="relative">
@@ -194,7 +194,7 @@ export function PayrollFormulaTab({ config }: PayrollFormulaTabProps) {
           </div>
 
           <div>
-            <label className="block text-[11px] font-sans text-text-tertiary uppercase tracking-wider mb-1.5">
+            <label className="block text-[11px] font-sans text-text-tertiary mb-1.5">
               Laptop Allowance
             </label>
             <div className="relative">
@@ -212,7 +212,7 @@ export function PayrollFormulaTab({ config }: PayrollFormulaTabProps) {
           </div>
 
           <div>
-            <label className="block text-[11px] font-sans text-text-tertiary uppercase tracking-wider mb-1.5">
+            <label className="block text-[11px] font-sans text-text-tertiary mb-1.5">
               Default Payday Cutoff
             </label>
             <input
@@ -321,7 +321,7 @@ export function PayrollFormulaTab({ config }: PayrollFormulaTabProps) {
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="border-b border-[#282e3d] text-text-tertiary uppercase text-[10px] tracking-wider">
+              <tr className="border-b border-[#282e3d] text-text-tertiary text-[10px]">
                 <th className="py-2 px-3">Status</th>
                 <th className="py-2 px-3">Line-Item</th>
                 <th className="py-2 px-3">Direction</th>

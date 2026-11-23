@@ -61,7 +61,7 @@ export function OverviewExecutiveRibbon({
       <div className="flex items-center gap-3 min-w-[240px]">
         <CalendarClock className="w-4 h-4 text-text-tertiary shrink-0" />
         <div>
-          <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+          <div className="text-[10px] font-mono text-text-tertiary">
             {t("intel.paycycleWindow")} · {paycycle.periodCode}
           </div>
           <div className="text-xs font-medium text-text-primary font-mono tabular-nums mt-0.5">
@@ -76,7 +76,7 @@ export function OverviewExecutiveRibbon({
       {/* Key Executive Metrics */}
       <div className="flex flex-wrap items-center gap-5 sm:gap-7">
         <div title={t("intel.cashVsDebtHint")}>
-          <div className="text-[10px] font-mono uppercase text-text-tertiary inline-flex items-center gap-1">
+          <div className="text-[10px] font-mono text-text-tertiary inline-flex items-center gap-1">
             <span>{t("intel.realNetWorth")}</span>
             <HelpCircle className="w-3 h-3 text-text-tertiary/70" />
           </div>
@@ -91,7 +91,7 @@ export function OverviewExecutiveRibbon({
         </div>
 
         <div title={t("intel.savingsRunwayHint")}>
-          <div className="text-[10px] font-mono uppercase text-text-tertiary inline-flex items-center gap-1">
+          <div className="text-[10px] font-mono text-text-tertiary inline-flex items-center gap-1">
             <span>{t("intel.ageOfMoney")}</span>
             <HelpCircle className="w-3 h-3 text-text-tertiary/70" />
           </div>
@@ -104,14 +104,14 @@ export function OverviewExecutiveRibbon({
         </div>
 
         <div>
-          <div className="text-[10px] font-mono uppercase text-text-tertiary">{milestoneTitle}</div>
+          <div className="text-[10px] font-mono text-text-tertiary">{milestoneTitle}</div>
           <div className="text-sm font-semibold font-mono tabular-nums text-text-primary">
             {dynamicMilestone?.targetDateLabel ?? forecaster.spinjamFreedomDate}
           </div>
         </div>
 
         <div title={t("intel.burnVelocityHint")}>
-          <div className="text-[10px] font-mono uppercase text-text-tertiary">{t("intel.burnVelocity")}</div>
+          <div className="text-[10px] font-mono text-text-tertiary">{t("intel.burnVelocity")}</div>
           <span
             className={`inline-flex items-center gap-1.5 whitespace-nowrap px-2 py-0.5 mt-0.5 rounded border text-[11px] font-mono font-medium ${velocityColor}`}
           >
@@ -155,7 +155,7 @@ export function OverviewIntelligenceStrip({
         <div className="flex items-center justify-between gap-2">
           <span
             title={t("intel.cashVsDebtHint")}
-            className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans inline-flex items-center gap-1.5"
+            className="text-[11px] font-semibold text-text-tertiary font-sans inline-flex items-center gap-1.5"
           >
             <span>{t("intel.cashVsDebtTitle")}</span>
             <HelpCircle className="w-3.5 h-3.5 text-text-tertiary/70 shrink-0" />
@@ -199,7 +199,7 @@ export function OverviewIntelligenceStrip({
         <div className="flex items-center justify-between gap-2">
           <span
             title={t("intel.paceAndCreepHint")}
-            className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans inline-flex items-center gap-1.5"
+            className="text-[11px] font-semibold text-text-tertiary font-sans inline-flex items-center gap-1.5"
           >
             <span>{t("intel.paceAndCreepTitle")}</span>
             <HelpCircle className="w-3.5 h-3.5 text-text-tertiary/70 shrink-0" />
@@ -240,7 +240,7 @@ export function OverviewIntelligenceStrip({
         <div className="flex items-center justify-between gap-2">
           <span
             title={t("intel.nextUnlockHint")}
-            className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans inline-flex items-center gap-1.5"
+            className="text-[11px] font-semibold text-text-tertiary font-sans inline-flex items-center gap-1.5"
           >
             <span>{t("intel.nextUnlock")}</span>
             <HelpCircle className="w-3.5 h-3.5 text-text-tertiary/70 shrink-0" />

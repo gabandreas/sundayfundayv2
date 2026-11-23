@@ -232,7 +232,7 @@ export function OverviewClientView({
         fixedEssentialsTotal={fixedEssentialsTotal}
       >
         <section className="space-y-3">
-          <div className="text-[11px] font-sans tracking-wider text-text-tertiary uppercase font-semibold">
+          <div className="text-[11px] font-sans text-text-tertiary font-semibold">
             Monthly Budget Overview
           </div>
 
@@ -298,15 +298,15 @@ export function OverviewClientView({
 
       {/* SECTION C: FINANCIAL OUTLOOK & DEBT PAYOFF TRAJECTORY */}
       <section className="space-y-3">
-        <div className="text-[11px] font-sans tracking-wider text-text-tertiary uppercase font-semibold">
+        <div className="text-[11px] font-sans text-text-tertiary font-semibold">
           {t("intel.outlookTitle")}
         </div>
         <OverviewIntelligenceStrip intel={intelligence ?? null} />
       </section>
 
-      {/* SECTION D: CASHFLOW BREAKDOWN, BILL RESERVATION CHECKLIST & RECENT TRANSACTIONS */}
+      {/* Section D: Cashflow breakdown, bill reservation checklist, and recent transactions */}
       <section className="space-y-4">
-        <div className="text-[11px] font-sans tracking-wider text-text-tertiary uppercase font-semibold">
+        <div className="text-[11px] font-sans text-text-tertiary font-semibold">
           Ledger Activity &amp; Cashflow Breakdown
         </div>
 

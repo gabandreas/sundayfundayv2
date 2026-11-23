@@ -11,9 +11,11 @@ import {
   HttpCode,
   HttpStatus,
   ParseIntPipe,
+  UseGuards,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { AuthService } from './auth.service';
+import { PlatformOwnerGuard } from './roles.guard';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { VerifyPasswordDto } from './dto/verify-password.dto';
@@ -172,6 +174,7 @@ export class AuthController {
   }
 
   @Post('register')
+  @UseGuards(PlatformOwnerGuard)
   async register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
   }

@@ -146,7 +146,7 @@ export function ReportsSpendingBreakdown({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="p-3 rounded border border-border-subtle bg-surface-subtle/50">
-              <div className="text-[10px] font-mono uppercase text-text-tertiary">
+              <div className="text-[10px] font-mono text-text-tertiary">
                 Cycle Check ({statement.periodLabel})
               </div>
               <div
@@ -164,7 +164,7 @@ export function ReportsSpendingBreakdown({
             </div>
 
             <div className="p-3 rounded border border-border-subtle bg-surface-subtle/50">
-              <div className="text-[10px] font-mono uppercase text-text-tertiary">
+              <div className="text-[10px] font-mono text-text-tertiary">
                 Overall Health Average
               </div>
               <div

@@ -172,7 +172,7 @@ export function AddCardChargeForm({
           {/* Label / Description */}
           <div className="sm:col-span-8">
             <label className="block text-[11px] font-sans font-medium text-text-tertiary mb-1">
-              DESCRIPTION / MERCHANT
+              Description / Merchant
             </label>
             <input
               type="text"
@@ -200,7 +200,7 @@ export function AddCardChargeForm({
           {/* Amount */}
           <div className="sm:col-span-4">
             <label className="block text-[11px] font-sans font-medium text-text-tertiary mb-1">
-              AMOUNT (RP)
+              Amount (Rp)
             </label>
             <input
               type="text"
@@ -231,7 +231,7 @@ export function AddCardChargeForm({
           {/* Charge Type */}
           <div className="sm:col-span-1 lg:col-span-4">
             <label className="block text-[11px] font-sans font-medium text-text-tertiary mb-1">
-              CHARGE TYPE
+              Charge Type
             </label>
             <select
               value={chargeType}
@@ -248,7 +248,7 @@ export function AddCardChargeForm({
           {chargeType === "INSTALLMENT" && (
             <div className="sm:col-span-1 lg:col-span-2">
               <label className="block text-[11px] font-sans font-medium text-text-tertiary mb-1">
-                TENOR (MO)
+                Tenor (months)
               </label>
               <select
                 value={tenor}
@@ -285,7 +285,7 @@ export function AddCardChargeForm({
           {/* Transaction Date */}
           <div className={chargeType === "INSTALLMENT" ? "sm:col-span-1 lg:col-span-3" : "sm:col-span-2 lg:col-span-4"}>
             <label className="block text-[11px] font-sans font-medium text-text-tertiary mb-1">
-              TRANSACTION DATE
+              Transaction Date
             </label>
             <input
               type="date"
@@ -358,8 +358,8 @@ export function AddCardChargeForm({
               </p>
             </div>
             <div className="sm:col-span-3">
-              <label className="block text-[10px] font-mono uppercase text-text-tertiary mb-1">
-                END MONTH (1-12)
+              <label className="block text-[10px] font-mono text-text-tertiary mb-1">
+                End Month (1-12)
               </label>
               <input
                 type="number"
@@ -372,8 +372,8 @@ export function AddCardChargeForm({
               />
             </div>
             <div className="sm:col-span-3">
-              <label className="block text-[10px] font-mono uppercase text-text-tertiary mb-1">
-                END YEAR
+              <label className="block text-[10px] font-mono text-text-tertiary mb-1">
+                End Year
               </label>
               <input
                 type="number"
@@ -391,7 +391,7 @@ export function AddCardChargeForm({
         {/* Notes (optional) */}
         <div>
           <label className="block text-[11px] font-sans font-medium text-text-tertiary mb-1">
-            NOTES (OPTIONAL)
+            Notes (optional)
           </label>
           <input
             type="text"

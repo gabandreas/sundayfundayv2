@@ -98,7 +98,7 @@ function LoginForm() {
     <div className="w-full max-w-md rounded-xl border border-border bg-surface p-6 sm:p-8 shadow-2xl">
       <div className="mb-6">
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-[11px] font-mono tracking-wider text-text-tertiary uppercase">
+          <div className="flex items-center gap-2 text-[11px] font-mono text-text-tertiary">
             <BrandMark size={20} />
             <span>{t("auth.eyebrow")}</span>
           </div>
@@ -329,7 +329,7 @@ function LoginForm() {
       </form>
 
       <div className="mt-6 pt-5 border-t border-border space-y-2">
-        <div className="text-[10px] font-mono text-text-tertiary uppercase tracking-wider text-center">
+        <div className="text-[10px] font-mono text-text-tertiary text-center">
           {t("auth.demoEyebrow")}
         </div>
         <button

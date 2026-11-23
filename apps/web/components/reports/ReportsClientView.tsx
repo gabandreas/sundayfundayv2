@@ -255,7 +255,7 @@ export function ReportsClientView({
         <div className="flex items-center gap-3">
           <BrandMark size={24} className="shrink-0" />
           <div>
-            <div className="text-[10px] font-mono uppercase tracking-widest text-[#4b5563]">
+            <div className="text-[10px] font-mono tracking-normal text-[#4b5563]">
               Sunday Funday · Personal Financial Statement
             </div>
             <h1 className="font-display text-2xl font-normal text-[#111827] leading-tight">
@@ -477,31 +477,31 @@ export function ReportsClientView({
         {horizon && (
           <div className="pt-2.5 border-t border-border-subtle grid grid-cols-2 lg:grid-cols-5 gap-3 text-xs font-mono tabular-nums">
             <div>
-              <div className="text-[10px] uppercase text-text-tertiary">DSR Ratio</div>
+              <div className="text-[10px] text-text-tertiary">DSR Ratio</div>
               <div className="font-semibold text-text-primary mt-0.5">
                 {horizon.dsrPercent}%
               </div>
             </div>
             <div>
-              <div className="text-[10px] uppercase text-text-tertiary">Net Savings Rate</div>
+              <div className="text-[10px] text-text-tertiary">Net Savings Rate</div>
               <div className="font-semibold text-delta-positive mt-0.5">
                 {horizon.netSavingsRatePercent}%
               </div>
             </div>
             <div>
-              <div className="text-[10px] uppercase text-text-tertiary">Debt Burn-Down</div>
+              <div className="text-[10px] text-text-tertiary">Debt Burn-Down</div>
               <div className="font-semibold text-text-primary mt-0.5">
                 {formatIDR(horizon.debtBurnDownVelocityRp)}/mo
               </div>
             </div>
             <div>
-              <div className="text-[10px] uppercase text-text-tertiary">Effective Living / Day</div>
+              <div className="text-[10px] text-text-tertiary">Effective Living / Day</div>
               <div className="font-semibold text-text-primary mt-0.5">
                 {formatIDR(horizon.effectiveDailyLivingRate)}
               </div>
             </div>
             <div className="col-span-2 lg:col-span-1">
-              <div className="text-[10px] uppercase text-text-tertiary">Next Cashflow Unlock</div>
+              <div className="text-[10px] text-text-tertiary">Next Cashflow Unlock</div>
               <div className="font-semibold text-delta-positive mt-0.5 truncate" title={horizon.nextMilestoneLabel}>
                 {horizon.nextMilestoneLabel}
               </div>
@@ -538,7 +538,7 @@ export function ReportsClientView({
           <section className="bg-surface border border-border rounded-lg overflow-hidden print-avoid-break">
             <div className="px-5 py-3.5 border-b border-border flex items-center justify-between bg-surface-subtle/40">
               <div>
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-text-primary">
+                <h3 className="text-xs font-semibold text-text-primary">
                   Where Your Money Went & Why This Month Changed
                 </h3>
                 <p className="text-[11px] text-text-secondary mt-0.5">
@@ -557,7 +557,7 @@ export function ReportsClientView({
             <div className="p-4 sm:p-5 grid grid-cols-1 lg:grid-cols-12 gap-6 text-xs">
               {/* Left: Biggest Cost Drivers */}
               <div className="col-span-1 lg:col-span-6 space-y-3 lg:pr-4 lg:border-r border-border-subtle">
-                <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+                <div className="text-[10px] font-mono text-text-tertiary">
                   Biggest Cost Drivers in {cs.periodLabel}
                 </div>
                 <p className="text-xs text-text-primary leading-relaxed font-medium">
@@ -592,7 +592,7 @@ export function ReportsClientView({
 
               {/* Right: Month-over-Month Spikes & Mid-Month Budget Edits */}
               <div className="col-span-1 lg:col-span-6 space-y-3">
-                <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+                <div className="text-[10px] font-mono text-text-tertiary">
                   What Changed vs.{" "}
                   {mc.driversAndSpikes.previousPeriodLabel ?? "Baseline Plan"}
                 </div>
@@ -650,7 +650,7 @@ export function ReportsClientView({
           <section className="bg-surface border border-border rounded-lg overflow-hidden print-avoid-break">
             <div className="px-5 py-3.5 border-b border-border flex items-center justify-between bg-surface-subtle/40">
               <div>
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-text-primary">
+                <h3 className="text-xs font-semibold text-text-primary">
                   Payday Execution Checklist (Transfer & Payment Guide)
                 </h3>
                 <p className="text-[11px] text-text-secondary mt-0.5">
@@ -666,7 +666,7 @@ export function ReportsClientView({
               {/* Checklist 1 */}
               <div className="p-4 flex flex-col justify-between space-y-3">
                 <div className="space-y-1.5">
-                  <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+                  <div className="text-[10px] font-mono text-text-tertiary">
                     1. Set Aside for Debt & Bills
                   </div>
                   <div className="font-mono text-base font-semibold text-text-primary">
@@ -725,7 +725,7 @@ export function ReportsClientView({
               {/* Checklist 2 */}
               <div className="p-4 flex flex-col justify-between space-y-3">
                 <div className="space-y-1.5">
-                  <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+                  <div className="text-[10px] font-mono text-text-tertiary">
                     2. Keep in Operational Account
                   </div>
                   <div className="font-mono text-base font-semibold text-text-primary">
@@ -776,7 +776,7 @@ export function ReportsClientView({
               <div className="p-4 flex flex-col justify-between space-y-3">
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+                    <span className="text-[10px] font-mono text-text-tertiary">
                       3. Transfer to Savings Reserve
                     </span>
                     <span
@@ -840,7 +840,7 @@ export function ReportsClientView({
               {/* Checklist 4 */}
               <div className="p-4 flex flex-col justify-between space-y-3">
                 <div className="space-y-1.5">
-                  <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+                  <div className="text-[10px] font-mono text-text-tertiary">
                     4. Flexible Surplus Allowance
                   </div>
                   <div className="font-mono text-base font-semibold text-text-primary">
@@ -871,7 +871,7 @@ export function ReportsClientView({
           <section className="bg-surface border border-border rounded-lg overflow-hidden print-avoid-break">
             <div className="px-5 py-3.5 border-b border-border flex items-center justify-between bg-surface-subtle/40">
               <div>
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-text-primary">
+                <h3 className="text-xs font-semibold text-text-primary">
                   Step 1 · Money In (Payroll & Extra Inflow)
                 </h3>
                 <p className="text-[11px] text-text-secondary mt-0.5">
@@ -943,7 +943,7 @@ export function ReportsClientView({
 
               <div className="col-span-1 lg:col-span-5 flex flex-col justify-between divide-y divide-border-subtle">
                 <div className="p-5 space-y-2.5">
-                  <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+                  <div className="text-[10px] font-mono text-text-tertiary">
                     Bonus, THR & Extra Income
                   </div>
                   <div className="flex justify-between">
@@ -973,7 +973,7 @@ export function ReportsClientView({
                 </div>
 
                 <div className="px-5 py-3.5 bg-surface-elevated flex items-center justify-between">
-                  <span className="font-semibold text-text-primary uppercase tracking-wider text-[11px]">
+                  <span className="font-semibold text-text-primary text-[11px]">
                     Total Money In
                   </span>
                   <span className="font-mono text-sm font-semibold text-positive">
@@ -988,7 +988,7 @@ export function ReportsClientView({
           <section className="bg-surface border border-border rounded-lg overflow-hidden print-avoid-break">
             <div className="px-5 py-3.5 border-b border-border flex items-center justify-between bg-surface-subtle/40">
               <div>
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-text-primary">
+                <h3 className="text-xs font-semibold text-text-primary">
                   Step 2 · Debt & Credit Bills (Deducted First)
                 </h3>
                 <p className="text-[11px] text-text-secondary mt-0.5">
@@ -1003,7 +1003,7 @@ export function ReportsClientView({
             {/* 4 Debt Buckets Summary Bar */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border-subtle border-b border-border bg-surface-subtle/30 text-xs">
               <div className="px-5 py-3">
-                <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+                <div className="text-[10px] font-mono text-text-tertiary">
                   PayLater Statement (Due {mc.paydayChecklist.paylaterDueDay}th)
                 </div>
                 <div className="font-mono text-sm font-semibold text-text-primary mt-0.5">
@@ -1017,7 +1017,7 @@ export function ReportsClientView({
               </div>
 
               <div className="px-5 py-3">
-                <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+                <div className="text-[10px] font-mono text-text-tertiary">
                   Credit Card Statement (Due {mc.paydayChecklist.creditDueDay}th)
                 </div>
                 <div className="font-mono text-sm font-semibold text-text-primary mt-0.5">
@@ -1029,7 +1029,7 @@ export function ReportsClientView({
               </div>
 
               <div className="px-5 py-3">
-                <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+                <div className="text-[10px] font-mono text-text-tertiary">
                   Personal / Pre-Payday Debt
                 </div>
                 <div className="font-mono text-sm font-semibold text-text-primary mt-0.5">
@@ -1041,7 +1041,7 @@ export function ReportsClientView({
               </div>
 
               <div className="px-5 py-3">
-                <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+                <div className="text-[10px] font-mono text-text-tertiary">
                   Fixed Installment Contracts
                 </div>
                 <div className="font-mono text-sm font-semibold text-text-primary mt-0.5">
@@ -1056,7 +1056,7 @@ export function ReportsClientView({
             {/* Inline Itemized Credit Card Sub-Table */}
             <div className="p-5 space-y-2.5">
               <div className="flex items-center justify-between">
-                <div className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary">
+                <div className="text-[11px] font-semibold text-text-secondary">
                   Itemized Credit Card Statement ({mc.itemizedCreditCardCharges.length} Charges Billed in {cs.periodLabel})
                 </div>
                 <span className="text-[11px] font-mono text-text-secondary">
@@ -1072,7 +1072,7 @@ export function ReportsClientView({
                 <div className="overflow-x-auto border border-border rounded">
                   <table className="w-full text-xs border-collapse">
                     <thead>
-                      <tr className="border-b border-border text-[10px] uppercase tracking-wider text-text-tertiary bg-surface-subtle/40">
+                      <tr className="border-b border-border text-[10px] text-text-tertiary bg-surface-subtle/40">
                         <th className="py-2 px-4 text-left font-medium">
                           Card Transaction / Subscription
                         </th>
@@ -1140,7 +1140,7 @@ export function ReportsClientView({
           <section className="bg-surface border border-border rounded-lg overflow-hidden print-avoid-break">
             <div className="px-5 py-3.5 border-b border-border flex items-center justify-between bg-surface-subtle/40">
               <div>
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-text-primary">
+                <h3 className="text-xs font-semibold text-text-primary">
                   Step 3 · Monthly Routine Bills (Transport, Internet, Vape, Haircut)
                 </h3>
                 <p className="text-[11px] text-text-secondary mt-0.5">
@@ -1155,7 +1155,7 @@ export function ReportsClientView({
             <div className="overflow-x-auto">
               <table className="w-full text-xs border-collapse">
                 <thead>
-                  <tr className="border-b border-border text-[10px] uppercase tracking-wider text-text-tertiary bg-surface-subtle/30">
+                  <tr className="border-b border-border text-[10px] text-text-tertiary bg-surface-subtle/30">
                     <th className="py-2.5 px-5 text-left font-medium">
                       Routine Bill Category
                     </th>
@@ -1250,7 +1250,7 @@ export function ReportsClientView({
           <section className="bg-surface border border-border rounded-lg overflow-hidden print-avoid-break">
             <div className="px-5 py-3.5 border-b border-border flex items-center justify-between bg-surface-subtle/40">
               <div>
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-text-primary">
+                <h3 className="text-xs font-semibold text-text-primary">
                   Step 4 · Daily Living & Food Budget (Daily Operational)
                 </h3>
                 <p className="text-[11px] text-text-secondary mt-0.5">
@@ -1274,7 +1274,7 @@ export function ReportsClientView({
             {/* 6 Summary Metrics for Daily Living */}
             <div className="grid grid-cols-6 divide-x divide-border-subtle border-b border-border bg-surface-subtle/30 text-xs">
               <div className="p-3.5">
-                <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+                <div className="text-[10px] font-mono text-text-tertiary">
                   Initial Plan
                 </div>
                 <div className="font-mono font-medium text-text-secondary mt-0.5">
@@ -1282,7 +1282,7 @@ export function ReportsClientView({
                 </div>
               </div>
               <div className="p-3.5">
-                <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+                <div className="text-[10px] font-mono text-text-tertiary">
                   Current Monthly Cap
                 </div>
                 <div className="font-mono font-semibold text-text-primary mt-0.5">
@@ -1290,7 +1290,7 @@ export function ReportsClientView({
                 </div>
               </div>
               <div className="p-3.5">
-                <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+                <div className="text-[10px] font-mono text-text-tertiary">
                   Funded Amount
                 </div>
                 <div className="font-mono font-semibold text-text-primary mt-0.5">
@@ -1298,7 +1298,7 @@ export function ReportsClientView({
                 </div>
               </div>
               <div className="p-3.5">
-                <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+                <div className="text-[10px] font-mono text-text-tertiary">
                   Net Daily Spend Used
                 </div>
                 <div className="font-mono font-semibold text-negative mt-0.5">
@@ -1311,7 +1311,7 @@ export function ReportsClientView({
                 )}
               </div>
               <div className="p-3.5">
-                <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+                <div className="text-[10px] font-mono text-text-tertiary">
                   Remaining Cash
                 </div>
                 <div className="font-mono font-semibold text-text-primary mt-0.5">
@@ -1319,7 +1319,7 @@ export function ReportsClientView({
                 </div>
               </div>
               <div className="p-3.5">
-                <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+                <div className="text-[10px] font-mono text-text-tertiary">
                   Safe-to-Spend / Day
                 </div>
                 <div className="font-mono font-semibold text-positive mt-0.5">
@@ -1334,7 +1334,7 @@ export function ReportsClientView({
             {/* Inline Table of Actual Manual Daily Expenses & Refunds Logged in Period */}
             <div className="p-5 space-y-2.5">
               <div className="flex items-center justify-between">
-                <div className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary">
+                <div className="text-[11px] font-semibold text-text-secondary">
                   Logged Daily Expenses, Routine Realizations & Refunds ({mc.dailyLiving.itemizedDailyExpenses.length} Entries)
                 </div>
                 <span className="text-[11px] font-mono text-text-secondary">
@@ -1350,7 +1350,7 @@ export function ReportsClientView({
                 <div className="overflow-x-auto border border-border rounded">
                   <table className="w-full text-xs border-collapse">
                     <thead>
-                      <tr className="border-b border-border text-[10px] uppercase tracking-wider text-text-tertiary bg-surface-subtle/40">
+                      <tr className="border-b border-border text-[10px] text-text-tertiary bg-surface-subtle/40">
                         <th className="py-2 px-4 text-left font-medium">Date</th>
                         <th className="py-2 px-4 text-left font-medium">
                           Description
@@ -1404,7 +1404,7 @@ export function ReportsClientView({
           <section className="bg-surface border border-border rounded-lg overflow-hidden print-avoid-break">
             <div className="px-5 py-3.5 border-b border-border flex items-center justify-between bg-surface-subtle/40">
               <div>
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-text-primary">
+                <h3 className="text-xs font-semibold text-text-primary">
                   Step 5 · Savings &amp; Bottom Line (What You Kept)
                 </h3>
                 <p className="text-[11px] text-text-secondary mt-0.5">
@@ -1424,7 +1424,7 @@ export function ReportsClientView({
 
             <div className="p-4 sm:p-5 grid grid-cols-1 lg:grid-cols-12 gap-6 text-xs">
               <div className="col-span-1 lg:col-span-7 space-y-3 lg:pr-4 lg:border-r border-border-subtle">
-                <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+                <div className="text-[10px] font-mono text-text-tertiary">
                   Period Savings & Surplus Allocation
                 </div>
 
@@ -1490,7 +1490,7 @@ export function ReportsClientView({
 
               <div className="col-span-1 lg:col-span-5 flex flex-col justify-between space-y-3">
                 <div className="space-y-2.5">
-                  <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+                  <div className="text-[10px] font-mono text-text-tertiary">
                     Savings Vault Sub-Allocation (Cumulative Balance)
                   </div>
                   <div className="p-3.5 rounded border border-border bg-surface-subtle/40 space-y-2 font-mono">
@@ -1537,7 +1537,7 @@ export function ReportsClientView({
         <div className="bg-surface border border-border rounded-lg overflow-hidden">
           <div className="px-5 py-3.5 border-b border-border flex items-center justify-between">
             <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-text-primary">
+              <h3 className="text-xs font-semibold text-text-primary">
                 Month-to-Month Comparison ({comp.periodCount} Months)
               </h3>
               <p className="text-[11px] text-text-secondary mt-0.5">
@@ -1549,7 +1549,7 @@ export function ReportsClientView({
           <div className="overflow-x-auto">
             <table className="w-full text-xs border-collapse">
               <thead>
-                <tr className="border-b border-border text-[10px] uppercase tracking-wider text-text-tertiary bg-surface-subtle/30">
+                <tr className="border-b border-border text-[10px] text-text-tertiary bg-surface-subtle/30">
                   <th className="py-2.5 px-4 text-left font-medium">Month</th>
                   <th className="py-2.5 px-3 text-left font-medium">Status</th>
                   <th className="py-2.5 px-4 text-right font-medium">Money In</th>
@@ -1709,7 +1709,7 @@ export function ReportsClientView({
           <div className="space-y-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-surface border border-border rounded-lg p-4">
-              <div className="text-[10px] uppercase tracking-wider text-text-tertiary">
+              <div className="text-[10px] text-text-tertiary">
                 12-Month Forward Debt Total
               </div>
               <div className="font-mono text-lg font-semibold text-text-primary mt-1">
@@ -1722,7 +1722,7 @@ export function ReportsClientView({
             </div>
 
             <div className="bg-surface border border-border rounded-lg p-4">
-              <div className="text-[10px] uppercase tracking-wider text-text-tertiary">
+              <div className="text-[10px] text-text-tertiary">
                 Heaviest Debt Month
               </div>
               <div className="font-mono text-lg font-semibold text-negative mt-1">
@@ -1734,7 +1734,7 @@ export function ReportsClientView({
             </div>
 
             <div className="bg-surface border border-border rounded-lg p-4">
-              <div className="text-[10px] uppercase tracking-wider text-text-tertiary">
+              <div className="text-[10px] text-text-tertiary">
                 PayLater vs. Credit Card (12M)
               </div>
               <div className="font-mono text-sm font-semibold text-text-primary mt-1.5">
@@ -1747,7 +1747,7 @@ export function ReportsClientView({
             </div>
 
             <div className="bg-surface border border-border rounded-lg p-4">
-              <div className="text-[10px] uppercase tracking-wider text-text-tertiary">
+              <div className="text-[10px] text-text-tertiary">
                 First Debt-Free Month
               </div>
               <div className="font-mono text-lg font-semibold text-positive mt-1">
@@ -1761,7 +1761,7 @@ export function ReportsClientView({
 
           <div className="bg-surface border border-border rounded-lg overflow-hidden">
             <div className="px-5 py-3.5 border-b border-border">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-text-primary">
+              <h3 className="text-xs font-semibold text-text-primary">
                 12-Month Debt & Installment Payoff Schedule
               </h3>
               <p className="text-[11px] text-text-secondary mt-0.5">
@@ -1772,7 +1772,7 @@ export function ReportsClientView({
             <div className="overflow-x-auto">
               <table className="w-full text-xs border-collapse">
                 <thead>
-                  <tr className="border-b border-border text-[10px] uppercase tracking-wider text-text-tertiary bg-surface-subtle/30">
+                  <tr className="border-b border-border text-[10px] text-text-tertiary bg-surface-subtle/30">
                     <th className="py-2.5 px-4 text-left font-medium">Month</th>
                     <th className="py-2.5 px-3 text-right font-medium">
                       PayLater Bill
@@ -1891,7 +1891,7 @@ export function ReportsClientView({
           <div className="bg-surface border border-border rounded-lg overflow-hidden">
             <div className="px-5 py-3.5 border-b border-border flex items-center justify-between">
               <div>
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-text-primary">
+                <h3 className="text-xs font-semibold text-text-primary">
                   Mid-Month Budget Edits Log ({dos.revisions.length} Edits)
                 </h3>
                 <p className="text-[11px] text-text-secondary mt-0.5">
@@ -1908,7 +1908,7 @@ export function ReportsClientView({
               <div className="overflow-x-auto">
                 <table className="w-full text-xs border-collapse">
                   <thead>
-                    <tr className="border-b border-border text-[10px] uppercase tracking-wider text-text-tertiary bg-surface-subtle/30">
+                    <tr className="border-b border-border text-[10px] text-text-tertiary bg-surface-subtle/30">
                       <th className="py-2.5 px-5 text-left font-medium">Month</th>
                       <th className="py-2.5 px-4 text-left font-medium">
                         What Changed
@@ -1966,7 +1966,7 @@ export function ReportsClientView({
           {/* Per-Period Discipline Scorecard Summary */}
           <div className="bg-surface border border-border rounded-lg overflow-hidden">
             <div className="px-5 py-3.5 border-b border-border">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-text-primary">
+              <h3 className="text-xs font-semibold text-text-primary">
                 Monthly Financial Health Check & Audit History
               </h3>
               <p className="text-[11px] text-text-secondary mt-0.5">
@@ -2026,7 +2026,7 @@ export function ReportsClientView({
           {dos.recentGovernanceLogs.length > 0 && (
             <div className="bg-surface border border-border rounded-lg overflow-hidden">
               <div className="px-5 py-3.5 border-b border-border">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-text-primary">
+                <h3 className="text-xs font-semibold text-text-primary">
                   Recent System Actions, Reconciliations & Cap Alerts
                 </h3>
               </div>
@@ -2073,7 +2073,7 @@ export function ReportsClientView({
             }`}
           >
             <div className="space-y-1">
-              <div className="text-xs font-semibold uppercase tracking-wider text-text-primary flex items-center gap-2">
+              <div className="text-xs font-semibold text-text-primary flex items-center gap-2">
                 {report.liquidityForecast.summary.squeezeMonthsCount > 0 ? (
                   <AlertTriangle className="w-4 h-4 text-caution shrink-0" />
                 ) : (
@@ -2091,7 +2091,7 @@ export function ReportsClientView({
 
             <div className="flex items-center gap-5 shrink-0 text-right font-mono text-xs">
               <div>
-                <div className="text-[10px] uppercase tracking-wider text-text-tertiary">
+                <div className="text-[10px] text-text-tertiary">
                   3M Money In
                 </div>
                 <div className="text-text-primary font-semibold mt-0.5">
@@ -2101,7 +2101,7 @@ export function ReportsClientView({
                 </div>
               </div>
               <div>
-                <div className="text-[10px] uppercase tracking-wider text-text-tertiary">
+                <div className="text-[10px] text-text-tertiary">
                   3M Debt Bills
                 </div>
                 <div className="text-negative font-semibold mt-0.5">
@@ -2111,7 +2111,7 @@ export function ReportsClientView({
                 </div>
               </div>
               <div>
-                <div className="text-[10px] uppercase tracking-wider text-text-tertiary">
+                <div className="text-[10px] text-text-tertiary">
                   3M Funded Core Savings
                 </div>
                 <div className="text-positive font-semibold mt-0.5">
@@ -2260,7 +2260,7 @@ export function ReportsClientView({
                 </div>
 
                 <div className="px-5 py-3 border-t border-border-subtle bg-surface-subtle/30 space-y-1.5 text-[11px]">
-                  <div className="font-mono uppercase tracking-wider text-[10px] text-text-tertiary">
+                  <div className="font-mono text-[10px] text-text-tertiary">
                     Active Installments ({m.liabilities.activeInstallmentItems.length})
                   </div>
                   {m.liabilities.activeInstallmentItems.length === 0 ? (

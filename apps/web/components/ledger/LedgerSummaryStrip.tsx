@@ -3,7 +3,6 @@
 import React from "react";
 import { Transaction, MonthlySnapshot } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
-import { PrivacyEyeButton } from "@/components/shell/PrivacyEyeButton";
 import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 
 interface LedgerSummaryStripProps {
@@ -64,10 +63,9 @@ export function LedgerSummaryStrip({ transactions, snapshot }: LedgerSummaryStri
         {/* Total Inflow */}
         <div className="md:col-span-4 rounded-lg border border-border bg-surface p-4 flex flex-col justify-between">
           <div className="flex items-center justify-between gap-1.5">
-            <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
-              TOTAL PERIOD INFLOW
+            <span className="text-[11px] font-semibold text-text-tertiary font-sans">
+              Total Period Inflow
             </span>
-            <PrivacyEyeButton size="xs" />
           </div>
           <div className="my-2">
             <div className="font-mono text-[22px] font-semibold leading-none tracking-tight text-delta-positive tabular-nums whitespace-nowrap">
@@ -85,10 +83,9 @@ export function LedgerSummaryStrip({ transactions, snapshot }: LedgerSummaryStri
         {/* Total Outflow */}
         <div className="md:col-span-4 rounded-lg border border-border bg-surface p-4 flex flex-col justify-between">
           <div className="flex items-center justify-between gap-1.5">
-            <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
-              TOTAL PERIOD OUTFLOW
+            <span className="text-[11px] font-semibold text-text-tertiary font-sans">
+              Total Period Outflow
             </span>
-            <PrivacyEyeButton size="xs" />
           </div>
           <div className="my-2">
             <div className="font-mono text-[22px] font-semibold leading-none tracking-tight text-text-primary tabular-nums whitespace-nowrap">
@@ -106,10 +103,9 @@ export function LedgerSummaryStrip({ transactions, snapshot }: LedgerSummaryStri
         {/* Net Period Cashflow */}
         <div className="md:col-span-4 rounded-lg border border-border bg-surface p-4 flex flex-col justify-between">
           <div className="flex items-center justify-between gap-1.5">
-            <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
-              NET PERIOD CASHFLOW
+            <span className="text-[11px] font-semibold text-text-tertiary font-sans">
+              Net Period Cashflow
             </span>
-            <PrivacyEyeButton size="xs" />
           </div>
           <div className="my-2">
             <div

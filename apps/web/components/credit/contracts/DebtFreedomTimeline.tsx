@@ -195,7 +195,7 @@ export function DebtFreedomTimeline({
         <div className="rounded-lg border border-delta-positive/30 bg-[rgba(16,183,141,0.06)] p-4 space-y-2.5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <div className="text-[11px] font-mono uppercase tracking-wider text-delta-positive font-semibold">
+              <div className="text-[11px] font-mono text-delta-positive font-semibold">
                 CASHFLOW FREED UP HORIZON
               </div>
               <p className="text-xs font-sans text-text-secondary mt-0.5">
@@ -230,10 +230,11 @@ export function DebtFreedomTimeline({
           </div>
         </div>
       )}
+      {/* 2. Top Horizon KPI Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         <div className="lg:col-span-5 rounded-lg border border-border bg-surface p-4 sm:p-5 flex flex-col justify-between">
-          <div className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
-            DEBT FREEDOM HORIZON
+          <div className="text-[11px] font-semibold text-text-tertiary font-sans">
+            Debt Freedom Horizon
           </div>
           <div className="my-2">
             <div className="font-display text-[32px] font-normal leading-none tracking-tight text-text-primary">
@@ -249,8 +250,8 @@ export function DebtFreedomTimeline({
         </div>
 
         <div className="lg:col-span-4 rounded-lg border border-border bg-surface p-4 sm:p-5 flex flex-col justify-between">
-          <div className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
-            MONTHLY INSTALLMENT COMMITMENT
+          <div className="text-[11px] font-semibold text-text-tertiary font-sans">
+            Monthly Installment Commitment
           </div>
           <div className="my-2">
             <div className="font-mono text-[24px] font-semibold leading-none tracking-tight text-text-primary tabular-nums">
@@ -266,8 +267,8 @@ export function DebtFreedomTimeline({
         </div>
 
         <div className="lg:col-span-3 rounded-lg border border-border bg-surface p-4 sm:p-5 flex flex-col justify-between">
-          <div className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
-            OUTSTANDING PRINCIPAL
+          <div className="text-[11px] font-semibold text-text-tertiary font-sans">
+            Outstanding Principal
           </div>
           <div className="my-2">
             <div className="font-mono text-[24px] font-semibold leading-none tracking-tight text-text-primary tabular-nums">

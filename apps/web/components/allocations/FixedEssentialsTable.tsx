@@ -65,7 +65,7 @@ export function FixedEssentialsTable({
             Non-negotiable monthly cost targets comprising the Survival Pocket.
           </p>
         </div>
-        <span className="text-[10px] font-mono uppercase text-text-tertiary px-2 py-0.5 rounded bg-surface-subtle border border-border-subtle">
+        <span className="text-[10px] font-mono text-text-tertiary px-2 py-0.5 rounded bg-surface-subtle border border-border-subtle">
           Upfront Non-Negotiable
         </span>
       </div>

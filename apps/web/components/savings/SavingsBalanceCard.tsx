@@ -9,7 +9,6 @@ import {
 } from "@/lib/api";
 import { formatRupiah, formatCurrencyInput, parseCurrencyInput } from "@/lib/utils";
 import { usePerspective } from "@/context/PerspectiveContext";
-import { PrivacyEyeButton } from "@/components/shell/PrivacyEyeButton";
 import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 
 interface SavingsBalanceCardProps {
@@ -81,7 +80,7 @@ export function SavingsBalanceCard({ vault }: SavingsBalanceCardProps) {
         <div className="col-span-5 rounded-lg border border-border bg-surface p-5 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
+              <span className="text-[11px] font-semibold text-text-tertiary font-sans">
                 LIQUID SAVINGS &amp; EMERGENCY FUND
               </span>
               <button
@@ -98,11 +97,8 @@ export function SavingsBalanceCard({ vault }: SavingsBalanceCardProps) {
             </div>
 
             <div className="my-2.5">
-              <div className="flex items-center gap-3">
-                <div className="font-serif text-[34px] font-normal leading-none tracking-tight text-text-primary">
-                  {formatRupiah(vault.balance, isAmountsMasked)}
-                </div>
-                <PrivacyEyeButton size="lg" />
+              <div className="font-serif text-[34px] font-normal leading-none tracking-tight text-text-primary">
+                {formatRupiah(vault.balance, isAmountsMasked)}
               </div>
               <p className="text-xs font-sans text-text-secondary mt-1.5">
                 {isStandard
@@ -114,7 +110,7 @@ export function SavingsBalanceCard({ vault }: SavingsBalanceCardProps) {
 
           <div className="pt-2.5 border-t border-border-subtle grid grid-cols-2 gap-2 text-xs font-mono">
             <div className="p-2 rounded bg-surface-subtle/60 border border-border-subtle">
-              <div className="flex items-center justify-between text-[10px] uppercase text-text-tertiary">
+              <div className="flex items-center justify-between text-[10px] text-text-tertiary">
                 <span title={vaultLabels.liquid}>{isStandard ? "Liquid (Cash/HYSA)" : "Cash"} ({liquidShare}%)</span>
               </div>
               <div className="text-xs font-semibold text-text-primary mt-0.5 tabular-nums">
@@ -123,7 +119,7 @@ export function SavingsBalanceCard({ vault }: SavingsBalanceCardProps) {
             </div>
 
             <div className="p-2 rounded bg-surface-subtle/60 border border-border-subtle">
-              <div className="flex items-center justify-between text-[10px] uppercase text-text-tertiary">
+              <div className="flex items-center justify-between text-[10px] text-text-tertiary">
                 <span title={vaultLabels.investment}>{isStandard ? "Portfolio (Invest)" : "RDPU"} ({rdpuShare}%)</span>
               </div>
               <div className="text-xs font-semibold text-text-primary mt-0.5 tabular-nums">
@@ -137,8 +133,8 @@ export function SavingsBalanceCard({ vault }: SavingsBalanceCardProps) {
         <div className="col-span-4 rounded-lg border border-border bg-surface p-5 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
-                PLANNED ANNUAL SAVINGS
+              <span className="text-[11px] font-semibold text-text-tertiary font-sans">
+                Planned Annual Savings
               </span>
               <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[rgba(16,183,141,0.08)] text-delta-positive border border-[rgba(16,183,141,0.2)]">
                 Jul–Dec 2026
@@ -146,11 +142,8 @@ export function SavingsBalanceCard({ vault }: SavingsBalanceCardProps) {
             </div>
 
             <div className="my-2.5">
-              <div className="flex items-center gap-2.5">
-                <div className="font-mono text-[28px] font-semibold leading-none tracking-tight text-text-primary erp-tabular-currency">
-                  {formatRupiah(totalPlanned2026P1, isAmountsMasked)}
-                </div>
-                <PrivacyEyeButton size="xs" />
+              <div className="font-mono text-[28px] font-semibold leading-none tracking-tight text-text-primary erp-tabular-currency">
+                {formatRupiah(totalPlanned2026P1, isAmountsMasked)}
               </div>
               <p className="text-xs font-sans text-text-secondary mt-1.5">
                 Total core savings allocations funded across all active 2026 cycles.
@@ -170,7 +163,7 @@ export function SavingsBalanceCard({ vault }: SavingsBalanceCardProps) {
         <div className="col-span-3 rounded-lg border border-border bg-surface p-5 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
+              <span className="text-[11px] font-semibold text-text-tertiary font-sans">
                 SAVINGS RATE &amp; RUNWAY
               </span>
               <ShieldCheck className="w-3.5 h-3.5 text-delta-positive" />
@@ -208,7 +201,7 @@ export function SavingsBalanceCard({ vault }: SavingsBalanceCardProps) {
         >
           <div className="flex items-center justify-between pb-2 border-b border-border-subtle">
             <div>
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-text-primary">
+              <h4 className="text-xs font-semibold text-text-primary">
                 Sub-Allocation Instrument Rebalance
               </h4>
               <p className="text-[11px] text-text-secondary mt-0.5">
@@ -226,7 +219,7 @@ export function SavingsBalanceCard({ vault }: SavingsBalanceCardProps) {
 
           <div className="grid grid-cols-12 gap-3 items-end">
             <div className="col-span-4">
-              <label className="text-[10px] font-mono uppercase text-text-tertiary block mb-1">
+              <label className="text-[10px] font-mono text-text-tertiary block mb-1">
                 Direction
               </label>
               <select
@@ -242,7 +235,7 @@ export function SavingsBalanceCard({ vault }: SavingsBalanceCardProps) {
             </div>
 
             <div className="col-span-3">
-              <label className="text-[10px] font-mono uppercase text-text-tertiary block mb-1">
+              <label className="text-[10px] font-mono text-text-tertiary block mb-1">
                 Amount (Rp)
               </label>
               <input
@@ -255,7 +248,7 @@ export function SavingsBalanceCard({ vault }: SavingsBalanceCardProps) {
             </div>
 
             <div className="col-span-3">
-              <label className="text-[10px] font-mono uppercase text-text-tertiary block mb-1">
+              <label className="text-[10px] font-mono text-text-tertiary block mb-1">
                 Note (Optional)
               </label>
               <input

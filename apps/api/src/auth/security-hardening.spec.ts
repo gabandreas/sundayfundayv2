@@ -1,8 +1,12 @@
 import { UnauthorizedException } from '@nestjs/common';
 import { isAllowedCorsOrigin } from '../main';
 import { AuthService } from './auth.service';
+import { AuthController } from './auth.controller';
+import { PlatformOwnerGuard } from './roles.guard';
 import { RateLimiterService } from './rate-limiter.service';
 import { hashPassword } from './auth.utils';
+import { FinanceController } from '../finance/finance.controller';
+import { GUARDS_METADATA } from '@nestjs/common/constants';
 
 describe('Production Security & CORS Hardening', () => {
   it('allows strictly Sunday Funday Vercel origins and localhost while rejecting unrelated .vercel.app origins', () => {
@@ -111,5 +115,38 @@ describe('Production Security & CORS Hardening', () => {
     await expect(
       isolateB.checkAsync('victim@sundayfunday.id', '203.0.113.5'),
     ).resolves.toBeUndefined();
+  });
+
+  it('requires SUPERADMIN PlatformOwnerGuard on POST /api/auth/register to block public self-signup', () => {
+    const guards = Reflect.getMetadata(GUARDS_METADATA, AuthController.prototype.register);
+    expect(Array.isArray(guards)).toBe(true);
+    expect(guards).toContain(PlatformOwnerGuard);
+  });
+
+  it('passes authenticated req userId to stopRecurringSubscription and resumeRecurringSubscription (anti-IDOR)', async () => {
+    const creditServiceMock: any = {
+      stopRecurringSubscription: jest.fn().mockResolvedValue({ id: 55, isActive: false }),
+      resumeRecurringSubscription: jest.fn().mockResolvedValue({ id: 55, isActive: true }),
+    };
+    const controller = new FinanceController({} as any, {} as any, creditServiceMock);
+    const prevEnv = process.env.NODE_ENV;
+    try {
+      process.env.NODE_ENV = 'production';
+      await expect(
+        controller.stopRecurringSubscription(55, { stopFromMonth: 12, stopFromYear: 2026 } as any, { isAuthenticated: false } as any),
+      ).rejects.toThrow(UnauthorizedException);
+
+      await controller.stopRecurringSubscription(
+        55,
+        { stopFromMonth: 12, stopFromYear: 2026 },
+        { isAuthenticated: true, userId: 4 } as any,
+      );
+      expect(creditServiceMock.stopRecurringSubscription).toHaveBeenCalledWith(55, 12, 2026, 4);
+
+      await controller.resumeRecurringSubscription(55, { isAuthenticated: true, userId: 4 } as any);
+      expect(creditServiceMock.resumeRecurringSubscription).toHaveBeenCalledWith(55, 4);
+    } finally {
+      process.env.NODE_ENV = prevEnv;
+    }
   });
 });

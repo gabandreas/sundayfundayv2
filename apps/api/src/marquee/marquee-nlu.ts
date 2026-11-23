@@ -15,6 +15,8 @@ export type MarqueeToolName =
   | 'run_what_if_scenario'
   | 'manage_user_memory'
   | 'search_financial_history'
+  | 'run_stress_test'
+  | 'greeting_or_help'
   | 'refuse_out_of_scope'
   // Legacy Aliases (preserved 1:1 for backward compatibility)
   | 'get_financial_pulse'
@@ -52,7 +54,7 @@ export function detectLocale(message: string): MarqueeLocale {
   if (/[\u4e00-\u9fff]/.test(message)) return 'zh';
   const lower = message.toLowerCase();
   if (
-    /\b(catat|beli|bayar|aman|berapa|tabungan|tagihan|dompet|sisa|cicilan|lunas|simulasi|belanja|gaji|pake|pakai|buat|hari|ini|saya|aku|kamu|ga|gak|nggak|bulan|ribu|juta|jt|rb|tolong|tolongin|dong|sekarang|kenapa|cari|ingat|lupakan|pindah|pindahin|ubah|siapkan)\b/.test(
+    /\b(halo|hai|pagi|siang|sore|malam|makasih|terima\s*kasih|apa\s*kabar|bisa\s*apa|keuangan|catat|beli|bayar|aman|berapa|tabungan|tagihan|dompet|sisa|cicilan|lunas|simulasi|belanja|gaji|pake|pakai|buat|hari|ini|saya|aku|kamu|ga|gak|nggak|bulan|ribu|juta|jt|rb|tolong|tolongin|dong|sekarang|kenapa|cari|ingat|lupakan|pindah|pindahin|ubah|siapkan)\b/.test(
       lower,
     )
   ) {
@@ -174,6 +176,45 @@ export function parseMarqueeIntent(message: string): MarqueeParsedIntent {
       tenorMonths,
       title: message.slice(0, 120),
       confidence: 0.99,
+    };
+  }
+
+  // 0.0A Natural Greetings, Gratitude & Help Inquiries (never dump boilerplate financial pulse cards)
+  const isGreetingOrHelp =
+    amountRp === undefined &&
+    (/^(?:hi|hello|hey|yo|sup|halo|hai|pagi|siang|sore|malam|selamat\s+(?:pagi|siang|sore|malam)|thanks|thank\s+you|thx|makasih|terima\s+kasih|ok|okay|oke|siap|mantap|good\s+(?:morning|afternoon|evening)|who\s+are\s+you|help)(?:\s+(?:marquee|bot|there))?[!?.~\s]*$/i.test(
+      lower,
+    ) ||
+      /^(?:你好|您好|早|早上好|谢谢|帮助|你能做什么)[!！?？。.\s]*$/.test(message.trim()) ||
+      /\b(bisa\s+apa(?:\s+aja)?|kamu\s+siapa|what\s+can\s+you\s+do|how\s+can\s+you\s+help|apa\s+fitur)\b/i.test(
+        lower,
+      ));
+  if (isGreetingOrHelp) {
+    return {
+      tool: 'greeting_or_help',
+      locale,
+      instrument,
+      tenorMonths,
+      title: message.slice(0, 120),
+      confidence: 0.98,
+    };
+  }
+
+  // 0.0A2 Concurrent Go Stress Test & Allocation Frontier Optimization
+  if (
+    /\b(stress\s*test|monte\s*carlo|survival\s*(?:prob|rate|odds)|peluang\s*bertahan|ketahanan\s*kas|alokasi\s*surplus|optimasi\s*surplus|pareto)\b/i.test(
+      lower,
+    ) ||
+    /压力测试|蒙特卡洛|最优分配/.test(message)
+  ) {
+    return {
+      tool: 'run_stress_test',
+      locale,
+      amountRp,
+      instrument,
+      tenorMonths,
+      title: 'Monte Carlo & Allocation Stress Test',
+      confidence: 0.95,
     };
   }
 
@@ -476,4 +517,74 @@ export function parseMarqueeIntent(message: string): MarqueeParsedIntent {
     tenorMonths,
     confidence: 0.9,
   };
+}
+
+/**
+ * Enriches short multi-turn follow-up prompts (e.g. "pake spaylater aja", "3x cicilan")
+ * using prior conversation turns so users don't have to re-type the item & price.
+ */
+export function applyFollowUpHistory(
+  parsed: MarqueeParsedIntent,
+  message: string,
+  history?: Array<{ role: 'user' | 'assistant'; text: string }>,
+): MarqueeParsedIntent {
+  if (!history || history.length === 0 || parsed.amountRp !== undefined) {
+    return parsed;
+  }
+  const lower = message.toLowerCase().trim();
+  const hasInstrumentOrTenorCue =
+    /\b(spaylater|paylater|pay\s*later|cc|credit\s*card|kartu\s*kredit|permata|cash|tunai|pake|pakai|use|via|aja)\b/.test(
+      lower,
+    ) || /\b\d{1,2}\s*(?:x|bulan|bln|months?|cicilan|期)\b/i.test(lower);
+
+  if (!hasInstrumentOrTenorCue || lower.length > 72) {
+    return parsed;
+  }
+
+  for (let i = history.length - 1; i >= 0; i--) {
+    const turn = history[i];
+    if (turn.role !== 'user') continue;
+    const prev = parseMarqueeIntent(turn.text);
+    if (prev.amountRp !== undefined) {
+      const prevIsAfford =
+        prev.tool === 'evaluate_affordability' || prev.tool === 'simulate_purchase_cutoff';
+      return {
+        ...parsed,
+        tool: prevIsAfford ? 'evaluate_affordability' : 'log_quick_expense',
+        amountRp: prev.amountRp,
+        title: prev.title && prev.title !== 'Quick Entry' ? prev.title : parsed.title,
+        instrument:
+          /\b(spaylater|paylater|cc|credit\s*card|kartu\s*kredit|permata|cash|tunai)\b/.test(lower)
+            ? parsed.instrument
+            : prev.instrument,
+        tenorMonths:
+          /\b\d{1,2}\s*(?:x|bulan|bln|months?|cicilan|期)\b/i.test(lower)
+            ? parsed.tenorMonths
+            : prev.tenorMonths,
+        confidence: 0.92,
+      };
+    }
+  }
+  return parsed;
+}
+
+/**
+ * Detects a distinct secondary clause in compound prompts (e.g. "cek saldo hari ini dan simulasi sepatu 300rb spaylater")
+ * so Tier 1 can chain multi-step analysis transparently even offline.
+ */
+export function detectCompoundSecondaryIntent(message: string): MarqueeParsedIntent | null {
+  const parts = message.split(/\s+(?:dan|and|lalu|then|sama|plus)\s+|同时|并且/i);
+  if (parts.length < 2) return null;
+  const firstParsed = parseMarqueeIntent(parts[0].trim());
+  const secondClause = parts.slice(1).join(' ').trim();
+  if (!secondClause || secondClause.length < 4) return null;
+  const secondParsed = parseMarqueeIntent(secondClause);
+  if (
+    secondParsed.tool === firstParsed.tool ||
+    secondParsed.tool === 'greeting_or_help' ||
+    secondParsed.tool === 'get_financial_pulse'
+  ) {
+    return null;
+  }
+  return secondParsed;
 }

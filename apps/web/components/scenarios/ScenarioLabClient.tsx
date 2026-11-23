@@ -1,16 +1,19 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { RotateCcw, Play, TrendingUp, ShieldCheck } from "lucide-react";
+import { RotateCcw, Play, TrendingUp, ShieldCheck, Activity } from "lucide-react";
 import {
   ScenarioSimulationRequest,
   ScenarioSimulationResponse,
+  ScenarioStressTestResponse,
+  runScenarioStressTest,
   simulateScenario,
 } from "@/lib/api";
 import { formatCurrencyInput, formatRupiah, parseCurrencyInput } from "@/lib/utils";
 import { useLanguage } from "@/context/LanguageContext";
 import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 import { usePeriod } from "@/context/PeriodContext";
+import { useToast } from "@/context/ToastContext";
 import { PageHeader } from "@/components/primitives/PageHeader";
 
 interface ScenarioLabClientProps {
@@ -25,6 +28,7 @@ export function ScenarioLabClient({
   const { t } = useLanguage();
   const { isAmountsMasked } = usePrivacyMask();
   const { month, year } = usePeriod();
+  const { toast } = useToast();
   const activeMonth = month || initialMonth;
   const activeYear = year || initialYear;
 
@@ -38,6 +42,73 @@ export function ScenarioLabClient({
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+
+  // Concurrent Go Monte Carlo & Surplus Allocation Frontier states
+  const [incomeVolatilityPct, setIncomeVolatilityPct] = useState<number>(12);
+  const [expenseShockProbPct, setExpenseShockProbPct] = useState<number>(20);
+  const [expenseShockMagnitudePct, setExpenseShockMagnitudePct] = useState<number>(25);
+  const [unexpectedEmergencyCostRp, setUnexpectedEmergencyCostRp] = useState<number>(1500000);
+  const [trials, setTrials] = useState<number>(2000);
+  const [surplusOverrideRp, setSurplusOverrideRp] = useState<string>("");
+  const [stressResult, setStressResult] = useState<ScenarioStressTestResponse | null>(null);
+  const [stressLoading, setStressLoading] = useState<boolean>(true);
+  const [stressError, setStressError] = useState<string | null>(null);
+  const [mcHoverIdx, setMcHoverIdx] = useState<number | null>(null);
+
+  const executeStressTest = useCallback(
+    async (notify = false) => {
+      setStressLoading(true);
+      setStressError(null);
+      const parsedOverride = surplusOverrideRp.trim()
+        ? parseCurrencyInput(surplusOverrideRp)
+        : undefined;
+      const res = await runScenarioStressTest({
+        month: activeMonth,
+        year: activeYear,
+        incomeVolatilityPct,
+        expenseShockProbPct,
+        expenseShockMagnitudePct,
+        unexpectedEmergencyProbPct: 10,
+        unexpectedEmergencyCostRp,
+        trials,
+        ...(parsedOverride !== undefined && parsedOverride >= 0
+          ? { monthlySurplusOverrideRp: parsedOverride }
+          : {}),
+      });
+      setStressLoading(false);
+      if (!res.success || !res.data) {
+        const msg = res.error || "Unable to compute Monte Carlo stress test.";
+        setStressError(msg);
+        if (notify) toast({ title: "Stress test failed", description: msg, variant: "error" });
+        return;
+      }
+      setStressResult(res.data);
+      if (notify) {
+        toast({
+          title: "Stress test complete",
+          description: `${res.data.monteCarlo.trialsRun.toLocaleString()} simulated paths across ${res.data.monteCarlo.workerGoroutines} workers.`,
+          variant: "success",
+        });
+      }
+    },
+    [
+      activeMonth,
+      activeYear,
+      incomeVolatilityPct,
+      expenseShockProbPct,
+      expenseShockMagnitudePct,
+      unexpectedEmergencyCostRp,
+      trials,
+      surplusOverrideRp,
+      toast,
+    ],
+  );
+
+  useEffect(() => {
+    void executeStressTest(false);
+    // Initial auto-run per period; subsequent parameter tweaks run cleanly via button or explicit execute
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeMonth, activeYear]);
 
   const runSimulation = useCallback(
     async (overrideInputs?: Partial<ScenarioSimulationRequest>) => {
@@ -299,7 +370,7 @@ export function ScenarioLabClient({
           {/* 4-Metric Impact Row */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="rounded-lg border border-border bg-surface p-3.5">
-              <span className="text-[10px] font-mono uppercase text-text-tertiary block">
+              <span className="text-[10px] font-mono text-text-tertiary block">
                 Baseline 12M Cash
               </span>
               <span className="font-mono text-base font-semibold text-text-secondary mt-1 block erp-tabular-currency">
@@ -311,7 +382,7 @@ export function ScenarioLabClient({
             </div>
 
             <div className="rounded-lg border border-border bg-surface p-3.5">
-              <span className="text-[10px] font-mono uppercase text-text-tertiary block">
+              <span className="text-[10px] font-mono text-text-tertiary block">
                 Simulated 12M Cash
               </span>
               <span className="font-serif text-xl text-text-primary mt-1 block erp-tabular-currency">
@@ -323,7 +394,7 @@ export function ScenarioLabClient({
             </div>
 
             <div className="rounded-lg border border-border bg-surface p-3.5">
-              <span className="text-[10px] font-mono uppercase text-text-tertiary block">
+              <span className="text-[10px] font-mono text-text-tertiary block">
                 12-Month Delta
               </span>
               <span
@@ -344,7 +415,7 @@ export function ScenarioLabClient({
             </div>
 
             <div className="rounded-lg border border-border bg-surface p-3.5">
-              <span className="text-[10px] font-mono uppercase text-text-tertiary block">
+              <span className="text-[10px] font-mono text-text-tertiary block">
                 Low-DSR (&lt;15%) Date
               </span>
               <span className="font-mono text-base font-semibold text-text-primary mt-1 block">
@@ -548,6 +619,438 @@ export function ScenarioLabClient({
           )}
         </div>
       </div>
+
+      {/* Go Concurrent Monte Carlo Cashflow Stress Test & Surplus Allocation Frontier */}
+      <section className="space-y-4 pt-2 border-t border-border-subtle">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <Activity className="w-4 h-4 text-delta-positive" />
+              <h2 className="text-base font-semibold text-text-primary tracking-tight">
+                Monte Carlo Cashflow Stress Test &amp; Surplus Allocation Frontier
+              </h2>
+            </div>
+            <p className="text-xs text-text-secondary mt-0.5">
+              Probabilistic 12-month cashflow simulation under income volatility and unexpected expenses, paired with Pareto surplus optimization.
+            </p>
+          </div>
+          {stressResult && (
+            <span className="text-[11px] font-mono text-text-tertiary bg-surface border border-border-subtle rounded px-2.5 py-1 tabular-nums">
+              {stressResult.monteCarlo.trialsRun.toLocaleString()} trials · {stressResult.monteCarlo.workerGoroutines} workers ·{" "}
+              {stressResult.monteCarlo.computeDurationUs < 1000
+                ? `${stressResult.monteCarlo.computeDurationUs} µs`
+                : `${(stressResult.monteCarlo.computeDurationUs / 1000).toFixed(2)} ms`}
+            </span>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+          {/* Stress Parameters Controls */}
+          <div className="lg:col-span-4 rounded-lg border border-border bg-surface p-5 space-y-4 text-xs">
+            <div className="flex items-center justify-between border-b border-border-subtle pb-2.5">
+              <span className="font-semibold text-text-primary">Stress Test Parameters</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setIncomeVolatilityPct(12);
+                  setExpenseShockProbPct(20);
+                  setExpenseShockMagnitudePct(25);
+                  setUnexpectedEmergencyCostRp(1500000);
+                  setTrials(2000);
+                  setSurplusOverrideRp("");
+                }}
+                className="text-[11px] font-mono text-text-tertiary hover:text-text-primary cursor-pointer"
+              >
+                Reset Defaults
+              </button>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label htmlFor="mc-vol" className="text-text-secondary">Income Volatility</label>
+                <span className="font-mono text-text-primary tabular-nums">{incomeVolatilityPct}%</span>
+              </div>
+              <input
+                id="mc-vol"
+                type="range"
+                min={0}
+                max={40}
+                value={incomeVolatilityPct}
+                onChange={(e) => setIncomeVolatilityPct(Number(e.target.value))}
+                className="w-full accent-emerald-500 cursor-pointer"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label htmlFor="mc-shock-prob" className="text-text-secondary">Monthly Expense Shock Risk</label>
+                <span className="font-mono text-text-primary tabular-nums">{expenseShockProbPct}%</span>
+              </div>
+              <input
+                id="mc-shock-prob"
+                type="range"
+                min={0}
+                max={60}
+                value={expenseShockProbPct}
+                onChange={(e) => setExpenseShockProbPct(Number(e.target.value))}
+                className="w-full accent-amber-500 cursor-pointer"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label htmlFor="mc-shock-mag" className="text-text-secondary">Shock Spend Surge</label>
+                <span className="font-mono text-text-primary tabular-nums">{expenseShockMagnitudePct}%</span>
+              </div>
+              <input
+                id="mc-shock-mag"
+                type="range"
+                min={5}
+                max={60}
+                value={expenseShockMagnitudePct}
+                onChange={(e) => setExpenseShockMagnitudePct(Number(e.target.value))}
+                className="w-full accent-amber-500 cursor-pointer"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="mc-emergency" className="block text-text-secondary mb-1">
+                  Emergency Shock (Rp)
+                </label>
+                <input
+                  id="mc-emergency"
+                  type="text"
+                  inputMode="numeric"
+                  value={formatCurrencyInput(unexpectedEmergencyCostRp)}
+                  onChange={(e) => setUnexpectedEmergencyCostRp(parseCurrencyInput(e.target.value))}
+                  className="w-full px-2.5 py-1.5 rounded bg-canvas border border-border text-xs font-mono text-text-primary tabular-nums"
+                />
+              </div>
+              <div>
+                <label htmlFor="mc-trials" className="block text-text-secondary mb-1">
+                  Simulated Paths
+                </label>
+                <select
+                  id="mc-trials"
+                  value={trials}
+                  onChange={(e) => setTrials(Number(e.target.value))}
+                  className="w-full px-2.5 py-1.5 rounded bg-canvas border border-border text-xs font-mono text-text-primary"
+                >
+                  <option value={1000}>1,000 trials</option>
+                  <option value={2000}>2,000 trials</option>
+                  <option value={5000}>5,000 trials</option>
+                  <option value={10000}>10,000 trials</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="mc-surplus" className="block text-text-secondary mb-1">
+                Monthly Surplus Override (Rp · Optional)
+              </label>
+              <input
+                id="mc-surplus"
+                type="text"
+                inputMode="numeric"
+                value={surplusOverrideRp}
+                onChange={(e) => setSurplusOverrideRp(e.target.value)}
+                placeholder={
+                  stressResult
+                    ? `Auto: ${formatRupiah(stressResult.monthlySurplusRp, isAmountsMasked)}`
+                    : "Auto from snapshot"
+                }
+                className="w-full px-2.5 py-1.5 rounded bg-canvas border border-border text-xs font-mono text-text-primary tabular-nums"
+              />
+            </div>
+
+            <button
+              type="button"
+              disabled={stressLoading}
+              onClick={() => void executeStressTest(true)}
+              className="w-full py-2 rounded erp-btn-primary text-xs font-medium inline-flex items-center justify-center gap-1.5 hover:opacity-90 disabled:opacity-50 cursor-pointer"
+            >
+              <Play className="w-3.5 h-3.5" />
+              <span>{stressLoading ? "Simulating Paths..." : "Run Stress Test"}</span>
+            </button>
+
+            {stressError && (
+              <div className="p-2.5 rounded border border-urgency/40 bg-urgency/10 text-[11px] text-urgency">
+                {stressError}
+              </div>
+            )}
+          </div>
+
+          {/* Right Column: Confidence Metrics, Fan Chart & Optimizer Strategies */}
+          <div className="lg:col-span-8 space-y-4">
+            {/* 4 Confidence KPI Tiles */}
+            <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+              <div className="rounded-lg border border-border bg-surface p-4">
+                <div className="text-[11px] font-medium text-text-tertiary">12-Month Survival Rate</div>
+                <div className="font-serif text-[26px] font-normal text-delta-positive mt-1 tabular-nums leading-none">
+                  {stressResult ? `${stressResult.monteCarlo.survivalProbabilityPct.toFixed(1)}%` : "—"}
+                </div>
+                <div className="text-[10px] text-text-tertiary mt-1">Positive liquid floor probability</div>
+              </div>
+
+              <div className="rounded-lg border border-border bg-surface p-4">
+                <div className="text-[11px] font-medium text-text-tertiary">Emergency Target Hit</div>
+                <div className="font-mono text-xl font-semibold text-text-primary mt-1.5 tabular-nums leading-none">
+                  {stressResult ? `${stressResult.monteCarlo.emergencyGoalProbabilityPct.toFixed(1)}%` : "—"}
+                </div>
+                <div className="text-[10px] text-text-tertiary mt-1.5">Reserve goal achieved in 12m</div>
+              </div>
+
+              <div className="rounded-lg border border-border bg-surface p-4">
+                <div className="text-[11px] font-medium text-text-tertiary">Median Ending Wealth (P50)</div>
+                <div className="font-mono text-lg font-semibold text-text-primary mt-1.5 erp-tabular-currency leading-none truncate">
+                  {stressResult ? formatRupiah(stressResult.monteCarlo.p50MedianEndingWealthRp, isAmountsMasked) : "—"}
+                </div>
+                <div className="text-[10px] text-text-tertiary mt-1.5">50th percentile outcome</div>
+              </div>
+
+              <div className="rounded-lg border border-border bg-surface p-4">
+                <div className="text-[11px] font-medium text-text-tertiary">Worst-Case Cash Floor (P5)</div>
+                <div
+                  className={`font-mono text-lg font-semibold mt-1.5 erp-tabular-currency leading-none truncate ${
+                    (stressResult?.monteCarlo.p5WorstCaseCashFloorRp ?? 0) < 0
+                      ? "text-urgency"
+                      : "text-caution"
+                  }`}
+                >
+                  {stressResult ? formatRupiah(stressResult.monteCarlo.p5WorstCaseCashFloorRp, isAmountsMasked) : "—"}
+                </div>
+                <div className="text-[10px] text-text-tertiary mt-1.5">5th percentile liquidity stress</div>
+              </div>
+            </div>
+
+            {stressResult && stressResult.monteCarlo.recommendedExtraBufferMonthlyRp > 0 && (
+              <div className="rounded-md erp-callout-caution px-4 py-2.5 text-xs flex flex-wrap items-center justify-between gap-2">
+                <span>
+                  Suggested extra monthly resilience buffer to stabilize adverse tail risk:
+                </span>
+                <strong className="font-mono text-caution erp-tabular-currency">
+                  +{formatRupiah(stressResult.monteCarlo.recommendedExtraBufferMonthlyRp, isAmountsMasked)} / mo
+                </strong>
+              </div>
+            )}
+
+            {/* P10-P50-P90 Confidence Fan Chart */}
+            {stressResult && stressResult.monteCarlo.fanSeries.length > 0 && (() => {
+              const fan = stressResult.monteCarlo.fanSeries;
+              const fW = 740;
+              const fH = 210;
+              const fPadL = 70;
+              const fPadR = 20;
+              const fPadT = 16;
+              const fPadB = 30;
+              const fPlotW = fW - fPadL - fPadR;
+              const fPlotH = fH - fPadT - fPadB;
+              const vals = fan.flatMap((pt) => [pt.p10Rp, pt.p50Rp, pt.p90Rp, 0]);
+              const fMax = Math.max(...vals, 1000000);
+              const fMin = Math.min(...vals, 0);
+              const fSpan = Math.max(1, fMax - fMin);
+              const fx = (i: number) =>
+                fan.length <= 1 ? fPadL : fPadL + (i / (fan.length - 1)) * fPlotW;
+              const fy = (v: number) => fPadT + (1 - (v - fMin) / fSpan) * fPlotH;
+
+              const p90Coords = fan.map((pt, i) => `${fx(i).toFixed(1)},${fy(pt.p90Rp).toFixed(1)}`);
+              const p10RevCoords = [...fan]
+                .reverse()
+                .map((pt, ri) => `${fx(fan.length - 1 - ri).toFixed(1)},${fy(pt.p10Rp).toFixed(1)}`);
+              const bandPolygon = [...p90Coords, ...p10RevCoords].join(" ");
+              const p50Path = fan
+                .map((pt, i) => `${i === 0 ? "M" : "L"}${fx(i).toFixed(1)},${fy(pt.p50Rp).toFixed(1)}`)
+                .join(" ");
+              const p10Path = fan
+                .map((pt, i) => `${i === 0 ? "M" : "L"}${fx(i).toFixed(1)},${fy(pt.p10Rp).toFixed(1)}`)
+                .join(" ");
+              const hoveredFan =
+                mcHoverIdx !== null ? fan[mcHoverIdx] : fan[fan.length - 1];
+
+              return (
+                <div className="rounded-lg border border-border bg-surface p-5 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-xs font-semibold text-text-primary">
+                      P10–P50–P90 Wealth Confidence Fan
+                    </span>
+                    <div className="flex items-center gap-4 text-[11px] font-mono">
+                      <span className="inline-flex items-center gap-1.5 text-delta-positive">
+                        <span className="w-3 h-0.5 bg-delta-positive inline-block" />
+                        P50 Median
+                      </span>
+                      <span className="inline-flex items-center gap-1.5 text-caution">
+                        <span className="w-3 h-0.5 bg-caution inline-block" />
+                        P10 Downside
+                      </span>
+                      <span className="inline-flex items-center gap-1.5 text-text-tertiary">
+                        <span className="w-3 h-2 bg-emerald-500/20 border border-emerald-500/30 inline-block" />
+                        P10–P90 Band
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <svg
+                      viewBox={`0 0 ${fW} ${fH}`}
+                      className="w-full h-52 select-none"
+                      aria-label="Monte Carlo P10 to P90 confidence trajectory chart"
+                    >
+                      <polygon points={bandPolygon} fill="rgba(16, 183, 141, 0.12)" />
+                      <path
+                        d={p10Path}
+                        fill="none"
+                        stroke="#E59B2C"
+                        strokeWidth={1.6}
+                        strokeDasharray="4 3"
+                      />
+                      <path d={p50Path} fill="none" stroke="#10B78D" strokeWidth={2.2} />
+                      {fan.map((pt, i) => {
+                        const cx = fx(i);
+                        const isAct = mcHoverIdx === i;
+                        return (
+                          <g
+                            key={pt.label}
+                            onMouseEnter={() => setMcHoverIdx(i)}
+                            onMouseLeave={() => setMcHoverIdx(null)}
+                            className="cursor-pointer"
+                          >
+                            <rect
+                              x={cx - fPlotW / Math.max(2, fan.length * 2)}
+                              y={fPadT}
+                              width={fPlotW / Math.max(1, fan.length)}
+                              height={fPlotH}
+                              fill="transparent"
+                            />
+                            {isAct && (
+                              <line
+                                x1={cx}
+                                x2={cx}
+                                y1={fPadT}
+                                y2={fPadT + fPlotH}
+                                stroke="rgba(255,255,255,0.2)"
+                                strokeDasharray="2 2"
+                              />
+                            )}
+                            <circle cx={cx} cy={fy(pt.p50Rp)} r={isAct ? 4.5 : 2.5} fill="#10B78D" />
+                            <text
+                              x={cx}
+                              y={fH - 8}
+                              textAnchor="middle"
+                              className={`text-[9px] font-mono ${
+                                isAct ? "fill-white font-semibold" : "fill-[#7c8594]"
+                              }`}
+                            >
+                              {pt.label}
+                            </text>
+                          </g>
+                        );
+                      })}
+                    </svg>
+                  </div>
+
+                  {hoveredFan && (
+                    <div className="pt-2.5 border-t border-border-subtle flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
+                      <span className="font-semibold text-text-primary">{hoveredFan.label}</span>
+                      <span>
+                        P10:{" "}
+                        <strong className="text-caution erp-tabular-currency">
+                          {formatRupiah(hoveredFan.p10Rp, isAmountsMasked)}
+                        </strong>
+                      </span>
+                      <span>
+                        P50:{" "}
+                        <strong className="text-delta-positive erp-tabular-currency">
+                          {formatRupiah(hoveredFan.p50Rp, isAmountsMasked)}
+                        </strong>
+                      </span>
+                      <span>
+                        P90:{" "}
+                        <strong className="text-text-primary erp-tabular-currency">
+                          {formatRupiah(hoveredFan.p90Rp, isAmountsMasked)}
+                        </strong>
+                      </span>
+                      <span>
+                        Shortfall Risk:{" "}
+                        <strong className="text-text-secondary">
+                          {hoveredFan.shortfallRiskPct.toFixed(1)}%
+                        </strong>
+                      </span>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Surplus Allocation Frontier (3 Pareto Optimal Strategies) */}
+            {stressResult && stressResult.optimizer.strategies.length > 0 && (
+              <div className="rounded-lg border border-border bg-surface p-5 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-sm font-semibold text-text-primary">
+                      Surplus Allocation Frontier
+                    </h3>
+                    <p className="text-[11px] text-text-tertiary mt-0.5">
+                      Evaluated {stressResult.optimizer.combinationsEvaluated.toLocaleString()} monthly surplus splits across debt prepayment, emergency reserve, goals, and flexible spending.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {stressResult.optimizer.strategies.map((st) => (
+                    <div
+                      key={st.code}
+                      className="rounded border border-border-subtle bg-canvas/70 p-3.5 space-y-2.5 text-xs"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="font-semibold text-text-primary">{st.title}</div>
+                        <span className="text-[10px] font-mono text-delta-positive shrink-0">
+                          {st.debtMonthsShaved > 0 ? `-${st.debtMonthsShaved}m debt` : `${st.emergencyMonthsToTarget}m target`}
+                        </span>
+                      </div>
+
+                      <div className="space-y-1 text-[11px] font-mono border-y border-border-subtle py-2">
+                        <div className="flex justify-between">
+                          <span className="text-text-tertiary">Debt Prepay</span>
+                          <span className="text-text-primary erp-tabular-currency">
+                            {formatRupiah(st.debtPrepaymentRp, isAmountsMasked)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-text-tertiary">Emergency Reserve</span>
+                          <span className="text-text-primary erp-tabular-currency">
+                            {formatRupiah(st.emergencyFundRp, isAmountsMasked)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-text-tertiary">Savings Goals</span>
+                          <span className="text-text-primary erp-tabular-currency">
+                            {formatRupiah(st.goalSavingsRp, isAmountsMasked)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-text-tertiary">Flexible Pool</span>
+                          <span className="text-text-primary erp-tabular-currency">
+                            {formatRupiah(st.flexibleRp, isAmountsMasked)}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between text-[11px] font-mono">
+                        <span className="text-text-tertiary">12M Projected Worth</span>
+                        <span className="font-semibold text-delta-positive erp-tabular-currency">
+                          {formatRupiah(st.projected12MNetWorthRp, isAmountsMasked)}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-text-tertiary leading-relaxed">{st.rationale}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

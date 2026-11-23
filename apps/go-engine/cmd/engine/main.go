@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync"
+	"time"
 
 	"sundayfunday.erp/go-engine/internal/anomaly"
 	"sundayfunday.erp/go-engine/internal/cutoff"
@@ -15,12 +17,38 @@ import (
 	"sundayfunday.erp/go-engine/internal/forecaster"
 	"sundayfunday.erp/go-engine/internal/formula"
 	"sundayfunday.erp/go-engine/internal/lifeenergy"
+	"sundayfunday.erp/go-engine/internal/montecarlo"
 	"sundayfunday.erp/go-engine/internal/networth"
+	"sundayfunday.erp/go-engine/internal/optimizer"
 	"sundayfunday.erp/go-engine/internal/paycycle"
 	"sundayfunday.erp/go-engine/internal/reconciler"
 	"sundayfunday.erp/go-engine/internal/report"
 	"sundayfunday.erp/go-engine/internal/timeline"
 )
+
+type intelligenceBatchRequest struct {
+	Paycycle   paycycle.HorizonRequest       `json:"paycycle"`
+	Networth   networth.NetWorthRequest      `json:"networth"`
+	Forecaster forecaster.ForecasterRequest  `json:"forecaster"`
+	Anomaly    anomaly.AnomalyRequest        `json:"anomaly"`
+	Envelopes  envelopes.EnvelopesRequest    `json:"envelopes"`
+	Debtopt    debtopt.DebtOptRequest        `json:"debtopt"`
+	Lifeenergy lifeenergy.LifeEnergyRequest  `json:"lifeenergy"`
+	Formula    formula.FormulaSuiteRequest   `json:"formula"`
+}
+
+type intelligenceBatchResult struct {
+	Paycycle          paycycle.HorizonResult     `json:"paycycle"`
+	Networth          networth.NetWorthResult    `json:"networth"`
+	Forecaster        forecaster.ForecasterResult `json:"forecaster"`
+	Anomaly           anomaly.AnomalyResult      `json:"anomaly"`
+	Envelopes         envelopes.EnvelopesResult  `json:"envelopes"`
+	Debtopt           debtopt.DebtOptResult      `json:"debtopt"`
+	Lifeenergy        lifeenergy.LifeEnergyResult `json:"lifeenergy"`
+	Formula           formula.FormulaSuiteResult `json:"formula"`
+	WorkerGoroutines  int                        `json:"workerGoroutines"`
+	ComputeDurationUs int64                      `json:"computeDurationUs"`
+}
 
 func main() {
 	cmdFlag := flag.String("cmd", "", "Engine subcommand")
@@ -112,6 +140,18 @@ func main() {
 		var req formula.FormulaSuiteRequest
 		mustUnmarshal(raw, &req, cmd)
 		out = formula.EvaluateFormulaSuite(req)
+	case "monte-carlo":
+		var req montecarlo.MonteCarloRequest
+		mustUnmarshal(raw, &req, cmd)
+		out = montecarlo.RunMonteCarlo(req)
+	case "allocation-optimize":
+		var req optimizer.AllocationOptRequest
+		mustUnmarshal(raw, &req, cmd)
+		out = optimizer.OptimizeAllocationFrontier(req)
+	case "intelligence-batch":
+		var req intelligenceBatchRequest
+		mustUnmarshal(raw, &req, cmd)
+		out = runIntelligenceBatch(req)
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command: %s\n", cmd)
 		os.Exit(2)
@@ -121,6 +161,29 @@ func main() {
 		fmt.Fprintf(os.Stderr, "failed writing stdout: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func runIntelligenceBatch(req intelligenceBatchRequest) intelligenceBatchResult {
+	started := time.Now()
+	var res intelligenceBatchResult
+	var wg sync.WaitGroup
+	wg.Add(8)
+	go func() { defer wg.Done(); res.Paycycle = paycycle.ComputePaycycleHorizon(req.Paycycle) }()
+	go func() { defer wg.Done(); res.Networth = networth.ComputeNetWorth(req.Networth) }()
+	go func() { defer wg.Done(); res.Forecaster = forecaster.RunForecast(req.Forecaster) }()
+	go func() { defer wg.Done(); res.Anomaly = anomaly.EvaluateAnomalies(req.Anomaly) }()
+	go func() { defer wg.Done(); res.Envelopes = envelopes.EvaluateEnvelopes(req.Envelopes) }()
+	go func() { defer wg.Done(); res.Debtopt = debtopt.OptimizeDebtPayoff(req.Debtopt) }()
+	go func() { defer wg.Done(); res.Lifeenergy = lifeenergy.ComputeLifeEnergy(req.Lifeenergy) }()
+	go func() { defer wg.Done(); res.Formula = formula.EvaluateFormulaSuite(req.Formula) }()
+	wg.Wait()
+	elapsedUs := time.Since(started).Microseconds()
+	if elapsedUs <= 0 {
+		elapsedUs = 1
+	}
+	res.WorkerGoroutines = 8
+	res.ComputeDurationUs = elapsedUs
+	return res
 }
 
 func mustUnmarshal(raw []byte, dst any, cmd string) {

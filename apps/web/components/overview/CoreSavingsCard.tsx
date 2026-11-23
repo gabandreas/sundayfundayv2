@@ -6,10 +6,10 @@ import { ArrowUpRight, X } from "lucide-react";
 import { MonthlySnapshot, borrowFromP1Vault, resolvePriorityTierLabel } from "@/lib/api";
 import { formatRupiah, formatCurrencyInput, parseCurrencyInput } from "@/lib/utils";
 import { EditableTarget } from "./EditableTarget";
-import { PrivacyEyeButton } from "@/components/shell/PrivacyEyeButton";
 import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { usePerspective } from "@/context/PerspectiveContext";
+import { useToast } from "@/context/ToastContext";
 
 interface CoreSavingsCardProps {
   snapshot: MonthlySnapshot | null;
@@ -20,6 +20,7 @@ export function CoreSavingsCard({ snapshot, isLocked }: CoreSavingsCardProps) {
   const { isAmountsMasked } = usePrivacyMask();
   const { t } = useLanguage();
   const { studioConfig } = usePerspective();
+  const { toast } = useToast();
   const savingsTierLabel = resolvePriorityTierLabel(studioConfig, "SAVINGS", "Core Savings");
   const surplusTierLabel = resolvePriorityTierLabel(studioConfig, "DISCRETIONARY", "Flexible Surplus");
   const actualSavings = snapshot?.actualSavings ?? 0;
@@ -69,9 +70,16 @@ export function CoreSavingsCard({ snapshot, isLocked }: CoreSavingsCardProps) {
     });
     setIsSubmitting(false);
     if (!res.success) {
-      setErrorMsg(res.error || "Failed to transfer from savings reserve.");
+      const msg = res.error || "Failed to transfer from savings reserve.";
+      setErrorMsg(msg);
+      toast({ title: "Transfer failed", description: msg, variant: "error" });
       return;
     }
+    toast({
+      title: "Savings advance recorded",
+      description: `${formatRupiah(amt, false)} transferred cleanly.`,
+      variant: "success",
+    });
     setIsBorrowModalOpen(false);
   };
 
@@ -81,7 +89,7 @@ export function CoreSavingsCard({ snapshot, isLocked }: CoreSavingsCardProps) {
         {/* Header */}
         <div>
           <div className="flex items-center justify-between gap-2 mb-1.5">
-            <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
+            <span className="text-[11px] font-semibold text-text-tertiary font-sans">
               {t("overview.coreSavings")}
             </span>
             <span className="text-[10px] font-mono text-text-tertiary">
@@ -89,15 +97,14 @@ export function CoreSavingsCard({ snapshot, isLocked }: CoreSavingsCardProps) {
             </span>
           </div>
 
-          <div className="flex items-baseline justify-between gap-2">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
             <div className="flex items-center gap-2">
-              <span className="font-mono text-xl font-semibold leading-none tracking-tight text-text-primary tabular-nums">
+              <span className="font-mono text-xl font-semibold leading-none tracking-tight text-text-primary tabular-nums whitespace-nowrap">
                 {formatRupiah(actualSavings, isAmountsMasked)}
               </span>
-              <PrivacyEyeButton size="xs" />
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="text-xs font-mono text-text-secondary tabular-nums">
+              <span className="text-xs font-mono text-text-secondary tabular-nums whitespace-nowrap">
                 of {formatRupiah(targetSavings, isAmountsMasked)}
               </span>
               {snapshot && (
@@ -197,7 +204,7 @@ export function CoreSavingsCard({ snapshot, isLocked }: CoreSavingsCardProps) {
               )}
 
               <div className="space-y-1">
-                <label className="text-[10px] font-mono uppercase text-text-tertiary">
+                <label className="text-[10px] font-mono text-text-tertiary">
                   Amount to Borrow (Rp)
                 </label>
                 <input
@@ -212,7 +219,7 @@ export function CoreSavingsCard({ snapshot, isLocked }: CoreSavingsCardProps) {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-mono uppercase text-text-tertiary">
+                  <label className="text-[10px] font-mono text-text-tertiary">
                     Route Funds To
                   </label>
                   <select
@@ -226,7 +233,7 @@ export function CoreSavingsCard({ snapshot, isLocked }: CoreSavingsCardProps) {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-mono uppercase text-text-tertiary">
+                  <label className="text-[10px] font-mono text-text-tertiary">
                     Lock Refund In Period
                   </label>
                   <select
@@ -244,7 +251,7 @@ export function CoreSavingsCard({ snapshot, isLocked }: CoreSavingsCardProps) {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-mono uppercase text-text-tertiary">
+                <label className="text-[10px] font-mono text-text-tertiary">
                   Purpose / Audit Note
                 </label>
                 <input

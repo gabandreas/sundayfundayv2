@@ -38,6 +38,7 @@ import {
 import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { usePerspective } from "@/context/PerspectiveContext";
+import { useToast } from "@/context/ToastContext";
 import { evaluateMathExpression } from "./InlineBulkBillCell";
 
 interface MatrixCellDrawerProps {
@@ -66,6 +67,7 @@ export function MatrixCellDrawer({
   const { isAmountsMasked } = usePrivacyMask();
   const { t } = useLanguage();
   const { studioConfig } = usePerspective();
+  const { toast } = useToast();
   const activePaylaterInst = useMemo(
     () => (studioConfig?.instrumentsTable ?? []).find((i) => i.active && i.type === "PAYLATER"),
     [studioConfig],
@@ -384,10 +386,17 @@ export function MatrixCellDrawer({
 
     setBusyAction(null);
     if (!res.success) {
-      setErrorMsg(res.error || "Failed to add liability item.");
+      const msg = res.error || "Failed to add liability item.";
+      setErrorMsg(msg);
+      toast({ title: "Could not add liability item", description: msg, variant: "error" });
       return;
     }
 
+    toast({
+      title: "Installment item added",
+      description: title.trim(),
+      variant: "success",
+    });
     setTitle("");
     setTotalAmountRaw("");
     setTenorMonths(1);
@@ -411,9 +420,16 @@ export function MatrixCellDrawer({
     });
     setBusyAction(null);
     if (!res.success) {
-      setErrorMsg(res.error || "Failed to update total override.");
+      const msg = res.error || "Failed to update total override.";
+      setErrorMsg(msg);
+      toast({ title: "Override update failed", description: msg, variant: "error" });
       return;
     }
+    toast({
+      title: "Monthly cell override saved",
+      description: `${String(column.month).padStart(2, "0")}/${column.year} updated.`,
+      variant: "success",
+    });
     setDrawerMode("itemized");
     setOverrideRaw("");
   };
@@ -457,7 +473,7 @@ export function MatrixCellDrawer({
         {/* Drawer Header */}
         <div className="px-4 sm:px-5 py-4 border-b border-border flex items-start justify-between bg-surface">
           <div>
-            <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+            <div className="text-[10px] font-mono text-text-tertiary">
               {categoryTitle} · Period {column.month}/{column.year}
             </div>
             <div className="flex items-baseline gap-2.5 mt-1">
@@ -486,7 +502,7 @@ export function MatrixCellDrawer({
         {/* Cell Subtotal Strip */}
         <div className="px-5 py-3 border-b border-border-subtle bg-surface-subtle flex items-center justify-between">
           <div>
-            <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+            <div className="text-[10px] font-mono text-text-tertiary">
               {t("drawer.totalScheduled")}
             </div>
             <div className="font-mono text-lg font-semibold tabular-nums text-text-primary mt-0.5">
@@ -572,7 +588,7 @@ export function MatrixCellDrawer({
           {category !== "CREDIT_CARD" && drawerMode === "itemized" && (
             <div className="space-y-2.5">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-mono uppercase tracking-wider text-text-tertiary">
+                <span className="text-[11px] font-mono text-text-tertiary">
                   {t("drawer.itemizedObligations")} ({lineItems.length})
                 </span>
                 {!isLocked && (
@@ -628,7 +644,7 @@ export function MatrixCellDrawer({
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[10px] font-mono uppercase text-text-tertiary">
+                    <label className="text-[10px] font-mono text-text-tertiary">
                       Description
                     </label>
                     <input
@@ -643,7 +659,7 @@ export function MatrixCellDrawer({
 
                   <div className="grid grid-cols-2 gap-2.5">
                     <div className="space-y-1">
-                      <label className="text-[10px] font-mono uppercase text-text-tertiary">
+                      <label className="text-[10px] font-mono text-text-tertiary">
                         Platform / Lender
                       </label>
                       <input
@@ -655,7 +671,7 @@ export function MatrixCellDrawer({
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-mono uppercase text-text-tertiary">
+                      <label className="text-[10px] font-mono text-text-tertiary">
                         {amountMode === "PRINCIPAL_SPLIT"
                           ? "Total Principal (Rp)"
                           : "Monthly Slice (Rp)"}
@@ -698,7 +714,7 @@ export function MatrixCellDrawer({
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[10px] font-mono uppercase text-text-tertiary">
+                    <label className="text-[10px] font-mono text-text-tertiary">
                       Installment Tenor
                     </label>
                     <div className="grid grid-cols-4 gap-1.5">
@@ -733,7 +749,7 @@ export function MatrixCellDrawer({
                     <div className="grid grid-cols-2 gap-2.5 pl-5">
                       {autoRouteByCutoff && (
                         <div className="space-y-1">
-                          <label className="text-[10px] font-mono uppercase text-text-tertiary">
+                          <label className="text-[10px] font-mono text-text-tertiary">
                             Purchase / Disbursed Date
                           </label>
                           <input
@@ -745,7 +761,7 @@ export function MatrixCellDrawer({
                         </div>
                       )}
                       <div className="space-y-1">
-                        <label className="text-[10px] font-mono uppercase text-text-tertiary">
+                        <label className="text-[10px] font-mono text-text-tertiary">
                           Due Day
                         </label>
                         <select
@@ -776,7 +792,7 @@ export function MatrixCellDrawer({
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[10px] font-mono uppercase text-text-tertiary">
+                    <label className="text-[10px] font-mono text-text-tertiary">
                       Notes (Optional)
                     </label>
                     <input
@@ -1014,7 +1030,7 @@ export function MatrixCellDrawer({
           {/* Read-only CC Breakdown */}
           {category === "CREDIT_CARD" && (
             <div className="space-y-2.5">
-              <div className="text-[11px] font-mono uppercase tracking-wider text-text-tertiary">
+              <div className="text-[11px] font-mono text-text-tertiary">
                 Billed Card Charges ({ccItems.length})
               </div>
               {ccItems.length === 0 ? (
@@ -1080,7 +1096,7 @@ export function MatrixCellDrawer({
                 </p>
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-mono uppercase text-text-tertiary">
+                <label className="text-[10px] font-mono text-text-tertiary">
                   Target Amount or Delta Expression
                 </label>
                 <input

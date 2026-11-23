@@ -235,7 +235,7 @@ export async function generateExecutiveWorkbookBuffer(
   const debtItems: Array<[string, number, string]> = [
     ['PayLater Bills (Due 25th M+1)', uw.paylaterBills, 'Matrix PayLater Bucket'],
     ['Credit Card Charges (Due 11th M+1)', uw.creditCardBills, 'Billed Cycle Charges'],
-    ['Personal & Informal Debt (Due 8th/Exact)', uw.personalDebtBills, 'SPinjam / P1 Vault Refund'],
+    ['Personal & Informal Debt (Due 8th/Exact)', uw.personalDebtBills, 'Personal Loans / Internal Refunds'],
     ['Contract Installments (Direct)', uw.contractInstallments, 'Non-duplicated active contracts'],
   ];
   debtItems.forEach(([label, amt, note], i) => {
@@ -256,11 +256,11 @@ export async function generateExecutiveWorkbookBuffer(
   styleDataRow(debtTotRow, 0, 9, { idrCols: [2], pctCols: [3], leftCols: [1, 4], isTotal: true });
 
   const livingRows: Array<[string, number, string]> = [
-    ['Fixed Routine Essentials Pool', uw.fixedEssentialsActual, 'Transport, Internet, Vape, Haircut'],
+    ['Fixed Routine Essentials Pool', uw.fixedEssentialsActual, 'Routine recurring household bills'],
     ['Daily Living Budget (Daily Operational)', uw.actualDailyOperational, `Remaining: Rp ${Math.round(mc.dailyLiving.remainingOperationalCash).toLocaleString('id-ID')}`],
     ['Emergency Buffer Pocket', uw.actualBufferPocket, 'Protected reserve'],
-    ['Core Savings (P1 Allocation)', uw.actualSavings, `Vault: Rp ${Math.round(mc.savingsBottomLine.realizedInVaultTotal).toLocaleString('id-ID')}`],
-    ['Self-Reward Allowance (P2)', uw.actualSelfReward, 'Discretionary P2'],
+    ['Core Savings Reserve', uw.actualSavings, `Reserve: Rp ${Math.round(mc.savingsBottomLine.realizedInVaultTotal).toLocaleString('id-ID')}`],
+    ['Flexible Surplus Allowance', uw.actualSelfReward, 'Discretionary surplus'],
     ['Deficit Uncovered', uw.deficitUncovered, uw.isDeficit ? 'Manual cap exceeds cash' : 'Balanced'],
   ];
   livingRows.forEach(([label, amt, note], i) => {
@@ -354,7 +354,7 @@ export async function generateExecutiveWorkbookBuffer(
     `Due-Date & Settlement Schedule — ${cs.periodLabel}`,
     settlementTot
       ? `Selected Period Total: Rp ${settlementTot.totalDue.toLocaleString('id-ID')} | Bank Hold Needed: Rp ${settlementTot.bankHoldNeeded.toLocaleString('id-ID')} | Paid: Rp ${settlementTot.paidAmount.toLocaleString('id-ID')}`
-      : '8th Personal Debt · 11th Credit Card · 25th SPayLater',
+      : 'Personal Debt · Credit Card · PayLater',
   );
 
   addSectionHeading(ws2, 8, 'SECTION A: 12-MONTH MATURITY MATRIX');

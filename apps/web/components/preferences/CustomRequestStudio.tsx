@@ -225,7 +225,7 @@ export function CustomRequestStudio({ initialRequests }: CustomRequestStudioProp
           </div>
         </div>
 
-        <span className="text-[10px] font-mono px-2 py-0.5 rounded border border-border-subtle bg-surface-subtle text-text-tertiary uppercase">
+        <span className="text-[10px] font-mono px-2 py-0.5 rounded border border-border-subtle bg-surface-subtle text-text-tertiary">
           {isSuperadmin ? "Custom Account" : "Standard Plan"}
         </span>
       </div>
@@ -429,7 +429,7 @@ export function CustomRequestStudio({ initialRequests }: CustomRequestStudioProp
 
                   {/* Specification Text */}
                   <div className="p-3 rounded bg-surface border border-border-subtle text-xs font-sans text-text-secondary space-y-1">
-                    <div className="text-[10px] uppercase font-mono text-text-tertiary">
+                    <div className="text-[10px] font-mono text-text-tertiary">
                       Specification:
                     </div>
                     <p className="leading-relaxed whitespace-pre-wrap">{req.desiredBehavior}</p>
@@ -443,7 +443,7 @@ export function CustomRequestStudio({ initialRequests }: CustomRequestStudioProp
                   {/* Superadmin Response / Notes */}
                   {req.adminNotes && !isSuperadmin && (
                     <div className="p-3 rounded bg-[rgba(16,183,141,0.05)] border border-[rgba(16,183,141,0.2)] text-xs font-sans text-text-primary space-y-1">
-                      <div className="text-[10px] uppercase font-mono text-delta-positive font-semibold">
+                      <div className="text-[10px] font-mono text-delta-positive font-semibold">
                         Superadmin Roadmap Response:
                       </div>
                       <p className="text-text-secondary">{req.adminNotes}</p>
@@ -454,7 +454,7 @@ export function CustomRequestStudio({ initialRequests }: CustomRequestStudioProp
                   {isSuperadmin && (
                     <div className="pt-3 border-t border-border-subtle grid grid-cols-12 gap-3 items-end">
                       <div className="col-span-3">
-                        <label className="block text-[10px] font-mono uppercase text-text-tertiary mb-1">
+                        <label className="block text-[10px] font-mono text-text-tertiary mb-1">
                           Review Status
                         </label>
                         <select
@@ -475,7 +475,7 @@ export function CustomRequestStudio({ initialRequests }: CustomRequestStudioProp
                       </div>
 
                       <div className="col-span-3">
-                        <label className="block text-[10px] font-mono uppercase text-text-tertiary mb-1">
+                        <label className="block text-[10px] font-mono text-text-tertiary mb-1">
                           Setup Fee Quote (IDR)
                         </label>
                         <input
@@ -493,7 +493,7 @@ export function CustomRequestStudio({ initialRequests }: CustomRequestStudioProp
                       </div>
 
                       <div className="col-span-4">
-                        <label className="block text-[10px] font-mono uppercase text-text-tertiary mb-1">
+                        <label className="block text-[10px] font-mono text-text-tertiary mb-1">
                           Admin Roadmap Notes
                         </label>
                         <input

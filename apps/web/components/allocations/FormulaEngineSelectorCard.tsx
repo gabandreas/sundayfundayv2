@@ -124,7 +124,7 @@ export function FormulaEngineSelectorCard() {
     <section className="bg-surface border border-border rounded-md p-5 space-y-4">
       <div className="flex items-center justify-between pb-3 border-b border-border-subtle">
         <div>
-          <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+          <div className="text-[10px] font-mono text-text-tertiary">
             Multi-Formula Allocation Engine
           </div>
           <h2 className="text-sm font-semibold text-text-primary mt-0.5">

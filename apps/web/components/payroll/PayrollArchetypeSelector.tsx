@@ -103,7 +103,7 @@ export function PayrollArchetypeSelector() {
     <div className="rounded-md border border-border bg-surface p-4 space-y-4">
       <div className="flex items-center justify-between pb-2 border-b border-border-subtle">
         <div>
-          <span className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+          <span className="text-[10px] font-mono text-text-tertiary">
             Payroll Setup &amp; Income Streams
           </span>
           <h3 className="text-xs font-semibold font-sans text-text-primary mt-0.5">

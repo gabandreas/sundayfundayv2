@@ -45,8 +45,9 @@ export class ConfigController {
   }
 
   @Post('simulate-rules')
-  simulateRules(@Body() dto: SimulateRulesDto) {
-    return this.configService.simulateModularRules(dto);
+  simulateRules(@Body() dto: SimulateRulesDto, @Req() req?: any) {
+    const userId = getUserIdOrThrow(req);
+    return this.configService.simulateModularRules(dto, userId);
   }
 
   @Post('restore-defaults')

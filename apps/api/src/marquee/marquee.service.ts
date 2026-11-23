@@ -8,7 +8,12 @@ import {
   maskSecretPreview,
   verifySecretToken,
 } from '../common/crypto.util';
-import { MarqueeToolName, parseMarqueeIntent } from './marquee-nlu';
+import {
+  applyFollowUpHistory,
+  detectCompoundSecondaryIntent,
+  MarqueeToolName,
+  parseMarqueeIntent,
+} from './marquee-nlu';
 import {
   MARQUEE_TOOL_DEFS,
   MarqueeAiProvider,
@@ -29,6 +34,7 @@ const MCP_EXPOSED_TOOLS = new Set<string>([
   'manage_savings_pocket_or_goal',
   'manage_wishlist_or_subscription',
   'run_what_if_scenario',
+  'run_stress_test',
   'manage_user_memory',
   'search_financial_history',
 ]);
@@ -44,6 +50,8 @@ import {
 } from './marquee-context.service';
 
 const HUMAN_TOOL_LABELS: Record<string, string> = {
+  greeting_or_help: 'Checked active period overview',
+  run_stress_test: 'Ran 12-month probabilistic cashflow stress test',
   log_quick_expense: 'Log expense entry',
   get_paycycle_pulse: 'Checked active paycycle balance and daily safe-to-spend',
   get_due_schedule: 'Checked scheduled bill maturities and due dates',
@@ -76,9 +84,14 @@ const TOOL_TEXT_REPLACEMENTS: Array<[RegExp, string]> = [
   [/\bmanage_savings_pocket_or_goal\b/g, 'savings allocation helper'],
   [/\bmanage_wishlist_or_subscription\b/g, 'wishlist and recurring helper'],
   [/\brun_what_if_scenario\b/g, 'what-if scenario simulator'],
+  [/\brun_stress_test\b/g, 'probabilistic stress test'],
+  [/\bgreeting_or_help\b/g, 'overview summary'],
   [/\bmanage_user_memory\b/g, 'preference memory helper'],
   [/\bsearch_financial_history\b/g, 'historical archive search'],
   [/\brefuse_out_of_scope\b/g, 'domain boundary guard'],
+  [/\bCONFIRM_(?:EXPENSE|SHIFT_LIABILITY|SETTLE_LIABILITY|BUDGET_REVISION|SAVINGS_ACTION|WISHLIST_ADD|SUBSCRIPTION_ACTION)\b/g, 'confirmation step'],
+  [/\b(?:TIER1_NLU|TIER2_DEEPSEEK|TIER2_OPENCODE|TIER2_GEMINI|TIER2_GROQ|CONFIRMED_EXECUTION)\b/g, 'ledger engine'],
+  [/\b(?:deepseek-(?:flash|chat|reasoner|v4[\w.-]*)|gemini-[\d.]+-flash[\w-]*|llama-[\d.]+-[\w-]+)\b/gi, 'co-pilot engine'],
   [/\bpurchaseDate\b/g, 'purchase date'],
   [/\bdaysInMonth\b/g, 'days in month'],
 ];
@@ -152,6 +165,7 @@ export interface MarqueeChatRequestDto {
   locale?: 'en' | 'id' | 'zh';
   activeRoute?: string;
   activeSubTab?: string | null;
+  history?: Array<{ role: 'user' | 'assistant'; text: string }>;
 }
 
 export interface MarqueeAgentStep {
@@ -441,7 +455,11 @@ export class MarqueeService {
     };
 
     if (dto.confirm && dto.pendingAction && actionToolMap[dto.pendingAction.type]) {
-      emit('ANALYZING', 'Executing confirmed action...', dto.pendingAction.type);
+      emit(
+        'ANALYZING',
+        'Saving entry...',
+        HUMAN_ACTION_LABELS[dto.pendingAction.type] ?? 'Writing verified ledger entry',
+      );
       const p = dto.pendingAction.payload ?? {};
       const toolName = actionToolMap[dto.pendingAction.type];
       const result = await this.toolsService.executeTool(toolName, p, {
@@ -458,8 +476,8 @@ export class MarqueeService {
         agentSteps: [
           {
             id: 'step_confirm',
-            label: 'Executed confirmed action',
-            detail: `${toolName} persisted cleanly`,
+            label: HUMAN_ACTION_LABELS[dto.pendingAction.type] ?? 'Executed confirmed action',
+            detail: `${HUMAN_TOOL_LABELS[toolName] ?? 'Verified update'} saved cleanly`,
             status: 'done',
             durationMs: Math.max(1, Date.now() - t0),
           },
@@ -468,7 +486,8 @@ export class MarqueeService {
     }
 
     emit('THINKING', 'Thinking...', 'Reading prompt intent & period context');
-    const parsedTier1 = parseMarqueeIntent(message || 'financial pulse');
+    const rawParsedTier1 = parseMarqueeIntent(message || 'financial pulse');
+    const parsedTier1 = applyFollowUpHistory(rawParsedTier1, message, dto.history);
     const locale = dto.locale ?? parsedTier1.locale;
     const steps: MarqueeAgentStep[] = [
       {
@@ -613,7 +632,7 @@ export class MarqueeService {
         : undefined;
 
     if (provider !== 'TIER1_ONLY' && hasAnyKey) {
-      emit('ANALYZING', 'Reasoning with co-pilot...', `Provider: ${provider}`);
+      emit('ANALYZING', 'Analyzing live ledger...', 'Evaluating balances, bills, and scenarios');
       const resolved = await this.llmService.resolveWithProvider({
         provider,
         geminiApiKey,
@@ -634,6 +653,7 @@ export class MarqueeService {
           'deepseek-v4.1-flash-free',
         systemContextPrompt: hydrated?.systemPrompt,
         message,
+        history: dto.history,
         tier1Fallback: parsedTier1,
         executeTool: async (hopTool, hopArgs) => {
           emit('ANALYZING', 'Running ledger check...', describeToolAction(hopTool));
@@ -660,7 +680,7 @@ export class MarqueeService {
       if (resolved && resolved.usedProvider !== 'TIER1_ONLY') {
         llmResolution = resolved;
         model = resolved.model;
-        assistantPrefix = resolved.assistantPrefix;
+        assistantPrefix = sanitizeReasoningForUi(resolved.assistantPrefix);
         reasoning = resolved.reasoning;
         if (resolved.usedProvider === 'DEEPSEEK') tierUsed = 'TIER2_DEEPSEEK';
         else if (resolved.usedProvider === 'OPENCODE') tierUsed = 'TIER2_OPENCODE';
@@ -668,23 +688,23 @@ export class MarqueeService {
         else if (resolved.usedProvider === 'GROQ') tierUsed = 'TIER2_GROQ';
 
         // Direct conversational LLM answer (e.g. greetings or ledger Q&A) — do NOT force Tier 1 tool boilerplate
-        if (!resolved.didCallTool && resolved.tool === null && resolved.assistantPrefix) {
+        if (!resolved.didCallTool && resolved.tool === null && assistantPrefix) {
           steps.push({
             id: 'step_llm_reply',
-            label: `Verified ledger via ${model}`,
-            detail: 'Answered directly from hydrated ERP state',
+            label: 'Verified active ledger context',
+            detail: 'Answered directly from live cycle state',
             status: 'done',
             durationMs: Math.max(1, Date.now() - t0),
           });
           return {
             ok: true,
             tool: 'conversational' as any,
-            summary: resolved.assistantPrefix,
+            summary: assistantPrefix,
             cards: [],
             tierUsed,
             model,
             locale,
-            assistantPrefix: resolved.assistantPrefix,
+            assistantPrefix,
             ...(reasoning ? { reasoning: sanitizeReasoningForUi(reasoning) } : {}),
             agentSteps: steps,
             ...(hydrated?.proactiveReminders
@@ -737,6 +757,44 @@ export class MarqueeService {
         status: 'done',
         durationMs: Math.max(1, Date.now() - t0),
       });
+
+      // Compound multi-step offline capability (e.g. "cek saldo hari ini dan simulasi sepatu 300rb spaylater")
+      const secondaryIntent = detectCompoundSecondaryIntent(message);
+      if (secondaryIntent && !result.pendingAction && secondaryIntent.tool !== selectedTool) {
+        const secActionSummary = describeToolAction(secondaryIntent.tool);
+        emit('ANALYZING', 'Checking follow-up step...', secActionSummary);
+        const secResult = await this.toolsService.executeTool(
+          secondaryIntent.tool,
+          {
+            title: secondaryIntent.title,
+            amountRp: secondaryIntent.amountRp,
+            instrument: secondaryIntent.instrument,
+            tenorMonths: secondaryIntent.tenorMonths,
+            purchaseDate: secondaryIntent.purchaseDateIso,
+            locale,
+          },
+          {
+            userId,
+            confirm: Boolean(dto.confirm),
+            month: dto.month,
+            year: dto.year,
+          },
+        );
+        if (secResult) {
+          result = {
+            ...result,
+            summary: `${result.summary}\n\n${secResult.summary}`,
+            cards: [...(result.cards ?? []), ...(secResult.cards ?? [])].slice(0, 6),
+            ...(secResult.pendingAction ? { pendingAction: secResult.pendingAction } : {}),
+          };
+          steps.push({
+            id: 'step_tool_compound',
+            label: secActionSummary,
+            detail: `${secResult.cards?.length ?? 0} secondary metrics verified`,
+            status: 'done',
+          });
+        }
+      }
     }
     if (result.pendingAction) {
       emit(
@@ -796,16 +854,68 @@ export class MarqueeService {
     }
 
     const cleanedReasoning = sanitizeReasoningForUi(reasoning);
+    const cleanSummary = sanitizeReasoningForUi(result.summary) || result.summary;
+    const cleanPrefix = sanitizeReasoningForUi(assistantPrefix);
     return {
       ...result,
+      summary: cleanSummary,
       tierUsed,
       model,
       locale,
-      ...(assistantPrefix ? { assistantPrefix } : {}),
+      ...(cleanPrefix ? { assistantPrefix: cleanPrefix } : {}),
       ...(cleanedReasoning ? { reasoning: cleanedReasoning } : {}),
       agentSteps: steps,
       ...(hydrated?.proactiveReminders ? { proactiveReminders: hydrated.proactiveReminders } : {}),
       hydratedContext: buildHydratedMeta(),
+    };
+  }
+
+  /**
+   * Returns tenant-scoped hydrated UI context for Marquee drawer & workstation
+   * (zero bespoke User #1 prompts or due dates leaked to Standard workspaces).
+   */
+  async getHydratedUiContext(
+    userId: number,
+    options?: { month?: number; year?: number; locale?: 'en' | 'id' | 'zh' },
+  ) {
+    const hydrated =
+      this.contextHydrator && typeof this.contextHydrator.hydrateForUser === 'function'
+        ? await this.contextHydrator.hydrateForUser(userId, options).catch(() => null)
+        : null;
+    const isBespokeWorkspace = userId === 1;
+    const periodTag = hydrated?.activePeriod?.periodTag ?? '11/2026';
+
+    const suggestedPrompts = isBespokeWorkspace
+      ? [
+          'Safe to spend today?',
+          'Log kopi kenangan 34k',
+          'Stress test keuangan 12 bulan',
+          'Split my 3.8jt Natal THR bonus',
+          'Compare 11/2026 vs 12/2026 variance',
+          'Cari histori beli kopi',
+        ]
+      : [
+          'Safe to spend today?',
+          'Log coffee 45k cash',
+          'Run 12-month cashflow stress test',
+          'Review upcoming bills this month',
+          'Check my savings progress & goals',
+          'Search recent spending history',
+        ];
+
+    return {
+      isBespokeWorkspace,
+      periodTag,
+      cycleTemporalState: hydrated?.activePeriod?.cycleTemporalState ?? 'ACTIVE',
+      cycleDateLabel: hydrated?.activePeriod?.cycleDateLabel ?? periodTag,
+      safeToSpendToday: hydrated?.activePeriod?.safeToSpendToday ?? 0,
+      remainingLivingCash: hydrated?.activePeriod?.remainingLivingCash ?? 0,
+      paydayRules: hydrated?.activePeriod?.paydayRules ?? 'Monthly payday anchor on day 1',
+      cutoffRules: hydrated?.dueDayCalendar?.cutoffRules ?? 'Standard monthly cashflow cycle',
+      canonicalDueDays: hydrated?.dueDayCalendar?.canonicalDueDays ?? [1, 15, 25],
+      payoffMilestones: hydrated?.payoffMilestones ?? [],
+      proactiveReminders: hydrated?.proactiveReminders ?? [],
+      suggestedPrompts,
     };
   }
 

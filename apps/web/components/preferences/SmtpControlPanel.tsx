@@ -17,6 +17,7 @@ import {
 } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { usePeriod } from "@/context/PeriodContext";
+import { useToast } from "@/context/ToastContext";
 import {
   Eye,
   FileSpreadsheet,
@@ -108,10 +109,20 @@ export function SmtpControlPanel({
   const [lastFailedOp, setLastFailedOp] = useState<
     "test" | "statement" | "digest" | "backup" | null
   >(null);
+  const { toast } = useToast();
   const [statusFeedback, setStatusFeedback] = useState<{
     ok: boolean;
     message: string;
   } | null>(null);
+
+  React.useEffect(() => {
+    if (!statusFeedback) return;
+    toast({
+      title: statusFeedback.ok ? "Email & Notifications" : "Notification Error",
+      description: statusFeedback.message,
+      variant: statusFeedback.ok ? "success" : "error",
+    });
+  }, [statusFeedback, toast]);
   const [previewPayload, setPreviewPayload] = useState<EmailDispatchResult | null>(null);
 
   const isLiveVerified =
@@ -612,7 +623,7 @@ export function SmtpControlPanel({
       <div className="pt-4 border-t border-border-subtle space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
+            <h3 className="text-xs font-semibold text-text-secondary">
               Email Workflows &amp; Template Inspection
             </h3>
             <p className="text-[11px] text-text-tertiary mt-0.5">
@@ -721,7 +732,7 @@ export function SmtpControlPanel({
       >
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-border-subtle bg-surface-subtle">
           <div className="min-w-0 pr-4">
-            <div className="text-[11px] font-mono uppercase tracking-wider text-text-tertiary">
+            <div className="text-[11px] font-mono text-text-tertiary">
               {previewPayload?.status === "SENT" ? "Dispatched Email Record" : "Dry-Run Email Preview"} ·{" "}
               {previewPayload?.locale ?? previewLocale}
             </div>

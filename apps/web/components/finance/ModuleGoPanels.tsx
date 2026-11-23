@@ -51,7 +51,7 @@ export function TrueHourlyLifeEnergyPanel({
     <div className="space-y-5 w-full">
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <div className="rounded-lg border border-border bg-surface p-4">
-          <div className="text-[10px] font-mono uppercase text-text-tertiary">
+          <div className="text-[10px] font-mono text-text-tertiary">
             {t("intel.trueHourlyWage")}
           </div>
           <div className="font-serif text-2xl text-delta-positive mt-1 tabular-nums">
@@ -63,7 +63,7 @@ export function TrueHourlyLifeEnergyPanel({
         </div>
 
         <div className="rounded-lg border border-border bg-surface p-4">
-          <div className="text-[10px] font-mono uppercase text-text-tertiary">
+          <div className="text-[10px] font-mono text-text-tertiary">
             Nominal Hourly Wage
           </div>
           <div className="font-mono text-xl font-semibold text-text-primary mt-1 tabular-nums">
@@ -75,7 +75,7 @@ export function TrueHourlyLifeEnergyPanel({
         </div>
 
         <div className="rounded-lg border border-border bg-surface p-4">
-          <div className="text-[10px] font-mono uppercase text-text-tertiary">
+          <div className="text-[10px] font-mono text-text-tertiary">
             Commute + Work Time
           </div>
           <div className="font-mono text-xl font-semibold text-text-primary mt-1 tabular-nums">
@@ -87,7 +87,7 @@ export function TrueHourlyLifeEnergyPanel({
         </div>
 
         <div className="rounded-lg border border-border bg-surface p-4">
-          <div className="text-[10px] font-mono uppercase text-text-tertiary">
+          <div className="text-[10px] font-mono text-text-tertiary">
             Net Pay After Commute Cost
           </div>
           <div className="font-mono text-xl font-semibold text-text-primary mt-1 tabular-nums">
@@ -128,7 +128,7 @@ export function TrueHourlyLifeEnergyPanel({
 
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left">
-            <thead className="bg-surface-subtle text-[10px] font-mono uppercase text-text-tertiary border-b border-border">
+            <thead className="bg-surface-subtle text-[10px] font-mono text-text-tertiary border-b border-border">
               <tr>
                 <th className="px-3 py-2">Spending Tier (Rp)</th>
                 <th className="px-3 py-2">Work Hours Required</th>
@@ -190,28 +190,28 @@ export function EnvelopesAndSinkingPanel({
     <div className="space-y-5 w-full">
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <div className="rounded-lg border border-border bg-surface p-4">
-          <div className="text-[10px] font-mono uppercase text-text-tertiary">Savings Runway</div>
+          <div className="text-[10px] font-mono text-text-tertiary">Savings Runway</div>
           <div className="font-serif text-2xl text-text-primary mt-1 tabular-nums">
             {env.ageOfMoneyDays} Days
           </div>
           <div className="text-[11px] text-text-tertiary mt-1">Cash &amp; savings buffer at current pace</div>
         </div>
         <div className="rounded-lg border border-border bg-surface p-4">
-          <div className="text-[10px] font-mono uppercase text-text-tertiary">Pure Buffer Runway</div>
+          <div className="text-[10px] font-mono text-text-tertiary">Pure Buffer Runway</div>
           <div className="font-mono text-xl font-semibold text-delta-positive mt-1 tabular-nums">
             {env.bufferDays} Days
           </div>
           <div className="text-[11px] text-text-tertiary mt-1">At current daily burn rate</div>
         </div>
         <div className="rounded-lg border border-border bg-surface p-4">
-          <div className="text-[10px] font-mono uppercase text-text-tertiary">Unspent Sweep to Savings</div>
+          <div className="text-[10px] font-mono text-text-tertiary">Unspent Sweep to Savings</div>
           <div className="font-mono text-xl font-semibold text-delta-positive mt-1 tabular-nums">
             {formatRupiah(env.totalUnspentSweepToP1Rp, isAmountsMasked)}
           </div>
           <div className="text-[11px] text-text-tertiary mt-1">Auto-swept at cycle close</div>
         </div>
         <div className="rounded-lg border border-border bg-surface p-4">
-          <div className="text-[10px] font-mono uppercase text-text-tertiary">Monthly Sinking Reserve</div>
+          <div className="text-[10px] font-mono text-text-tertiary">Monthly Sinking Reserve</div>
           <div className="font-mono text-xl font-semibold text-text-primary mt-1 tabular-nums">
             {formatRupiah(env.totalSinkingMonthlyRp, isAmountsMasked)}/mo
           </div>
@@ -227,7 +227,7 @@ export function EnvelopesAndSinkingPanel({
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left">
-            <thead className="bg-surface-subtle text-[10px] font-mono uppercase text-text-tertiary border-b border-border">
+            <thead className="bg-surface-subtle text-[10px] font-mono text-text-tertiary border-b border-border">
               <tr>
                 <th className="px-3 py-2">Envelope</th>
                 <th className="px-3 py-2">Allocated</th>
@@ -518,7 +518,7 @@ export function BulkStatementReconcilerPanel({
 
           <div className="overflow-x-auto border border-border-subtle rounded">
             <table className="w-full text-xs text-left">
-              <thead className="bg-surface-subtle text-[10px] font-mono uppercase text-text-tertiary border-b border-border">
+              <thead className="bg-surface-subtle text-[10px] font-mono text-text-tertiary border-b border-border">
                 <tr>
                   <th className="px-2.5 py-2">Import</th>
                   <th className="px-2.5 py-2">Date</th>
@@ -604,7 +604,7 @@ export function NetWorthReservoirsPanel({
     <div className="space-y-5 w-full">
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <div className="rounded-lg border border-border bg-surface p-4">
-          <div className="text-[10px] font-mono uppercase text-text-tertiary">Cash &amp; Savings Balances</div>
+          <div className="text-[10px] font-mono text-text-tertiary">Cash &amp; Savings Balances</div>
           <div className="font-serif text-2xl text-text-primary mt-1 tabular-nums">
             {formatRupiah(nw.totalAssetsRp, isAmountsMasked)}
           </div>
@@ -615,7 +615,7 @@ export function NetWorthReservoirsPanel({
           </div>
         </div>
         <div className="rounded-lg border border-border bg-surface p-4">
-          <div className="text-[10px] font-mono uppercase text-text-tertiary">Remaining External Debt</div>
+          <div className="text-[10px] font-mono text-text-tertiary">Remaining External Debt</div>
           <div className="font-mono text-xl font-semibold text-delta-negative mt-1 tabular-nums">
             {formatRupiah(nw.totalUnpaidDebtRp, isAmountsMasked)}
           </div>
@@ -624,7 +624,7 @@ export function NetWorthReservoirsPanel({
           </div>
         </div>
         <div className="rounded-lg border border-border bg-surface p-4">
-          <div className="text-[10px] font-mono uppercase text-text-tertiary">Cash &amp; Savings vs. Debt</div>
+          <div className="text-[10px] font-mono text-text-tertiary">Cash &amp; Savings vs. Debt</div>
           <div
             className={`font-serif text-2xl mt-1 tabular-nums ${
               nw.totalNetWorthRp >= 0 ? "text-delta-positive" : "text-delta-negative"
@@ -638,7 +638,7 @@ export function NetWorthReservoirsPanel({
           </div>
         </div>
         <div className="rounded-lg border border-border bg-surface p-4">
-          <div className="text-[10px] font-mono uppercase text-text-tertiary">Debt-to-Asset Leverage</div>
+          <div className="text-[10px] font-mono text-text-tertiary">Debt-to-Asset Leverage</div>
           <div className="font-mono text-xl font-semibold text-text-primary mt-1 tabular-nums">
             {nw.debtToAssetLeveragePct.toFixed(1)}%
           </div>
@@ -674,7 +674,7 @@ export function NetWorthReservoirsPanel({
           <h3 className="text-sm font-semibold text-text-primary">Cash &amp; Debt Trajectory</h3>
           <div className="overflow-x-auto max-h-72 overflow-y-auto">
             <table className="w-full text-xs text-left">
-              <thead className="bg-surface-subtle text-[10px] font-mono uppercase text-text-tertiary border-b border-border">
+              <thead className="bg-surface-subtle text-[10px] font-mono text-text-tertiary border-b border-border">
                 <tr>
                   <th className="px-2.5 py-1.5">Period</th>
                   <th className="px-2.5 py-1.5">Assets</th>
@@ -722,14 +722,15 @@ export function WealthForecaster12MPanel({
     <div className="space-y-5 w-full">
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <div className="rounded-lg border border-border bg-surface p-4">
-          <div className="text-[10px] font-mono uppercase text-text-tertiary">
+          <div className="text-[10px] font-mono text-text-tertiary">
             {intel.dynamicMilestone?.labelEn ?? "Debt Payoff Target"}
           </div>
           <div className="font-serif text-2xl text-delta-positive mt-1">
             {intel.dynamicMilestone?.targetDateLabel ?? fc.spinjamFreedomDate}
           </div>
           <div className="text-[11px] text-text-tertiary mt-1">
-            {intel.dynamicMilestone?.code === "ALL_DEBT_FREE_P1_FOCUS"
+            {intel.dynamicMilestone?.code === "SAVINGS_RESERVE_FOCUS" ||
+            intel.dynamicMilestone?.code === "ALL_DEBT_FREE_P1_FOCUS"
               ? "Active surplus directed to savings"
               : intel.dynamicMilestone?.remainingAmountRp
                 ? `${formatRupiah(intel.dynamicMilestone.remainingAmountRp, isAmountsMasked)} left`
@@ -737,19 +738,19 @@ export function WealthForecaster12MPanel({
           </div>
         </div>
         <div className="rounded-lg border border-border bg-surface p-4">
-          <div className="text-[10px] font-mono uppercase text-text-tertiary">Low-DSR (&lt;15%) Date</div>
+          <div className="text-[10px] font-mono text-text-tertiary">Low-DSR (&lt;15%) Date</div>
           <div className="font-mono text-xl font-semibold text-text-primary mt-1">{fc.lowDsrMilestoneDate}</div>
           <div className="text-[11px] text-text-tertiary mt-1">Healthy debt service ratio</div>
         </div>
         <div className="rounded-lg border border-border bg-surface p-4">
-          <div className="text-[10px] font-mono uppercase text-text-tertiary">Survival Runway</div>
+          <div className="text-[10px] font-mono text-text-tertiary">Survival Runway</div>
           <div className="font-mono text-xl font-semibold text-text-primary mt-1 tabular-nums">
             {fc.pureSurvivalRunwayDays} Days
           </div>
           <div className="text-[11px] text-text-tertiary mt-1">If income paused today</div>
         </div>
         <div className="rounded-lg border border-border bg-surface p-4">
-          <div className="text-[10px] font-mono uppercase text-text-tertiary">Zero-Leak 12M Wealth</div>
+          <div className="text-[10px] font-mono text-text-tertiary">Zero-Leak 12M Wealth</div>
           <div className="font-serif text-2xl text-delta-positive mt-1 tabular-nums">
             {formatRupiah(fc.projected12MWealthZeroLeakRp, isAmountsMasked)}
           </div>
@@ -771,7 +772,7 @@ export function WealthForecaster12MPanel({
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left">
-            <thead className="bg-surface-subtle text-[10px] font-mono uppercase text-text-tertiary border-b border-border">
+            <thead className="bg-surface-subtle text-[10px] font-mono text-text-tertiary border-b border-border">
               <tr>
                 <th className="px-3 py-2">Period</th>
                 <th className="px-3 py-2">Baseline Plan</th>

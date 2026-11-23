@@ -168,7 +168,7 @@ export function BudgetRevisionModal({
 
         <div className="space-y-4">
           <div>
-            <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+            <div className="text-[10px] font-mono text-text-tertiary">
               Budget Target Revision
             </div>
             <h2
@@ -185,13 +185,13 @@ export function BudgetRevisionModal({
           {/* Current vs New preview */}
           <div className="grid grid-cols-2 gap-3 p-3 rounded bg-surface-subtle border border-border-subtle text-xs font-sans">
             <div>
-              <span className="text-[10px] text-text-tertiary uppercase block">Current Target</span>
+              <span className="text-[10px] text-text-tertiary block">Current Target</span>
               <span className="font-mono text-sm font-semibold tabular-nums text-text-secondary mt-0.5 block">
                 {formatRupiah(currentValue)}
               </span>
             </div>
             <div>
-              <span className="text-[10px] text-text-tertiary uppercase block">Proposed Delta</span>
+              <span className="text-[10px] text-text-tertiary block">Proposed Delta</span>
               <span
                 className={`font-mono text-sm font-semibold tabular-nums mt-0.5 block ${
                   difference > 0
@@ -238,7 +238,7 @@ export function BudgetRevisionModal({
             {validNumber && (
               <div className="p-3 rounded bg-surface-subtle border border-border-subtle space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+                  <span className="text-[10px] font-mono text-text-tertiary">
                     Projected Downstream Impact
                   </span>
                   {isPreviewLoading && (

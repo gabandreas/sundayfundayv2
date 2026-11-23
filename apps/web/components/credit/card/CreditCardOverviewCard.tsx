@@ -3,7 +3,6 @@
 import React from "react";
 import { CreditCardSummary } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
-import { PrivacyEyeButton } from "@/components/shell/PrivacyEyeButton";
 import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 
 interface CreditCardOverviewCardProps {
@@ -54,7 +53,7 @@ export function CreditCardOverviewCard({ summary }: CreditCardOverviewCardProps)
       {/* Top Header */}
       <div className="flex items-center justify-between border-b border-border-subtle pb-3">
         <div>
-          <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
+          <span className="text-[11px] font-semibold text-text-tertiary font-sans">
             Credit Facility & Utilization
           </span>
           <h2 className="text-base font-semibold font-sans text-text-primary mt-0.5">
@@ -74,13 +73,12 @@ export function CreditCardOverviewCard({ summary }: CreditCardOverviewCardProps)
         {/* Centerpiece / Focus: Current Cycle Due */}
         <div className="space-y-1 border-b md:border-b-0 md:border-r border-border-subtle pb-4 md:pb-0 md:pr-4">
           <div className="text-[11px] font-sans font-medium text-text-tertiary">
-            CURRENT STATEMENT DUE
+            Current Statement Due
           </div>
-          <div className="flex items-center gap-2.5 my-1.5">
+          <div className="my-1.5">
             <div className="font-display text-[28px] font-normal leading-none tracking-tight text-text-primary">
               {formatRupiah(currentCycleDue, isAmountsMasked)}
             </div>
-            <PrivacyEyeButton size="sm" />
           </div>
           <div className="text-[11px] font-sans text-text-tertiary">
             Due on the <span className="font-mono font-semibold text-text-secondary">{paymentDueDay}th</span> of this month
@@ -90,7 +88,7 @@ export function CreditCardOverviewCard({ summary }: CreditCardOverviewCardProps)
         {/* Total Outstanding Balance */}
         <div className="space-y-1 border-b md:border-b-0 md:border-r border-border-subtle pb-4 md:pb-0 md:pr-4">
           <div className="text-[11px] font-sans font-medium text-text-tertiary">
-            TOTAL OUTSTANDING BALANCE
+            Total Outstanding Balance
           </div>
           <div className="font-mono text-[22px] font-semibold leading-none tracking-tight text-text-primary my-1.5 tabular-nums">
             {formatRupiah(totalOutstandingBalance, isAmountsMasked)}
@@ -103,7 +101,7 @@ export function CreditCardOverviewCard({ summary }: CreditCardOverviewCardProps)
         {/* Facility Limit & Parameters */}
         <div className="space-y-1">
           <div className="text-[11px] font-sans font-medium text-text-tertiary">
-            CREDIT LIMIT & CYCLES
+            Credit Limit &amp; Cycles
           </div>
           <div className="font-mono text-[22px] font-semibold leading-none tracking-tight text-text-primary my-1.5 tabular-nums">
             {formatRupiah(creditLimit, isAmountsMasked)}

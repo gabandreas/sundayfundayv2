@@ -4,6 +4,11 @@
   "regions": ["sin1"],
   "buildCommand": "npx prisma generate && npm run build",
   "outputDirectory": "dist",
+  "functions": {
+    "api/index.js": {
+      "includeFiles": "bin/go-engine-linux"
+    }
+  },
   "routes": [
     {
       "src": "/api/(.*)",

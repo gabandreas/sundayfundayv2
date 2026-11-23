@@ -2,7 +2,6 @@
 
 import React from "react";
 import { DeltaBadge, DeltaBadgeProps } from "./DeltaBadge";
-import { PrivacyEyeButton } from "@/components/shell/PrivacyEyeButton";
 import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 import { formatRupiah } from "@/lib/utils";
 
@@ -61,10 +60,10 @@ export function MetricCard({
       {/* Top section: small muted label */}
       <div className="flex items-center justify-between gap-2 mb-2">
         <div className="flex items-center gap-1.5 min-w-0">
-          <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans truncate">
+          <span className="text-[11px] font-semibold text-text-tertiary font-sans truncate">
             {label}
           </span>
-          {isCurrency && <PrivacyEyeButton size="xs" />}
+          
         </div>
         {statusLabel && (
           <span

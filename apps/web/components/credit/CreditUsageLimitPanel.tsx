@@ -8,7 +8,6 @@ import {
   updateCreditUsageLimit,
 } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
-import { PrivacyEyeButton } from "@/components/shell/PrivacyEyeButton";
 import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 import { useLanguage } from "@/context/LanguageContext";
 
@@ -243,7 +242,6 @@ export function CreditUsageLimitPanel({
             <h2 className="text-sm font-semibold font-sans text-text-primary">
               {t("credit.limitTitle")} ({limitData.month}/{limitData.year})
             </h2>
-            <PrivacyEyeButton size="xs" />
             {isSaved && (
               <span className="inline-flex items-center gap-1 text-[11px] font-mono text-delta-positive">
                 <Check className="w-3.5 h-3.5" strokeWidth={1.8} />
@@ -362,7 +360,7 @@ export function CreditUsageLimitPanel({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="p-2.5 rounded bg-surface border border-border-subtle">
-              <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+              <div className="text-[10px] font-mono text-text-tertiary">
                 Optimal Ceiling (Savings-Safe)
               </div>
               <div className="text-sm font-mono font-bold tabular-nums text-delta-positive mt-0.5">
@@ -376,7 +374,7 @@ export function CreditUsageLimitPanel({
             </div>
 
             <div className="p-2.5 rounded bg-surface border border-border-subtle">
-              <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+              <div className="text-[10px] font-mono text-text-tertiary">
                 Max Safe Ceiling (No Deficit)
               </div>
               <div className="text-sm font-mono font-bold tabular-nums text-caution mt-0.5">

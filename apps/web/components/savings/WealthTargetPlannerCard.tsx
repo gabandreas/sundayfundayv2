@@ -287,7 +287,7 @@ export function WealthTargetPlannerCard({
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-4 items-end">
         {/* Input 1: Target Wealth Balance */}
         <div className="xl:col-span-3 space-y-1.5">
-          <label className="text-[11px] font-mono text-text-tertiary uppercase tracking-wider block">
+          <label className="text-[11px] font-mono text-text-tertiary block">
             Target Wealth Balance
           </label>
           <div className="relative">
@@ -310,7 +310,7 @@ export function WealthTargetPlannerCard({
 
         {/* Input 2: Target Horizon (Month / Year) */}
         <div className="xl:col-span-3 space-y-1.5">
-          <label className="text-[11px] font-mono text-text-tertiary uppercase tracking-wider block">
+          <label className="text-[11px] font-mono text-text-tertiary block">
             Target Horizon
           </label>
           <div className="grid grid-cols-2 gap-2">
@@ -341,7 +341,7 @@ export function WealthTargetPlannerCard({
 
         {/* Input 3: Base Comparison Pool Toggle */}
         <div className="xl:col-span-4 space-y-1.5">
-          <label className="text-[11px] font-mono text-text-tertiary uppercase tracking-wider block">
+          <label className="text-[11px] font-mono text-text-tertiary block">
             Base Comparison Balance
           </label>
           <div className="flex rounded bg-surface-subtle border border-border-subtle p-0.5 gap-1">
@@ -372,7 +372,7 @@ export function WealthTargetPlannerCard({
 
         {/* Input 4: Horizon Summary */}
         <div className="xl:col-span-2 space-y-1.5">
-          <label className="text-[11px] font-mono text-text-tertiary uppercase tracking-wider block">
+          <label className="text-[11px] font-mono text-text-tertiary block">
             Time Remaining
           </label>
           <div className="px-3 py-1.5 rounded bg-surface-subtle border border-border-subtle flex items-center justify-between gap-2 text-xs font-mono whitespace-nowrap">
@@ -385,7 +385,7 @@ export function WealthTargetPlannerCard({
       {/* Plan Metrics Row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3.5 rounded bg-surface-subtle border border-border-subtle">
         <div>
-          <span className="text-[10px] font-mono text-text-tertiary uppercase block">
+          <span className="text-[10px] font-mono text-text-tertiary block">
             Current Base Balance
           </span>
           <span className="text-sm font-mono font-semibold text-text-primary mt-0.5 block erp-tabular-currency">
@@ -397,7 +397,7 @@ export function WealthTargetPlannerCard({
         </div>
 
         <div>
-          <span className="text-[10px] font-mono text-text-tertiary uppercase block">
+          <span className="text-[10px] font-mono text-text-tertiary block">
             Remaining Shortfall
           </span>
           <span className="text-sm font-mono font-semibold text-text-primary mt-0.5 block erp-tabular-currency">
@@ -409,7 +409,7 @@ export function WealthTargetPlannerCard({
         </div>
 
         <div>
-          <span className="text-[10px] font-mono text-text-tertiary uppercase block">
+          <span className="text-[10px] font-mono text-text-tertiary block">
             Required Monthly Saving
           </span>
           <span className="text-sm font-mono font-bold text-text-primary mt-0.5 block erp-tabular-currency">
@@ -422,7 +422,7 @@ export function WealthTargetPlannerCard({
         </div>
 
         <div>
-          <span className="text-[10px] font-mono text-text-tertiary uppercase block">
+          <span className="text-[10px] font-mono text-text-tertiary block">
             Income Share &amp; Capacity
           </span>
           <span className="text-sm font-mono font-semibold text-text-primary mt-0.5 block">
@@ -440,7 +440,7 @@ export function WealthTargetPlannerCard({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             {statusStyles.icon}
-            <span className="text-xs font-mono font-semibold tracking-wide uppercase text-text-primary">
+            <span className="text-xs font-mono font-semibold tracking-wide text-text-primary">
               Feasibility Verdict
             </span>
             <span className={`px-2 py-0.5 rounded text-[10px] font-mono border ${statusStyles.badge}`}>

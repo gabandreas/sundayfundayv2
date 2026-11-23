@@ -8,8 +8,10 @@ import {
   MarqueeChatResponse,
   MarqueeMemoryRule,
   MarqueeStreamStatusEvent,
+  MarqueeUiContextResponse,
   deleteMarqueeMemory,
   fetchMarqueeMemory,
+  fetchMarqueeUiContext,
   sendMarqueeChat,
   sendMarqueeChatStream,
 } from "@/lib/api";
@@ -24,12 +26,39 @@ interface WorkspaceTurn {
   response?: MarqueeChatResponse;
 }
 
-const EXAMPLE_GROUPS = [
+const GENERAL_EXAMPLE_GROUPS = [
+  {
+    label: "Daily Pacing & Stress Test",
+    prompts: [
+      "Safe to spend today?",
+      "Run 12-month cashflow stress test",
+      "Check my savings progress & goals",
+    ],
+  },
+  {
+    label: "Quick Expense & Bill Capture",
+    prompts: [
+      "Log coffee 45k cash",
+      "Review upcoming bills this month",
+      "Ingat kalau beli kopi catat ke Cash",
+    ],
+  },
+  {
+    label: "Bonus Split & History Search",
+    prompts: [
+      "Split my 3jt bonus",
+      "Search recent spending history",
+      "Hi Marquee, what can you help with?",
+    ],
+  },
+];
+
+const BESPOKE_EXAMPLE_GROUPS = [
   {
     label: "Paycycle Pulse & Variance",
     prompts: [
       "Safe to spend today?",
-      "Compare 11/2026 vs 12/2026 variance",
+      "Stress test keuangan 12 bulan",
       "Dompet saya ada 350rb aman?",
     ],
   },
@@ -61,6 +90,8 @@ export function MarqueeWorkspaceClient() {
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [turns, setTurns] = useState<WorkspaceTurn[]>([]);
   const [memoryRules, setMemoryRules] = useState<MarqueeMemoryRule[]>([]);
+  const [confirmedPulse, setConfirmedPulse] = useState(false);
+  const [contextData, setContextData] = useState<MarqueeUiContextResponse | null>(null);
 
   const reloadMemory = async () => {
     const rules = await fetchMarqueeMemory();
@@ -70,6 +101,16 @@ export function MarqueeWorkspaceClient() {
   useEffect(() => {
     void reloadMemory();
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    void fetchMarqueeUiContext(month, year, locale).then((ctx) => {
+      if (active && ctx) setContextData(ctx);
+    });
+    return () => {
+      active = false;
+    };
+  }, [month, year, locale]);
 
   const periodTag = `${String(month).padStart(2, "0")}/${year}`;
 
@@ -89,6 +130,9 @@ export function MarqueeWorkspaceClient() {
     });
 
     try {
+      const historySnapshot = turns
+        .slice(-8)
+        .map((t) => ({ role: t.role, text: t.text }));
       const res = await sendMarqueeChatStream(
         {
           message: msg,
@@ -96,6 +140,7 @@ export function MarqueeWorkspaceClient() {
           year,
           locale,
           activeRoute: "/marquee",
+          history: historySnapshot,
         },
         (ev) => setLiveStatus(ev),
       );
@@ -139,6 +184,8 @@ export function MarqueeWorkspaceClient() {
           },
         ]);
         refreshPeriod();
+        setConfirmedPulse(true);
+        setTimeout(() => setConfirmedPulse(false), 2200);
         if (typeof window !== "undefined") {
           window.dispatchEvent(new CustomEvent("erp:data-mutated"));
         }
@@ -148,11 +195,17 @@ export function MarqueeWorkspaceClient() {
     }
   };
 
-  const robotState = confirmingId || liveStatus?.phase === "ANALYZING"
-    ? "analyzing"
-    : sending
-      ? "thinking"
-      : "idle";
+  const robotState = confirmedPulse
+    ? "confirmed"
+    : confirmingId || liveStatus?.phase === "ANALYZING"
+      ? "analyzing"
+      : sending
+        ? "thinking"
+        : "idle";
+
+  const exampleGroups = contextData?.isBespokeWorkspace
+    ? BESPOKE_EXAMPLE_GROUPS
+    : GENERAL_EXAMPLE_GROUPS;
 
   return (
     <div className="space-y-6 w-full max-w-full pb-16">
@@ -160,7 +213,7 @@ export function MarqueeWorkspaceClient() {
         <div className="flex items-start gap-3">
           <MarqueeRobotAvatar state={robotState} size={36} className="mt-0.5" />
           <div>
-            <div className="flex items-center gap-2 text-[11px] font-mono uppercase tracking-wider text-text-tertiary">
+            <div className="flex items-center gap-2 text-[11px] font-mono text-text-tertiary">
               <span>Context-Hydrated Financial Co-Pilot · {periodTag}</span>
               {sending && (
                 <span className="text-caution">· {liveStatus?.label || "Thinking..."}</span>
@@ -195,12 +248,12 @@ export function MarqueeWorkspaceClient() {
                     Choose a command below or type in English, Bahasa Indonesia, or Chinese. Every turn hydrates your live {periodTag} paycycle state, due-day calendar, and installment milestones before responding.
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-border-subtle border-y border-border-subtle py-3 gap-3">
-                    {EXAMPLE_GROUPS.map((grp, idx) => (
+                    {exampleGroups.map((grp, idx) => (
                       <div
                         key={grp.label}
                         className={idx === 0 ? "md:pr-3" : idx === 1 ? "md:px-3 pt-3 md:pt-0" : "md:pl-3 pt-3 md:pt-0"}
                       >
-                        <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary mb-2">
+                        <div className="text-[11px] font-mono text-text-tertiary mb-2">
                           {grp.label}
                         </div>
                         <div className="space-y-1.5">
@@ -272,7 +325,7 @@ export function MarqueeWorkspaceClient() {
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Ask or stage an expense (e.g. log coffee 45k, split my 3.4jt THR, compare 11/2026 vs 12/2026)..."
+                placeholder="Ask or record an expense (e.g. safe to spend today?, log coffee 45k, run 12-month stress test)..."
                 className="flex-1 bg-canvas border border-border rounded px-3.5 py-2.5 text-xs text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-border-strong"
               />
               <button
@@ -290,60 +343,72 @@ export function MarqueeWorkspaceClient() {
         {/* Right 4-Column Hydrated Ledger & Paycycle Domain Reference Rail */}
         <aside className="lg:col-span-4 min-w-0 xl:sticky xl:top-6 rounded-lg border border-border bg-surface p-5 space-y-4 text-xs">
           <div className="border-b border-border-subtle pb-3">
-            <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
-              Hydrated Domain Context
+            <div className="text-[11px] font-mono text-text-tertiary">
+              Hydrated Ledger Context
             </div>
             <h2 className="text-sm font-semibold text-text-primary mt-0.5">
-              Active Paycycle &amp; Cutoff Rules ({periodTag})
+              Active Cycle &amp; Schedule ({contextData?.cycleDateLabel || periodTag})
             </h2>
           </div>
 
           <div className="divide-y divide-border-subtle">
             <div className="py-2.5 space-y-1">
-              <div className="text-[10px] font-mono uppercase text-text-tertiary">
-                Two-Stage Payday Law
+              <div className="text-[11px] font-mono text-text-tertiary">
+                Payday Schedule
               </div>
               <div className="text-text-secondary leading-relaxed">
-                Attendance &amp; payslip close on the <span className="font-mono text-text-primary">25th</span>; funds land <span className="font-mono text-text-primary">H+2 working days</span> later (e.g. Nov 27, Dec 28).
+                {contextData?.paydayRules || "Standard monthly cycle schedule"}
               </div>
             </div>
 
             <div className="py-2.5 space-y-1">
-              <div className="text-[10px] font-mono uppercase text-text-tertiary">
+              <div className="text-[11px] font-mono text-text-tertiary">
                 Due-Day &amp; Cutoff Calendar
               </div>
               <div className="font-mono text-[11px] text-text-primary">
-                Due Days: 8th · 11th (Card) · 17th · 23rd · 24th · 25th (PayLater)
+                Due days: {(contextData?.canonicalDueDays ?? [1, 15, 25]).join(" · ")}
               </div>
               <div className="text-[11px] text-text-tertiary">
-                Cutoffs: SPayLater dynamic H-15 closing (15th/16th, Feb 13th/14th) · Permata CC 25th
+                {contextData?.cutoffRules || "Cycle cutoff rules synced with your configuration"}
               </div>
             </div>
 
             <div className="py-2.5 space-y-1">
-              <div className="text-[10px] font-mono uppercase text-text-tertiary">
-                Installment Payoff Milestones
+              <div className="text-[11px] font-mono text-text-tertiary">
+                Payoff Milestones
               </div>
-              <ul className="space-y-1 text-[11px] text-text-secondary font-mono">
-                <li>JAN &apos;27 - 11.11 3x plans complete (3/3)</li>
-                <li>FEB &apos;27 — High-interest personal loan reaches Rp 0</li>
-                <li>SEP &apos;27 - Final 12x card plan matures</li>
-              </ul>
+              {contextData?.payoffMilestones && contextData.payoffMilestones.length > 0 ? (
+                <ul className="space-y-1 text-[11px] text-text-secondary font-mono">
+                  {contextData.payoffMilestones.map((m, i) => (
+                    <li key={`${m.periodLabel ?? m.period ?? i}-${m.event ?? m.label ?? i}`}>
+                      <span className="text-text-primary">{m.periodLabel ?? m.period ?? "Milestone"}</span>
+                      {" — "}
+                      <span>{m.event ?? m.label ?? ""}</span>
+                      {typeof m.debtClearPct === "number" ? ` (${m.debtClearPct}%)` : ""}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="text-[11px] text-text-tertiary">
+                  No active payoff milestones for this workspace.
+                </div>
+              )}
             </div>
 
             <div className="py-2.5 space-y-1.5">
-              <div className="text-[10px] font-mono uppercase text-text-tertiary">
-                Built-In Ledger Capabilities &amp; Domain Guard
+              <div className="text-[11px] font-mono text-text-tertiary">
+                Built-In Capabilities &amp; Guardrails
               </div>
               <div className="flex flex-wrap gap-1 pt-1">
                 {[
                   "Multi-Step Analysis",
+                  "Monte Carlo Stress Test",
                   "Cutoff Simulation",
                   "Expense Staging",
-                  "Liability Shifts",
+                  "Bill & Due-Date Shifts",
                   "History Archive Search",
                   "Preference Memory",
-                  "THR & Payday Split",
+                  "Income & Bonus Split",
                   "MCP Server Ready",
                 ].map((cap) => (
                   <span
@@ -355,20 +420,20 @@ export function MarqueeWorkspaceClient() {
                 ))}
               </div>
               <p className="text-[10px] text-text-tertiary leading-relaxed pt-1">
-                Restricted strictly to Sunday Funday ERP tools (no host terminal, downloads, or raw SQL access).
+                Restricted strictly to your Sunday Funday ledger workspace (zero cross-account reads or raw database exposure).
               </p>
             </div>
 
             <div className="pt-2.5 space-y-1.5">
-              <div className="flex items-center justify-between text-[10px] font-mono uppercase text-text-tertiary">
+              <div className="flex items-center justify-between text-[11px] font-mono text-text-tertiary">
                 <span>Saved Preference Memory ({memoryRules.length})</span>
                 <Link href="/preferences?sub=ai" className="text-text-secondary hover:text-text-primary">
-                  MCP Setup
+                  Settings
                 </Link>
               </div>
               {memoryRules.length === 0 ? (
                 <div className="text-[11px] text-text-tertiary">
-                  Say &quot;Ingat kalau beli kopi catat ke SPayLater&quot; to teach Marquee your default routing rules.
+                  Teach Marquee a default rule, e.g. &quot;Remember coffee purchases use Cash&quot;.
                 </div>
               ) : (
                 <ul className="space-y-1.5">

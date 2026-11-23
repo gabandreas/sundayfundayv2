@@ -20,19 +20,19 @@ export function AuditRewardsView({ entries }: AuditRewardsViewProps) {
         <table className="w-full text-left border-collapse min-w-[700px]">
           <thead>
             <tr className="bg-surface-subtle border-b border-border-subtle">
-              <th className="py-2.5 px-4 text-xs font-semibold text-text-secondary uppercase tracking-wider w-24">
+              <th className="py-2.5 px-4 text-xs font-semibold text-text-secondary w-24">
                 Period
               </th>
-              <th className="py-2.5 px-4 text-xs font-semibold text-text-secondary uppercase tracking-wider text-right">
+              <th className="py-2.5 px-4 text-xs font-semibold text-text-secondary text-right">
                 Target (Rp)
               </th>
-              <th className="py-2.5 px-4 text-xs font-semibold text-text-secondary uppercase tracking-wider text-right">
+              <th className="py-2.5 px-4 text-xs font-semibold text-text-secondary text-right">
                 Actual (Rp)
               </th>
-              <th className="py-2.5 px-4 text-xs font-semibold text-text-secondary uppercase tracking-wider text-center">
+              <th className="py-2.5 px-4 text-xs font-semibold text-text-secondary text-center">
                 Status
               </th>
-              <th className="py-2.5 px-4 text-xs font-semibold text-text-secondary uppercase tracking-wider text-right">
+              <th className="py-2.5 px-4 text-xs font-semibold text-text-secondary text-right">
                 Streak Without Reward
               </th>
             </tr>

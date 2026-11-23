@@ -87,7 +87,7 @@ export function ProfileSettingsModal() {
     >
       <div className="flex items-center justify-between px-5 py-3.5 border-b border-border-subtle bg-surface-subtle">
         <div>
-          <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+          <div className="text-[10px] font-mono text-text-tertiary">
             Account Identity &amp; Email Routing
           </div>
           <h2
@@ -110,7 +110,7 @@ export function ProfileSettingsModal() {
       <form onSubmit={handleSubmit} className="p-5 space-y-4">
         <div className="grid grid-cols-2 gap-3 p-3 rounded border border-border-subtle bg-canvas text-xs font-mono">
           <div>
-            <span className="text-[10px] uppercase tracking-wider text-text-tertiary block">
+            <span className="text-[10px] text-text-tertiary block">
               Username
             </span>
             <span className="text-text-primary mt-0.5 block">
@@ -118,13 +118,13 @@ export function ProfileSettingsModal() {
             </span>
           </div>
           <div>
-            <span className="text-[10px] uppercase tracking-wider text-text-tertiary block">
+            <span className="text-[10px] text-text-tertiary block">
               Account ID
             </span>
             <span className="text-text-primary mt-0.5 block">#{user?.id ?? 1}</span>
           </div>
           <div className="col-span-2 pt-2 border-t border-border-subtle">
-            <span className="text-[10px] uppercase tracking-wider text-text-tertiary block">
+            <span className="text-[10px] text-text-tertiary block">
               Platform System Sender (From)
             </span>
             <span className="text-delta-positive mt-0.5 block">

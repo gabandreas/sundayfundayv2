@@ -25,7 +25,7 @@ export default function ComponentDevShowcasePage() {
       {/* Page Header — restrained, technical */}
       <header className="border-b border-border-subtle pb-5">
         <div className="flex items-center gap-3">
-          <span className="px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-text-tertiary bg-surface-subtle border border-border-subtle rounded">
+          <span className="px-2 py-0.5 font-mono text-[10px] text-text-tertiary bg-surface-subtle border border-border-subtle rounded">
             INTERNAL SPEC
           </span>
           <span className="font-mono text-xs text-text-tertiary">Phase 0 Primitive Validation</span>
@@ -59,7 +59,7 @@ export default function ComponentDevShowcasePage() {
           {/* Centerpiece 1: Safe to Spend Today */}
           <div className="col-span-4">
             <MetricCard
-              label="SAFE-TO-SPEND TODAY"
+              label="Safe-to-Spend Today"
               value="Rp 85.000"
               subvalue="target: Rp 140.000"
               isCenterpiece={true}
@@ -319,7 +319,7 @@ export default function ComponentDevShowcasePage() {
 
         <div className="grid grid-cols-12 gap-6">
           <div className="col-span-4 p-3 rounded-lg border border-border bg-surface-subtle space-y-1">
-            <span className="text-[10px] font-mono text-text-tertiary px-3 py-1 block tracking-wider uppercase">
+            <span className="text-[10px] font-mono text-text-tertiary px-3 py-1 block">
               NAVIGATION SPEC
             </span>
             <SidebarNavItem
@@ -390,7 +390,7 @@ export default function ComponentDevShowcasePage() {
 
           <div className="col-span-8 p-5 rounded-lg border border-border bg-surface flex flex-col justify-between">
             <div>
-              <h3 className="text-xs font-semibold text-text-primary uppercase tracking-wider font-mono">
+              <h3 className="text-xs font-semibold text-text-primary font-mono">
                 Sidebar Design Integrity
               </h3>
               <ul className="mt-3 space-y-2 text-xs text-text-secondary font-sans">

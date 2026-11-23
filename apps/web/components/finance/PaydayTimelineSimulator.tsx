@@ -63,7 +63,7 @@ export function PaydayTimelineSimulator({ month, year }: PaydayTimelineSimulator
 
         {/* Early Split-Pay Simulator Controls */}
         <div className="flex flex-col items-start lg:items-end gap-1.5 shrink-0">
-          <div className="text-[10px] font-mono uppercase text-text-tertiary">
+          <div className="text-[10px] font-mono text-text-tertiary">
             SPayLater Wave 1 Early Split-Pay
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
@@ -139,7 +139,7 @@ export function PaydayTimelineSimulator({ month, year }: PaydayTimelineSimulator
           {/* Bridge KPI Strip */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
             <div className="lg:col-span-3 rounded border border-border-subtle bg-canvas p-3 space-y-1">
-              <div className="text-[10px] font-mono uppercase text-text-tertiary">
+              <div className="text-[10px] font-mono text-text-tertiary">
                 Wave 1 Paycheck Inflow
               </div>
               <div className="font-mono text-base font-semibold tabular-nums text-text-primary">
@@ -153,7 +153,7 @@ export function PaydayTimelineSimulator({ month, year }: PaydayTimelineSimulator
             </div>
 
             <div className="lg:col-span-3 rounded border border-border-subtle bg-canvas p-3 space-y-1">
-              <div className="text-[10px] font-mono uppercase text-text-tertiary">
+              <div className="text-[10px] font-mono text-text-tertiary">
                 21-Day Bridge Min Cash
               </div>
               <div
@@ -169,7 +169,7 @@ export function PaydayTimelineSimulator({ month, year }: PaydayTimelineSimulator
             </div>
 
             <div className="lg:col-span-3 rounded border border-border-subtle bg-canvas p-3 space-y-1">
-              <div className="text-[10px] font-mono uppercase text-text-tertiary">
+              <div className="text-[10px] font-mono text-text-tertiary">
                 Post-THR Liquidity
               </div>
               <div className="font-mono text-base font-semibold tabular-nums text-text-primary">
@@ -201,7 +201,7 @@ export function PaydayTimelineSimulator({ month, year }: PaydayTimelineSimulator
           {timeline.baseline.thrAmount > 0 && (
             <div className="rounded border border-border-subtle bg-canvas px-4 py-3 flex flex-wrap items-center justify-between gap-3">
               <div>
-                <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+                <div className="text-[10px] font-mono text-text-tertiary">
                   Net Remaining THR for Dec/Jan Cycle (12/2026)
                 </div>
                 <div className="text-xs font-sans text-text-secondary mt-0.5">
@@ -223,7 +223,7 @@ export function PaydayTimelineSimulator({ month, year }: PaydayTimelineSimulator
           <div className="overflow-x-auto border border-border-subtle rounded-lg">
             <table className="w-full text-xs border-collapse">
               <thead>
-                <tr className="border-b border-border bg-surface-subtle/60 text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+                <tr className="border-b border-border bg-surface-subtle/60 text-[10px] font-mono text-text-tertiary">
                   <th className="py-2 px-3 text-left">Date</th>
                   <th className="py-2 px-3 text-left">Wave</th>
                   <th className="py-2 px-3 text-left">Event</th>

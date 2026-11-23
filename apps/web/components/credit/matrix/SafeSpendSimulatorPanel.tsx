@@ -249,7 +249,7 @@ export function SafeSpendSimulatorPanel({
       {/* Controls Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
         <div className="lg:col-span-3 space-y-1">
-          <label className="text-[10px] font-mono uppercase text-text-tertiary">
+          <label className="text-[10px] font-mono text-text-tertiary">
             Planned Item
           </label>
           <input
@@ -261,7 +261,7 @@ export function SafeSpendSimulatorPanel({
         </div>
 
         <div className="lg:col-span-2 space-y-1">
-          <label className="text-[10px] font-mono uppercase text-text-tertiary">
+          <label className="text-[10px] font-mono text-text-tertiary">
             Amount (Rp)
           </label>
           <input
@@ -274,7 +274,7 @@ export function SafeSpendSimulatorPanel({
         </div>
 
         <div className="lg:col-span-3 space-y-1">
-          <label className="text-[10px] font-mono uppercase text-text-tertiary">
+          <label className="text-[10px] font-mono text-text-tertiary">
             Instrument
           </label>
           <div className="grid grid-cols-4 gap-1">
@@ -302,7 +302,7 @@ export function SafeSpendSimulatorPanel({
         </div>
 
         <div className="lg:col-span-2 space-y-1">
-          <label className="text-[10px] font-mono uppercase text-text-tertiary">Tenor</label>
+          <label className="text-[10px] font-mono text-text-tertiary">Tenor</label>
           <div className="grid grid-cols-4 gap-1">
             {[1, 3, 6, 12].map((t) => (
               <button
@@ -323,7 +323,7 @@ export function SafeSpendSimulatorPanel({
         </div>
 
         <div className="lg:col-span-2 space-y-1">
-          <label className="text-[10px] font-mono uppercase text-text-tertiary">
+          <label className="text-[10px] font-mono text-text-tertiary">
             Purchase Date
           </label>
           <input
@@ -374,7 +374,7 @@ export function SafeSpendSimulatorPanel({
       {/* Windfall / THR Prepayment Offset */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 p-3 rounded border border-border-subtle bg-surface-subtle">
         <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
-          <span className="text-[10px] font-mono uppercase text-text-tertiary whitespace-nowrap">
+          <span className="text-[10px] font-mono text-text-tertiary whitespace-nowrap">
             Windfall / THR Offset:
           </span>
           <input

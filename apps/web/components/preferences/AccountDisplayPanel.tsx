@@ -25,6 +25,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { usePerspective } from "@/context/PerspectiveContext";
 import { usePrivacyMask } from "@/context/PrivacyMaskContext";
+import { useToast } from "@/context/ToastContext";
 
 function meetsPasswordPolicy(password: string): boolean {
   return (
@@ -40,6 +41,7 @@ export function AccountDisplayPanel({ initialConfig }: { initialConfig?: Modular
   const { locale, setLocale } = useLanguage();
   const { studioConfig, updateStudioConfig } = usePerspective();
   const { isAmountsMasked, toggleMask, hideFigures } = usePrivacyMask();
+  const { toast } = useToast();
 
   const active = studioConfig ?? initialConfig;
 
@@ -117,6 +119,11 @@ export function AccountDisplayPanel({ initialConfig }: { initialConfig?: Modular
     }
     setSavingPrefs(false);
     setPrefsMsg({ ok: true, text: "Display & privacy defaults saved." });
+    toast({
+      title: "Display preferences saved",
+      description: "Language and masking defaults updated.",
+      variant: "success",
+    });
   };
 
   const handleChangePassword = async (e: React.FormEvent) => {

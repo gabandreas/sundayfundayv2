@@ -246,6 +246,139 @@ export class MarqueeToolsService {
     const todayIso = new Date().toISOString().slice(0, 10);
 
     switch (tool) {
+      case 'greeting_or_help': {
+        const locale = (args.locale === 'id' || args.locale === 'zh' ? args.locale : 'en') as
+          | 'en'
+          | 'id'
+          | 'zh';
+        const isBespokeOwner = ctx.userId === 1;
+        const rawQ = String(args.query ?? args.title ?? '').toLowerCase();
+        const isThanks = /\b(thanks|thank\s*you|thx|makasih|terima\s*kasih)\b|谢谢/.test(rawQ);
+        const pacing =
+          typeof this.financeSelectors?.getPacing === 'function'
+            ? await this.financeSelectors.getPacing(month, year, undefined, undefined, ctx.userId).catch(() => null)
+            : null;
+        const safeToday = Math.round(
+          pacing?.weightedSafeToSpendToday ?? pacing?.safeToSpendToday ?? 0,
+        );
+        const remainingCash = Math.round(pacing?.remainingBudget ?? 0);
+
+        let summary = '';
+        if (isThanks) {
+          summary =
+            locale === 'id'
+              ? 'Sama-sama. Kabari saja kalau ingin catat pengeluaran, cek batas aman harian, atau simulasikan skenario berikutnya.'
+              : locale === 'zh'
+                ? '不客气。需要记账、查看今日可用额度或做情景模拟时随时告诉我。'
+                : "You're welcome. Let me know anytime you want to log an expense, check daily pacing, or test a cashflow scenario.";
+        } else if (locale === 'id') {
+          const pulseLine = pacing
+            ? `Untuk periode **${periodTag}**, batas aman belanja hari ini **${formatRp(safeToday)}** (sisa dana hidup **${formatRp(remainingCash)}**).`
+            : `Siap membantu di periode **${periodTag}**.`;
+          const capLine = isBespokeOwner
+            ? 'Saya bisa catat pengeluaran atau PayLater/CC, cek cutoff H-15/tanggal 25, geser tagihan, revisi anggaran, cari histori transaksi, dan jalankan stress test 12 bulan.'
+            : 'Saya bisa membantu catat pemasukan/pengeluaran, pantau batas belanja harian, revisi anggaran, kelola target tabungan, cari riwayat transaksi, dan jalankan stress test 12 bulan.';
+          summary = `Halo. ${pulseLine}\n\n${capLine} Mau cek atau catat apa hari ini?`;
+        } else if (locale === 'zh') {
+          const pulseLine = pacing
+            ? `当前账期 **${periodTag}** 今日安全支出额度为 **${formatRp(safeToday)}**（剩余生活现金 **${formatRp(remainingCash)}**）。`
+            : `当前已连接到 **${periodTag}** 账本。`;
+          summary = `你好。${pulseLine}\n\n我可以帮你记账、核对预算与账单、检索历史支出，以及运行 12 个月压力测试。需要查询或记录什么？`;
+        } else {
+          const pulseLine = pacing
+            ? `For **${periodTag}**, your safe-to-spend today is **${formatRp(safeToday)}** with **${formatRp(remainingCash)}** remaining in living cash.`
+            : `Connected to your live **${periodTag}** ledger.`;
+          const capLine = isBespokeOwner
+            ? 'I can check daily pacing, test statement cutoffs, stage cash or card transactions, shift scheduled bills, search history, and run 12-month stress tests.'
+            : 'I can track daily spending limits, log transactions, adjust budget envelopes, review upcoming bills, search ledger history, and run 12-month cashflow stress tests.';
+          summary = `Hi. ${pulseLine}\n\n${capLine}`;
+        }
+
+        return {
+          ok: true,
+          tool,
+          summary,
+          cards: [],
+          data: { month, year, safeToday, remainingCash },
+        };
+      }
+
+      case 'run_stress_test': {
+        if (typeof (this.financeSelectors as any)?.runStressTestForUser !== 'function') {
+          return {
+            ok: false,
+            tool,
+            summary: 'Concurrent stress-test engine is unavailable right now.',
+            cards: [],
+          };
+        }
+        const stress = await (this.financeSelectors as any).runStressTestForUser(
+          {
+            month,
+            year,
+            incomeVolatilityPct:
+              args.incomeVolatilityPct !== undefined ? Number(args.incomeVolatilityPct) : 12,
+            expenseShockProbPct:
+              args.expenseShockProbPct !== undefined ? Number(args.expenseShockProbPct) : 20,
+            expenseShockMagnitudePct:
+              args.expenseShockMagnitudePct !== undefined
+                ? Number(args.expenseShockMagnitudePct)
+                : 25,
+            unexpectedEmergencyProbPct: 10,
+            trials: 2000,
+          },
+          ctx.userId,
+        );
+        const mc = stress.monteCarlo;
+        const opt = stress.optimizer;
+        const balanced = opt?.strategies?.[0];
+        const splitText = balanced
+          ? ` Balanced surplus split (**${formatRp(stress.monthlySurplusRp)}/mo**): ${formatRp(balanced.debtPrepaymentRp)} debt prepay · ${formatRp(balanced.emergencyFundRp)} emergency reserve · ${formatRp(balanced.goalSavingsRp)} goals.`
+          : '';
+        return {
+          ok: true,
+          tool,
+          summary: `Across **${mc.trialsRun.toLocaleString('en-US')} simulated paths** for ${periodTag}, 12-month survival probability is **${mc.survivalProbabilityPct}%** and emergency target odds are **${mc.emergencyGoalProbabilityPct}%**. Median ending reserve is **${formatRp(mc.p50MedianEndingWealthRp)}** (conservative floor ${formatRp(mc.p10EndingWealthRp)}, worst-case P5 cash floor ${formatRp(mc.p5WorstCaseCashFloorRp)}).${mc.recommendedExtraBufferMonthlyRp > 0 ? ` Suggested extra buffer: **${formatRp(mc.recommendedExtraBufferMonthlyRp)}/mo**.` : ''}${splitText}`,
+          cards: [
+            {
+              label: '12M Survival Odds',
+              value: `${mc.survivalProbabilityPct}%`,
+              tone:
+                mc.survivalProbabilityPct >= 90
+                  ? 'positive'
+                  : mc.survivalProbabilityPct >= 75
+                    ? 'caution'
+                    : 'urgency',
+            },
+            {
+              label: 'Median 12M Reserve',
+              value: formatRp(mc.p50MedianEndingWealthRp),
+              tone: 'positive',
+            },
+            {
+              label: 'P10 Conservative Floor',
+              value: formatRp(mc.p10EndingWealthRp),
+            },
+            ...(mc.recommendedExtraBufferMonthlyRp > 0
+              ? [
+                  {
+                    label: 'Buffer Needed / Mo',
+                    value: formatRp(mc.recommendedExtraBufferMonthlyRp),
+                    tone: 'caution' as const,
+                  },
+                ]
+              : balanced
+                ? [
+                    {
+                      label: 'Recommended Split',
+                      value: `${formatRp(balanced.emergencyFundRp)} Reserve`,
+                    },
+                  ]
+                : []),
+          ],
+          data: stress,
+        };
+      }
       case 'get_paycycle_pulse':
       case 'get_financial_pulse': {
         const [snapshot, pacing] = await Promise.all([

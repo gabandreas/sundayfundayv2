@@ -59,7 +59,7 @@ export function AuditStudio({ initialTab, report, logs }: AuditStudioProps) {
       {intel && (
         <div className="rounded-lg border border-border bg-surface p-4 flex flex-wrap items-center justify-between gap-4">
           <div>
-            <div className="text-[10px] font-mono uppercase text-text-tertiary">
+            <div className="text-[10px] font-mono text-text-tertiary">
               Spending Pace &amp; Next-Cycle Charge Monitor ({intel.periodCode})
             </div>
             <div className="text-xs text-text-secondary mt-0.5">

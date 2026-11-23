@@ -5,11 +5,11 @@
 Quantitative analysis, cutoff simulation, waterfall projection, debt payoff comparison, and statement reconciliation execute across two strictly synchronized implementations:
 
 1. **Native Go Engine (`apps/go-engine`):**
-   - Pure integer (`int64` IDR) domain calculation packages compiled into `apps/go-engine/bin/go-engine.exe` and `apps/go-engine/bin/erp-engine.exe` via `npm run erp:go:build`.
-   - Single-process stdin/stdout JSON CLI dispatcher (`apps/go-engine/cmd/engine/main.go`).
+   - Pure integer (`int64` IDR) and concurrent goroutine domain calculation packages compiled into `apps/go-engine/bin/go-engine.exe` + `apps/go-engine/bin/erp-engine.exe` (Windows) and static ELF `apps/api/bin/go-engine-linux` (Vercel Serverless Linux `amd64`) via `npm run erp:go:build:all`.
+   - Single-process stdin/stdout JSON CLI dispatcher (`apps/go-engine/cmd/engine/main.go`), including 8-goroutine `intelligence-batch` fan-out.
 2. **TypeScript Parity Mirror (`apps/api/src/calculator/erp-engines.ts` & `hybrid-engine.ts`):**
-   - Exact deterministic TypeScript equivalents (`computePaycycleHorizonTs`, `evaluateConfiguredWaterfallTs`, `routeTransactionToPaycycleTs`, `computeNetWorthTs`, `runForecastTs`, `evaluateAnomaliesTs`, `evaluateEnvelopesTs`, `optimizeDebtPayoffTs`, `computeLifeEnergyTs`, `parseStatementBatchTs`) matching Go rounding (`goRound`, `round1`, `round2`) and IDR formatting (`formatRpId`).
-   - Used automatically as the `TS_MIRROR` runtime fallback inside `GoBridgeService` (`apps/api/src/calculator/go-bridge.service.ts`) when executing inside serverless environments (e.g., Vercel Functions) where native binaries are absent.
+   - Exact deterministic TypeScript equivalents (including `BigInt` SplitMix64 `runMonteCarloTs`, `optimizeAllocationFrontierTs`, `runIntelligenceBatchTs`) matching Go rounding (`goRound`, `round1`, `round2`) and IDR formatting (`formatRpId`).
+   - Used automatically as the `TS_MIRROR` fallback inside `GoBridgeService` (`apps/api/src/calculator/go-bridge.service.ts`) only if native execution is unavailable (`chmod +x` staged `/tmp/go-engine-linux` runs on Linux Serverless).
    - Continuous parity across all engines is enforced in Jest via `apps/api/src/calculator/hybrid-engine.spec.ts`.
 
 ---
@@ -27,6 +27,8 @@ Quantitative analysis, cutoff simulation, waterfall projection, debt payoff comp
 | `debtopt` | `OptimizeDebtPayoff` | `optimizeDebtPayoffTs` | Avalanche vs Snowball vs Cashflow Unlock strategy comparison and monthly cashflow unlock milestones |
 | `lifeenergy` | `ComputeLifeEnergy` | `computeLifeEnergyTs` | Real hourly wage net of workdays, work hours, commute hours, and transport spend (`trueNetHourlyWageRp`) |
 | `reconciler` | `ParseStatementBatch` | `parseStatementBatchTs` | Raw bank/e-wallet statement parsing, instrument/category inference, fuzzy deduplication, cutoff auto-routing |
+| `montecarlo` | `RunMonteCarlo` | `runMonteCarloTs` | Concurrent worker-pool SplitMix64 12-month cashflow stress simulation (P5/P10/P50/P90 confidence bands & survival rate) |
+| `optimizer` | `OptimizeAllocationFrontier` | `optimizeAllocationFrontierTs` | Concurrent 4-way Pareto surplus optimizer across Debt Prepayment, Emergency Reserve, Goals, and Flexible pools |
 
 - `reconciler` (`ParseStatementBatch` / `parseStatementBatchTs`): adds `LockedPeriodCodes` + `EarliestOpenMonth/Year` lock-safe routing (`advancedFromLocked`, `originalPeriodCode`) so closed periods never receive new statement writes.
 - `formula` (`Evaluate`, `EvaluateSuite` / `evaluateFormulaDslTs`, `evaluateFormulaSuiteTs`): pure recursive-descent arithmetic evaluator supporting 31 `{RESERVED}` tokens and 8 safe functions (`ROUND`, `FLOOR`, `CEIL`, `MIN`, `MAX`, `CLAMP`, `IF`, `PCT`), exposed via `POST /api/finance/formula/evaluate`.
@@ -51,12 +53,15 @@ Quantitative analysis, cutoff simulation, waterfall projection, debt payoff comp
 - `POST /api/finance/reconciler/commit` (`FinanceController` -> `FinanceService.commitReconcilerRows`):
   - Atomic write endpoint (`CommitReconcilerDto`) committing approved statement rows into `Transaction` or `LiabilityLineItem` records and recomputing affected monthly totals, powering the dedicated **`/import`** (*Statement Import*) module.
 - `POST /api/finance/scenarios/simulate` (`FinanceController.simulateScenario` -> `FinanceSelectors.simulateScenarioForUser`):
-  - Read-only multi-engine What-If simulator running Go `forecaster` + `debtopt` + `cutoff` against user-supplied scenario adjustments (`extraMonthlySavingsRp`, `oneTimeBonusRp`, `monthlyLivingDeltaRp`, `extraDebtPaymentRp`, `variableShockPercent`) to power **`/scenarios`** (*What-If Scenario Lab*) and future mobile clients.
+  - Read-only multi-engine What-If simulator running Go `forecaster` + `debtopt` + `cutoff` against user-supplied scenario adjustments to power **`/scenarios`**.
+- `POST /api/finance/scenarios/stress-test` (`FinanceController.runStressTest` -> `FinanceSelectors.runStressTestForUser`):
+  - Runs concurrent Go `montecarlo` (`RunMonteCarlo`) and `optimizer` (`OptimizeAllocationFrontier`) against live snapshots, debt contracts, and savings goals.
+- **Parallel Batch (`intelligence-batch`):** `FinanceSelectors.getIntelligenceBundle` fans out 8 independent analytical jobs across Go goroutines in a single IPC call and surfaces `engineTelemetry` (`engineSource`, `computeDurationUs`, `workerGoroutines`).
 
 ---
 
 ## 4. Verification Commands
 
-- Go unit suite: `npm run erp:go:test` (`cd apps/go-engine && go test -v ./...`)
-- Binary rebuild: `npm run erp:go:build`
+- Go unit suite: `npm run erp:go:test` (`cd apps/go-engine && go test -v ./...`, 15 packages + 620 adversarial vectors)
+- Binary rebuild (Windows + static Linux Serverless ELF): `npm run erp:go:build:all`
 - Go <-> TypeScript parity Jest suite: `cd apps/api && npx jest --no-cache`

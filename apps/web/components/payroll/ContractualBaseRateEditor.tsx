@@ -88,7 +88,7 @@ export function ContractualBaseRateEditor({
             Employment contract baseline. Propagates forward to all active drafts.
           </p>
         </div>
-        <span className="text-[10px] font-mono text-text-tertiary uppercase px-1.5 py-0.5 rounded bg-surface-subtle border border-border-subtle">
+        <span className="text-[10px] font-mono text-text-tertiary px-1.5 py-0.5 rounded bg-surface-subtle border border-border-subtle">
           From {month}/{year}
         </span>
       </div>

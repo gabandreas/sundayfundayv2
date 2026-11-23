@@ -45,7 +45,7 @@ export function CategoryDistributionPanel({
       {/* Left 4 Columns: 100%-Accounted Income Allocation & Category Breakdown */}
       <div className="col-span-4 rounded-lg border border-border bg-surface p-5 space-y-4">
         <div className="border-b border-border-subtle pb-3">
-          <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans block">
+          <span className="text-[11px] font-semibold text-text-tertiary font-sans block">
             100% Income Conservation
           </span>
           <h2 className="text-base font-semibold font-sans text-text-primary mt-0.5">
@@ -94,7 +94,7 @@ export function CategoryDistributionPanel({
                 })}
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-2">
-              <span className="text-[9px] font-sans uppercase tracking-wider text-text-tertiary">
+              <span className="text-[9px] font-sans text-text-tertiary">
                 {periodCount} {periodCount === 1 ? "Period" : "Periods"}
               </span>
               <span className="font-mono text-xs font-semibold text-text-primary tabular-nums mt-0.5">
@@ -105,7 +105,7 @@ export function CategoryDistributionPanel({
 
           <div className="space-y-2 flex-1 min-w-0">
             <div>
-              <span className="text-[10px] font-sans uppercase tracking-wider text-text-tertiary block">
+              <span className="text-[10px] font-sans text-text-tertiary block">
                 Cumulative Net Income
               </span>
               <span className="font-mono text-sm font-semibold text-text-primary tabular-nums">
@@ -113,7 +113,7 @@ export function CategoryDistributionPanel({
               </span>
             </div>
             <div>
-              <span className="text-[10px] font-sans uppercase tracking-wider text-text-tertiary block">
+              <span className="text-[10px] font-sans text-text-tertiary block">
                 Cumulative Committed Outflow
               </span>
               <span className="font-mono text-xs font-medium text-text-secondary tabular-nums">
@@ -121,7 +121,7 @@ export function CategoryDistributionPanel({
               </span>
             </div>
             <div>
-              <span className="text-[10px] font-sans uppercase tracking-wider text-text-tertiary block">
+              <span className="text-[10px] font-sans text-text-tertiary block">
                 Retained Savings + Flexible Surplus
               </span>
               <span className="font-mono text-xs font-medium text-delta-positive tabular-nums">
@@ -198,7 +198,7 @@ export function CategoryDistributionPanel({
       <div className="col-span-8 rounded-lg border border-border bg-surface overflow-hidden">
         <div className="p-5 border-b border-border-subtle flex items-center justify-between">
           <div>
-            <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans block">
+            <span className="text-[11px] font-semibold text-text-tertiary font-sans block">
               Period-by-Period Decomposition
             </span>
             <h2 className="text-base font-semibold font-sans text-text-primary mt-0.5">
@@ -213,7 +213,7 @@ export function CategoryDistributionPanel({
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-border-subtle bg-surface-subtle/40 text-[10px] font-sans font-semibold uppercase tracking-wider text-text-tertiary whitespace-nowrap">
+              <tr className="border-b border-border-subtle bg-surface-subtle/40 text-[10px] font-sans font-semibold text-text-tertiary whitespace-nowrap">
                 <th className="py-2.5 pl-4 pr-1.5">Period</th>
                 <th className="py-2.5 px-1.5 text-right">Net Income</th>
                 <th className="py-2.5 px-1.5 text-right">Liabilities & Debt</th>

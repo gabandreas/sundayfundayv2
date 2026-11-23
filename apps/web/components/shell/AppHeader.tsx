@@ -1,9 +1,8 @@
 "use client";
 
 import React, { Suspense } from "react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
 import { MonthYearSwitcher } from "./MonthYearSwitcher";
 import { GlobalSearchModal } from "./GlobalSearchModal";
 import { AccountHeaderBadge } from "./AccountHeaderBadge";
@@ -44,7 +43,7 @@ export function AppHeader({ onToggleMobileDrawer }: { onToggleMobileDrawer?: () 
   const title = keys ? t(keys.titleKey) : pathname.replace("/", "");
 
   return (
-    <header className="print-hidden relative z-30 h-14 border-b border-border bg-canvas/95 px-3 sm:px-4 lg:px-5 flex items-center justify-between gap-2 shrink-0 select-none">
+    <header className="print-hidden relative z-30 h-12 border-b border-border-subtle bg-canvas px-3 sm:px-4 lg:px-5 flex items-center justify-between gap-2 shrink-0 select-none">
       {/* Left Zone: Route breadcrumb + Mobile Drawer Trigger + Mobile BrandMark */}
       <div className="flex items-center gap-1.5 text-xs font-sans min-w-0 shrink pr-2">
         {onToggleMobileDrawer && (
@@ -75,30 +74,20 @@ export function AppHeader({ onToggleMobileDrawer }: { onToggleMobileDrawer?: () 
         <GlobalSearchModal />
       </div>
 
-      {/* Right Zone: Privacy Toggle + Language + Guide + Period Capsule Navigator + Account Profile */}
-      <div className="flex items-center gap-1.5 sm:gap-2 justify-end min-w-0 shrink-0">
+      {/* Right Zone: Single Privacy Toggle | Language | Period Navigator | Account Avatar Menu */}
+      <div className="flex items-center gap-2 justify-end min-w-0 shrink-0">
         <div className="hidden sm:flex items-center gap-1.5">
           <PrivacyEyeButton
             size="sm"
-            className="h-8 w-8 rounded border border-border bg-surface hover:border-border-strong"
+            className="h-8 w-8 rounded-md text-text-secondary hover:text-text-primary hover:bg-surface transition-colors"
           />
+          <span className="h-4 w-px bg-border-subtle mx-0.5" aria-hidden="true" />
           <LanguageSwitcher compact />
-          <Link
-            href="/guide"
-            title={t("nav.guide")}
-            aria-label={t("nav.guide")}
-            className={`h-8 w-8 rounded border flex items-center justify-center transition-colors ${
-              pathname === "/guide"
-                ? "border-accent/50 bg-accent/[0.08] text-text-primary"
-                : "border-border bg-surface text-text-tertiary hover:text-text-primary hover:border-border-strong"
-            }`}
-          >
-            <BookOpen className="w-3.5 h-3.5" />
-          </Link>
+          <span className="h-4 w-px bg-border-subtle mx-0.5" aria-hidden="true" />
         </div>
         <Suspense
           fallback={
-            <div className="h-8 w-24 sm:w-40 rounded-md bg-surface border border-border animate-pulse" />
+            <div className="h-8 w-24 sm:w-36 rounded-md bg-surface animate-pulse" />
           }
         >
           <MonthYearSwitcher />

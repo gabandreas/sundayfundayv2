@@ -486,7 +486,7 @@ export function ActiveContractsHub({
         <div className="rounded-lg erp-callout-caution px-5 py-4 space-y-2">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <div className="text-[11px] font-mono uppercase tracking-wider text-amber-300 font-semibold">
+              <div className="text-[11px] font-mono text-amber-300 font-semibold">
                 Focused View: Priority Loan Tracker
               </div>
               <h2 className="text-sm font-semibold text-text-primary mt-0.5">
@@ -498,7 +498,7 @@ export function ActiveContractsHub({
               </h2>
             </div>
             <div className="text-right font-mono tabular-nums">
-              <div className="text-[10px] uppercase tracking-wider text-text-tertiary">
+              <div className="text-[10px] text-text-tertiary">
                 Remaining Principal
               </div>
               <div className="text-sm font-semibold text-text-primary">
@@ -515,7 +515,7 @@ export function ActiveContractsHub({
       {/* TIER 1: GUIDED HEADER & NAVIGATION ACTIONS */}
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-border bg-surface px-5 py-4">
         <div>
-          <div className="text-[11px] font-mono uppercase tracking-wider text-text-tertiary">
+          <div className="text-[11px] font-mono text-text-tertiary">
             Active Installment Plans · {periodLabel}
           </div>
           <h2 className="text-base font-semibold text-text-primary mt-0.5">
@@ -565,7 +565,7 @@ export function ActiveContractsHub({
       {/* TIER 2: ASYMMETRIC SUMMARY KPIs (Serif display strictly on centerpiece KPIs) */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
         <div className="md:col-span-5 rounded-lg border border-border bg-surface p-5 flex flex-col justify-between">
-          <div className="text-[11px] font-mono uppercase tracking-wider text-text-tertiary">
+          <div className="text-[11px] font-mono text-text-tertiary">
             Total Remaining Principal
           </div>
           <div className="font-display text-3xl font-normal tracking-tight text-text-primary mt-2 tabular-nums">
@@ -577,7 +577,7 @@ export function ActiveContractsHub({
         </div>
 
         <div className="md:col-span-3 rounded-lg border border-border bg-surface p-5 flex flex-col justify-between">
-          <div className="text-[11px] font-mono uppercase tracking-wider text-text-tertiary">
+          <div className="text-[11px] font-mono text-text-tertiary">
             Monthly Installment Commitment
           </div>
           <div className="font-mono text-2xl font-semibold tracking-tight text-text-primary mt-2 tabular-nums">
@@ -589,7 +589,7 @@ export function ActiveContractsHub({
         </div>
 
         <div className="md:col-span-4 rounded-lg border border-border bg-surface p-5 flex flex-col justify-between">
-          <div className="text-[11px] font-mono uppercase tracking-wider text-text-tertiary">
+          <div className="text-[11px] font-mono text-text-tertiary">
             Debt Freedom Horizon
           </div>
           <div className="font-display text-3xl font-normal tracking-tight text-delta-positive mt-2">
@@ -608,7 +608,7 @@ export function ActiveContractsHub({
         <div className="rounded-lg border border-border bg-surface p-5 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <div className="text-[11px] font-mono uppercase tracking-wider text-delta-positive font-semibold">
+              <div className="text-[11px] font-mono text-delta-positive font-semibold">
                 Cashflow Freed Up Horizon
               </div>
               <p className="text-xs text-text-secondary mt-0.5">
@@ -675,7 +675,7 @@ export function ActiveContractsHub({
             <section key={grp.key} className="space-y-3">
               <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-border pb-2">
                 <div>
-                  <h3 className="text-xs font-mono uppercase tracking-wider font-semibold text-text-primary">
+                  <h3 className="text-xs font-mono font-semibold text-text-primary">
                     {grp.title} ({grp.plans.length})
                   </h3>
                   <p className="text-xs text-text-tertiary mt-0.5">{grp.subtitle}</p>
@@ -807,7 +807,7 @@ export function ActiveContractsHub({
       <div ref={optimizerRef} className="rounded-lg border border-border bg-surface p-5 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border-subtle pb-4">
           <div>
-            <div className="text-[11px] font-mono uppercase tracking-wider text-text-tertiary">
+            <div className="text-[11px] font-mono text-text-tertiary">
               Live Snowball vs Avalanche Prepayment Simulator
             </div>
             <h3 className="text-sm font-semibold text-text-primary mt-0.5">

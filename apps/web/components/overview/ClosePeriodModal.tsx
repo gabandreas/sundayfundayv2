@@ -437,8 +437,8 @@ export function ClosePeriodModal({
               {/* Editable Amount & Label */}
               <div className="grid grid-cols-12 gap-3 pt-1">
                 <div className="col-span-5">
-                  <label className="block text-[10px] font-mono uppercase tracking-wider text-text-tertiary mb-1">
-                    SAVINGS DEPOSIT AMOUNT (IDR)
+                  <label className="block text-[10px] font-mono text-text-tertiary mb-1">
+                    Savings Deposit Amount (IDR)
                   </label>
                   <input
                     type="number"
@@ -453,8 +453,8 @@ export function ClosePeriodModal({
                   />
                 </div>
                 <div className="col-span-7">
-                  <label className="block text-[10px] font-mono uppercase tracking-wider text-text-tertiary mb-1">
-                    SAVINGS LEDGER DESCRIPTION
+                  <label className="block text-[10px] font-mono text-text-tertiary mb-1">
+                    Savings Ledger Description
                   </label>
                   <input
                     type="text"

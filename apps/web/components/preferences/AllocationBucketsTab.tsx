@@ -422,7 +422,7 @@ export function AllocationBucketsTab({
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="border-b border-[#282e3d] text-text-tertiary uppercase text-[10px] tracking-wider">
+              <tr className="border-b border-[#282e3d] text-text-tertiary text-[10px]">
                 <th className="py-2 px-3">Status</th>
                 <th className="py-2 px-3">Tier</th>
                 <th className="py-2 px-3">Bucket Label</th>

@@ -29,6 +29,7 @@ import {
 import { usePeriodSlice } from "@/hooks/usePeriodSlice";
 import { usePeriod } from "@/context/PeriodContext";
 import { usePrivacyMask } from "@/context/PrivacyMaskContext";
+import { useToast } from "@/context/ToastContext";
 import { formatRupiah } from "@/lib/utils";
 import { PageHeader } from "@/components/primitives/PageHeader";
 import { PreBoundaryNotice } from "@/components/shell/PreBoundaryNotice";
@@ -47,18 +48,18 @@ interface PaydayWizardClientProps {
 }
 
 const MONTH_SHORT = [
-  "JAN",
-  "FEB",
-  "MAR",
-  "APR",
-  "MAY",
-  "JUN",
-  "JUL",
-  "AUG",
-  "SEP",
-  "OCT",
-  "NOV",
-  "DEC",
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
 ];
 
 function getPreviousPeriod(month: number, year: number): { month: number; year: number } {
@@ -72,10 +73,20 @@ export function PaydayWizardClient({
 }: PaydayWizardClientProps) {
   const { refreshPeriod } = usePeriod();
   const { isAmountsMasked } = usePrivacyMask();
+  const { toast } = useToast();
   const formatRp = (val: number) => formatRupiah(val, isAmountsMasked);
 
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<{ ok: boolean; text: string } | null>(null);
+
+  React.useEffect(() => {
+    if (!statusMessage) return;
+    toast({
+      title: statusMessage.ok ? "Payday Wizard" : "Payday Action Failed",
+      description: statusMessage.text,
+      variant: statusMessage.ok ? "success" : "error",
+    });
+  }, [statusMessage, toast]);
   const [p1ConfirmedLocal, setP1ConfirmedLocal] = useState(false);
 
   const { month, year, data, isPreBoundary } = usePeriodSlice<PaydayWizardData>({
@@ -229,7 +240,7 @@ export function PaydayWizardClient({
         rightActions={
           <div className="flex items-center gap-4">
             <div className="text-right">
-              <div className="text-[10px] font-mono uppercase text-text-tertiary">
+              <div className="text-[10px] font-mono text-text-tertiary">
                 Checklist Progress
               </div>
               <div className="font-display text-2xl text-text-primary tabular-nums">
@@ -271,7 +282,7 @@ export function PaydayWizardClient({
                 <Circle className="w-4 h-4 text-text-tertiary shrink-0" />
               )}
               <div>
-                <div className="text-[10px] font-mono uppercase text-text-tertiary">Step 1</div>
+                <div className="text-[10px] font-mono text-text-tertiary">Step 1</div>
                 <h2 className="text-sm font-semibold text-text-primary">
                   Confirm Paycheck &amp; Working Days ({periodLabel})
                 </h2>
@@ -287,13 +298,13 @@ export function PaydayWizardClient({
 
           <div className="grid grid-cols-2 divide-x divide-border-subtle border-y border-border-subtle py-2.5 text-xs">
             <div className="pr-3">
-              <div className="text-[10px] font-mono uppercase text-text-tertiary">Final Net Income</div>
+              <div className="text-[10px] font-mono text-text-tertiary">Final Net Income</div>
               <div className="font-mono text-base font-semibold text-text-primary mt-1 tabular-nums">
                 {formatRp(snapshot?.finalTotalIncome ?? 0)}
               </div>
             </div>
             <div className="pl-3">
-              <div className="text-[10px] font-mono uppercase text-text-tertiary">Working Days &amp; Payout</div>
+              <div className="text-[10px] font-mono text-text-tertiary">Working Days &amp; Payout</div>
               <div className="font-mono text-base font-semibold text-text-primary mt-1 tabular-nums">
                 {snapshot?.totalWorkingDays ?? payroll?.totalWorkingDays ?? 0}d ·{" "}
                 {snapshot?.payrollPayoutDate
@@ -331,7 +342,7 @@ export function PaydayWizardClient({
                 <Unlock className="w-4 h-4 text-caution shrink-0" />
               )}
               <div>
-                <div className="text-[10px] font-mono uppercase text-text-tertiary">Step 2</div>
+                <div className="text-[10px] font-mono text-text-tertiary">Step 2</div>
                 <h2 className="text-sm font-semibold text-text-primary">
                   Close &amp; Lock Prior Cycle ({prevLabel})
                 </h2>
@@ -346,13 +357,13 @@ export function PaydayWizardClient({
             <div className="space-y-3">
               <div className="grid grid-cols-2 divide-x divide-border-subtle border-y border-border-subtle py-2.5 text-xs">
                 <div className="pr-3">
-                  <div className="text-[10px] font-mono uppercase text-text-tertiary">{prevLabel} Funded P1</div>
+                  <div className="text-[10px] font-mono text-text-tertiary">{prevLabel} Funded P1</div>
                   <div className="font-mono text-sm font-semibold text-delta-positive mt-1 tabular-nums">
                     {formatRp(prevSnapshot.actualSavings ?? 0)}
                   </div>
                 </div>
                 <div className="pl-3">
-                  <div className="text-[10px] font-mono uppercase text-text-tertiary">{prevLabel} Living Pool</div>
+                  <div className="text-[10px] font-mono text-text-tertiary">{prevLabel} Living Pool</div>
                   <div className="font-mono text-sm font-semibold text-text-primary mt-1 tabular-nums">
                     {formatRp(prevSnapshot.actualDailyOperational ?? 0)}
                   </div>
@@ -395,7 +406,7 @@ export function PaydayWizardClient({
                 <Circle className="w-4 h-4 text-caution shrink-0" />
               )}
               <div>
-                <div className="text-[10px] font-mono uppercase text-text-tertiary">Step 3</div>
+                <div className="text-[10px] font-mono text-text-tertiary">Step 3</div>
                 <h2 className="text-sm font-semibold text-text-primary">
                   Settle Mandatory Due-Date Bills ({lineItems.length - unsettledCount}/{lineItems.length} settled)
                 </h2>
@@ -475,7 +486,7 @@ export function PaydayWizardClient({
                 <Wallet className="w-4 h-4 text-text-secondary shrink-0" />
               )}
               <div>
-                <div className="text-[10px] font-mono uppercase text-text-tertiary">Step 4</div>
+                <div className="text-[10px] font-mono text-text-tertiary">Step 4</div>
                 <h2 className="text-sm font-semibold text-text-primary">
                   Activate Daily Living Pool &amp; Confirm Core Savings Deposit
                 </h2>
@@ -485,7 +496,7 @@ export function PaydayWizardClient({
 
           <div className="grid grid-cols-1 md:grid-cols-12 divide-y md:divide-y-0 md:divide-x divide-border-subtle border-y border-border-subtle py-3 text-xs">
             <div className="md:col-span-5 md:pr-4 pb-3 md:pb-0">
-              <div className="text-[10px] font-mono uppercase text-text-tertiary">
+              <div className="text-[10px] font-mono text-text-tertiary">
                 Funded Daily Living Pool
               </div>
               <div className="font-display text-2xl text-text-primary mt-1 tabular-nums">
@@ -499,7 +510,7 @@ export function PaydayWizardClient({
             </div>
 
             <div className="md:col-span-3 md:px-4 py-3 md:py-0">
-              <div className="text-[10px] font-mono uppercase text-text-tertiary">
+              <div className="text-[10px] font-mono text-text-tertiary">
                 Routine Envelopes Funded
               </div>
               <div className="font-mono text-lg font-semibold text-text-primary mt-1 tabular-nums">
@@ -517,7 +528,7 @@ export function PaydayWizardClient({
 
             <div className="md:col-span-4 md:pl-4 pt-3 md:pt-0 flex flex-col justify-between">
               <div>
-                <div className="text-[10px] font-mono uppercase text-text-tertiary">
+                <div className="text-[10px] font-mono text-text-tertiary">
                   Core Savings Transfer
                 </div>
                 <div className="font-mono text-lg font-semibold text-delta-positive mt-1 tabular-nums">

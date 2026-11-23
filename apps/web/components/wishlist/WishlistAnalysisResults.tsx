@@ -60,7 +60,7 @@ export function WishlistAnalysisResults({
         <div className="rounded-lg border border-border bg-surface p-5 space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-border-subtle">
             <div>
-              <span className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary block">
+              <span className="text-[10px] font-mono text-text-tertiary block">
                 Liquidity Strategy
               </span>
               <h3 className="text-sm font-semibold font-sans text-text-primary mt-0.5">
@@ -84,13 +84,13 @@ export function WishlistAnalysisResults({
             }`}
           >
             <div>
-              <span className="text-[10px] text-text-tertiary uppercase block">Current Self-Reward</span>
+              <span className="text-[10px] text-text-tertiary block">Current Self-Reward</span>
               <span className="font-mono text-sm font-semibold tabular-nums text-text-primary mt-0.5 block">
                 {formatRupiah(cashStrategy.currentSelfReward)}
               </span>
             </div>
             <div>
-              <span className="text-[10px] text-text-tertiary uppercase block">Funding Shortfall</span>
+              <span className="text-[10px] text-text-tertiary block">Funding Shortfall</span>
               <span
                 className={`font-mono text-sm font-semibold tabular-nums mt-0.5 block ${
                   cashStrategy.shortfall > 0 ? "text-delta-negative" : "text-delta-positive"
@@ -100,7 +100,7 @@ export function WishlistAnalysisResults({
               </span>
             </div>
             <div>
-              <span className="text-[10px] text-text-tertiary uppercase block">Estimated Saving Time</span>
+              <span className="text-[10px] text-text-tertiary block">Estimated Saving Time</span>
               <span className="font-mono text-sm font-medium tabular-nums text-text-primary mt-0.5 block">
                 {isInstantCash
                   ? "0 months (Immediate)"
@@ -110,7 +110,7 @@ export function WishlistAnalysisResults({
               </span>
             </div>
             <div>
-              <span className="text-[10px] text-text-tertiary uppercase block">Monthly Reward Rate</span>
+              <span className="text-[10px] text-text-tertiary block">Monthly Reward Rate</span>
               <span className="font-mono text-sm font-medium tabular-nums text-text-secondary mt-0.5 block">
                 {formatRupiah(cashStrategy.monthlySavingsRate)}/mo
               </span>
@@ -123,7 +123,7 @@ export function WishlistAnalysisResults({
           <div className="rounded-lg border border-border bg-surface p-5 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-border-subtle">
               <div>
-                <span className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary block">
+                <span className="text-[10px] font-mono text-text-tertiary block">
                   Leverage Assessment
                 </span>
                 <h3 className="text-sm font-semibold font-sans text-text-primary mt-0.5">
@@ -149,7 +149,7 @@ export function WishlistAnalysisResults({
 
             <div className="grid grid-cols-2 gap-3 text-xs font-sans">
               <div>
-                <span className="text-[10px] text-text-tertiary uppercase block">Peak Debt Ratio</span>
+                <span className="text-[10px] text-text-tertiary block">Peak Debt Ratio</span>
                 <span
                   className={`font-mono text-base font-semibold tabular-nums mt-0.5 block ${
                     installmentStrategy.tier === "OPTIMAL"
@@ -163,7 +163,7 @@ export function WishlistAnalysisResults({
                 </span>
               </div>
               <div>
-                <span className="text-[10px] text-text-tertiary uppercase block">New Monthly Obligation</span>
+                <span className="text-[10px] text-text-tertiary block">New Monthly Obligation</span>
                 <span className="font-mono text-base font-semibold tabular-nums text-text-primary mt-0.5 block">
                   {formatRupiah(installmentStrategy.newMonthlyInstallment)}
                 </span>
@@ -201,7 +201,7 @@ export function WishlistAnalysisResults({
           <div className="overflow-x-auto">
             <table className="w-full text-xs font-sans border-collapse">
               <thead>
-                <tr className="border-b border-border-subtle text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+                <tr className="border-b border-border-subtle text-[10px] font-mono text-text-tertiary">
                   <th className="py-2 text-left font-medium">Period</th>
                   <th className="py-2 text-right font-medium">Existing Liabilities</th>
                   <th className="py-2 text-right font-medium">Proposed Installment</th>

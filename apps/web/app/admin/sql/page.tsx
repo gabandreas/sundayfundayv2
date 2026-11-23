@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/context/ToastContext";
 import {
   fetchSqlTables,
   executeSqlQuery,
@@ -67,6 +68,7 @@ const QUERY_PRESETS = [
 export default function SqlStudioPage() {
   const router = useRouter();
   const { user, isLoading: authLoading } = useAuth();
+  const { toast } = useToast();
 
   const [tables, setTables] = useState<SqlTableSummary[]>([]);
   const [selectedTable, setSelectedTable] = useState<string | null>(null);
@@ -115,11 +117,12 @@ export default function SqlStudioPage() {
     rowId: null,
   });
 
-  const [toast, setToast] = useState<{ text: string; type: "success" | "error" } | null>(null);
-
   const showToast = (text: string, type: "success" | "error" = "success") => {
-    setToast({ text, type });
-    setTimeout(() => setToast(null), 3500);
+    toast({
+      title: type === "success" ? "SQL Studio" : "SQL Studio Error",
+      description: text,
+      variant: type,
+    });
   };
 
   // Load tables metadata
@@ -335,24 +338,6 @@ export default function SqlStudioPage() {
 
   return (
     <div className="min-h-screen bg-canvas text-text-primary flex flex-col font-sans select-none">
-      {/* Toast Notification */}
-      {toast && (
-        <div
-          className={`fixed bottom-6 right-6 z-50 px-4 py-2.5 rounded-lg border text-xs shadow-2xl flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2 duration-150 ${
-            toast.type === "success"
-              ? "bg-slate-900 border-emerald-500/40 text-emerald-300"
-              : "bg-slate-900 border-negative/40 text-negative"
-          }`}
-        >
-          {toast.type === "success" ? (
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-          ) : (
-            <AlertCircle className="w-4 h-4 text-negative shrink-0" />
-          )}
-          <span>{toast.text}</span>
-        </div>
-      )}
-
       {/* Top Header Bar */}
       <header className="h-14 border-b border-border bg-canvas/90 px-4 sm:px-6 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
@@ -396,7 +381,7 @@ export default function SqlStudioPage() {
         {/* LEFT COLUMN: Schema & Table Explorer */}
         <aside className="w-64 border-r border-border bg-surface/40 flex flex-col shrink-0">
           <div className="p-3 border-b border-border">
-            <div className="text-[11px] font-mono uppercase tracking-wider text-text-tertiary mb-2 flex items-center justify-between">
+            <div className="text-[11px] font-mono text-text-tertiary mb-2 flex items-center justify-between">
               <span>Database Tables</span>
               <button
                 type="button"
@@ -639,13 +624,13 @@ export default function SqlStudioPage() {
                       </span>
                       <span>·</span>
                       <span
-                        className={`px-1.5 py-0.2 rounded text-[10px] uppercase font-mono ${
-                          queryResult.mode === "READ_ONLY"
-                            ? "erp-callout-positive text-positive"
-                            : queryResult.mode === "DRY_RUN_ROLLBACK"
-                            ? "erp-callout-caution text-caution"
-                            : "erp-callout-urgency text-urgency"
-                        }`}
+                        className={`px-1.5 py-0.2 rounded text-[10px] font-mono ${
+ queryResult.mode ==="READ_ONLY"
+ ?"erp-callout-positive text-positive"
+ : queryResult.mode ==="DRY_RUN_ROLLBACK"
+ ?"erp-callout-caution text-caution"
+ :"erp-callout-urgency text-urgency"
+ }`}
                       >
                         {queryResult.mode}
                       </span>
@@ -698,7 +683,7 @@ export default function SqlStudioPage() {
                   </div>
                 ) : (
                   <table className="w-full text-xs text-left border-collapse">
-                    <thead className="sticky top-0 bg-surface-subtle border-b border-border z-10 text-[10px] font-mono uppercase text-text-tertiary">
+                    <thead className="sticky top-0 bg-surface-subtle border-b border-border z-10 text-[10px] font-mono text-text-tertiary">
                       <tr>
                         <th className="px-3 py-2 border-r border-border-subtle w-12 text-center">
                           #
@@ -840,7 +825,7 @@ export default function SqlStudioPage() {
                   </div>
                 ) : (
                   <table className="w-full text-xs text-left border-collapse">
-                    <thead className="sticky top-0 bg-surface-subtle border-b border-border z-10 text-[10px] font-mono uppercase text-text-tertiary">
+                    <thead className="sticky top-0 bg-surface-subtle border-b border-border z-10 text-[10px] font-mono text-text-tertiary">
                       <tr>
                         <th className="px-3 py-2 border-r border-border-subtle text-center w-24">
                           Actions

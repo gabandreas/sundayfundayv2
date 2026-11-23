@@ -9,6 +9,7 @@ import {
 } from "@/lib/api";
 import { formatCurrencyInput, formatRupiah, parseCurrencyInput } from "@/lib/utils";
 import { usePrivacyMask } from "@/context/PrivacyMaskContext";
+import { useToast } from "@/context/ToastContext";
 
 const POCKET_CATEGORY_OPTIONS: Array<{
   value: SavingsPocketConfig["category"];
@@ -64,6 +65,7 @@ export function SavingsPocketsCard({
   onSaved,
 }: SavingsPocketsCardProps) {
   const { isAmountsMasked } = usePrivacyMask();
+  const { toast } = useToast();
   const [pockets, setPockets] = useState<SavingsPocketConfig[]>(() =>
     initialPockets && initialPockets.length > 0 ? initialPockets : getDefaultPockets(),
   );
@@ -147,11 +149,14 @@ export function SavingsPocketsCard({
     const res = await saveSavingsPockets(cleaned);
     setIsSaving(false);
     if (!res.success || !res.data) {
-      setFeedback({ type: "err", text: res.error || "Could not save pocket split." });
+      const msg = res.error || "Could not save pocket split.";
+      setFeedback({ type: "err", text: msg });
+      toast({ title: "Pocket split failed", description: msg, variant: "error" });
       return;
     }
     setPockets(res.data.pockets);
     setFeedback({ type: "ok", text: "Pocket split saved." });
+    toast({ title: "Pocket split saved", description: "Savings pockets updated cleanly.", variant: "success" });
     onSaved?.(res.data);
   };
 
@@ -191,7 +196,7 @@ export function SavingsPocketsCard({
       {/* Pool Conservation Bar */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 rounded-md border border-border-subtle bg-surface-subtle/50 p-3.5">
         <div>
-          <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+          <div className="text-[10px] font-mono text-text-tertiary">
             Confirmed Savings Pool
           </div>
           <div className="font-mono text-base font-semibold text-text-primary mt-0.5 erp-tabular-currency">
@@ -199,7 +204,7 @@ export function SavingsPocketsCard({
           </div>
         </div>
         <div>
-          <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+          <div className="text-[10px] font-mono text-text-tertiary">
             Earmarked Across Pockets
           </div>
           <div className="font-mono text-base font-semibold text-delta-positive mt-0.5 erp-tabular-currency">
@@ -207,7 +212,7 @@ export function SavingsPocketsCard({
           </div>
         </div>
         <div>
-          <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+          <div className="text-[10px] font-mono text-text-tertiary">
             Unallocated Raw Pool
           </div>
           <div
@@ -264,7 +269,7 @@ export function SavingsPocketsCard({
             >
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-end">
                 <div className="lg:col-span-4 space-y-1">
-                  <label className="text-[10px] font-mono uppercase text-text-tertiary block">
+                  <label className="text-[10px] font-mono text-text-tertiary block">
                     Pocket Name
                   </label>
                   <input
@@ -276,7 +281,7 @@ export function SavingsPocketsCard({
                 </div>
 
                 <div className="lg:col-span-2 space-y-1">
-                  <label className="text-[10px] font-mono uppercase text-text-tertiary block">
+                  <label className="text-[10px] font-mono text-text-tertiary block">
                     Purpose
                   </label>
                   <select
@@ -298,7 +303,7 @@ export function SavingsPocketsCard({
 
                 <div className="lg:col-span-3 space-y-1">
                   <div className="flex items-center justify-between gap-2">
-                    <label className="text-[10px] font-mono uppercase text-text-tertiary">
+                    <label className="text-[10px] font-mono text-text-tertiary">
                       Allocated (Rp)
                     </label>
                     {unallocatedPool > 0 && (
@@ -328,7 +333,7 @@ export function SavingsPocketsCard({
                 </div>
 
                 <div className="lg:col-span-2 space-y-1">
-                  <label className="text-[10px] font-mono uppercase text-text-tertiary block">
+                  <label className="text-[10px] font-mono text-text-tertiary block">
                     Target (Rp)
                   </label>
                   <input

@@ -20,25 +20,25 @@ export function AuditDebtBurdenView({ entries }: AuditDebtBurdenViewProps) {
         <table className="w-full text-left border-collapse min-w-[700px]">
           <thead>
             <tr className="bg-surface-subtle border-b border-border-subtle">
-              <th className="py-2.5 px-4 text-xs font-semibold text-text-secondary uppercase tracking-wider w-24">
+              <th className="py-2.5 px-4 text-xs font-semibold text-text-secondary w-24">
                 Period
               </th>
-              <th className="py-2.5 px-4 text-xs font-semibold text-text-secondary uppercase tracking-wider text-right">
+              <th className="py-2.5 px-4 text-xs font-semibold text-text-secondary text-right">
                 Total Income (Rp)
               </th>
-              <th className="py-2.5 px-4 text-xs font-semibold text-text-secondary uppercase tracking-wider text-right">
+              <th className="py-2.5 px-4 text-xs font-semibold text-text-secondary text-right">
                 Total Bills (Rp)
               </th>
-              <th className="py-2.5 px-4 text-xs font-semibold text-text-secondary uppercase tracking-wider text-right">
+              <th className="py-2.5 px-4 text-xs font-semibold text-text-secondary text-right">
                 Credit Card / Cap
               </th>
-              <th className="py-2.5 px-4 text-xs font-semibold text-text-secondary uppercase tracking-wider text-right">
+              <th className="py-2.5 px-4 text-xs font-semibold text-text-secondary text-right">
                 PayLater / Cap
               </th>
-              <th className="py-2.5 px-4 text-xs font-semibold text-text-secondary uppercase tracking-wider text-right">
+              <th className="py-2.5 px-4 text-xs font-semibold text-text-secondary text-right">
                 Ratio
               </th>
-              <th className="py-2.5 px-4 text-xs font-semibold text-text-secondary uppercase tracking-wider text-center">
+              <th className="py-2.5 px-4 text-xs font-semibold text-text-secondary text-center">
                 Assessment
               </th>
             </tr>

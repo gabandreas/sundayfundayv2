@@ -266,7 +266,7 @@ export function AllocationsClientView({
 
       {/* SECTION 1: Donut Visualization & Pocket Proportions */}
       <section className="space-y-3">
-        <div className="text-[11px] font-sans font-medium text-text-tertiary uppercase tracking-wider">
+        <div className="text-[11px] font-sans font-medium text-text-tertiary">
           Allocation Architecture &amp; Distribution
         </div>
 
@@ -279,7 +279,7 @@ export function AllocationsClientView({
 
       {/* SECTION 2: Exact Metric Cards for Precision */}
       <section className="space-y-3">
-        <div className="text-[11px] font-sans font-medium text-text-tertiary uppercase tracking-wider">
+        <div className="text-[11px] font-sans font-medium text-text-tertiary">
           Exact Pocket Distributions
         </div>
 
@@ -376,7 +376,7 @@ export function AllocationsClientView({
 
             <div className="flex gap-3 items-start">
               <span className="font-mono text-[10px] font-bold text-text-primary bg-surface-subtle px-1.5 py-0.5 rounded shrink-0 border border-border-subtle">
-                STEP 1
+                Step 1
               </span>
               <div>
                 <span className="font-medium text-text-primary block">
@@ -390,7 +390,7 @@ export function AllocationsClientView({
 
             <div className="flex gap-3 items-start">
               <span className="font-mono text-[10px] font-bold text-caution bg-[rgba(229,155,44,0.1)] px-1.5 py-0.5 rounded shrink-0">
-                STEP 2
+                Step 2
               </span>
               <div>
                 <span className="font-medium text-text-primary block">
@@ -407,14 +407,14 @@ export function AllocationsClientView({
 
       {/* SECTION 4: 3-Period Forward Waterfall Trajectory & Cutoff Alignment */}
       <section className="space-y-3">
-        <div className="text-[11px] font-sans font-medium text-text-tertiary uppercase tracking-wider">
+        <div className="text-[11px] font-sans font-medium text-text-tertiary">
           Forward 3-Cycle Waterfall &amp; Cutoff Planner
         </div>
         <div className="rounded-lg border border-border-default bg-surface overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="border-b border-border-subtle bg-surface-subtle text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+                <tr className="border-b border-border-subtle bg-surface-subtle text-[10px] font-mono text-text-tertiary">
                   <th className="text-left py-2.5 px-4">Period</th>
                   <th className="text-right py-2.5 px-4">Income</th>
                   <th className="text-right py-2.5 px-4">Debt Bills</th>
@@ -571,19 +571,19 @@ export function AllocationsClientView({
             return (
               <div className="lg:col-span-5 grid grid-cols-3 gap-3 text-xs font-mono">
                 <div className="rounded border border-border-subtle bg-surface-subtle p-2.5">
-                  <div className="text-[10px] uppercase text-text-tertiary">Projected Savings</div>
+                  <div className="text-[10px] text-text-tertiary">Projected Savings</div>
                   <div className="text-sm font-semibold text-delta-positive mt-0.5 tabular-nums erp-tabular-currency">
                     {formatRupiah(projP1)}
                   </div>
                 </div>
                 <div className="rounded border border-border-subtle bg-surface-subtle p-2.5">
-                  <div className="text-[10px] uppercase text-text-tertiary">Projected Surplus</div>
+                  <div className="text-[10px] text-text-tertiary">Projected Surplus</div>
                   <div className="text-sm font-semibold text-caution mt-0.5 tabular-nums erp-tabular-currency">
                     {formatRupiah(projP2)}
                   </div>
                 </div>
                 <div className="rounded border border-border-subtle bg-surface-subtle p-2.5">
-                  <div className="text-[10px] uppercase text-text-tertiary">Deficit Risk</div>
+                  <div className="text-[10px] text-text-tertiary">Deficit Risk</div>
                   <div
                     className={`text-sm font-semibold mt-0.5 tabular-nums ${
                       projDeficit > 0 ? "text-urgency" : "text-delta-positive"
@@ -639,7 +639,7 @@ export function AllocationsClientView({
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-xs text-left">
-                <thead className="bg-surface-subtle/50 text-[10px] font-mono uppercase text-text-tertiary border-b border-border-subtle">
+                <thead className="bg-surface-subtle/50 text-[10px] font-mono text-text-tertiary border-b border-border-subtle">
                   <tr>
                     <th className="px-4 py-2">Date</th>
                     <th className="px-4 py-2">Category</th>

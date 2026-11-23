@@ -1,6 +1,9 @@
 ﻿import {
   addHybridMonths,
   daysInMonthCalendarUtc,
+  evaluateFormulaSuiteTs,
+  FormulaSuiteRequest,
+  FormulaSuiteResult,
   resolveCutoffDayForMonthTs,
 } from './formula-dsl';
 
@@ -1823,5 +1826,558 @@ export function parseStatementBatchTs(req: ReconcilerParseRequest): ReconcilerPa
   };
 }
 
+// ---------------------------------------------------------------------------
+// Engine 10: Concurrent Monte Carlo Cashflow Stress Test (Go <-> TS Parity)
+// ---------------------------------------------------------------------------
+
+export interface MonteCarloPeriodInput {
+  label: string;
+  incomeRp: number;
+  debtDueRp: number;
+  fixedBillsRp: number;
+  livingTargetRp: number;
+  savingsTargetRp: number;
+}
+
+export interface MonteCarloRequest {
+  startingLiquidAssetsRp: number;
+  startingSavingsRp: number;
+  emergencyFundTargetRp: number;
+  incomeVolatilityPct: number;
+  expenseShockProbPct: number;
+  expenseShockMagnitudePct: number;
+  unexpectedEmergencyProbPct: number;
+  unexpectedEmergencyCostRp: number;
+  trials?: number;
+  seed?: number;
+  periods: MonteCarloPeriodInput[];
+}
+
+export interface MonteCarloFanPoint {
+  label: string;
+  p10Rp: number;
+  p50Rp: number;
+  p90Rp: number;
+  shortfallRiskPct: number;
+}
+
+export interface MonteCarloResult {
+  trialsRun: number;
+  workerGoroutines: number;
+  computeDurationUs: number;
+  survivalProbabilityPct: number;
+  emergencyGoalProbabilityPct: number;
+  p5WorstCaseCashFloorRp: number;
+  p10EndingWealthRp: number;
+  p50MedianEndingWealthRp: number;
+  p90EndingWealthRp: number;
+  recommendedExtraBufferMonthlyRp: number;
+  fanSeries: MonteCarloFanPoint[];
+}
+
+const MC_MASK_64 = (1n << 64n) - 1n;
+const MC_STEP = 0x9e3779b97f4a7c15n;
+const MC_MUL1 = 0xbf58476d1ce4e5b9n;
+const MC_MUL2 = 0x94d049bb133111ebn;
+const MC_POW53 = 9007199254740992;
+
+function nextU64(state: { v: bigint }): bigint {
+  state.v = (state.v + MC_STEP) & MC_MASK_64;
+  let z = state.v;
+  z = ((z ^ (z >> 30n)) * MC_MUL1) & MC_MASK_64;
+  z = ((z ^ (z >> 27n)) * MC_MUL2) & MC_MASK_64;
+  return (z ^ (z >> 31n)) & MC_MASK_64;
+}
+
+function nextUnit(state: { v: bigint }): number {
+  return Number(nextU64(state) >> 11n) / MC_POW53;
+}
+
+function quantileSorted(sorted: number[], pct: number): number {
+  if (sorted.length === 0) return 0;
+  let idx = Math.trunc((sorted.length - 1) * pct);
+  if (idx < 0) idx = 0;
+  if (idx >= sorted.length) idx = sorted.length - 1;
+  return sorted[idx];
+}
+
+export function runMonteCarloTs(req: MonteCarloRequest): MonteCarloResult {
+  const startedUs = Date.now() * 1000;
+  let trials = req.trials ?? 2000;
+  if (trials <= 0) trials = 2000;
+  if (trials < 200) trials = 200;
+  if (trials > 10000) trials = 10000;
+
+  const seed = BigInt(req.seed && req.seed > 0 ? req.seed : 20261123) & MC_MASK_64;
+  const periods: MonteCarloPeriodInput[] =
+    req.periods && req.periods.length > 0
+      ? req.periods
+      : [{ label: 'M1', incomeRp: 0, debtDueRp: 0, fixedBillsRp: 0, livingTargetRp: 0, savingsTargetRp: 0 }];
+
+  const volPct = Math.max(0, Math.min(40, Number(req.incomeVolatilityPct) || 0));
+  const shockProb = Math.max(0, Math.min(50, Number(req.expenseShockProbPct) || 0));
+  const shockMag = Math.max(0, Math.min(50, Number(req.expenseShockMagnitudePct) || 0));
+  const emProb = Math.max(0, Math.min(25, Number(req.unexpectedEmergencyProbPct) || 0));
+  const emCost = Math.max(0, Math.trunc(Number(req.unexpectedEmergencyCostRp) || 0));
+  const numMonths = periods.length;
+
+  const wealthByMonth: number[][] = Array.from({ length: numMonths }, () => new Array(trials).fill(0));
+  const shortfallCounts: number[][] = Array.from({ length: numMonths }, () => new Array(trials).fill(0));
+  const cashFloors = new Array<number>(trials).fill(0);
+  let survCount = 0;
+  let emCount = 0;
+  const sqrt3 = 1.7320508075688772;
+
+  for (let t = 0; t < trials; t++) {
+    const state = {
+      v: (seed ^ ((BigInt(t + 1) * MC_STEP) & MC_MASK_64)) & MC_MASK_64,
+    };
+    let liquid = Math.trunc(Number(req.startingLiquidAssetsRp) || 0);
+    let savings = Math.trunc(Number(req.startingSavingsRp) || 0);
+    let minCashFloor = liquid;
+    let hadDeficit = false;
+
+    for (let m = 0; m < numMonths; m++) {
+      const p = periods[m];
+      const z = (nextUnit(state) + nextUnit(state) + nextUnit(state) + nextUnit(state) - 2.0) * sqrt3;
+      let mult = 1.0 + z * (volPct / 100.0);
+      if (mult < 0.25) mult = 0.25;
+      else if (mult > 1.75) mult = 1.75;
+      const simIncome = Math.max(0, goRound(p.incomeRp * mult));
+
+      const livingRoll = nextUnit(state);
+      let shockMult = 1.0;
+      if (shockProb > 0 && livingRoll < shockProb / 100.0) {
+        const magDraw = nextUnit(state);
+        shockMult = 1.0 + (shockMag / 100.0) * (0.5 + 0.5 * magDraw);
+      }
+      const simLiving = goRound(p.livingTargetRp * shockMult);
+
+      const emRoll = nextUnit(state);
+      const emergencyHit = emProb > 0 && emRoll < emProb / 100.0 ? emCost : 0;
+
+      liquid = liquid + simIncome - p.debtDueRp - p.fixedBillsRp - simLiving - emergencyHit;
+      if (p.savingsTargetRp > 0 && liquid >= p.savingsTargetRp) {
+        savings += p.savingsTargetRp;
+        liquid -= p.savingsTargetRp;
+      }
+      if (liquid < 0) {
+        const need = -liquid;
+        const draw = Math.min(savings, need);
+        if (draw > 0) {
+          savings -= draw;
+          liquid += draw;
+        }
+      }
+      if (liquid < 0) {
+        hadDeficit = true;
+        shortfallCounts[m][t] = 1;
+      }
+      if (liquid < minCashFloor) {
+        minCashFloor = liquid;
+      }
+      wealthByMonth[m][t] = liquid + savings;
+    }
+
+    if (!hadDeficit) survCount++;
+    if (req.emergencyFundTargetRp > 0) {
+      if (savings >= req.emergencyFundTargetRp) emCount++;
+    } else if (liquid + savings >= 0) {
+      emCount++;
+    }
+    cashFloors[t] = minCashFloor;
+  }
+
+  const fanSeries: MonteCarloFanPoint[] = [];
+  for (let m = 0; m < numMonths; m++) {
+    const sorted = [...wealthByMonth[m]].sort((a, b) => a - b);
+    let sfSum = 0;
+    for (let t = 0; t < trials; t++) sfSum += shortfallCounts[m][t];
+    fanSeries.push({
+      label: periods[m].label,
+      p10Rp: quantileSorted(sorted, 0.10),
+      p50Rp: quantileSorted(sorted, 0.50),
+      p90Rp: quantileSorted(sorted, 0.90),
+      shortfallRiskPct: round1((sfSum / trials) * 100),
+    });
+  }
+
+  cashFloors.sort((a, b) => a - b);
+  const p5Floor = quantileSorted(cashFloors, 0.05);
+  const lastMonth = fanSeries[numMonths - 1];
+  const survPct = round1((survCount / trials) * 100);
+  const emPct = round1((emCount / trials) * 100);
+
+  let recBuffer = 0;
+  if (survPct < 95 && p5Floor < 0) {
+    recBuffer = Math.ceil(-p5Floor / numMonths / 10000) * 10000;
+    if (recBuffer < 50000) recBuffer = 50000;
+  } else if (survPct < 95) {
+    recBuffer = 100000;
+  }
+
+  return {
+    trialsRun: trials,
+    workerGoroutines: 1,
+    computeDurationUs: Math.max(1, Date.now() * 1000 - startedUs),
+    survivalProbabilityPct: survPct,
+    emergencyGoalProbabilityPct: emPct,
+    p5WorstCaseCashFloorRp: p5Floor,
+    p10EndingWealthRp: lastMonth.p10Rp,
+    p50MedianEndingWealthRp: lastMonth.p50Rp,
+    p90EndingWealthRp: lastMonth.p90Rp,
+    recommendedExtraBufferMonthlyRp: recBuffer,
+    fanSeries,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Engine 11: Pareto Surplus Allocation Frontier Optimizer (Go <-> TS Parity)
+// ---------------------------------------------------------------------------
+
+export interface OptimizerDebtSlice {
+  title: string;
+  remainingRp: number;
+  monthlyInstallmentRp: number;
+  monthlyInterestPct: number;
+  remainingMonths: number;
+}
+
+export interface OptimizerGoalSlice {
+  title: string;
+  targetRp: number;
+  allocatedRp: number;
+}
+
+export interface AllocationOptRequest {
+  monthlySurplusRp: number;
+  currentSavingsRp: number;
+  emergencyFundTargetRp: number;
+  monthlyEssentialsRp: number;
+  debts: OptimizerDebtSlice[];
+  goals: OptimizerGoalSlice[];
+}
+
+export interface OptimalAllocationStrategy {
+  code: string;
+  title: string;
+  debtPrepaymentRp: number;
+  emergencyFundRp: number;
+  goalSavingsRp: number;
+  flexibleRp: number;
+  projected12MNetWorthRp: number;
+  estimatedInterestSavedRp: number;
+  debtMonthsShaved: number;
+  emergencyMonthsToTarget: number;
+  rationale: string;
+}
+
+export interface AllocationOptResult {
+  combinationsEvaluated: number;
+  workerGoroutines: number;
+  computeDurationUs: number;
+  strategies: OptimalAllocationStrategy[];
+}
+
+function simulateDebtHorizonOpt(
+  debts: OptimizerDebtSlice[],
+  extraMonthlyPrepayRp: number,
+): { monthsToZero: number; totalInterestRp: number; debtAfter12MRp: number } {
+  if (!debts || debts.length === 0) {
+    return { monthsToZero: 0, totalInterestRp: 0, debtAfter12MRp: 0 };
+  }
+  const active = debts
+    .filter((d) => d.remainingRp > 0)
+    .map((d) => {
+      let inst = Number(d.monthlyInstallmentRp);
+      if (inst <= 0 && d.remainingMonths > 0) {
+        inst = d.remainingRp / d.remainingMonths;
+      }
+      return {
+        bal: Number(d.remainingRp),
+        inst,
+        ratePct: Math.max(0, Number(d.monthlyInterestPct)),
+      };
+    });
+  if (active.length === 0) {
+    return { monthsToZero: 0, totalInterestRp: 0, debtAfter12MRp: 0 };
+  }
+  active.sort((a, b) => {
+    if (a.ratePct === b.ratePct) return a.bal - b.bal;
+    return b.ratePct - a.ratePct;
+  });
+
+  let totalInterest = 0;
+  let monthsToZero = 0;
+  let debtAfter12MRp = 0;
+  const maxMonths = 60;
+  for (let m = 1; m <= maxMonths; m++) {
+    let totalRem = 0;
+    for (let i = 0; i < active.length; i++) {
+      if (active[i].bal <= 0.5) {
+        active[i].bal = 0;
+        continue;
+      }
+      const interest = active[i].bal * (active[i].ratePct / 100.0);
+      totalInterest += interest;
+      active[i].bal += interest;
+      let pay = active[i].inst;
+      if (pay > active[i].bal) pay = active[i].bal;
+      active[i].bal -= pay;
+    }
+    let extra = extraMonthlyPrepayRp;
+    for (let i = 0; i < active.length; i++) {
+      if (extra <= 0) break;
+      if (active[i].bal > 0) {
+        const apply = Math.min(extra, active[i].bal);
+        active[i].bal -= apply;
+        extra -= apply;
+      }
+    }
+    for (let i = 0; i < active.length; i++) totalRem += active[i].bal;
+    if (m === 12) debtAfter12MRp = Math.round(totalRem);
+    if (totalRem <= 1.0 && monthsToZero === 0) {
+      monthsToZero = m;
+      if (m <= 12) debtAfter12MRp = 0;
+      break;
+    }
+  }
+  if (monthsToZero === 0) monthsToZero = maxMonths;
+  return {
+    monthsToZero,
+    totalInterestRp: Math.round(totalInterest),
+    debtAfter12MRp,
+  };
+}
+
+export function optimizeAllocationFrontierTs(req: AllocationOptRequest): AllocationOptResult {
+  const startedUs = Date.now() * 1000;
+  const surplus = Math.max(0, Math.trunc(Number(req.monthlySurplusRp) || 0));
+  const debts = req.debts ?? [];
+  const goals = req.goals ?? [];
+  const hasDebt = debts.some((d) => d.remainingRp > 0);
+
+  const grid: Array<{ dPct: number; ePct: number; gPct: number; fPct: number }> = [];
+  if (hasDebt) {
+    const step = 5;
+    for (let d = 0; d <= 100; d += step) {
+      for (let e = 0; e <= 100 - d; e += step) {
+        for (let g = 0; g <= 100 - d - e; g += step) {
+          grid.push({ dPct: d, ePct: e, gPct: g, fPct: 100 - d - e - g });
+        }
+      }
+    }
+  } else {
+    const step = 2;
+    for (let e = 0; e <= 100; e += step) {
+      for (let g = 0; g <= 100 - e; g += step) {
+        grid.push({ dPct: 0, ePct: e, gPct: g, fPct: 100 - e - g });
+      }
+    }
+  }
+
+  const baseHorizon = simulateDebtHorizonOpt(debts, 0);
+  const emergGap = Math.max(0, Math.trunc((req.emergencyFundTargetRp || 0) - (req.currentSavingsRp || 0)));
+  let goalGap = 0;
+  for (const g of goals) {
+    const rem = (g.targetRp || 0) - (g.allocatedRp || 0);
+    if (rem > 0) goalGap += rem;
+  }
+
+  const evals = grid.map((wt) => {
+    const debtRp = Math.trunc((surplus * wt.dPct) / 100);
+    const emergRp = Math.trunc((surplus * wt.ePct) / 100);
+    const goalRp = Math.trunc((surplus * wt.gPct) / 100);
+    const flexRp = surplus - debtRp - emergRp - goalRp;
+
+    const sim = simulateDebtHorizonOpt(debts, debtRp);
+    const intSaved = Math.max(0, baseHorizon.totalInterestRp - sim.totalInterestRp);
+    const shaved = Math.max(0, baseHorizon.monthsToZero - sim.monthsToZero);
+
+    let emergMonths = 0;
+    if (emergGap > 0) {
+      emergMonths = emergRp <= 0 ? 999 : Math.ceil(emergGap / emergRp);
+    }
+
+    const accumSavings = Math.trunc(req.currentSavingsRp || 0) + 12 * (emergRp + goalRp + flexRp);
+    const netWorth12M = accumSavings - sim.debtAfter12MRp;
+
+    const flexScore = Math.min(1.0, wt.fPct / 20.0) * 15.0;
+    const emergScore =
+      emergGap > 0
+        ? Math.min(1.0, (12 * emergRp) / emergGap) * 40.0
+        : Math.min(1.0, wt.ePct / 30.0) * 20.0;
+    const debtScore =
+      hasDebt && baseHorizon.totalInterestRp > 0
+        ? (intSaved / baseHorizon.totalInterestRp) * 45.0
+        : hasDebt
+          ? (shaved / Math.max(1, baseHorizon.monthsToZero)) * 35.0
+          : 0;
+    const goalScore =
+      goalGap > 0
+        ? Math.min(1.0, (12 * goalRp) / goalGap) * 30.0
+        : Math.min(1.0, wt.gPct / 40.0) * 25.0;
+
+    return {
+      debtRp,
+      emergRp,
+      goalRp,
+      flexRp,
+      netWorth12MRp: netWorth12M,
+      interestSavedRp: intSaved,
+      monthsShaved: shaved,
+      emergMonths,
+      compositeScore: debtScore + emergScore + goalScore + flexScore,
+      dPct: wt.dPct,
+      ePct: wt.ePct,
+      gPct: wt.gPct,
+    };
+  });
+
+  let bestBalanced = evals[0];
+  let bestDebt = evals[0];
+  let bestReserve = evals[0];
+  for (const c of evals) {
+    if (c.compositeScore > bestBalanced.compositeScore) bestBalanced = c;
+    if (hasDebt) {
+      if (
+        c.monthsShaved > bestDebt.monthsShaved ||
+        (c.monthsShaved === bestDebt.monthsShaved && c.interestSavedRp > bestDebt.interestSavedRp) ||
+        (c.monthsShaved === bestDebt.monthsShaved &&
+          c.interestSavedRp === bestDebt.interestSavedRp &&
+          c.dPct < bestDebt.dPct)
+      ) {
+        bestDebt = c;
+      }
+    } else if (c.goalRp > bestDebt.goalRp || (c.goalRp === bestDebt.goalRp && c.emergRp > bestDebt.emergRp)) {
+      bestDebt = c;
+    }
+    if (
+      c.emergMonths < bestReserve.emergMonths ||
+      (c.emergMonths === bestReserve.emergMonths && c.emergRp > bestReserve.emergRp)
+    ) {
+      bestReserve = c;
+    }
+  }
+
+  const balancedRationale =
+    hasDebt && emergGap > 0
+      ? `Balances ${bestBalanced.dPct}% debt reduction with ${bestBalanced.ePct}% emergency reserve funding and flexible headroom.`
+      : hasDebt
+        ? `Combines ${bestBalanced.dPct}% interest-saving prepayment with steady goal accumulation.`
+        : `Splits surplus across ${bestBalanced.ePct}% reserve protection and ${bestBalanced.gPct}% personal goals.`;
+
+  const secondStrategy: OptimalAllocationStrategy = hasDebt
+    ? {
+        code: 'FASTEST_DEBT_FREE',
+        title: 'Fastest Debt Payoff',
+        debtPrepaymentRp: bestDebt.debtRp,
+        emergencyFundRp: bestDebt.emergRp,
+        goalSavingsRp: bestDebt.goalRp,
+        flexibleRp: bestDebt.flexRp,
+        projected12MNetWorthRp: bestDebt.netWorth12MRp,
+        estimatedInterestSavedRp: bestDebt.interestSavedRp,
+        debtMonthsShaved: bestDebt.monthsShaved,
+        emergencyMonthsToTarget: bestDebt.emergMonths,
+        rationale: `Directs ${bestDebt.dPct}% of monthly surplus to highest-rate debt, cutting ${bestDebt.monthsShaved} months off payoff.`,
+      }
+    : {
+        code: 'GOAL_ACCELERATOR',
+        title: 'Goal Accelerator',
+        debtPrepaymentRp: bestDebt.debtRp,
+        emergencyFundRp: bestDebt.emergRp,
+        goalSavingsRp: bestDebt.goalRp,
+        flexibleRp: bestDebt.flexRp,
+        projected12MNetWorthRp: bestDebt.netWorth12MRp,
+        estimatedInterestSavedRp: 0,
+        debtMonthsShaved: 0,
+        emergencyMonthsToTarget: bestDebt.emergMonths,
+        rationale: `Debt-free allocation channeling ${bestDebt.gPct}% directly toward active savings goals.`,
+      };
+
+  const reserveRationale =
+    emergGap <= 0
+      ? 'Emergency fund target already met; keeps liquidity topped up while compounding net savings.'
+      : `Closes your emergency fund gap in ~${bestReserve.emergMonths} months at ${bestReserve.ePct}% reserve allocation.`;
+
+  return {
+    combinationsEvaluated: grid.length,
+    workerGoroutines: 1,
+    computeDurationUs: Math.max(1, Date.now() * 1000 - startedUs),
+    strategies: [
+      {
+        code: 'BALANCED_RESILIENCE',
+        title: 'Balanced Resilience',
+        debtPrepaymentRp: bestBalanced.debtRp,
+        emergencyFundRp: bestBalanced.emergRp,
+        goalSavingsRp: bestBalanced.goalRp,
+        flexibleRp: bestBalanced.flexRp,
+        projected12MNetWorthRp: bestBalanced.netWorth12MRp,
+        estimatedInterestSavedRp: bestBalanced.interestSavedRp,
+        debtMonthsShaved: bestBalanced.monthsShaved,
+        emergencyMonthsToTarget: bestBalanced.emergMonths,
+        rationale: balancedRationale,
+      },
+      secondStrategy,
+      {
+        code: 'FASTEST_RESERVE',
+        title: 'Fastest Emergency Reserve',
+        debtPrepaymentRp: bestReserve.debtRp,
+        emergencyFundRp: bestReserve.emergRp,
+        goalSavingsRp: bestReserve.goalRp,
+        flexibleRp: bestReserve.flexRp,
+        projected12MNetWorthRp: bestReserve.netWorth12MRp,
+        estimatedInterestSavedRp: bestReserve.interestSavedRp,
+        debtMonthsShaved: bestReserve.monthsShaved,
+        emergencyMonthsToTarget: bestReserve.emergMonths,
+        rationale: reserveRationale,
+      },
+    ],
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Batch Dispatcher: 8-Engine Parallel Intelligence Bundle
+// ---------------------------------------------------------------------------
+
+export interface IntelligenceBatchRequest {
+  paycycle: PaycycleHorizonRequest;
+  networth: NetWorthRequest;
+  forecaster: ForecasterRequest;
+  anomaly: AnomalyRequest;
+  envelopes: EnvelopesRequest;
+  debtopt: DebtOptRequest;
+  lifeenergy: LifeEnergyRequest;
+  formula: FormulaSuiteRequest;
+}
+
+export interface IntelligenceBatchResult {
+  paycycle: PaycycleHorizonResult;
+  networth: NetWorthResult;
+  forecaster: ForecasterResult;
+  anomaly: AnomalyResult;
+  envelopes: EnvelopesResult;
+  debtopt: DebtOptResult;
+  lifeenergy: LifeEnergyResult;
+  formula: FormulaSuiteResult;
+  workerGoroutines: number;
+  computeDurationUs: number;
+}
+
+export function runIntelligenceBatchTs(req: IntelligenceBatchRequest): IntelligenceBatchResult {
+  const startedUs = Date.now() * 1000;
+  return {
+    paycycle: computePaycycleHorizonTs(req.paycycle),
+    networth: computeNetWorthTs(req.networth),
+    forecaster: runForecastTs(req.forecaster),
+    anomaly: evaluateAnomaliesTs(req.anomaly),
+    envelopes: evaluateEnvelopesTs(req.envelopes),
+    debtopt: optimizeDebtPayoffTs(req.debtopt),
+    lifeenergy: computeLifeEnergyTs(req.lifeenergy),
+    formula: evaluateFormulaSuiteTs(req.formula),
+    workerGoroutines: 1,
+    computeDurationUs: Math.max(1, Date.now() * 1000 - startedUs),
+  };
+}
 
 export * from './formula-dsl';

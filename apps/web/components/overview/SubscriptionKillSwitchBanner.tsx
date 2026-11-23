@@ -70,7 +70,7 @@ export function SubscriptionKillSwitchBanner({
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider bg-[rgba(224,108,117,0.2)] text-[#e06c75] border border-[rgba(224,108,117,0.35)]">
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-[rgba(224,108,117,0.2)] text-[#e06c75] border border-[rgba(224,108,117,0.35)]">
                     Kill-Switch Alert
                   </span>
                   <span className="text-xs font-semibold font-sans text-text-primary">

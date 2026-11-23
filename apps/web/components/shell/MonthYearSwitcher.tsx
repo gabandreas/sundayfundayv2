@@ -142,16 +142,16 @@ export function MonthYearSwitcher() {
 
   return (
     <div className="relative" ref={dropdownRef}>
-      {/* Unified Popover Dropdown */}
-      <div className="flex items-center h-8 rounded-md border border-border bg-surface shadow-xs transition-opacity opacity-100">
-        {/* Previous Month Button: ‹ */}
+      {/* Compact Period Stepper */}
+      <div className="flex items-center h-8 rounded-md border border-border-subtle bg-surface/60 hover:border-border transition-colors">
+        {/* Previous Month Button */}
         <button
           type="button"
           onClick={handlePrevMonth}
           disabled={isAtStartBoundary}
           title={isAtStartBoundary ? "Historical boundary reached (October 2026)" : "Previous Month"}
           aria-label="Previous Month"
-          className={`h-full px-2 flex items-center justify-center transition-colors rounded-l-md ${
+          className={`h-full px-1.5 flex items-center justify-center transition-colors rounded-l-md ${
             isAtStartBoundary
               ? "text-text-disabled cursor-not-allowed opacity-30"
               : "text-text-tertiary hover:text-text-primary hover:bg-surface-hover cursor-pointer"
@@ -160,11 +160,11 @@ export function MonthYearSwitcher() {
           <ChevronLeft className="w-3.5 h-3.5" strokeWidth={1.8} />
         </button>
 
-        {/* Center Trigger: Oct 2026 ▾ */}
+        {/* Center Trigger: Oct 2026 */}
         <button
           type="button"
           onClick={() => setIsDropdownOpen((prev) => !prev)}
-          className="h-full px-2.5 flex items-center gap-1.5 text-xs font-sans font-medium text-text-primary hover:bg-surface-hover transition-colors cursor-pointer select-none border-x border-border-subtle"
+          className="h-full px-2 flex items-center gap-1.5 text-xs font-sans font-medium text-text-primary hover:bg-surface-hover transition-colors cursor-pointer select-none"
           title="Select Financial Period"
         >
           <span className="font-sans font-medium">{MONTH_SHORT[currentMonth - 1]}</span>
@@ -176,13 +176,13 @@ export function MonthYearSwitcher() {
           />
         </button>
 
-        {/* Next Month Button: › */}
+        {/* Next Month Button */}
         <button
           type="button"
           onClick={handleNextMonth}
           title="Next Month"
           aria-label="Next Month"
-          className="h-full px-2 flex items-center justify-center text-text-tertiary hover:text-text-primary hover:bg-surface-hover transition-colors rounded-r-md cursor-pointer"
+          className="h-full px-1.5 flex items-center justify-center text-text-tertiary hover:text-text-primary hover:bg-surface-hover transition-colors rounded-r-md cursor-pointer"
         >
           <ChevronRight className="w-3.5 h-3.5" strokeWidth={1.8} />
         </button>
@@ -193,7 +193,7 @@ export function MonthYearSwitcher() {
         <div className="absolute right-0 mt-1.5 w-60 rounded-md border border-border bg-surface shadow-xl z-50 p-2 animate-in fade-in zoom-in-95 duration-100">
           {/* Year selector tabs */}
           <div className="flex items-center justify-between pb-2 mb-2 border-b border-border-subtle px-1">
-            <span className="text-[10px] font-sans font-semibold text-text-tertiary uppercase tracking-wider">
+            <span className="text-[10px] font-sans font-semibold text-text-tertiary">
               Year
             </span>
             <div className="flex items-center gap-1">

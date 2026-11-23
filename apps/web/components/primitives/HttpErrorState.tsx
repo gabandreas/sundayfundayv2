@@ -115,11 +115,11 @@ export function HttpErrorState({
             <span className="font-display text-5xl font-semibold tracking-tight tabular-nums text-text-primary">
               {statusCode}
             </span>
-            <span className={`font-mono text-[11px] uppercase tracking-wider ${entry.accentClass}`}>
+            <span className={`font-mono text-[11px] ${entry.accentClass}`}>
               HTTP_{entry.codeLabel}
             </span>
           </div>
-          <span className="font-mono text-[10px] text-text-tertiary uppercase tracking-wider">
+          <span className="font-mono text-[10px] text-text-tertiary">
             Sunday Funday ERP
           </span>
         </div>

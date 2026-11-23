@@ -19,6 +19,8 @@
     "erp:email:e2e": "npm run build --workspace=apps/api && npx tsx scripts/erp-email-e2e.ts",
     "erp:go:test": "cd apps/go-engine && go test -v ./...",
     "erp:go:build": "cd apps/go-engine && go build -o bin/go-engine.exe ./cmd/engine",
+    "erp:go:build:linux": "cd apps/go-engine && set GOOS=linux&& set GOARCH=amd64&& set CGO_ENABLED=0&& go build -ldflags=\"-s -w\" -o ../api/bin/go-engine-linux ./cmd/engine",
+    "erp:go:build:all": "npm run erp:go:build && npx tsx scripts/build-go-linux.ts",
     "lint": "eslint . --ext .ts,.tsx",
     "format": "prettier --write ."
   },

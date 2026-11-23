@@ -416,7 +416,7 @@ export function SubscriptionKillSwitchTab({
       {/* Executive Burn & Exposure Summary */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="rounded-lg border border-border bg-surface p-4 flex flex-col justify-between">
-          <div className="text-[11px] font-sans uppercase tracking-wider text-text-tertiary">
+          <div className="text-[11px] font-sans text-text-tertiary">
             Active Recurring Guards
           </div>
           <div className="text-2xl font-mono font-semibold tabular-nums text-text-primary mt-1.5">
@@ -433,7 +433,7 @@ export function SubscriptionKillSwitchTab({
         </div>
 
         <div className="rounded-lg border border-border bg-surface p-4 flex flex-col justify-between">
-          <div className="text-[11px] font-sans uppercase tracking-wider text-text-tertiary">
+          <div className="text-[11px] font-sans text-text-tertiary">
             Monthly Promo Cost
           </div>
           <div className="text-2xl font-mono font-semibold tabular-nums text-text-primary mt-1.5">
@@ -445,7 +445,7 @@ export function SubscriptionKillSwitchTab({
         </div>
 
         <div className="rounded-lg border border-border-strong bg-surface p-4 flex flex-col justify-between">
-          <div className="text-[11px] font-sans uppercase tracking-wider text-text-tertiary">
+          <div className="text-[11px] font-sans text-text-tertiary">
             Post-Promo Monthly Exposure
           </div>
           <div className="text-3xl font-display font-normal text-text-primary mt-1">
@@ -457,7 +457,7 @@ export function SubscriptionKillSwitchTab({
         </div>
 
         <div className="rounded-lg border border-border bg-surface p-4 flex flex-col justify-between">
-          <div className="text-[11px] font-sans uppercase tracking-wider text-text-tertiary">
+          <div className="text-[11px] font-sans text-text-tertiary">
             Annualized Liability Exposure
           </div>
           <div className="text-2xl font-mono font-semibold tabular-nums text-caution mt-1.5">
@@ -557,7 +557,7 @@ export function SubscriptionKillSwitchTab({
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-border-subtle bg-surface-subtle text-[11px] font-sans font-medium uppercase tracking-wider text-text-tertiary">
+                <tr className="border-b border-border-subtle bg-surface-subtle text-[11px] font-sans font-medium text-text-tertiary">
                   <th className="py-2.5 px-4">Service &amp; Plan</th>
                   <th className="py-2.5 px-3">Current Rate</th>
                   <th className="py-2.5 px-3">Post-Promo Rate</th>
@@ -755,7 +755,7 @@ export function SubscriptionKillSwitchTab({
       <section className="rounded-lg border border-border bg-surface p-5 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
+            <h3 className="text-xs font-semibold text-text-secondary">
               Formal Cancellation Notice Template (English Business Copy)
             </h3>
             <p className="text-[11px] text-text-tertiary mt-0.5">
@@ -784,7 +784,7 @@ export function SubscriptionKillSwitchTab({
         />
 
         <div className="rounded border border-border-subtle bg-canvas px-3.5 py-2.5 text-xs text-text-secondary">
-          <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary mb-1">
+          <div className="text-[10px] font-mono text-text-tertiary mb-1">
             Rendered Preview ({sampleItemForPreview?.label || "Sample Subscription"})
           </div>
           {renderFormalNoticeText(customTemplate, sampleItemForPreview)}

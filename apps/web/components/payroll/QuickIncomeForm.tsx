@@ -115,7 +115,7 @@ export function QuickIncomeForm({
       <form onSubmit={handleSubmit} className="space-y-3">
         {/* Preset chips */}
         <div>
-          <div className="text-[10px] font-mono text-text-tertiary uppercase tracking-wider mb-1.5">
+          <div className="text-[10px] font-mono text-text-tertiary mb-1.5">
             Quick Amount Presets
           </div>
           <div className="flex items-center gap-2">

@@ -24,7 +24,6 @@ import {
 } from "@/lib/api";
 import { MiniTrendChart } from "@/components/primitives/MiniTrendChart";
 import { formatRupiah, formatCurrencyInput } from "@/lib/utils";
-import { PrivacyEyeButton } from "@/components/shell/PrivacyEyeButton";
 import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { usePeriod } from "@/context/PeriodContext";
@@ -297,7 +296,7 @@ export function AdaptiveDailyPacingCard({
       : "default";
 
   const statusLabel = isPrePayday
-    ? `${t("overview.startsInDays")} ${daysUntilStart} ${t("overview.daysUnit")} · PAYDAY ${cyclePaydayFormatted.toUpperCase()}`
+    ? `${t("overview.startsInDays")} ${daysUntilStart} ${t("overview.daysUnit")} · Payday ${cyclePaydayFormatted}`
     : isCompletedCycle
     ? t("overview.cycleCompletedLabel")
     : pacing?.pacingStatus === "DEFICIT_RISK"
@@ -314,7 +313,7 @@ export function AdaptiveDailyPacingCard({
       <div>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
+            <span className="text-[11px] font-semibold text-text-tertiary font-sans">
               {isPrePayday
                 ? t("overview.upcomingLivingPool")
                 : isCompletedCycle
@@ -322,17 +321,17 @@ export function AdaptiveDailyPacingCard({
                 : t("overview.safeToSpend")}
             </span>
             <span
-              className={`whitespace-nowrap text-[10px] font-mono px-2 py-0.5 rounded font-semibold uppercase tracking-wider border ${
-                isPrePayday
-                  ? "bg-surface-subtle text-text-secondary border-border"
-                  : isCompletedCycle
-                  ? "bg-surface-subtle text-text-tertiary border-border-subtle"
-                  : statusVariant === "urgency"
-                  ? "bg-urgency/15 text-urgency border-urgency/30"
-                  : statusVariant === "caution"
-                  ? "bg-caution/15 text-caution border-caution/30"
-                  : "bg-positive/15 text-positive border-positive/30"
-              }`}
+              className={`whitespace-nowrap text-[10px] font-mono px-2 py-0.5 rounded font-semibold border ${
+ isPrePayday
+ ?"bg-surface-subtle text-text-secondary border-border"
+ : isCompletedCycle
+ ?"bg-surface-subtle text-text-tertiary border-border-subtle"
+ : statusVariant ==="urgency"
+ ?"bg-urgency/15 text-urgency border-urgency/30"
+ : statusVariant ==="caution"
+ ?"bg-caution/15 text-caution border-caution/30"
+ :"bg-positive/15 text-positive border-positive/30"
+ }`}
             >
               {statusLabel}
             </span>
@@ -387,7 +386,6 @@ export function AdaptiveDailyPacingCard({
                 ? formatIdr(remainingBudget)
                 : formatIdr(displaySafeToday)}
             </div>
-            <PrivacyEyeButton size="sm" />
           </div>
 
           <div className="mt-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 text-xs font-sans text-text-tertiary">
@@ -482,7 +480,7 @@ export function AdaptiveDailyPacingCard({
         {/* 3 Runway Metric Strip (Hairline-divided typographic hierarchy — zero nested box clutter) */}
         <div className="grid grid-cols-3 divide-x divide-border-subtle border-y border-border-subtle py-2.5 mt-3">
           <div className="pr-3">
-            <span className="text-[10px] text-text-tertiary uppercase font-sans block">
+            <span className="text-[10px] text-text-tertiary font-sans block">
               {t("overview.weekdayRate")}
             </span>
             <span className="font-mono text-xs font-semibold text-text-primary tabular-nums mt-0.5 block">
@@ -494,7 +492,7 @@ export function AdaptiveDailyPacingCard({
           </div>
 
           <div className="px-3">
-            <span className="text-[10px] text-text-tertiary uppercase font-sans block">
+            <span className="text-[10px] text-text-tertiary font-sans block">
               {t("overview.weekendRate")}
             </span>
             <span className="font-mono text-xs font-semibold text-text-primary tabular-nums mt-0.5 block">
@@ -506,7 +504,7 @@ export function AdaptiveDailyPacingCard({
           </div>
 
           <div className="pl-3">
-            <span className="text-[10px] text-text-tertiary uppercase font-sans block">
+            <span className="text-[10px] text-text-tertiary font-sans block">
               7-Day Runway
             </span>
             <span className="font-mono text-xs font-semibold text-accent tabular-nums mt-0.5 block">
@@ -549,7 +547,7 @@ export function AdaptiveDailyPacingCard({
       {/* Wallet & Spendable Cash Reconciliation */}
       <div className="pt-3.5 border-t border-border-subtle space-y-2.5">
         <div className="flex items-center justify-between">
-          <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
+          <span className="text-[11px] font-semibold text-text-tertiary font-sans">
             Wallet Reconciliation
           </span>
           <span className="text-[10px] text-text-tertiary font-sans">
@@ -560,19 +558,19 @@ export function AdaptiveDailyPacingCard({
         {/* Expected Bank Decomposition Strip */}
         <div className="grid grid-cols-3 gap-1.5 p-2 rounded bg-surface-subtle border border-border-subtle text-[10px]">
           <div>
-            <span className="text-text-tertiary block uppercase font-sans">Living Cash</span>
+            <span className="text-text-tertiary block font-sans">Living Cash</span>
             <span className="font-mono font-semibold text-text-primary tabular-nums mt-0.5 block">
               {formatIdr(remainingBudget)}
             </span>
           </div>
           <div>
-            <span className="text-text-tertiary block uppercase font-sans">+ Unpaid Bills</span>
+            <span className="text-text-tertiary block font-sans">+ Unpaid Bills</span>
             <span className="font-mono font-semibold text-delta-positive tabular-nums mt-0.5 block">
               {formatIdr(remainingRoutineBillsPool)}
             </span>
           </div>
           <div className="text-right">
-            <span className="text-text-tertiary block uppercase font-sans">= Expected Bank</span>
+            <span className="text-text-tertiary block font-sans">= Expected Bank</span>
             <span className="font-mono font-semibold text-text-primary tabular-nums mt-0.5 block">
               {formatIdr(expectedTotalBankBalance)}
             </span>

@@ -8,6 +8,7 @@ import {
   Param,
   Post,
   Put,
+  Query,
   Req,
   Res,
   UnauthorizedException,
@@ -68,6 +69,23 @@ export class MarqueeController {
     } finally {
       res.end();
     }
+  }
+
+  @Get('context')
+  async getContext(
+    @Query('month') monthStr?: string,
+    @Query('year') yearStr?: string,
+    @Query('locale') locale?: 'en' | 'id' | 'zh',
+    @Req() req?: any,
+  ) {
+    const userId = getUserIdOrThrow(req);
+    const month = monthStr ? parseInt(monthStr, 10) : undefined;
+    const year = yearStr ? parseInt(yearStr, 10) : undefined;
+    return this.marqueeService.getHydratedUiContext(userId, {
+      month: month && !Number.isNaN(month) ? month : undefined,
+      year: year && !Number.isNaN(year) ? year : undefined,
+      locale: locale === 'id' || locale === 'zh' ? locale : 'en',
+    });
   }
 
   @Get('config')

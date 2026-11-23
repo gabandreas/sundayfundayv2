@@ -356,3 +356,85 @@ dialog.marquee-drawer::backdrop {
     page-break-inside: avoid;
   }
 }
+
+/* Native Popover Account Menu (anchored with @supports guard) */
+.erp-account-menu-popover {
+  margin: 0;
+  inset: auto;
+  position: fixed;
+  color: inherit;
+  opacity: 0;
+  transform: translateY(-4px) scale(0.98);
+  transition: opacity 0.14s ease, transform 0.14s ease, overlay 0.14s ease, display 0.14s ease;
+  transition-behavior: allow-discrete;
+}
+
+.erp-account-menu-popover:popover-open,
+.erp-account-menu-popover.\:popover-open {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+@starting-style {
+  .erp-account-menu-popover:popover-open,
+  .erp-account-menu-popover.\:popover-open {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+
+@supports (position-area: block-end) {
+  .erp-account-menu-popover {
+    position-anchor: --account-menu-trigger;
+    position-area: block-end span-inline-start;
+    position-try-fallbacks: flip-block, flip-inline;
+    margin-top: 6px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .erp-account-menu-popover {
+    transition: none;
+    transform: none;
+  }
+}
+
+/* Unified Non-Modal Toast Viewport (Top Layer via popover="manual") */
+.erp-toast-viewport {
+  position: fixed;
+  inset: auto 1rem 1rem auto;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  width: min(360px, calc(100vw - 2rem));
+  max-width: min(360px, calc(100vw - 2rem));
+  z-index: 60;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.16s ease, transform 0.16s ease, overlay 0.16s ease, display 0.16s ease;
+  transition-behavior: allow-discrete;
+}
+
+.erp-toast-viewport:popover-open,
+.erp-toast-viewport.\:popover-open {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@starting-style {
+  .erp-toast-viewport:popover-open,
+  .erp-toast-viewport.\:popover-open {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .erp-toast-viewport {
+    transition: none;
+    transform: none;
+  }
+}

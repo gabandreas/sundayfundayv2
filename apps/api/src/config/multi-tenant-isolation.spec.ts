@@ -1,7 +1,11 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { buildDefaultStudioConfig } from './studio.defaults';
+import { ConfigSelectors } from './config.selectors';
+import { ConfigService } from './config.service';
 import { MarqueeContextHydrator } from '../marquee/marquee-context.service';
+import { formatRevisionCategoryLabel } from '../calculator/reports';
+import { calculateFixedEssentialsRealization } from '../calculator/waterfall';
 import {
   DEFAULT_STANDARD_ROUTINE_LABELS,
   SUNDAY_FUNDAY_STANDARD_MODULES,
@@ -145,5 +149,59 @@ describe('Multi-Tenant Isolation & Sunday Funday Standard Defaults (TDD)', () =>
     expect(ctx.payoffMilestones).toEqual([]);
     expect(ctx.systemPrompt).not.toMatch(/SPinjam|11\.11 Promo|Anthropic Claude|Mandiri KSM|Permata|SPayLater|Vape Supplies/i);
     expect(ctx.proactiveReminders.some((r) => /SPayLater|Permata/i.test(r.text))).toBe(false);
+  });
+
+  it('never leaks User #1 laptopAllowance, creditLimit, or Vape/Haircut/P1 Vault defaults into standard workspaces or shared calculators', async () => {
+    const createMock = jest.fn(async ({ data }: any) => ({
+      id: 99,
+      ...data,
+    }));
+    const prismaMock: any = {
+      globalConfig: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: createMock,
+        update: jest.fn(async ({ data }: any) => ({ userId: 4, ...data })),
+      },
+    };
+    const cfgSelectors = new ConfigSelectors(prismaMock);
+    const createdCfg = await cfgSelectors.getConfig(4);
+    expect(createdCfg.laptopAllowance).toBe(0);
+    expect(createdCfg.creditLimit).toBe(0);
+    expect(createdCfg.payrollPayoutDay).toBe(1);
+
+    const auditMock: any = { record: jest.fn().mockResolvedValue(undefined) };
+    const snapshotsSvcMock: any = { recalculateSnapshot: jest.fn().mockResolvedValue(undefined) };
+    const cfgService = new ConfigService(
+      prismaMock,
+      auditMock,
+      snapshotsSvcMock,
+    );
+    await cfgService.restoreDefaultRules(4);
+    const updateArg = prismaMock.globalConfig.update.mock.calls[0][0];
+    expect(JSON.stringify(updateArg.data.payrollRulesJson)).not.toContain('"fixedAmount":250000');
+
+    expect(formatRevisionCategoryLabel('VAPE')).not.toContain('Vape');
+    expect(formatRevisionCategoryLabel('HAIRCUT')).not.toContain('Haircut');
+    expect(formatRevisionCategoryLabel('SAVINGS')).not.toContain('(P1)');
+
+    const feReal = calculateFixedEssentialsRealization([]);
+    expect(feReal.items.map((i) => i.label).join(' ')).not.toMatch(/\bVape\b|\bHaircut\b/);
+
+    const snapshotsSelSrc = fs.readFileSync(path.join(API_SRC, 'snapshots', 'snapshots.selectors.ts'), 'utf8');
+    expect(snapshotsSelSrc).not.toContain("label: 'Subscriptions & Lifestyle', target: 300000");
+
+    const financeSelSrc = fs.readFileSync(path.join(API_SRC, 'finance', 'finance.selectors.ts'), 'utf8');
+    expect(financeSelSrc).not.toContain("code: 'ALL_DEBT_FREE_P1_FOCUS'");
+    expect(financeSelSrc).not.toContain('P1 Savings Focus');
+    expect(financeSelSrc).not.toContain('Fokus Tabungan P1');
+
+    const workbookSrc = fs.readFileSync(path.join(API_SRC, 'email', 'email.workbook.ts'), 'utf8');
+    expect(workbookSrc).not.toContain('Transport, Internet, Vape, Haircut');
+    expect(workbookSrc).not.toContain('SPinjam / P1 Vault Refund');
+    expect(workbookSrc).not.toContain('Core Savings (P1 Allocation)');
+
+    const llmSrc = fs.readFileSync(path.join(API_SRC, 'marquee', 'marquee-llm.service.ts'), 'utf8');
+    expect(llmSrc).not.toContain('new Function(');
   });
 });

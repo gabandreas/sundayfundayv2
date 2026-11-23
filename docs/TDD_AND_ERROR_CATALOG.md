@@ -35,7 +35,7 @@ Every item below was verified by inspecting the live codebase (`apps/go-engine`,
 
 ## 2. Four-Layer Regression Architecture
 
-1. **Layer 1 — Go Engine Unit & Property Fuzz (`npm run erp:go:test`):** Tests all 13 Go packages plus 620+ adversarial property vectors in [adversarial_fuzz_test.go](file:///d:/Projects/Project%20Hijack/mondaymondayv2/apps/go-engine/cmd/engine/adversarial_fuzz_test.go).
+1. **Layer 1 — Go Engine Unit & Property Fuzz (`npm run erp:go:test`):** Tests all 15 Go packages (`montecarlo`, `optimizer`, and concurrent `intelligence-batch` included) plus 620+ adversarial property vectors in [adversarial_fuzz_test.go](file:///d:/Projects/Project%20Hijack/mondaymondayv2/apps/go-engine/cmd/engine/adversarial_fuzz_test.go).
 2. **Layer 2 — NestJS Jest Unit, Go-TS Parity & Role/AI Suites (`cd apps/api && npx jest --no-cache`):** Covers payroll, proportional waterfall, 3-state pacing, credit ceilings, role guards, AES-256-GCM crypto, Marquee Tier 1 NLU, and 8 deterministic tools.
 3. **Layer 3 — API Mutation Fuzzing & Golden Baseline (`scripts/erp-bug-bounty.ts`, `scripts/verify-zero-defect-erp.ts`):** Executes `0 Rp` accounting conservation fuzzing and cross-tenant IDOR checks strictly on Demo Sandbox (`userId = 2`), plus read-only User #1 cross-route parity (`10/2026..02/2027`) and native Go `doctor-audit`.
 4. **Layer 4 — Automated UX Flow & Security/Email E2E (`scripts/erp-ux-flow-e2e.ts`, `scripts/erp-pentest.ts`, `scripts/erp-email-e2e.ts`):** Verifies DOM state, 3 languages (`EN`/`ID`/`ZH`), role navigation isolation, `Alt+M` co-pilot, zero console errors, and zero HTTP `>= 400` responses against both local and live production URLs.

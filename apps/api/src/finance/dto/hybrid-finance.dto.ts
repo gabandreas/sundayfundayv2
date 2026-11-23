@@ -260,3 +260,57 @@ export class SimulateScenarioDto {
   @Max(100)
   variableShockPercent?: number;
 }
+
+export class StressTestScenarioDto {
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(12)
+  month?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(2020)
+  @Max(2100)
+  year?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(40)
+  incomeVolatilityPct?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(50)
+  expenseShockProbPct?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(50)
+  expenseShockMagnitudePct?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(25)
+  unexpectedEmergencyProbPct?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  unexpectedEmergencyCostRp?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(200)
+  @Max(10000)
+  trials?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  monthlySurplusOverrideRp?: number;
+}

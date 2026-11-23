@@ -163,7 +163,7 @@ export function QuickExpenseForm({
       <div>
         <div className="flex items-center justify-between gap-2 mb-3">
           <div className="flex items-center gap-1.5">
-            <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
+            <span className="text-[11px] font-semibold text-text-tertiary font-sans">
               Log Operational Activity
             </span>
             <kbd
@@ -223,7 +223,7 @@ export function QuickExpenseForm({
           {expenseMode === "FIXED_ESSENTIAL" && (
             <div className="p-2 rounded bg-surface-subtle border border-border-subtle space-y-1.5">
               <div className="flex items-center justify-between">
-                <label className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+                <label className="text-[10px] font-mono text-text-tertiary">
                   Fixed Essential Pool
                 </label>
                 <span className="text-[10px] font-sans text-text-tertiary">

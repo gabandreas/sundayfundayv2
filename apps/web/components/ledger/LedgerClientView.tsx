@@ -319,7 +319,7 @@ export function LedgerClientView({
               <Wallet className="w-4 h-4" />
             </div>
             <div>
-              <span className="text-[10px] text-text-tertiary uppercase block">
+              <span className="text-[10px] text-text-tertiary block">
                 Starting Daily Operational Pool
               </span>
               <span className="text-sm font-bold text-text-primary mt-0.5 block">
@@ -333,7 +333,7 @@ export function LedgerClientView({
               <TrendingDown className="w-4 h-4" />
             </div>
             <div>
-              <span className="text-[10px] text-text-tertiary uppercase block">
+              <span className="text-[10px] text-text-tertiary block">
                 Cumulative Burned Spend
               </span>
               <span className="text-sm font-bold text-caution mt-0.5 block">
@@ -344,7 +344,7 @@ export function LedgerClientView({
 
           <div className="flex items-center gap-3">
             <div>
-              <span className="text-[10px] text-text-tertiary uppercase block">
+              <span className="text-[10px] text-text-tertiary block">
                 Current Remaining Cash
               </span>
               <span className="text-sm font-bold text-delta-positive mt-0.5 block">
@@ -552,7 +552,7 @@ export function LedgerClientView({
 
               {/* Description / Label */}
               <div className="space-y-1">
-                <label className="text-[11px] font-mono text-text-tertiary uppercase tracking-wider block">
+                <label className="text-[11px] font-mono text-text-tertiary block">
                   Description / Label
                 </label>
                 <input
@@ -566,7 +566,7 @@ export function LedgerClientView({
 
               {/* Amount */}
               <div className="space-y-1">
-                <label className="text-[11px] font-mono text-text-tertiary uppercase tracking-wider block">
+                <label className="text-[11px] font-mono text-text-tertiary block">
                   Amount
                 </label>
                 <div className="relative">
@@ -589,7 +589,7 @@ export function LedgerClientView({
 
               {/* Date */}
               <div className="space-y-1">
-                <label className="text-[11px] font-mono text-text-tertiary uppercase tracking-wider block">
+                <label className="text-[11px] font-mono text-text-tertiary block">
                   Transaction Date
                 </label>
                 <input
@@ -603,7 +603,7 @@ export function LedgerClientView({
               {editingTransaction.type === "DEDUCTION" && editingTransaction.sourceType === "MANUAL" && (
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="text-[11px] font-mono text-text-tertiary uppercase tracking-wider block">
+                    <label className="text-[11px] font-mono text-text-tertiary block">
                       Bucket Assignment
                     </label>
                     <select
@@ -623,7 +623,7 @@ export function LedgerClientView({
                     </select>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[11px] font-mono text-text-tertiary uppercase tracking-wider block">
+                    <label className="text-[11px] font-mono text-text-tertiary block">
                       Funding Source
                     </label>
                     <select

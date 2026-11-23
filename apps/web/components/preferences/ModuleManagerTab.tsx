@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { usePerspective } from "@/context/PerspectiveContext";
+import { useToast } from "@/context/ToastContext";
 import {
   GlobalConfig,
   MODULE_REGISTRY_CATALOG,
@@ -27,7 +28,17 @@ export function ModuleManagerTab({ config }: ModuleManagerTabProps) {
     setIsOnboardingOpen,
   } = usePerspective();
 
+  const { toast } = useToast();
   const [savingMessage, setSavingMessage] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!savingMessage) return;
+    toast({
+      title: "Modules & layout updated",
+      description: savingMessage,
+      variant: "success",
+    });
+  }, [savingMessage, toast]);
 
   const handleToggleModule = async (key: ModuleKey, isCore: boolean) => {
     if (isCore) return;

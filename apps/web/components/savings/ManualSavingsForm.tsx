@@ -195,8 +195,8 @@ export function ManualSavingsForm({
           {/* Type & Instrument Toggles */}
           <div className="grid grid-cols-12 gap-3">
             <div className="col-span-6">
-              <label className="block text-[11px] font-mono uppercase tracking-wider text-text-tertiary mb-1.5">
-                TRANSACTION TYPE
+              <label className="block text-[11px] font-mono text-text-tertiary mb-1.5">
+                Transaction Type
               </label>
               <div className="grid grid-cols-2 gap-2">
                 <button
@@ -225,8 +225,8 @@ export function ManualSavingsForm({
             </div>
 
             <div className="col-span-6">
-              <label className="block text-[11px] font-mono uppercase tracking-wider text-text-tertiary mb-1.5">
-                SAVINGS ACCOUNT INSTRUMENT
+              <label className="block text-[11px] font-mono text-text-tertiary mb-1.5">
+                Savings Account Instrument
               </label>
               <div className="grid grid-cols-2 gap-2">
                 <button
@@ -258,8 +258,8 @@ export function ManualSavingsForm({
           {/* Amount & Date Grid */}
           <div className="grid grid-cols-12 gap-3">
             <div className="col-span-8">
-              <label className="block text-[11px] font-mono uppercase tracking-wider text-text-tertiary mb-1.5">
-                AMOUNT (IDR)
+              <label className="block text-[11px] font-mono text-text-tertiary mb-1.5">
+                Amount (IDR)
               </label>
               <div className="relative">
                 <input
@@ -282,7 +282,7 @@ export function ManualSavingsForm({
             </div>
 
             <div className="col-span-4">
-              <label className="block text-[11px] font-mono uppercase tracking-wider text-text-tertiary mb-1.5">
+              <label className="block text-[11px] font-mono text-text-tertiary mb-1.5">
                 DATE
               </label>
               <input
@@ -310,8 +310,8 @@ export function ManualSavingsForm({
 
           {/* Remark / Label */}
           <div>
-            <label className="block text-[11px] font-mono uppercase tracking-wider text-text-tertiary mb-1.5">
-              REMARK / DESCRIPTION
+            <label className="block text-[11px] font-mono text-text-tertiary mb-1.5">
+              Remark / Description
             </label>
             <input
               type="text"

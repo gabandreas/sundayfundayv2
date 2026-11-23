@@ -6,7 +6,6 @@ import { usePerspective } from "@/context/PerspectiveContext";
 import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 import { MonthlySnapshot, DailyPacing, SavingsVault } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
-import { PrivacyEyeButton } from "@/components/shell/PrivacyEyeButton";
 import { RecordExpenseCard } from "@/components/overview/RecordExpenseCard";
 
 interface OverviewDensityWrapperProps {
@@ -82,14 +81,13 @@ export function OverviewDensityWrapper({
         {/* Card 1: Monthly Income & Pension */}
         <div className="bg-surface border border-border rounded-md p-6 flex flex-col justify-between">
           <div>
-            <div className="text-sm font-semibold uppercase tracking-wider text-text-secondary">
+            <div className="text-sm font-semibold text-text-secondary">
               Monthly Income & Pension
             </div>
             <div className="flex items-center gap-2 mt-3">
               <div className="font-display text-4xl font-bold text-text-primary tabular-nums">
                 {formatRupiah(totalIncome, isAmountsMasked)}
               </div>
-              <PrivacyEyeButton size="lg" />
             </div>
           </div>
           <div className="mt-4 pt-4 border-t border-border-subtle flex items-center justify-between text-base text-text-secondary">
@@ -106,14 +104,13 @@ export function OverviewDensityWrapper({
         {/* Card 2: Safe Daily Spending */}
         <div className="bg-surface border border-border-strong rounded-md p-6 flex flex-col justify-between">
           <div>
-            <div className="text-sm font-semibold uppercase tracking-wider text-delta-positive">
+            <div className="text-sm font-semibold text-delta-positive">
               Safe Daily Spending Today
             </div>
             <div className="flex items-center gap-2 mt-3">
               <div className="font-display text-4xl font-bold text-delta-positive tabular-nums">
                 {formatRupiah(safeDaily, isAmountsMasked)}
               </div>
-              <PrivacyEyeButton size="lg" />
             </div>
           </div>
           <div className="mt-4 pt-4 border-t border-border-subtle flex items-center justify-between text-base text-text-secondary">
@@ -129,14 +126,13 @@ export function OverviewDensityWrapper({
         {/* Card 3: Routine Monthly Bills */}
         <div className="bg-surface border border-border rounded-md p-6 flex flex-col justify-between">
           <div>
-            <div className="text-sm font-semibold uppercase tracking-wider text-text-secondary">
+            <div className="text-sm font-semibold text-text-secondary">
               Routine Monthly Bills & Healthcare
             </div>
             <div className="flex items-center gap-2 mt-3">
               <div className="font-display text-4xl font-bold text-text-primary tabular-nums">
                 {formatRupiah(routineAndBillsTotal, isAmountsMasked)}
               </div>
-              <PrivacyEyeButton size="lg" />
             </div>
           </div>
           <div className="mt-4 pt-4 border-t border-border-subtle flex items-center justify-between text-base text-text-secondary">
@@ -155,14 +151,13 @@ export function OverviewDensityWrapper({
         {/* Card 4: Savings Balance */}
         <div className="bg-surface border border-border rounded-md p-6 flex flex-col justify-between">
           <div>
-            <div className="text-sm font-semibold uppercase tracking-wider text-text-secondary">
+            <div className="text-sm font-semibold text-text-secondary">
               Savings Balance & Reserve
             </div>
             <div className="flex items-center gap-2 mt-3">
               <div className="font-display text-4xl font-bold text-text-primary tabular-nums">
                 {formatRupiah(totalSavingsBalance, isAmountsMasked)}
               </div>
-              <PrivacyEyeButton size="lg" />
             </div>
           </div>
           <div className="mt-4 pt-4 border-t border-border-subtle flex items-center justify-between text-base text-text-secondary">

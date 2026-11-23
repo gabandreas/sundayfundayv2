@@ -5,7 +5,6 @@ import { formatRupiah } from "@/lib/utils";
 import { PayrollResult } from "@/lib/api";
 import { usePerspective } from "@/context/PerspectiveContext";
 import { usePrivacyMask } from "@/context/PrivacyMaskContext";
-import { PrivacyEyeButton } from "@/components/shell/PrivacyEyeButton";
 import { ChevronDown } from "lucide-react";
 
 interface PayrollStatementTableProps {
@@ -86,7 +85,6 @@ export function PayrollStatementTable({ payroll }: PayrollStatementTableProps) {
             <h2 className="text-sm font-semibold font-sans text-text-primary tracking-tight">
               Itemized Payroll Statement
             </h2>
-            <PrivacyEyeButton size="xs" />
           </div>
           <p className="text-xs font-sans text-text-tertiary mt-0.5">
             Breakdown of gross base, statutory deductions, allowances, and net distribution.
@@ -96,7 +94,7 @@ export function PayrollStatementTable({ payroll }: PayrollStatementTableProps) {
 
       <div className="space-y-1">
         {/* SECTION: Gross Base Salary */}
-        <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary pt-1 pb-1">
+        <div className="text-[10px] font-mono text-text-tertiary pt-1 pb-1">
           Base Salary & Adjustments
         </div>
         <StatementLineItem
@@ -170,7 +168,7 @@ export function PayrollStatementTable({ payroll }: PayrollStatementTableProps) {
           </div>
         ) : (
           <>
-            <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary pt-3 pb-1">
+            <div className="text-[10px] font-mono text-text-tertiary pt-3 pb-1">
               Statutory Deductions & Allowances
             </div>
             <StatementLineItem
@@ -216,7 +214,7 @@ export function PayrollStatementTable({ payroll }: PayrollStatementTableProps) {
         {/* SECTION: Supplemental & Windfall Income */}
         {(payroll.bonusAmount > 0 || payroll.thrAmount > 0 || payroll.extraIncome > 0) && (
           <>
-            <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary pt-3 pb-1">
+            <div className="text-[10px] font-mono text-text-tertiary pt-3 pb-1">
               Supplemental & Windfall Income
             </div>
             {payroll.bonusAmount > 0 && (

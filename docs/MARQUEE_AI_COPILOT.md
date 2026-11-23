@@ -24,7 +24,8 @@ Large language models must **never** invent Rupiah balances, Debt Service Ratios
 
 ### Tier 4 — Authenticated Business MCP Server (`POST /api/marquee/mcp` + `scripts/sundayfunday-mcp.ts`)
 - Streamable HTTP JSON-RPC 2.0 endpoint authenticated strictly via `X-Marquee-Token` or verified JWT (`initialize`, `tools/list`, `tools/call`) plus optional local stdio bridge (`npx tsx scripts/sundayfunday-mcp.ts`).
-- Exposes only the **15 curated ERP business functions** (`confirm` defaults to safe preview `false` on mutating calls); unknown/unpermitted tools like `execute_sql` or `run_shell` return `isError: true` with domain restriction guidance.
+- Exposes **16 curated ERP business functions** (`confirm` defaults to safe preview `false` on mutating calls), including `run_stress_test` (`Go` Monte Carlo + Allocation Frontier), plus `greeting_or_help` casual greeting/help resolution and `history` multi-turn context (`GET /api/marquee/context` tenant-isolated hydration); unknown/unpermitted tools return `isError: true`.
+- Strict anti-leak secrecy: Marquee strips `<think>` blocks, emojis, provider/model identifiers (`DeepSeek`, `Gemini`, `Llama`, model version strings), and internal `Tier 1`/`Tier 2` or raw snake_case enum tags across chat, SSE streaming frames, and settings UI.
 
 ---
 

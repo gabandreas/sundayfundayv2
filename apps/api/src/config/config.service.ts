@@ -334,18 +334,24 @@ export class ConfigService {
   /**
    * Simulates modular formula evaluation for a hypothetical paycheck, debts, and cycle days.
    */
-  async simulateModularRules(dto: SimulateRulesDto) {
-    const config = await this.prisma.globalConfig.findFirst();
+  async simulateModularRules(dto: SimulateRulesDto, userId: number = 1) {
+    const config =
+      (await this.prisma.globalConfig.findUnique({ where: { userId } })) ||
+      (await this.prisma.globalConfig.findFirst({ where: { userId } }));
+    const isBespokeOwner = userId === 1;
     const baseSalary =
       dto.baseSalary ??
       dto.income ??
       config?.baseSalary ??
-      6000000;
+      0;
 
     const payrollRules =
       dto.payrollRules ??
       config?.payrollRulesJson ??
-      buildDefaultPayrollRules(config?.dailyAllowance ?? 20000, config?.laptopAllowance ?? 250000);
+      buildDefaultPayrollRules(
+        config?.dailyAllowance ?? (isBespokeOwner ? 20000 : 0),
+        config?.laptopAllowance ?? (isBespokeOwner ? 250000 : 0),
+      );
 
     const allocationBuckets =
       dto.allocationBuckets ??
@@ -401,8 +407,9 @@ export class ConfigService {
     const config =
       (await this.prisma.globalConfig.findUnique({ where: { userId } })) ||
       (await this.prisma.globalConfig.findFirst({ where: { userId } }));
-    const dailyAllowance = config?.dailyAllowance ?? 20000;
-    const laptopAllowance = config?.laptopAllowance ?? 250000;
+    const isBespokeOwner = userId === 1;
+    const dailyAllowance = config?.dailyAllowance ?? (isBespokeOwner ? 20000 : 0);
+    const laptopAllowance = config?.laptopAllowance ?? (isBespokeOwner ? 250000 : 0);
 
     const payrollRulesJson = buildDefaultPayrollRules(dailyAllowance, laptopAllowance);
     const allocationBucketsJson = buildDefaultAllocationBuckets({

@@ -153,7 +153,7 @@ export function CreditContractsTable({
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="border-b border-border bg-surface-subtle/70 text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+            <tr className="border-b border-border bg-surface-subtle/70 text-[10px] font-mono text-text-tertiary">
               <th className="py-2.5 px-4">CONTRACT / PLAN</th>
               <th className="py-2.5 px-3 w-36 text-right">PRINCIPAL</th>
               <th className="py-2.5 px-3 w-36 text-right">INSTALLMENT</th>

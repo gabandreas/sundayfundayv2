@@ -18,6 +18,7 @@ import {
   SurplusResolutionMode,
 } from "@/lib/api";
 import { formatIDR } from "@/lib/utils";
+import { useToast } from "@/context/ToastContext";
 
 interface CashReconciliationModalProps {
   month: number;
@@ -44,6 +45,7 @@ export function CashReconciliationModal({
   isLocked,
   systemRemainingBudget = 0,
 }: CashReconciliationModalProps) {
+  const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [useMultiAccountCounter, setUseMultiAccountCounter] = useState(false);
   const [accounts, setAccounts] = useState<CashAccountRow[]>(DEFAULT_ACCOUNTS);
@@ -180,14 +182,23 @@ export function CashReconciliationModal({
       });
 
       if (!res.success) {
-        setErrorMessage(res.error || "Failed to execute cash reconciliation");
+        const msg = res.error || "Failed to execute cash reconciliation";
+        setErrorMessage(msg);
+        toast({ title: "Reconciliation failed", description: msg, variant: "error" });
         return;
       }
 
+      toast({
+        title: "Wallet balance synced",
+        description: `Actual wallet reconciled at ${formatIDR(parsedBalance)}.`,
+        variant: "success",
+      });
       setIsOpen(false);
       setNote("");
     } catch (err: any) {
-      setErrorMessage(err.message || "Unexpected error");
+      const msg = err.message || "Unexpected error";
+      setErrorMessage(msg);
+      toast({ title: "Reconciliation failed", description: msg, variant: "error" });
     } finally {
       submitLockRef.current = false;
       setIsSubmitting(false);
@@ -251,7 +262,7 @@ export function CashReconciliationModal({
               {preview && (
                 <div className="grid grid-cols-4 gap-3 p-3.5 rounded bg-surface-subtle border border-border-subtle">
                   <div>
-                    <div className="text-[10px] uppercase tracking-wider text-text-tertiary">
+                    <div className="text-[10px] text-text-tertiary">
                       System Remaining
                     </div>
                     <div className="font-mono text-sm font-semibold text-text-primary mt-0.5">
@@ -259,7 +270,7 @@ export function CashReconciliationModal({
                     </div>
                   </div>
                   <div>
-                    <div className="text-[10px] uppercase tracking-wider text-text-tertiary">
+                    <div className="text-[10px] text-text-tertiary">
                       Funded Op. Pocket
                     </div>
                     <div className="font-mono text-sm font-medium text-text-secondary mt-0.5">
@@ -267,7 +278,7 @@ export function CashReconciliationModal({
                     </div>
                   </div>
                   <div>
-                    <div className="text-[10px] uppercase tracking-wider text-text-tertiary">
+                    <div className="text-[10px] text-text-tertiary">
                       Manual Spend
                     </div>
                     <div className="font-mono text-sm font-medium text-text-secondary mt-0.5">
@@ -275,7 +286,7 @@ export function CashReconciliationModal({
                     </div>
                   </div>
                   <div>
-                    <div className="text-[10px] uppercase tracking-wider text-text-tertiary">
+                    <div className="text-[10px] text-text-tertiary">
                       Safe Today ({preview.daysRemaining}d left)
                     </div>
                     <div className="font-mono text-sm font-semibold text-positive mt-0.5">
@@ -288,7 +299,7 @@ export function CashReconciliationModal({
               {/* Actual Cash Input + Multi-Account Cash Counter Toggle */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <label className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary">
+                  <label className="text-[11px] font-semibold text-text-secondary">
                     Actual Liquid Operational Cash on Hand (IDR)
                   </label>
                   <button
@@ -431,7 +442,7 @@ export function CashReconciliationModal({
               {/* Bi-Directional Surplus Resolution Selector (Enhancement 1 & Correction 3) */}
               {preview && preview.discrepancyDirection === "SURPLUS" && (
                 <div className="p-3.5 rounded bg-surface-subtle border border-border space-y-2.5">
-                  <div className="text-[11px] font-semibold uppercase tracking-wider text-positive">
+                  <div className="text-[11px] font-semibold text-positive">
                     Cash Surplus Detected (+{formatIDR(preview.adjustmentAmount)}) · Select Resolution Mode
                   </div>
                   <div className="grid grid-cols-3 gap-2.5">
@@ -502,7 +513,7 @@ export function CashReconciliationModal({
               {preview && (
                 <div className="rounded border border-border bg-surface-subtle/40 overflow-hidden">
                   <div className="px-4 py-2.5 border-b border-border bg-surface-subtle flex items-center justify-between">
-                    <span className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary">
+                    <span className="text-[11px] font-semibold text-text-secondary">
                       Simulated Waterfall & Pacing Impact Preview
                     </span>
                     <span

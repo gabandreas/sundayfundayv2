@@ -103,7 +103,7 @@ export function PerspectiveSwitcher() {
               onClick={() => setDropdownOpen(false)}
             />
             <div className="absolute right-0 top-9 z-50 w-64 rounded-lg border border-border bg-surface p-1.5 shadow-xl space-y-1">
-              <div className="px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider text-text-tertiary border-b border-border-subtle">
+              <div className="px-2.5 py-1 text-[10px] font-mono text-text-tertiary border-b border-border-subtle">
                 Application Perspective
               </div>
 

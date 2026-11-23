@@ -316,8 +316,8 @@ export function GlobalSearchModal() {
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="hidden md:flex h-8 w-8 xl:w-full xl:max-w-[240px] px-0 xl:px-2.5 rounded-md bg-surface hover:bg-surface-hover border border-border items-center justify-center xl:justify-between gap-2 text-xs font-sans text-text-secondary hover:text-text-primary transition-all active:scale-[0.98] cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
-        title="Cross-Period Global Ledger Search (Ctrl+K)"
+        className="hidden md:flex h-8 w-8 xl:w-full xl:max-w-[230px] px-0 xl:px-2.5 rounded-md bg-surface/60 hover:bg-surface border border-border-subtle hover:border-border items-center justify-center xl:justify-between gap-2 text-xs font-sans text-text-secondary hover:text-text-primary transition-colors cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
+        title="Global Ledger Search (Ctrl+K)"
       >
         <div className="flex items-center gap-2 min-w-0">
           <Search className="w-3.5 h-3.5 text-text-tertiary shrink-0" />
@@ -442,7 +442,7 @@ export function GlobalSearchModal() {
                 "manual",
               ].some((kw) => normalizedQuery.includes(kw))) && (
               <div className="px-4 py-2.5 border-b border-border-subtle bg-canvas/40 flex flex-wrap items-center gap-1.5">
-                <span className="text-[10px] font-mono uppercase text-text-tertiary mr-1">
+                <span className="text-[10px] font-mono text-text-tertiary mr-1">
                   Quick Jumps:
                 </span>
                 {[
@@ -481,10 +481,10 @@ export function GlobalSearchModal() {
                         <div className="text-xs font-mono font-semibold text-text-primary flex flex-wrap items-center gap-2">
                           <span>
                             {parsedSmart.kind === "WALLET_CHECKIN"
-                              ? `WALLET CHECK-IN · ${formatIDR(parsedSmart.actualWalletBalance)}`
+                              ? `Wallet Check-In · ${formatIDR(parsedSmart.actualWalletBalance)}`
                               : parsedSmart.kind === "SIMULATE_AFFORD"
-                                ? `AFFORDABILITY CHECK · "${parsedSmart.title}" (${formatIDR(parsedSmart.amount)} · ${parsedSmart.tenorMonths}x ${parsedSmart.instrument})`
-                                : `QUICK ENTRY · ${parsedSmart.instrument} "${parsedSmart.title}" (${formatIDR(parsedSmart.amount)} · ${parsedSmart.tenorMonths}x)`}
+                                ? `Affordability Check · "${parsedSmart.title}" (${formatIDR(parsedSmart.amount)} · ${parsedSmart.tenorMonths}x ${parsedSmart.instrument})`
+                                : `Quick Entry · ${parsedSmart.instrument} "${parsedSmart.title}" (${formatIDR(parsedSmart.amount)} · ${parsedSmart.tenorMonths}x)`}
                           </span>
                         </div>
                         {parsedSmart.kind !== "WALLET_CHECKIN" && smartCutoffPreview && (

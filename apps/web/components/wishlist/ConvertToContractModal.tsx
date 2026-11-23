@@ -108,7 +108,7 @@ export function ConvertToContractModal({
 
         {/* Contract Parameter Breakdown */}
         <div className="rounded border border-border-subtle bg-surface-subtle p-3.5 space-y-2 text-xs font-sans">
-          <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary mb-1">
+          <div className="text-[10px] font-mono text-text-tertiary mb-1">
             Contract Specification Preview
           </div>
           <div className="grid grid-cols-2 gap-2 text-xs">

@@ -503,13 +503,13 @@ export function formatRevisionCategoryLabel(
 ): string {
   const defaultLabels: Record<string, string> = {
     DAILY_OPERATIONAL: 'Daily Living & Food Budget',
-    SAVINGS: 'Core Savings (P1)',
-    SELF_REWARD: 'Self-Reward / Surplus (P2)',
+    SAVINGS: 'Core Savings Reserve',
+    SELF_REWARD: 'Flexible Surplus',
     BUFFER: 'Emergency Buffer Pocket',
     TRANSPORT: 'Routine Bill: Transport',
     INTERNET: 'Routine Bill: Internet',
-    VAPE: 'Routine Bill: Vape',
-    HAIRCUT: 'Routine Bill: Haircut',
+    VAPE: 'Routine Bill: Monthly Supplies',
+    HAIRCUT: 'Routine Bill: Personal Grooming',
   };
   const labels = { ...defaultLabels, ...customLabels };
   return labels[category] ?? category;

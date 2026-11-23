@@ -620,7 +620,7 @@ export function SubscriptionsStudio({
         {/* Card A: Monthly Recurring Total (Centerpiece Display Face) */}
         <section className="col-span-5 rounded-lg border border-border bg-surface p-5 flex flex-col justify-between">
           <div>
-            <div className="text-[11px] font-mono uppercase tracking-wider text-text-tertiary">
+            <div className="text-[11px] font-mono text-text-tertiary">
               {copy.monthlyRecurringLabel}
             </div>
             <div className="mt-2 font-display text-3xl font-semibold tracking-tight text-text-primary tabular-nums">
@@ -633,14 +633,14 @@ export function SubscriptionsStudio({
 
           <div className="mt-4 pt-3 border-t border-border-subtle grid grid-cols-2 gap-3 text-xs font-mono tabular-nums">
             <div>
-              <div className="text-[10px] uppercase text-text-tertiary">CC Subscriptions</div>
+              <div className="text-[10px] text-text-tertiary">CC Subscriptions</div>
               <div className="text-text-primary mt-0.5">
                 {formatRupiah(activeRecurringCcMonthly, isAmountsMasked)}
                 <span className="text-text-tertiary ml-1">({activeRecurringEntries.length})</span>
               </div>
             </div>
             <div>
-              <div className="text-[10px] uppercase text-text-tertiary">Routine Envelopes</div>
+              <div className="text-[10px] text-text-tertiary">Routine Envelopes</div>
               <div className="text-text-primary mt-0.5">
                 {formatRupiah(totalRoutineMonthly, isAmountsMasked)}
                 <span className="text-text-tertiary ml-1">({routineCategories.length})</span>
@@ -652,7 +652,7 @@ export function SubscriptionsStudio({
         {/* Card B: Annualized Run-Rate */}
         <section className="col-span-4 rounded-lg border border-border bg-surface p-5 flex flex-col justify-between">
           <div>
-            <div className="text-[11px] font-mono uppercase tracking-wider text-text-tertiary">
+            <div className="text-[11px] font-mono text-text-tertiary">
               {copy.annualizedLabel}
             </div>
             <div className="mt-2 font-display text-3xl font-semibold tracking-tight text-text-primary tabular-nums">
@@ -675,7 +675,7 @@ export function SubscriptionsStudio({
         {/* Card C: Billing Cutoff Countdowns & Kill-Switch Exposure */}
         <section className="col-span-3 rounded-lg border border-border bg-surface p-5 flex flex-col justify-between">
           <div>
-            <div className="text-[11px] font-mono uppercase tracking-wider text-text-tertiary">
+            <div className="text-[11px] font-mono text-text-tertiary">
               {copy.cutoffCardLabel}
             </div>
             <div className="mt-2.5 space-y-2 text-xs font-mono tabular-nums">
@@ -800,7 +800,7 @@ export function SubscriptionsStudio({
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="border-b border-border-subtle text-[11px] font-mono uppercase tracking-wider text-text-tertiary bg-surface-subtle">
+                  <tr className="border-b border-border-subtle text-[11px] font-mono text-text-tertiary bg-surface-subtle">
                     <th className="py-2.5 px-4 font-medium">{copy.colMerchant}</th>
                     <th className="py-2.5 px-3 font-medium">{copy.colMode}</th>
                     <th className="py-2.5 px-3 font-medium">{copy.colBilling}</th>
@@ -920,7 +920,7 @@ export function SubscriptionsStudio({
         <section className="col-span-4 rounded-lg border border-border bg-surface p-5 space-y-4">
           <div className="flex items-center justify-between border-b border-border-subtle pb-3">
             <div>
-              <h2 className="text-xs font-semibold uppercase tracking-wider font-mono text-text-secondary">
+              <h2 className="text-xs font-semibold font-mono text-text-secondary">
                 {copy.routineHeading}
               </h2>
               <p className="text-[11px] text-text-tertiary mt-0.5">
@@ -987,7 +987,7 @@ export function SubscriptionsStudio({
       >
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-border-subtle bg-surface-subtle">
           <div>
-            <div className="text-[11px] font-mono uppercase tracking-wider text-text-tertiary">
+            <div className="text-[11px] font-mono text-text-tertiary">
               Credit Card Billing Cutoff: {statementCutoffDay}th of Month
             </div>
             <h3 id="sub-quickadd-title" className="text-sm font-semibold text-text-primary mt-0.5">

@@ -8,11 +8,14 @@ import { MarqueeRobotAvatar } from "@/components/primitives/MarqueeRobotAvatar";
 import {
   MarqueeChatResponse,
   MarqueeStreamStatusEvent,
+  MarqueeUiContextResponse,
+  fetchMarqueeUiContext,
   sendMarqueeChat,
   sendMarqueeChatStream,
 } from "@/lib/api";
 import { usePeriod } from "@/context/PeriodContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { useToast } from "@/context/ToastContext";
 import { MarqueeResponseCards, MarqueeTypingBubble } from "./MarqueeResponseCards";
 
 interface MarqueeCoPilotDrawerProps {
@@ -27,13 +30,13 @@ interface ChatMessageItem {
   response?: MarqueeChatResponse;
 }
 
-const QUICK_PROMPTS = [
+const FALLBACK_PROMPTS = [
   "Safe to spend today?",
-  "Log kopi kenangan 34k",
-  "Cari histori beli kopi",
-  "Split my 3.8jt Natal THR bonus",
-  "Compare 11/2026 vs 12/2026 variance",
-  "Cek sisa cicilan aktif & payoff",
+  "Log coffee 45k cash",
+  "Run 12-month cashflow stress test",
+  "Review upcoming bills this month",
+  "Check my savings progress & goals",
+  "Search recent spending history",
 ];
 
 function isPointInsideRect(x: number, y: number, rect: DOMRect): boolean {
@@ -52,12 +55,26 @@ export function MarqueeCoPilotDrawer({ isOpen, onClose }: MarqueeCoPilotDrawerPr
 
   const { month, year, refreshPeriod } = usePeriod();
   const { locale } = useLanguage();
+  const { toast } = useToast();
 
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [liveStatus, setLiveStatus] = useState<MarqueeStreamStatusEvent | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [confirmedPulse, setConfirmedPulse] = useState(false);
+  const [contextData, setContextData] = useState<MarqueeUiContextResponse | null>(null);
   const [messages, setMessages] = useState<ChatMessageItem[]>([]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let active = true;
+    void fetchMarqueeUiContext(month, year, locale).then((ctx) => {
+      if (active && ctx) setContextData(ctx);
+    });
+    return () => {
+      active = false;
+    };
+  }, [isOpen, month, year, locale]);
 
   useEffect(() => {
     const dlg = dialogRef.current;
@@ -95,6 +112,9 @@ export function MarqueeCoPilotDrawer({ isOpen, onClose }: MarqueeCoPilotDrawerPr
     });
 
     try {
+      const historySnapshot = messages
+        .slice(-8)
+        .map((m) => ({ role: m.role, text: m.text }));
       const res = await sendMarqueeChatStream(
         {
           message: msg,
@@ -103,6 +123,7 @@ export function MarqueeCoPilotDrawer({ isOpen, onClose }: MarqueeCoPilotDrawerPr
           locale,
           activeRoute: pathname || "/",
           activeSubTab,
+          history: historySnapshot,
         },
         (statusEv) => {
           setLiveStatus(statusEv);
@@ -148,6 +169,13 @@ export function MarqueeCoPilotDrawer({ isOpen, onClose }: MarqueeCoPilotDrawerPr
           },
         ]);
         refreshPeriod();
+        setConfirmedPulse(true);
+        setTimeout(() => setConfirmedPulse(false), 2200);
+        toast({
+          title: "Ledger updated",
+          description: committed.summary,
+          variant: "success",
+        });
         if (typeof window !== "undefined") {
           window.dispatchEvent(new CustomEvent("erp:data-mutated"));
         }
@@ -174,11 +202,41 @@ export function MarqueeCoPilotDrawer({ isOpen, onClose }: MarqueeCoPilotDrawerPr
     );
   };
 
-  const robotState = confirmingId || liveStatus?.phase === "ANALYZING"
-    ? "analyzing"
-    : sending
-      ? "thinking"
-      : "idle";
+  const robotState = confirmedPulse
+    ? "confirmed"
+    : confirmingId || liveStatus?.phase === "ANALYZING"
+      ? "analyzing"
+      : sending
+        ? "thinking"
+        : "idle";
+
+  const quickPrompts = contextData?.suggestedPrompts?.length
+    ? contextData.suggestedPrompts
+    : FALLBACK_PROMPTS;
+  const activeReminders =
+    messages[messages.length - 1]?.response?.proactiveReminders ??
+    (contextData?.proactiveReminders?.length
+      ? contextData.proactiveReminders
+      : [
+          {
+            id: "digest-pace",
+            tone: "positive" as const,
+            text: `Check ${String(month).padStart(2, "0")}/${year} daily safe-to-spend & remaining living cash`,
+            prompt: "Safe to spend today?",
+          },
+          {
+            id: "digest-due",
+            tone: "default" as const,
+            text: "Review upcoming bills this cycle",
+            prompt: "Review upcoming bills this month",
+          },
+          {
+            id: "digest-stress",
+            tone: "caution" as const,
+            text: "Run 12-month cashflow stress test",
+            prompt: "Run 12-month cashflow stress test",
+          },
+        ]);
 
   const periodTag = `${String(month).padStart(2, "0")}/${year}`;
 
@@ -252,33 +310,12 @@ export function MarqueeCoPilotDrawer({ isOpen, onClose }: MarqueeCoPilotDrawerPr
       <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-surface">
         {/* Proactive Paycycle Digest Strip */}
         <div className="rounded border border-border-subtle bg-canvas/80 px-3 py-2 space-y-1.5">
-          <div className="flex items-center justify-between text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
-            <span>Paycycle Digest · {periodTag}</span>
+          <div className="flex items-center justify-between text-[11px] font-mono text-text-tertiary">
+            <span>Cycle Digest · {periodTag}</span>
             <span>Alt+M</span>
           </div>
           <div className="flex flex-wrap gap-1.5">
-            {(
-              messages[messages.length - 1]?.response?.proactiveReminders ?? [
-                {
-                  id: "digest-pace",
-                  tone: "positive" as const,
-                  text: `Check ${periodTag} daily safe-to-spend & remaining living cash`,
-                  prompt: "Safe to spend today?",
-                },
-                {
-                  id: "digest-due",
-                  tone: "default" as const,
-                  text: "Review upcoming due dates (8th, 11th, 17th, 23rd-25th)",
-                  prompt: "Upcoming bills due this cycle",
-                },
-                {
-                  id: "digest-variance",
-                  tone: "caution" as const,
-                  text: "Compare 11/2026 vs 12/2026 cycle variance",
-                  prompt: "Compare 11/2026 vs 12/2026 variance",
-                },
-              ]
-            ).map((rem) => (
+            {activeReminders.map((rem) => (
               <button
                 key={rem.id}
                 type="button"
@@ -304,16 +341,16 @@ export function MarqueeCoPilotDrawer({ isOpen, onClose }: MarqueeCoPilotDrawerPr
                 Live ledger assistant for {periodTag} (EN / ID / ZH)
               </div>
               <p className="text-[11px] text-text-tertiary leading-relaxed">
-                Check today&apos;s safe-to-spend, test dynamic SPayLater (H-15 closing) or Bank Permata CC (25th) cutoffs, move or settle bills, revise budgets, or stage expenses (&quot;log kopi 35k&quot;, &quot;pindahin Americano ke Des&quot;).
+                Check today&apos;s safe-to-spend, run a 12-month cashflow stress test, move or settle bills, revise budgets, or log daily expenses (&quot;log coffee 45k&quot;, &quot;safe to spend today?&quot;).
               </p>
             </div>
 
             <div className="space-y-1.5">
-              <div className="text-[10px] font-mono uppercase text-text-tertiary">
-                Suggested Commands
+              <div className="text-[11px] font-mono text-text-tertiary">
+                Suggested commands
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {QUICK_PROMPTS.map((q) => (
+                {quickPrompts.map((q) => (
                   <button
                     key={q}
                     type="button"

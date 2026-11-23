@@ -20,19 +20,19 @@ export function AuditLedgerView({ logs }: AuditLedgerViewProps) {
         <table className="w-full text-left border-collapse min-w-[700px]">
           <thead>
             <tr className="bg-surface-subtle border-b border-border-subtle">
-              <th className="py-2.5 px-4 text-xs font-semibold text-text-secondary uppercase tracking-wider w-36">
+              <th className="py-2.5 px-4 text-xs font-semibold text-text-secondary w-36">
                 Timestamp
               </th>
-              <th className="py-2.5 px-4 text-xs font-semibold text-text-secondary uppercase tracking-wider w-24">
+              <th className="py-2.5 px-4 text-xs font-semibold text-text-secondary w-24">
                 Period
               </th>
-              <th className="py-2.5 px-4 text-xs font-semibold text-text-secondary uppercase tracking-wider">
+              <th className="py-2.5 px-4 text-xs font-semibold text-text-secondary">
                 Category
               </th>
-              <th className="py-2.5 px-4 text-xs font-semibold text-text-secondary uppercase tracking-wider w-24">
+              <th className="py-2.5 px-4 text-xs font-semibold text-text-secondary w-24">
                 Action
               </th>
-              <th className="py-2.5 px-4 text-xs font-semibold text-text-secondary uppercase tracking-wider">
+              <th className="py-2.5 px-4 text-xs font-semibold text-text-secondary">
                 Summary
               </th>
             </tr>

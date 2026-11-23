@@ -189,8 +189,8 @@ export function DatabaseBackupRestoreCard() {
 
           <div className="grid grid-cols-12 gap-4 items-end">
             <div className="col-span-5">
-              <label className="block text-[10px] font-mono uppercase tracking-wider text-text-tertiary mb-1.5">
-                1. SELECT BACKUP ARCHIVE (.JSON)
+              <label className="block text-[10px] font-mono text-text-tertiary mb-1.5">
+                1. Select Backup Archive (.json)
               </label>
               <input
                 type="file"
@@ -201,7 +201,7 @@ export function DatabaseBackupRestoreCard() {
             </div>
 
             <div className="col-span-4">
-              <label className="block text-[10px] font-mono uppercase tracking-wider text-text-tertiary mb-1.5">
+              <label className="block text-[10px] font-mono text-text-tertiary mb-1.5">
                 2. TYPE &ldquo;RESTORE_ALL_DATA&rdquo; TO CONFIRM
               </label>
               <input

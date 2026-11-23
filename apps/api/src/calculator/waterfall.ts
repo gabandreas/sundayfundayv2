@@ -99,10 +99,10 @@ const FIXED_ESSENTIAL_DEFINITIONS: Array<{
   label: string;
   key: keyof FixedEssentialTargets;
 }> = [
-  { category: 'TRANSPORT', label: 'Transport', key: 'transport' },
+  { category: 'TRANSPORT', label: 'Transport & Mobility', key: 'transport' },
   { category: 'INTERNET', label: 'Internet & Connectivity', key: 'internet' },
-  { category: 'VAPE', label: 'Vape Supplies', key: 'vape' },
-  { category: 'HAIRCUT', label: 'Haircut & Grooming', key: 'haircut' },
+  { category: 'VAPE', label: 'Monthly Supplies', key: 'vape' },
+  { category: 'HAIRCUT', label: 'Personal Grooming', key: 'haircut' },
 ];
 
 export function calculateFixedEssentialsRealization(

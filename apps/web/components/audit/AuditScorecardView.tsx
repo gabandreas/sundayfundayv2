@@ -62,7 +62,7 @@ export function AuditScorecardView({ report }: AuditScorecardViewProps) {
                 Tracking obligation compression toward optimal 20% ceiling across active payroll cycles.
               </p>
             </div>
-            <span className="text-[10px] font-mono text-text-tertiary uppercase">
+            <span className="text-[10px] font-mono text-text-tertiary">
               Target Ceiling: 35% Safe · 20% Optimal
             </span>
           </div>

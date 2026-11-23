@@ -218,7 +218,7 @@ export function SavingsClientView({
           {/* Top Reserve & Reconciliation Strip */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="rounded-lg border border-border-default bg-surface p-3.5">
-              <span className="text-[10px] font-sans font-semibold uppercase tracking-wider text-text-tertiary block">
+              <span className="text-[10px] font-sans font-semibold text-text-tertiary block">
                 Emergency Fund Pool
               </span>
               <span className="font-mono text-lg font-semibold text-text-primary tabular-nums erp-tabular-currency mt-1 block">
@@ -230,7 +230,7 @@ export function SavingsClientView({
             </div>
 
             <div className="rounded-lg border border-border-default bg-surface p-3.5">
-              <span className="text-[10px] font-sans font-semibold uppercase tracking-wider text-text-tertiary block">
+              <span className="text-[10px] font-sans font-semibold text-text-tertiary block">
                 Active {savingsTierLabel} ({month}/{year})
               </span>
               <span className="font-mono text-lg font-semibold text-delta-positive tabular-nums erp-tabular-currency mt-1 block">
@@ -242,7 +242,7 @@ export function SavingsClientView({
             </div>
 
             <div className="rounded-lg border border-border-default bg-surface p-3.5">
-              <span className="text-[10px] font-sans font-semibold uppercase tracking-wider text-text-tertiary block">
+              <span className="text-[10px] font-sans font-semibold text-text-tertiary block">
                 Scheduled Savings Repayments
               </span>
               <span className="font-mono text-lg font-semibold text-caution tabular-nums erp-tabular-currency mt-1 block">
@@ -254,7 +254,7 @@ export function SavingsClientView({
             </div>
 
             <div className="rounded-lg border border-border-default bg-surface p-3.5">
-              <span className="text-[10px] font-sans font-semibold uppercase tracking-wider text-text-tertiary block">
+              <span className="text-[10px] font-sans font-semibold text-text-tertiary block">
                 Planned Savings Trajectory
               </span>
               <span className="font-mono text-lg font-semibold text-text-primary tabular-nums erp-tabular-currency mt-1 block">

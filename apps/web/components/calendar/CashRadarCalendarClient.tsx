@@ -484,7 +484,7 @@ export function CashRadarCalendarClient({
       {/* Summary Metrics Strip */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <div className="bg-surface border border-border rounded-lg p-4 space-y-1.5">
-          <div className="flex items-center justify-between text-[11px] font-medium text-text-tertiary uppercase tracking-wider">
+          <div className="flex items-center justify-between text-[11px] font-medium text-text-tertiary">
             <span>{t.paydayInflows}</span>
             <ArrowUpRight className="w-3.5 h-3.5 text-positive" />
           </div>
@@ -497,7 +497,7 @@ export function CashRadarCalendarClient({
         </div>
 
         <div className="bg-surface border border-border rounded-lg p-4 space-y-1.5">
-          <div className="flex items-center justify-between text-[11px] font-medium text-text-tertiary uppercase tracking-wider">
+          <div className="flex items-center justify-between text-[11px] font-medium text-text-tertiary">
             <span>{t.scheduledBills}</span>
             <ArrowDownRight className="w-3.5 h-3.5 text-negative" />
           </div>
@@ -516,7 +516,7 @@ export function CashRadarCalendarClient({
             radar?.lowestCashPoint?.isTightOrDeficit ? "erp-callout-urgency" : ""
           }`}
         >
-          <div className="flex items-center justify-between text-[11px] font-medium text-text-tertiary uppercase tracking-wider">
+          <div className="flex items-center justify-between text-[11px] font-medium text-text-tertiary">
             <span>{t.lowestTrough}</span>
             <TrendingDown
               className={`w-3.5 h-3.5 ${
@@ -539,7 +539,7 @@ export function CashRadarCalendarClient({
         </div>
 
         <div className="bg-surface border border-border rounded-lg p-4 space-y-1.5">
-          <div className="flex items-center justify-between text-[11px] font-medium text-text-tertiary uppercase tracking-wider">
+          <div className="flex items-center justify-between text-[11px] font-medium text-text-tertiary">
             <span>{t.cycleBuffer}</span>
             <Clock className="w-3.5 h-3.5 text-text-secondary" />
           </div>
@@ -644,7 +644,7 @@ export function CashRadarCalendarClient({
                 {t.weekdays.map((wd) => (
                   <div
                     key={wd}
-                    className="py-2 px-2.5 text-[10px] font-mono uppercase tracking-wider text-text-tertiary border-r last:border-r-0 border-border-subtle"
+                    className="py-2 px-2.5 text-[10px] font-mono text-text-tertiary border-r last:border-r-0 border-border-subtle"
                   >
                     {wd}
                   </div>
@@ -694,7 +694,7 @@ export function CashRadarCalendarClient({
                             >
                               {cell.dayNumber}
                               {(!cell.inCalendarMonth || cell.dayNumber === 1 || cell.dateIso === radar?.cycleStartIso) && (
-                                <span className="ml-1 text-[9px] uppercase opacity-80">{cell.monthLabel}</span>
+                                <span className="ml-1 text-[9px] opacity-80">{cell.monthLabel}</span>
                               )}
                             </span>
 
@@ -777,7 +777,7 @@ export function CashRadarCalendarClient({
         <aside className="lg:col-span-4 bg-surface border border-border rounded-lg p-4 space-y-4">
           <div className="flex items-center justify-between border-b border-border-subtle pb-3">
             <div>
-              <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+              <div className="text-[10px] font-mono text-text-tertiary">
                 {t.selectedDayInspector}
               </div>
               <div className="text-base font-semibold text-text-primary font-mono mt-0.5">
@@ -798,7 +798,7 @@ export function CashRadarCalendarClient({
           {selectedPoint && (
             <div className="grid grid-cols-2 gap-2.5">
               <div className="rounded bg-canvas border border-border-subtle p-2.5">
-                <div className="text-[10px] font-mono uppercase text-text-tertiary">
+                <div className="text-[10px] font-mono text-text-tertiary">
                   {t.openingCash}
                 </div>
                 <div className="text-xs font-mono text-text-secondary tabular-nums mt-0.5">
@@ -806,7 +806,7 @@ export function CashRadarCalendarClient({
                 </div>
               </div>
               <div className="rounded bg-canvas border border-border-subtle p-2.5">
-                <div className="text-[10px] font-mono uppercase text-text-tertiary">
+                <div className="text-[10px] font-mono text-text-tertiary">
                   {t.closingCash}
                 </div>
                 <div

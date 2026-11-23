@@ -59,8 +59,8 @@ export function SyncCurrentPeriodCard({
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
-              PERIOD BASELINE SYNCHRONIZATION
+            <span className="text-[11px] font-semibold text-text-tertiary font-sans">
+              Period Baseline Synchronization
             </span>
             <span
               className={`px-1.5 py-0.5 text-[10px] font-mono font-medium rounded border ${

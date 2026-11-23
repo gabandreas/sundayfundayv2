@@ -141,7 +141,7 @@ export function PayrollClientView({
           {showCorporatePayroll && <PayrollArchetypeSelector />}
 
           <section className="space-y-3">
-            <div className="text-[11px] font-sans font-medium text-text-tertiary uppercase tracking-wider">
+            <div className="text-[11px] font-sans font-medium text-text-tertiary">
               Cashflow Highlights
             </div>
             <PayrollCashflowHighlights

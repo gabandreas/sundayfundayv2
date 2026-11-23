@@ -84,7 +84,7 @@ export function AllocationsDonutChart({
 
         {/* Centerpiece Text Inside Donut */}
         <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none px-4">
-          <span className="text-[10px] font-sans font-medium text-text-tertiary uppercase tracking-wider">
+          <span className="text-[10px] font-sans font-medium text-text-tertiary">
             {hoveredSlice ? hoveredSlice.label : "Total Allocated"}
           </span>
           <span className="font-display text-lg font-normal text-text-primary tracking-tight mt-0.5">
@@ -100,7 +100,7 @@ export function AllocationsDonutChart({
 
       {/* Slices Legend Table alongside the Donut */}
       <div className="flex-1 w-full space-y-2.5">
-        <div className="flex items-center justify-between pb-2 border-b border-border-subtle text-[10px] font-mono text-text-tertiary uppercase tracking-wider">
+        <div className="flex items-center justify-between pb-2 border-b border-border-subtle text-[10px] font-mono text-text-tertiary">
           <span>Priority & Pocket</span>
           <div className="flex items-center gap-6">
             <span>Share</span>

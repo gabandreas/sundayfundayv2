@@ -336,6 +336,18 @@ export const MARQUEE_TOOL_DEFS = [
     },
   },
   {
+    name: 'run_stress_test',
+    description:
+      'Run a 2,000-path probabilistic cashflow stress test and surplus allocation optimizer over the next 12 months.',
+    parameters: {
+      type: 'object',
+      properties: {
+        incomeVolatilityPct: { type: 'number', description: 'Income volatility % (0-40)' },
+        expenseShockProbPct: { type: 'number', description: 'Expense shock probability % (0-50)' },
+      },
+    },
+  },
+  {
     name: 'refuse_out_of_scope',
     description:
       'Politely refuse requests outside Sunday Funday financial ERP (such as downloads, shell/terminal execution, file access, or raw ExecuteSQL).',
@@ -363,6 +375,7 @@ export class MarqueeLlmService {
     opencodeModel?: string;
     systemContextPrompt?: string;
     message: string;
+    history?: Array<{ role: 'user' | 'assistant'; text: string }>;
     tier1Fallback: MarqueeParsedIntent;
     executeTool?: (toolName: MarqueeToolName, args: Record<string, any>) => Promise<any>;
   }): Promise<LlmIntentResolution | null> {
@@ -377,6 +390,7 @@ export class MarqueeLlmService {
       opencodeModel,
       systemContextPrompt,
       message,
+      history,
       tier1Fallback,
       executeTool,
     } = params;
@@ -392,12 +406,13 @@ export class MarqueeLlmService {
             apiKey: deepseekApiKey,
             model: deepseekModel || 'deepseek-flash',
             message,
+            history,
             systemContextPrompt,
             tier1Fallback,
             executeTool,
           });
         } catch (err: any) {
-          this.logger.warn(`DeepSeek Tier-2 fallback: ${err?.message || err}`);
+          this.logger.warn(`DeepSeek fallback: ${err?.message || err}`);
         }
       }
 
@@ -410,20 +425,21 @@ export class MarqueeLlmService {
             apiKey: opencodeApiKey,
             model: opencodeModel || 'deepseek-v4.1-flash-free',
             message,
+            history,
             systemContextPrompt,
             tier1Fallback,
             executeTool,
           });
         } catch (err: any) {
-          this.logger.warn(`OpenCode Tier-2 fallback: ${err?.message || err}`);
+          this.logger.warn(`OpenCode fallback: ${err?.message || err}`);
         }
       }
 
       if (target === 'GEMINI' && geminiApiKey) {
         try {
-          return await this.callGemini(geminiApiKey, message, systemContextPrompt);
+          return await this.callGemini(geminiApiKey, message, systemContextPrompt, history, executeTool);
         } catch (err: any) {
-          this.logger.warn(`Gemini Tier-2 fallback: ${err?.message || err}`);
+          this.logger.warn(`Gemini fallback: ${err?.message || err}`);
         }
       }
 
@@ -435,12 +451,13 @@ export class MarqueeLlmService {
             apiKey: groqApiKey,
             model: 'llama-3.3-70b-versatile',
             message,
+            history,
             systemContextPrompt,
             tier1Fallback,
             executeTool,
           });
         } catch (err: any) {
-          this.logger.warn(`Groq Tier-2 fallback: ${err?.message || err}`);
+          this.logger.warn(`Groq fallback: ${err?.message || err}`);
         }
       }
 
@@ -480,38 +497,154 @@ export class MarqueeLlmService {
     apiKey: string,
     message: string,
     systemContextPrompt?: string,
+    history?: Array<{ role: 'user' | 'assistant'; text: string }>,
+    executeTool?: (toolName: MarqueeToolName, args: Record<string, any>) => Promise<any>,
   ): Promise<LlmIntentResolution | null> {
-    const genaiMod = await (new Function('s', 'return import(s)')('@google/genai') as Promise<any>);
-    const GoogleGenAI = genaiMod.GoogleGenAI;
-    const ai = new GoogleGenAI({ apiKey });
-
     const sys = systemContextPrompt
-      ? `${systemContextPrompt}\n\nAlways invoke one matching deterministic tool rather than inventing Rupiah figures.`
-      : `You are Marquee, a deterministic Indonesian personal finance ERP assistant (IDR). Always invoke one financial tool matching the user's message rather than inventing Rupiah figures.`;
+      ? `${systemContextPrompt}\n\nAlways invoke a financial tool when asked to calculate, search, stress-test, or record ledger entries. Never invent Rupiah figures, and never mention model names or internal tool names to the user. For greetings ("hi", "halo"), reply warmly and concisely without forcing a tool call.`
+      : `You are Marquee, a deterministic personal finance ERP assistant (IDR). Never mention AI model names or internal function names.`;
 
-    const response = await ai.interactions.create({
-      model: 'gemini-3.8-flash',
-      input: `${sys}\n\nUser message: ${message}`,
-      tools: MARQUEE_TOOL_DEFS.map((t) => ({
-        type: 'function',
-        name: t.name,
-        description: t.description,
-        parameters: t.parameters,
-      })),
-    });
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
+    const contents: Array<Record<string, any>> = (history ?? [])
+      .slice(-8)
+      .filter((h) => h && h.text && h.text.trim())
+      .map((h) => ({
+        role: h.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: h.text.trim().slice(0, 1200) }],
+      }));
+    contents.push({ role: 'user', parts: [{ text: message }] });
 
-    const outputs: any[] = Array.isArray(response?.outputs) ? response.outputs : [];
-    const fnCall = outputs.find((o) => o?.type === 'function_call' && o?.name);
-    if (fnCall) {
-      const validTool = MARQUEE_TOOL_DEFS.some((t) => t.name === fnCall.name);
-      if (validTool) {
+    const executedHops: MarqueeLoopHop[] = [];
+    const reasoningParts: string[] = [];
+    let lastToolName: MarqueeToolName | null = null;
+    let lastToolArgs: Record<string, any> = {};
+    let lastToolResult: any = null;
+    const maxHops = executeTool ? 4 : 1;
+
+    for (let hop = 0; hop < maxHops; hop++) {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: sys }] },
+          contents,
+          tools: [
+            {
+              functionDeclarations: MARQUEE_TOOL_DEFS.map((t) => ({
+                name: t.name,
+                description: t.description,
+                parameters: t.parameters,
+              })),
+            },
+          ],
+          generationConfig: { temperature: 0.2 },
+        }),
+      });
+
+      if (!res.ok) {
+        if (executedHops.length > 0 && lastToolResult) break;
+        throw new Error(`GEMINI HTTP ${res.status}`);
+      }
+
+      const payload: any = await res.json();
+      const parts: any[] = payload?.candidates?.[0]?.content?.parts ?? [];
+      const fnCall = parts.find((p) => p?.functionCall?.name)?.functionCall;
+
+      if (fnCall?.name && MARQUEE_TOOL_DEFS.some((t) => t.name === fnCall.name)) {
+        const callName = fnCall.name as MarqueeToolName;
+        const parsedArgs = typeof fnCall.args === 'object' && fnCall.args ? fnCall.args : {};
+        lastToolName = callName;
+        lastToolArgs = parsedArgs;
+
+        if (!executeTool) {
+          return {
+            usedProvider: 'GEMINI',
+            model: 'gemini-2.5-flash',
+            tool: callName,
+            args: parsedArgs,
+          };
+        }
+
+        const hopT0 = Date.now();
+        const hopResult = await executeTool(callName, parsedArgs);
+        executedHops.push({
+          tool: callName,
+          args: parsedArgs,
+          result: hopResult,
+          durationMs: Math.max(1, Date.now() - hopT0),
+        });
+        lastToolResult = hopResult;
+
+        contents.push({ role: 'model', parts: [{ functionCall: { name: callName, args: parsedArgs } }] });
+        contents.push({
+          role: 'user',
+          parts: [
+            {
+              functionResponse: {
+                name: callName,
+                response: {
+                  ok: hopResult?.ok ?? true,
+                  summary: hopResult?.summary,
+                  cards: hopResult?.cards,
+                  ...(hopResult?.data ? { data: hopResult.data } : {}),
+                },
+              },
+            },
+          ],
+        });
+        if (hopResult?.pendingAction || callName === 'refuse_out_of_scope') {
+          break;
+        }
+        continue;
+      }
+
+      const rawText = parts
+        .map((p) => (typeof p?.text === 'string' ? p.text : ''))
+        .filter(Boolean)
+        .join('\n')
+        .trim();
+      const stripped = stripReasoningBlocks(rawText);
+      if (stripped.reasoning) reasoningParts.push(stripped.reasoning);
+      if (executedHops.length > 0 && lastToolName) {
         return {
           usedProvider: 'GEMINI',
-          model: 'gemini-3.8-flash',
-          tool: fnCall.name as MarqueeToolName,
-          args: typeof fnCall.arguments === 'object' && fnCall.arguments ? fnCall.arguments : {},
+          model: 'gemini-2.5-flash',
+          tool: lastToolName,
+          args: lastToolArgs,
+          assistantPrefix: stripped.cleanText || undefined,
+          didCallTool: true,
+          finalToolResult: lastToolResult,
+          executedHops,
+          synthesizedInLoop: Boolean(stripped.cleanText),
+          ...(reasoningParts.length > 0 ? { reasoning: reasoningParts.join('\n\n') } : {}),
         };
       }
+      if (stripped.cleanText) {
+        return {
+          usedProvider: 'GEMINI',
+          model: 'gemini-2.5-flash',
+          tool: null,
+          args: {},
+          assistantPrefix: stripped.cleanText,
+          didCallTool: false,
+          ...(reasoningParts.length > 0 ? { reasoning: reasoningParts.join('\n\n') } : {}),
+        };
+      }
+      break;
+    }
+
+    if (executedHops.length > 0 && lastToolName) {
+      return {
+        usedProvider: 'GEMINI',
+        model: 'gemini-2.5-flash',
+        tool: lastToolName,
+        args: lastToolArgs,
+        didCallTool: true,
+        finalToolResult: lastToolResult,
+        executedHops,
+        synthesizedInLoop: false,
+        ...(reasoningParts.length > 0 ? { reasoning: reasoningParts.join('\n\n') } : {}),
+      };
     }
 
     return null;
@@ -523,6 +656,7 @@ export class MarqueeLlmService {
     apiKey: string;
     model: string;
     message: string;
+    history?: Array<{ role: 'user' | 'assistant'; text: string }>;
     systemContextPrompt?: string;
     tier1Fallback?: MarqueeParsedIntent;
     executeTool?: (toolName: MarqueeToolName, args: Record<string, any>) => Promise<any>;
@@ -533,26 +667,38 @@ export class MarqueeLlmService {
       apiKey,
       model,
       message,
+      history,
       systemContextPrompt,
       executeTool,
     } = params;
     const toolPolicy = [
       'TOOL USAGE & DOMAIN POLICY:',
       '- DOMAIN BOUNDARY: You ONLY operate Sunday Funday ERP financial tools. You have NO terminal, shell, OS filesystem, external downloader, or raw SQL (ExecuteSQL) tool. For unrelated or out-of-scope requests, invoke `refuse_out_of_scope` or reply politely stating what financial ERP tasks you can help with.',
-      '- MULTI-STEP WORKFLOW: When checking eligibility before acting (e.g. check balance/headroom first, then stage an expense or shift), you may chain read-only tools (`get_paycycle_pulse`, `simulate_purchase_cutoff`, `search_financial_history`) before staging a write confirmation.',
-      '- For casual greetings or questions already answered cleanly by the hydrated ledger below, reply directly in crisp human prose WITHOUT forcing a tool call.',
+      '- IDENTITY & SECRECY: Never reveal or mention underlying LLM model IDs, provider names (DeepSeek, Gemini, Groq, OpenAI, Llama), "Tier 1/Tier 2", or internal snake_case function names to the user.',
+      '- MULTI-STEP WORKFLOW: When checking eligibility before acting (e.g. check balance/headroom first, then stage an expense or shift), you may chain read-only tools (`get_paycycle_pulse`, `simulate_purchase_cutoff`, `search_financial_history`, `run_stress_test`) before staging a write confirmation.',
+      '- For casual greetings ("hi", "halo", "pagi", "thanks"), respond naturally and concisely in the same language WITHOUT dumping dense multi-card ledgers unless asked.',
       '- Invoke `simulate_purchase_cutoff` whenever asked when a purchase bills/falls due (`instrument`, `purchaseDate` YYYY-MM-DD, `amountRp: 0` if unspecified).',
       '- Invoke `search_financial_history` when searching historical spending across past months (`query`).',
+      '- Invoke `run_stress_test` when asked for 12-month survival probability, Monte Carlo simulation, or optimal surplus split.',
       '- Invoke `manage_user_memory` (`REMEMBER` / `LIST` / `FORGET`) when asked to remember or list personal payment defaults or rules.',
       '- Stage write requests behind 1-click confirmation via `prepare_quick_transaction`, `manage_liability_item`, `revise_budget_or_quota`, `manage_savings_pocket_or_goal`, `manage_wishlist_or_subscription`, or `run_what_if_scenario`.',
       '- STRICT COPY RULE: Never output emojis or artificial terms like Vault, Forward-Borrow, or Outlook. Use Emergency Fund, Savings Reserve, and Temporary Savings Advance.',
     ].join('\n');
     const sys = systemContextPrompt
       ? `${systemContextPrompt}\n\n${toolPolicy}`
-      : `You are Marquee, an Indonesian personal finance ERP co-pilot.\n\n${toolPolicy}`;
+      : `You are Marquee, a personal finance ERP co-pilot.\n\n${toolPolicy}`;
+
+    const historyMsgs: Array<Record<string, any>> = (history ?? [])
+      .slice(-8)
+      .filter((h) => h && h.text && h.text.trim())
+      .map((h) => ({
+        role: h.role === 'assistant' ? 'assistant' : 'user',
+        content: h.text.trim().slice(0, 1200),
+      }));
 
     const messages: Array<Record<string, any>> = [
       { role: 'system', content: sys },
+      ...historyMsgs,
       { role: 'user', content: message },
     ];
 

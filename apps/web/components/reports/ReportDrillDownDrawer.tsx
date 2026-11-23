@@ -63,7 +63,7 @@ export function ReportDrillDownDrawer({
       >
         <div className="px-5 py-4 border-b border-border bg-surface flex items-start justify-between gap-3">
           <div>
-            <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+            <div className="text-[10px] font-mono text-text-tertiary">
               Executive Period Drill-Down · {activeFilter}
             </div>
             <h3 className="text-base font-semibold font-sans text-text-primary mt-0.5">
@@ -114,25 +114,25 @@ export function ReportDrillDownDrawer({
           {/* Waterfall Summary KPIs */}
           <div className="grid grid-cols-2 gap-3 font-mono tabular-nums">
             <div className="p-3 rounded border border-border bg-surface">
-              <div className="text-[10px] uppercase text-text-tertiary">Money In</div>
+              <div className="text-[10px] text-text-tertiary">Money In</div>
               <div className="text-sm font-semibold text-text-primary mt-0.5">
                 {formatIDR(periodRow.finalTotalIncome)}
               </div>
             </div>
             <div className="p-3 rounded border border-border bg-surface">
-              <div className="text-[10px] uppercase text-text-tertiary">Debt Bills</div>
+              <div className="text-[10px] text-text-tertiary">Debt Bills</div>
               <div className="text-sm font-semibold text-text-primary mt-0.5">
                 {formatIDR(periodRow.creditBillsAmount)} ({periodRow.creditDebtRatioPercent}%)
               </div>
             </div>
             <div className="p-3 rounded border border-border bg-surface">
-              <div className="text-[10px] uppercase text-text-tertiary">Routine + Daily Ops</div>
+              <div className="text-[10px] text-text-tertiary">Routine + Daily Ops</div>
               <div className="text-sm font-semibold text-text-primary mt-0.5">
                 {formatIDR(periodRow.routineAndDailyLivingAmount)}
               </div>
             </div>
             <div className="p-3 rounded border border-border bg-surface">
-              <div className="text-[10px] uppercase text-text-tertiary">Core Savings / Flexible Surplus</div>
+              <div className="text-[10px] text-text-tertiary">Core Savings / Flexible Surplus</div>
               <div className="text-sm font-semibold text-positive mt-0.5">
                 {formatIDR(periodRow.actualSavings)} / {formatIDR(periodRow.selfReward)}
               </div>
@@ -143,7 +143,7 @@ export function ReportDrillDownDrawer({
           {(activeFilter === "ALL" || activeFilter === "DEBT") && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-mono uppercase tracking-wider text-text-tertiary">
+                <span className="text-[11px] font-mono text-text-tertiary">
                   Liabilities &amp; Card Schedule ({lineItems.length + ccItems.length} items)
                 </span>
                 <Link
@@ -217,7 +217,7 @@ export function ReportDrillDownDrawer({
             activeFilter === "LIVING") && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-mono uppercase tracking-wider text-text-tertiary">
+                <span className="text-[11px] font-mono text-text-tertiary">
                   {isSelectedPeriod
                     ? "Selected Period Inflows & Daily Ledger"
                     : `Period Ledger (${periodRow.periodLabel})`}

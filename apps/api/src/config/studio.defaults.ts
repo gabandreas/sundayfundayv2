@@ -339,9 +339,9 @@ export function buildDefaultStudioConfig(
         ? [
             'SPINJAM_ZERO',
             'PAYLATER_INSTALLMENTS_ZERO',
-            'ALL_DEBT_FREE_P1_FOCUS',
+            'SAVINGS_RESERVE_FOCUS',
           ]
-        : ['ALL_DEBT_FREE_P1_FOCUS'],
+        : ['SAVINGS_RESERVE_FOCUS'],
       formulas: buildDefaultFormulas(),
       sinkingFunds:
         isBespokeOwner || isSandbox

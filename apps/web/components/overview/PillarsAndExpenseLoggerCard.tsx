@@ -160,8 +160,8 @@ export function PillarsAndExpenseLoggerCard({
       {/* TOP HALF: WATERFALL PILLARS */}
       <div>
         <div className="flex items-center justify-between gap-2 mb-1.5">
-          <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
-            WATERFALL PILLARS
+          <span className="text-[11px] font-semibold text-text-tertiary font-sans">
+            Waterfall Pillars
           </span>
           <span className="text-[10px] font-sans text-text-tertiary">
             Savings &amp; Buffers
@@ -267,7 +267,7 @@ export function PillarsAndExpenseLoggerCard({
       <div>
         <div className="flex items-center justify-between gap-2 mb-2.5">
           <div className="flex items-center gap-1.5">
-            <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
+            <span className="text-[11px] font-semibold text-text-tertiary font-sans">
               Log Activity
             </span>
             {!isLocked && (

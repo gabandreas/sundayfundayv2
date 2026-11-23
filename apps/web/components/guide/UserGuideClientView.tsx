@@ -649,7 +649,7 @@ export function UserGuideClientView({ month, year }: { month: number; year: numb
       {/* Header & Language Switch + Search */}
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 border-b border-border pb-5">
         <div className="space-y-1">
-          <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-text-tertiary">
+          <div className="flex items-center gap-2 text-xs font-mono text-text-tertiary">
             <BookOpen className="w-3.5 h-3.5 text-accent" />
             <span>Sunday Funday · Standard Operating Procedures</span>
           </div>
@@ -668,11 +668,11 @@ export function UserGuideClientView({ month, year }: { month: number; year: numb
                 key={code}
                 type="button"
                 onClick={() => setLocale(code)}
-                className={`px-2.5 py-1 rounded-sm transition-colors cursor-pointer uppercase ${
-                  locale === code
-                    ? "bg-surface-active text-text-primary font-semibold"
-                    : "text-text-tertiary hover:text-text-secondary"
-                }`}
+                className={`px-2.5 py-1 rounded-sm transition-colors cursor-pointer ${
+ locale === code
+ ?"bg-surface-active text-text-primary font-semibold"
+ :"text-text-tertiary hover:text-text-secondary"
+ }`}
               >
                 {code}
               </button>
@@ -702,7 +702,7 @@ export function UserGuideClientView({ month, year }: { month: number; year: numb
           {/* Operating Sections */}
           {filteredSections.length > 0 && (
             <div className="space-y-4">
-              <div className="text-[11px] font-mono uppercase tracking-wider text-text-tertiary">
+              <div className="text-[11px] font-mono text-text-tertiary">
                 {content.sectionsLabel}
               </div>
 
@@ -715,7 +715,7 @@ export function UserGuideClientView({ month, year }: { month: number; year: numb
                     <div className="space-y-4">
                       <div className="flex items-start justify-between gap-3 pb-3 border-b border-border-subtle">
                         <div>
-                          <span className="text-[10px] font-mono text-accent uppercase tracking-widest">
+                          <span className="text-[10px] font-mono text-accent tracking-normal">
                             Section {section.code}
                           </span>
                           <h2 className="text-sm font-semibold font-sans text-text-primary mt-0.5">
@@ -763,7 +763,7 @@ export function UserGuideClientView({ month, year }: { month: number; year: numb
             <div className="space-y-4 pt-2">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-t border-border pt-5">
                 <div>
-                  <span className="text-[10px] font-mono text-accent uppercase tracking-widest">
+                  <span className="text-[10px] font-mono text-accent tracking-normal">
                     Section 05
                   </span>
                   <h2 className="text-sm font-semibold font-sans text-text-primary">
@@ -790,7 +790,7 @@ export function UserGuideClientView({ month, year }: { month: number; year: numb
                       <div className="space-y-3">
                         <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-border-subtle">
                           <div>
-                            <span className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary block">
+                            <span className="text-[10px] font-mono text-text-tertiary block">
                               {group.cadence} · {completedCount}/{totalCount}
                             </span>
                             <h3 className="text-xs font-semibold font-sans text-text-primary mt-0.5">

@@ -6862,6 +6862,49 @@ export interface MarqueeConfigResponse {
   groqModel: string;
 }
 
+export interface MarqueeUiContextResponse {
+  isBespokeWorkspace: boolean;
+  periodTag: string;
+  cycleTemporalState: "PRE_PAYDAY" | "ACTIVE" | "COMPLETED";
+  cycleDateLabel: string;
+  safeToSpendToday: number;
+  remainingLivingCash: number;
+  paydayRules: string;
+  cutoffRules: string;
+  canonicalDueDays: number[];
+  payoffMilestones: Array<{
+    periodLabel?: string;
+    month?: number;
+    year?: number;
+    event?: string;
+    period?: string;
+    label?: string;
+    debtClearPct?: number;
+  }>;
+  proactiveReminders: MarqueeProactiveReminder[];
+  suggestedPrompts: string[];
+}
+
+export async function fetchMarqueeUiContext(
+  month?: number,
+  year?: number,
+  locale?: "en" | "id" | "zh",
+): Promise<MarqueeUiContextResponse | null> {
+  try {
+    const params = new URLSearchParams();
+    if (month) params.set("month", String(month));
+    if (year) params.set("year", String(year));
+    if (locale) params.set("locale", locale);
+    const qs = params.toString();
+    const res = await fetch(`${API_URL}/api/marquee/context${qs ? `?${qs}` : ""}`, {
+      headers: await getAuthHeaders(),
+    });
+    return handleResponse<MarqueeUiContextResponse | null>(res, null);
+  } catch {
+    return null;
+  }
+}
+
 export async function sendMarqueeChat(payload: {
   message: string;
   confirm?: boolean;
@@ -6871,6 +6914,7 @@ export async function sendMarqueeChat(payload: {
   locale?: "en" | "id" | "zh";
   activeRoute?: string;
   activeSubTab?: string | null;
+  history?: Array<{ role: "user" | "assistant"; text: string }>;
 }): Promise<MarqueeChatResponse | null> {
   try {
     const res = await fetch(`${API_URL}/api/marquee/chat`, {
@@ -6901,6 +6945,7 @@ export async function sendMarqueeChatStream(
     locale?: "en" | "id" | "zh";
     activeRoute?: string;
     activeSubTab?: string | null;
+    history?: Array<{ role: "user" | "assistant"; text: string }>;
   },
   onStatus?: (event: MarqueeStreamStatusEvent) => void,
 ): Promise<MarqueeChatResponse | null> {
@@ -7261,6 +7306,85 @@ export async function simulateScenario(
     const body = await res.json().catch(() => ({}));
     if (!res.ok) {
       return { success: false, error: body?.message || "Scenario simulation failed" };
+    }
+    return { success: true, data: body };
+  } catch (err: any) {
+    return { success: false, error: err?.message || "Network error" };
+  }
+}
+
+export interface MonteCarloFanPoint {
+  label: string;
+  p10Rp: number;
+  p50Rp: number;
+  p90Rp: number;
+  shortfallRiskPct: number;
+}
+
+export interface MonteCarloResult {
+  trialsRun: number;
+  workerGoroutines: number;
+  computeDurationUs: number;
+  survivalProbabilityPct: number;
+  emergencyGoalProbabilityPct: number;
+  p5WorstCaseCashFloorRp: number;
+  p10EndingWealthRp: number;
+  p50MedianEndingWealthRp: number;
+  p90EndingWealthRp: number;
+  recommendedExtraBufferMonthlyRp: number;
+  fanSeries: MonteCarloFanPoint[];
+  engineSource?: string;
+}
+
+export interface OptimalAllocationStrategy {
+  code: string;
+  title: string;
+  debtPrepaymentRp: number;
+  emergencyFundRp: number;
+  goalSavingsRp: number;
+  flexibleRp: number;
+  projected12MNetWorthRp: number;
+  estimatedInterestSavedRp: number;
+  debtMonthsShaved: number;
+  emergencyMonthsToTarget: number;
+  rationale: string;
+}
+
+export interface AllocationOptResult {
+  combinationsEvaluated: number;
+  workerGoroutines: number;
+  computeDurationUs: number;
+  strategies: OptimalAllocationStrategy[];
+  engineSource?: string;
+}
+
+export interface ScenarioStressTestResponse {
+  period: { month: number; year: number };
+  monthlySurplusRp: number;
+  monteCarlo: MonteCarloResult;
+  optimizer: AllocationOptResult;
+}
+
+export async function runScenarioStressTest(payload: {
+  month?: number;
+  year?: number;
+  incomeVolatilityPct?: number;
+  expenseShockProbPct?: number;
+  expenseShockMagnitudePct?: number;
+  unexpectedEmergencyProbPct?: number;
+  unexpectedEmergencyCostRp?: number;
+  trials?: number;
+  monthlySurplusOverrideRp?: number;
+}): Promise<{ success: boolean; data?: ScenarioStressTestResponse; error?: string }> {
+  try {
+    const res = await fetch(`${API_URL}/api/finance/scenarios/stress-test`, {
+      method: "POST",
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(payload),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { success: false, error: body?.message || "Stress test simulation failed" };
     }
     return { success: true, data: body };
   } catch (err: any) {

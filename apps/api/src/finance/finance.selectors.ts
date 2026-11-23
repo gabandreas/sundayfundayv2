@@ -47,7 +47,7 @@ import { buildDefaultSandboxState } from '../config/sandbox.defaults';
 import { resolveStudioConfig } from '../config/studio.defaults';
 import { computePaycycleHorizonTs } from '../calculator/erp-engines';
 import { evaluateModularPayroll } from '../calculator/modular-engine';
-import { SimulateScenarioDto } from './dto/hybrid-finance.dto';
+import { SimulateScenarioDto, StressTestScenarioDto } from './dto/hybrid-finance.dto';
 import { listConfiguredSsoProviders } from '../auth/sso.service';
 
 export type EnrichedPacingResult = PacingResult & {
@@ -1609,6 +1609,7 @@ export class FinanceSelectors {
       ? pcCfg.rdpuAnnualYieldPct
       : 0;
 
+    const isBespokeOwner = userId === 1;
     const formulaVariables = this.buildFormulaVariablesForSnapshot(
       month,
       year,
@@ -1617,19 +1618,11 @@ export class FinanceSelectors {
       matrix,
       pacing,
       studioConfig,
+      userId,
     );
 
-    const [
-      paycycle,
-      networth,
-      forecaster,
-      anomaly,
-      envelopes,
-      debtopt,
-      lifeenergy,
-      formulaEvaluation,
-    ] = await Promise.all([
-      this.goBridge.computePaycycleHorizon({
+    const batchResult = await this.goBridge.runIntelligenceBatch({
+      paycycle: {
         month,
         year,
         anchorDay: pcCfg.paydayAnchorDay,
@@ -1645,12 +1638,12 @@ export class FinanceSelectors {
         weekendMultiplier: pcCfg.weekendWeightMultiplier,
         remainingBudgetRp: Math.max(0, Math.round(pacing.remainingBudget ?? 0)),
         referenceDateIso: todayIso,
-      }),
-      this.goBridge.computeNetWorth({
+      },
+      networth: {
         accounts: effectiveAssetAccounts,
         upcomingPeriods: upcomingPeriodsForNw,
-      }),
-      this.goBridge.runForecast({
+      },
+      forecaster: {
         startingLiquidAssetsRp: liquidAssetsStart,
         startingP1VaultRp: p1VaultBalance,
         emergencyFundTargetRp: pcCfg.emergencyFundTargetRp,
@@ -1658,8 +1651,8 @@ export class FinanceSelectors {
         rdpuAnnualYieldPct: effectiveRdpuYield,
         variableShockPercent: pcCfg.variableShockPercent,
         periods: forecastPeriods,
-      }),
-      this.goBridge.evaluateAnomalies({
+      },
+      anomaly: {
         periodLabel: formatHybridPeriodLabel(month, year),
         totalCycleDays: pacing.daysInCycle || 30,
         elapsedDays: Math.max(1, (pacing.daysInCycle || 30) - (pacing.daysRemaining || 0)),
@@ -1669,8 +1662,8 @@ export class FinanceSelectors {
         cashTransactions: cashDeductions,
         postCutoffItems,
         recurringCharges,
-      }),
-      this.goBridge.evaluateEnvelopes({
+      },
+      envelopes: {
         liquidCashTotalRp: liquidAssetsStart,
         dailyAverageBurnRp: Math.max(40000, Math.round(pacing.baselineDailyRate || 65000)),
         monthlyInflowRp: Math.round(activeSnap.finalTotalIncome ?? 0),
@@ -1678,20 +1671,28 @@ export class FinanceSelectors {
         cycleTotalDays: pacing.daysInCycle || 30,
         envelopes: envelopeInputs,
         sinkingFunds: pcCfg.sinkingFunds,
-      }),
-      this.goBridge.optimizeDebtPayoff({
+      },
+      debtopt: {
         contracts: optContracts,
         extraLumpSumRp: Math.max(0, Math.round(extraLumpSumRp || 0)),
-      }),
-      this.goBridge.computeLifeEnergy({
-        netMonthlyIncomeRp: Math.round(activeSnap.netSalaryIncome ?? activeSnap.finalTotalIncome ?? 5904000),
+      },
+      lifeenergy: {
+        netMonthlyIncomeRp: Math.round(
+          activeSnap.netSalaryIncome ?? activeSnap.finalTotalIncome ?? (isBespokeOwner ? 5904000 : 0),
+        ),
         workdaysPerMonth: Math.max(1, (pcCfg.workdaysPerWeek || 5) * 4),
         workHoursPerDay: pcCfg.workHoursPerDay || 8,
-        dailyCommuteHours: pcCfg.dailyCommuteHours ?? 2,
-        monthlyWorkExpenseRp: Math.round(activeSnap.transport ?? 300000),
-        sampleAmountsRp: [35000, 150000, 350000, 1000000, Math.max(500000, Math.round(activeSnap.totalDeductions ?? 4017341))],
-      }),
-      this.goBridge.evaluateFormulaSuite({
+        dailyCommuteHours: pcCfg.dailyCommuteHours ?? (isBespokeOwner ? 2 : 1),
+        monthlyWorkExpenseRp: Math.round(activeSnap.transport ?? (isBespokeOwner ? 300000 : 0)),
+        sampleAmountsRp: [
+          35000,
+          150000,
+          350000,
+          1000000,
+          Math.max(500000, Math.round(activeSnap.totalDeductions ?? 0)),
+        ],
+      },
+      formula: {
         variables: formulaVariables,
         formulas: {
           takeHomeSalary: pcCfg.formulas.takeHomeSalaryFormula,
@@ -1702,8 +1703,17 @@ export class FinanceSelectors {
           trueHourlyWage: pcCfg.formulas.trueHourlyWageFormula,
           forecasterFreedDebtToP1: pcCfg.formulas.forecasterFreedDebtToP1Formula,
         },
-      }),
-    ]);
+      },
+    });
+    const engineMeta = { engineSource: batchResult.engineSource };
+    const paycycle = { ...batchResult.paycycle, ...engineMeta };
+    const networth = { ...batchResult.networth, ...engineMeta };
+    const forecaster = { ...batchResult.forecaster, ...engineMeta };
+    const anomaly = { ...batchResult.anomaly, ...engineMeta };
+    const envelopes = { ...batchResult.envelopes, ...engineMeta };
+    const debtopt = { ...batchResult.debtopt, ...engineMeta };
+    const lifeenergy = { ...batchResult.lifeenergy, ...engineMeta };
+    const formulaEvaluation = { ...batchResult.formula, ...engineMeta };
 
     const curKeyStr = `${year}-${month}`;
     const spinjamDebtAtPeriod = (matrix?.personalDebtRow?.cells?.[curKeyStr]?.items ?? [])
@@ -1713,20 +1723,20 @@ export class FinanceSelectors {
     const firstPaylaterZero = upcomingPeriodsForNw.find((p) => p.payLaterDueRp === 0);
     const paylaterFreedomLabel = firstPaylaterZero
       ? firstPaylaterZero.label
-      : 'Apr 2027';
+      : 'Paid Off';
 
     let dynamicMilestone = {
-      code: 'ALL_DEBT_FREE_P1_FOCUS',
-      targetDateLabel: 'Active P1 Focus',
+      code: 'SAVINGS_RESERVE_FOCUS',
+      targetDateLabel: 'Savings Reserve Focus',
       remainingAmountRp: 0,
-      labelEn: 'Installment-Free · P1 Savings Focus',
-      labelId: 'Bebas Cicilan · Fokus Tabungan P1',
-      labelZh: '无分期负担 · 专注 P1 储蓄',
+      labelEn: 'Installment-Free · Savings Reserve Focus',
+      labelId: 'Bebas Cicilan · Fokus Tabungan Inti',
+      labelZh: '无分期负担 · 专注核心储蓄',
     };
     for (const rule of pcCfg.milestonePriorityOrder ?? [
       'SPINJAM_ZERO',
       'PAYLATER_INSTALLMENTS_ZERO',
-      'ALL_DEBT_FREE_P1_FOCUS',
+      'SAVINGS_RESERVE_FOCUS',
     ]) {
       if (rule === 'SPINJAM_ZERO' && spinjamDebtAtPeriod > 0) {
         dynamicMilestone = {
@@ -1784,6 +1794,107 @@ export class FinanceSelectors {
         periods: forecastPeriods,
         optContracts,
       },
+      engineTelemetry: {
+        engineSource: batchResult.engineSource,
+        computeDurationUs: batchResult.computeDurationUs,
+        workerGoroutines: batchResult.workerGoroutines,
+      },
+    };
+  }
+
+  async runStressTestForUser(
+    dto: StressTestScenarioDto,
+    userId: number = 1,
+  ) {
+    const def = getPayrollPeriodForDate();
+    const month = dto.month ?? def.month;
+    const year = dto.year ?? def.year;
+
+    const [bundle, goalsRaw] = await Promise.all([
+      this.getIntelligenceBundle(month, year, userId, 0),
+      typeof (this.prisma as any)?.savingsGoal?.findMany === 'function'
+        ? (this.prisma as any).savingsGoal
+            .findMany({ where: { userId }, orderBy: { id: 'asc' } })
+            .catch(() => [])
+        : Promise.resolve([]),
+    ]);
+
+    const seed = (bundle as any).scenarioSeed ?? {};
+    const rawPeriods: any[] = seed.periods ?? [];
+    const mcPeriods = rawPeriods.map((p: any) => ({
+      label: String(p.label || `${month}/${year}`),
+      incomeRp: Math.max(0, Math.round(Number(p.totalIncomeRp ?? 0))),
+      debtDueRp: Math.max(0, Math.round(Number(p.totalDebtDueRp ?? 0))),
+      fixedBillsRp: Math.max(0, Math.round(Number(p.routineBillsRp ?? 0))),
+      livingTargetRp: Math.max(0, Math.round(Number(p.dailyLivingRp ?? 0))),
+      savingsTargetRp: Math.max(0, Math.round(Number(p.coreSavingsP1Rp ?? 0))),
+    }));
+
+    const startingLiquid = Math.max(0, Math.round(Number(seed.startingLiquidAssetsRp ?? 0)));
+    const startingSavings = Math.max(0, Math.round(Number(seed.startingVaultRp ?? 0)));
+    const emergencyTarget = Math.max(0, Math.round(Number(seed.emergencyTargetRp ?? 15_000_000)));
+    const firstPeriod = mcPeriods[0];
+    const defaultSurplus = firstPeriod
+      ? Math.max(
+          0,
+          firstPeriod.incomeRp -
+            firstPeriod.debtDueRp -
+            firstPeriod.fixedBillsRp -
+            firstPeriod.livingTargetRp,
+        )
+      : 0;
+    const monthlySurplusRp =
+      dto.monthlySurplusOverrideRp !== undefined
+        ? Math.max(0, Math.round(dto.monthlySurplusOverrideRp))
+        : Math.max(defaultSurplus, Math.round(Number(firstPeriod?.savingsTargetRp ?? 0)));
+
+    const optContracts: any[] = seed.optContracts ?? [];
+    const optDebts = optContracts.map((c: any) => ({
+      title: String(c.name || 'Debt'),
+      remainingRp: Math.max(0, Math.round(Number(c.remainingBalanceRp ?? 0))),
+      monthlyInstallmentRp: Math.max(0, Math.round(Number(c.monthlyInstallmentRp ?? 0))),
+      monthlyInterestPct: Math.max(0, Number(c.monthlyInterestPct ?? 0)),
+      remainingMonths: Math.max(1, Math.round(Number(c.remainingMonths ?? 1))),
+    }));
+
+    const optGoals = (Array.isArray(goalsRaw) ? goalsRaw : []).map((g: any) => ({
+      title: String(g.title || g.name || 'Goal'),
+      targetRp: Math.max(0, Math.round(Number(g.targetAmount ?? 0))),
+      allocatedRp: Math.max(0, Math.round(Number(g.currentAllocatedAmount ?? 0))),
+    }));
+
+    const [monteCarlo, optimizer] = await Promise.all([
+      this.goBridge.runMonteCarlo({
+        startingLiquidAssetsRp: startingLiquid,
+        startingSavingsRp: startingSavings,
+        emergencyFundTargetRp: emergencyTarget,
+        incomeVolatilityPct: dto.incomeVolatilityPct ?? 12,
+        expenseShockProbPct: dto.expenseShockProbPct ?? 20,
+        expenseShockMagnitudePct: dto.expenseShockMagnitudePct ?? 25,
+        unexpectedEmergencyProbPct: dto.unexpectedEmergencyProbPct ?? 10,
+        unexpectedEmergencyCostRp: dto.unexpectedEmergencyCostRp ?? 1_500_000,
+        trials: dto.trials ?? 2000,
+        seed: 20261123,
+        periods: mcPeriods,
+      }),
+      this.goBridge.optimizeAllocationFrontier({
+        monthlySurplusRp,
+        currentSavingsRp: startingSavings,
+        emergencyFundTargetRp: emergencyTarget,
+        monthlyEssentialsRp: Math.max(
+          0,
+          Math.round((firstPeriod?.fixedBillsRp ?? 0) + (firstPeriod?.livingTargetRp ?? 0)),
+        ),
+        debts: optDebts,
+        goals: optGoals,
+      }),
+    ]);
+
+    return {
+      period: { month, year },
+      monthlySurplusRp,
+      monteCarlo,
+      optimizer,
     };
   }
 
@@ -1795,17 +1906,24 @@ export class FinanceSelectors {
     matrix: any,
     pacing: any,
     studioConfig: any,
+    userId: number = 1,
   ): Record<string, number> {
+    const isBespokeOwner = userId === 1;
     const pcCfg = studioConfig.paycycleFormulaConfig;
-    const baseSalary = Math.round(config?.baseSalary ?? 5300000);
+    const baseSalary = Math.round(config?.baseSalary ?? (isBespokeOwner ? 5300000 : 0));
     const workDays = Math.round(snap?.totalWorkingDays ?? 21);
-    const dailyAllowance = Math.round(config?.dailyAllowance ?? 25000);
-    const transportAllowance = Math.round(config?.laptopAllowance ?? 250000);
+    const dailyAllowance = Math.round(config?.dailyAllowance ?? (isBespokeOwner ? 25000 : 0));
+    const transportAllowance = Math.round(config?.laptopAllowance ?? (isBespokeOwner ? 250000 : 0));
     const fixedAdditions = Math.round(snap?.salaryAdjustment ?? 0);
     const grossPay = baseSalary + workDays * dailyAllowance + transportAllowance + fixedAdditions;
-    const netSalary = Math.round(snap?.netSalaryIncome ?? 5904000);
+    const netSalary = Math.round(snap?.netSalaryIncome ?? (isBespokeOwner ? 5904000 : baseSalary));
     const taxAndBpjs = Math.max(0, grossPay - netSalary);
-    const tenureMonths = month === 12 || month === 1 ? 8.83 : 12;
+    const tenureMonths =
+      pcCfg.thrJoinDateIso
+        ? month === 12 || month === 1
+          ? 8.83
+          : 12
+        : 12;
     const thrAmount = Math.round(snap?.thrAmount ?? 0);
     const netIncome = Math.round(snap?.finalTotalIncome ?? netSalary);
 

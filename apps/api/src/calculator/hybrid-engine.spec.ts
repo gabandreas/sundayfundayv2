@@ -11,10 +11,13 @@ import {
   evaluateEnvelopesTs,
   evaluateFormulaSuiteTs,
   evaluateWalletGuardTs,
+  optimizeAllocationFrontierTs,
   optimizeDebtPayoffTs,
   parseStatementBatchTs,
   routeTransactionToPaycycleTs,
   runForecastTs,
+  runIntelligenceBatchTs,
+  runMonteCarloTs,
   simulateCutoffTs,
   simulateTimelineTs,
   buildCashRadarTs,
@@ -591,5 +594,113 @@ describe('Hybrid Engine (Go <-> TypeScript Parity & Financial Precision)', () =>
     expect(goDecRadar.events.find((e) => e.id === 'bill-spaylater')?.subItems).toHaveLength(2);
     expect(goDecRadar.events.find((e) => e.id === 'bill-permata-cc')?.subItems).toHaveLength(1);
     expect(goDecRadar.events.find((e) => e.id === 'inflow-thr')?.dateIso).toBe('2026-12-18');
+  });
+
+  it('maintains 100% Go <-> TS parity on concurrent Monte Carlo stress tests, Surplus Allocation Frontier optimizer, and parallel 8-engine intelligence-batch', async () => {
+    const bridge = new GoBridgeService();
+    const mcReq = {
+      startingLiquidAssetsRp: 500000,
+      startingSavingsRp: 2000000,
+      emergencyFundTargetRp: 15000000,
+      incomeVolatilityPct: 12,
+      expenseShockProbPct: 20,
+      expenseShockMagnitudePct: 25,
+      unexpectedEmergencyProbPct: 10,
+      unexpectedEmergencyCostRp: 1500000,
+      trials: 1000,
+      seed: 20261123,
+      periods: [
+        { label: "DEC '26", incomeRp: 9737425, debtDueRp: 4189341, fixedBillsRp: 300000, livingTargetRp: 1500000, savingsTargetRp: 1000000 },
+        { label: "JAN '27", incomeRp: 5941000, debtDueRp: 3171115, fixedBillsRp: 535000, livingTargetRp: 1500000, savingsTargetRp: 1000000 },
+        { label: "FEB '27", incomeRp: 5891000, debtDueRp: 1967159, fixedBillsRp: 535000, livingTargetRp: 1500000, savingsTargetRp: 1000000 },
+        { label: "MAR '27", incomeRp: 5891000, debtDueRp: 835996, fixedBillsRp: 535000, livingTargetRp: 1500000, savingsTargetRp: 1000000 },
+      ],
+    };
+    const { engineSource: mcSrc, computeDurationUs: mcGoUs, workerGoroutines: mcGoW, ...mcGo } = await bridge.runMonteCarlo(mcReq);
+    const { computeDurationUs: _mcTsUs, workerGoroutines: _mcTsW, ...mcTs } = runMonteCarloTs(mcReq);
+    expect(mcSrc).toBe('GO_BINARY');
+    expect(mcGoUs).toBeGreaterThan(0);
+    expect(mcGoW).toBeGreaterThanOrEqual(1);
+    expect(mcGo).toEqual(mcTs);
+
+    const optReq = {
+      monthlySurplusRp: 2000000,
+      currentSavingsRp: 1500000,
+      emergencyFundTargetRp: 15000000,
+      monthlyEssentialsRp: 2000000,
+      debts: [
+        { title: 'Personal Loan', remainingRp: 1200000, monthlyInstallmentRp: 400000, monthlyInterestPct: 3.95, remainingMonths: 3 },
+      ],
+      goals: [
+        { title: 'Laptop Reserve', targetRp: 12000000, allocatedRp: 2000000 },
+      ],
+    };
+    const { engineSource: optSrc, computeDurationUs: optGoUs, workerGoroutines: _optGoW, ...optGo } = await bridge.optimizeAllocationFrontier(optReq);
+    const { computeDurationUs: _optTsUs, workerGoroutines: _optTsW, ...optTs } = optimizeAllocationFrontierTs(optReq);
+    expect(optSrc).toBe('GO_BINARY');
+    expect(optGoUs).toBeGreaterThan(0);
+    expect(optGo).toEqual(optTs);
+
+    const batchReq = {
+      paycycle: {
+        month: 12,
+        year: 2026,
+        anchorDay: 27,
+        payslipAnchorDay: 25,
+        payslipShiftRule: 'SHIFT_PREVIOUS_FRIDAY' as const,
+        reviewLagWorkingDays: 2,
+        holidaysIso: ['2026-12-25'],
+        shiftWeekendToFriday: true,
+        weekendMultiplier: 1.5,
+        remainingBudgetRp: 1500000,
+        referenceDateIso: '2026-11-28',
+      },
+      networth: { accounts: [], upcomingPeriods: [] },
+      forecaster: {
+        startingLiquidAssetsRp: 500000,
+        startingP1VaultRp: 2000000,
+        emergencyFundTargetRp: 15000000,
+        baselineDailyBurnRp: 50000,
+        rdpuAnnualYieldPct: 4.5,
+        variableShockPercent: 15,
+        periods: [],
+      },
+      anomaly: {
+        periodLabel: "DEC '26",
+        totalCycleDays: 31,
+        elapsedDays: 5,
+        dailyLivingBudgetRp: 1500000,
+        dailyLivingSpentRp: 200000,
+        baselineDailyRateRp: 48000,
+        cashTransactions: [],
+        postCutoffItems: [],
+        recurringCharges: [],
+      },
+      envelopes: {
+        liquidCashTotalRp: 500000,
+        dailyAverageBurnRp: 50000,
+        monthlyInflowRp: 5900000,
+        cycleElapsedDays: 5,
+        cycleTotalDays: 31,
+        envelopes: [],
+        sinkingFunds: [],
+      },
+      debtopt: { contracts: [], extraLumpSumRp: 0 },
+      lifeenergy: {
+        netMonthlyIncomeRp: 5900000,
+        workdaysPerMonth: 20,
+        workHoursPerDay: 8,
+        dailyCommuteHours: 2,
+        monthlyWorkExpenseRp: 300000,
+        sampleAmountsRp: [35000, 150000],
+      },
+      formula: { variables: { NET_INCOME: 5900000 }, formulas: { test: '{NET_INCOME} / 10' } },
+    };
+    const { engineSource: bSrc, computeDurationUs: bGoUs, workerGoroutines: bGoW, ...bGo } = await bridge.runIntelligenceBatch(batchReq);
+    const { computeDurationUs: _bTsUs, workerGoroutines: _bTsW, ...bTs } = runIntelligenceBatchTs(batchReq);
+    expect(bSrc).toBe('GO_BINARY');
+    expect(bGoUs).toBeGreaterThan(0);
+    expect(bGoW).toBe(8);
+    expect(bGo).toEqual(bTs);
   });
 });

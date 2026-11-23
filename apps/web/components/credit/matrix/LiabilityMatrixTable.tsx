@@ -244,7 +244,7 @@ export function LiabilityMatrixTable({
         {matrix.settlementSummaryPerMonth?.[currentKey] && (
           <div className="px-4 py-2 border-b border-border-subtle bg-canvas/50 flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono tabular-nums">
             <div className="flex flex-wrap items-center gap-4">
-              <span className="text-text-tertiary uppercase">Bank Reservation Checklist ({currentMonth}/{currentYear}):</span>
+              <span className="text-text-tertiary">Bank Reservation Checklist ({currentMonth}/{currentYear}):</span>
               <span>
                 Paid:{" "}
                 <strong className="text-delta-positive">
@@ -313,7 +313,7 @@ export function LiabilityMatrixTable({
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[1040px]">
             <thead>
-              <tr className="border-b border-border bg-surface-subtle/70 text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+              <tr className="border-b border-border bg-surface-subtle/70 text-[10px] font-mono text-text-tertiary">
                 <th className="py-2.5 px-3 sm:px-4 font-semibold w-36 sm:w-48 lg:w-56 sticky left-0 bg-surface-subtle z-10 whitespace-normal sm:whitespace-nowrap align-bottom">
                   <div>{t("credit.matrix.sourceCol")}</div>
                   <div className="text-[9px] font-normal normal-case text-text-tertiary mt-0.5">

@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import { useToast } from "@/context/ToastContext";
 import {
   AuthenticatedUser,
   AuthResponse,
@@ -188,6 +189,7 @@ function clearSessionPrivacyStorage() {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { toast } = useToast();
   const [user, setUser] = useState<AuthenticatedUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -231,12 +233,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await logoutUserApi(storedRefresh);
 
       clearClientSessionState(isExpired ? "expired" : "signed_out");
+      toast({
+        title: isExpired ? "Session expired" : "Signed out",
+        description: isExpired
+          ? "Please sign in again to continue."
+          : "Your session was closed cleanly.",
+        variant: isExpired ? "warning" : "info",
+      });
       setTimeout(() => {
         loggingOutRef.current = false;
         setIsSigningOut(false);
       }, 150);
     },
-    [clearClientSessionState],
+    [clearClientSessionState, toast],
   );
 
   const applySessionBundle = useCallback((res: AuthResponse) => {

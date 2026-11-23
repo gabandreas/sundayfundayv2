@@ -29,12 +29,9 @@ export function PrivacyEyeButton({ className = "", size = "md" }: PrivacyEyeButt
         e.stopPropagation();
         toggleMask();
       }}
-      title={
-        isAmountsMasked
-          ? "Amounts hidden. Click to reveal."
-          : "Amounts visible. Click to hide."
-      }
-      aria-label={isAmountsMasked ? "Reveal amounts" : "Hide amounts"}
+      title={isAmountsMasked ? "Show amounts" : "Hide amounts"}
+      aria-label={isAmountsMasked ? "Show amounts" : "Hide amounts"}
+      aria-pressed={isAmountsMasked}
       className={`p-1 rounded text-text-secondary hover:text-text-primary hover:bg-surface-elevated active:scale-95 transition-all cursor-pointer inline-flex items-center justify-center shrink-0 ${className}`}
     >
       {isAmountsMasked ? (

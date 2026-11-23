@@ -3,7 +3,6 @@
 import React from "react";
 import { MonthlySnapshot, DailyPacing, resolvePriorityTierLabel } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
-import { PrivacyEyeButton } from "@/components/shell/PrivacyEyeButton";
 import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { usePerspective } from "@/context/PerspectiveContext";
@@ -28,7 +27,7 @@ export function CashflowSummaryCard({ snapshot, pacing }: CashflowSummaryCardPro
     <div className="rounded-lg border border-border bg-surface p-5 flex flex-col justify-between">
       <div>
         <div className="flex items-center justify-between gap-2 mb-4 pb-3 border-b border-border-subtle">
-          <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
+          <span className="text-[11px] font-semibold text-text-tertiary font-sans">
             {t("overview.cashflowSummary")}
           </span>
           <span className="text-[10px] font-mono text-text-tertiary">
@@ -65,7 +64,6 @@ export function CashflowSummaryCard({ snapshot, pacing }: CashflowSummaryCardPro
               >
                 {formatRupiah(netSurplus, isAmountsMasked)}
               </span>
-              <PrivacyEyeButton size="xs" />
             </div>
           </div>
 
@@ -82,7 +80,7 @@ export function CashflowSummaryCard({ snapshot, pacing }: CashflowSummaryCardPro
 
         {/* Waterfall Pillar Allocation Breakdown */}
         <div className="mt-4 pt-3 border-t border-border-subtle">
-          <div className="text-[10px] font-mono text-text-tertiary uppercase tracking-wider mb-2">
+          <div className="text-[10px] font-mono text-text-tertiary mb-2">
             Waterfall Allocations Status
           </div>
           <div className="grid grid-cols-3 gap-2 text-center">

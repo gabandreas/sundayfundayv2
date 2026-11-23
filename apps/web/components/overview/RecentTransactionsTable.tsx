@@ -102,7 +102,7 @@ export function RecentTransactionsTable({
     <div className="rounded-lg border border-border bg-surface overflow-hidden">
       <div className="px-5 py-3 border-b border-border-subtle flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase font-sans">
+          <span className="text-[11px] font-semibold text-text-tertiary font-sans">
             {t("overview.recentTransactions")}
           </span>
           <span className="text-[10px] font-mono text-text-tertiary">

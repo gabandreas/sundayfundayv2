@@ -21,23 +21,24 @@ export class ConfigSelectors {
       (await this.prisma.globalConfig.findUnique({ where: { userId } })) ||
       (await this.prisma.globalConfig.findFirst({ where: { userId } }));
     if (!existing) {
+      const isBespokeOwner = userId === 1;
       existing = await this.prisma.globalConfig.create({
         data: {
-          ...(userId === 1 ? { id: 1 } : {}),
+          ...(isBespokeOwner ? { id: 1 } : {}),
           userId,
           baseSalary: 0,
           dailyAllowance: 0,
-          laptopAllowance: 250000,
+          laptopAllowance: isBespokeOwner ? 250000 : 0,
           dailyOperational: 0,
           transport: 0,
           internet: 0,
           vape: 0,
           haircut: 0,
           baseSavings: 0,
-          creditLimit: 7000000,
-          creditStatementDay: 20,
+          creditLimit: isBespokeOwner ? 7000000 : 0,
+          creditStatementDay: isBespokeOwner ? 20 : 25,
           creditDueDay: 11,
-          payrollPayoutDay: 25,
+          payrollPayoutDay: isBespokeOwner ? 25 : 1,
         },
       });
     }

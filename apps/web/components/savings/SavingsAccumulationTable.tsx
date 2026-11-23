@@ -55,7 +55,7 @@ export function SavingsAccumulationTable({
     <div className="rounded-lg border border-border bg-surface p-5 space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-text-primary">
+          <h2 className="text-sm font-semibold text-text-primary">
             Monthly Savings Transfer Tracker
           </h2>
           <p className="text-xs text-text-secondary mt-0.5">
@@ -179,7 +179,7 @@ export function SavingsAccumulationTable({
 
             <form onSubmit={handleConfirmDeposit} className="space-y-3">
               <div>
-                <label className="text-[11px] font-mono uppercase text-text-tertiary block mb-1">
+                <label className="text-[11px] font-mono text-text-tertiary block mb-1">
                   Destination Instrument
                 </label>
                 <div className="grid grid-cols-2 gap-2">

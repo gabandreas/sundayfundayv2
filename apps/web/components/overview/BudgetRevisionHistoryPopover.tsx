@@ -64,7 +64,7 @@ export function BudgetRevisionHistoryPopover({
         <div className="absolute right-0 z-40 mt-1.5 w-80 rounded-lg border border-border bg-surface p-4 shadow-xl text-left animate-in fade-in zoom-in-95 duration-100">
           <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-border-subtle">
             <div>
-              <span className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary block">
+              <span className="text-[10px] font-mono text-text-tertiary block">
                 Audit Trail
               </span>
               <span className="text-xs font-semibold font-sans text-text-primary">

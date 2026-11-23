@@ -216,7 +216,7 @@ export function WishlistVaultTable({
       {/* Table */}
       <div className="border border-border-subtle rounded-md overflow-hidden">
         {/* Custom Header with Dedicated Action Column */}
-        <div className="flex items-center justify-between py-2 px-3 border-b border-border text-[10px] font-mono tracking-wider font-semibold text-text-tertiary bg-surface-subtle/50 uppercase">
+        <div className="flex items-center justify-between py-2 px-3 border-b border-border text-[10px] font-mono font-semibold text-text-tertiary bg-surface-subtle/50">
           <div className="w-24 shrink-0">TARGET</div>
           <div className="flex-1 pr-4">ITEM / DETAILS</div>
           <div className="w-28 shrink-0 hidden md:block">FUNDING</div>

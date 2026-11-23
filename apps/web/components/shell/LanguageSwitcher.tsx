@@ -15,11 +15,11 @@ export function LanguageSwitcher({ compact = false }: { compact?: boolean }) {
 
   return (
     <div
-      className="inline-flex items-center gap-1 rounded-md border border-border bg-surface p-0.5 shrink-0"
+      className="inline-flex items-center gap-0.5 rounded-md bg-transparent p-0.5 shrink-0"
       role="group"
       aria-label="Language switcher"
     >
-      {!compact && <Languages className="w-3.5 h-3.5 text-text-tertiary ml-1.5 mr-0.5 hidden sm:block" />}
+      {!compact && <Languages className="w-3.5 h-3.5 text-text-tertiary ml-1 mr-0.5 hidden sm:block" />}
       {LOCALE_OPTIONS.map((opt) => {
         const active = locale === opt.code;
         return (
@@ -29,9 +29,9 @@ export function LanguageSwitcher({ compact = false }: { compact?: boolean }) {
             onClick={() => setLocale(opt.code)}
             title={opt.label}
             aria-pressed={active}
-            className={`px-1.5 py-1 text-[10px] font-mono rounded transition-colors cursor-pointer ${
+            className={`px-2 py-1 text-[11px] font-mono rounded transition-colors cursor-pointer ${
               active
-                ? "bg-surface-strong text-text-primary font-semibold border border-border-strong"
+                ? "bg-surface text-text-primary font-semibold border border-border-subtle"
                 : "text-text-tertiary hover:text-text-secondary border border-transparent"
             }`}
           >

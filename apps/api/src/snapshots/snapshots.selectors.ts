@@ -47,10 +47,9 @@ export class SnapshotsSelectors {
 
   buildSandboxSnapshot(sandbox: any, month: number, year: number): any {
     const routineCategories = sandbox.routineCategories || [
-      { id: 'housing', label: 'Housing & Rent', target: 2000000, isCustom: true },
-      { id: 'transport', label: 'Transport & Fuel', target: 600000 },
-      { id: 'internet', label: 'Internet & Utilities', target: 450000 },
-      { id: 'vape', label: 'Subscriptions & Lifestyle', target: 300000 },
+      { id: 'transport', label: 'Transport & Mobility', target: 0 },
+      { id: 'internet', label: 'Internet & Utilities', target: 0 },
+      { id: 'vape', label: 'Subscriptions & Lifestyle', target: 0 },
     ];
     const routineTotal = routineCategories.reduce(
       (sum: number, c: any) => sum + (c.target || 0),
@@ -96,9 +95,9 @@ export class SnapshotsSelectors {
       isPayoutDateConfirmed: false,
       dailyOperational: dailyLiving,
       actualDailyOperational: dailyLiving,
-      transport: transportCat?.target ?? 600000,
-      internet: internetCat?.target ?? 450000,
-      vape: vapeCat?.target ?? 300000,
+      transport: transportCat?.target ?? 0,
+      internet: internetCat?.target ?? 0,
+      vape: vapeCat?.target ?? 0,
       haircut: haircutCat?.target ?? 0,
       savings: savingsP1,
       actualSavings: savingsP1,

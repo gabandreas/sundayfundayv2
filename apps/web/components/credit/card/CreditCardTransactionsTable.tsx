@@ -193,7 +193,7 @@ export function CreditCardTransactionsTable({
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="border-b border-border bg-surface-subtle/70 text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+            <tr className="border-b border-border bg-surface-subtle/70 text-[10px] font-mono text-text-tertiary">
               <th className="py-2.5 px-3 w-28">TX DATE</th>
               <th className="py-2.5 px-3">DESCRIPTION & SCHEDULE</th>
               <th className="py-2.5 px-3 w-28">CATEGORY</th>
@@ -284,7 +284,7 @@ export function CreditCardTransactionsTable({
                         )}
                       </td>
                       <td className="py-2.5 px-3">
-                        <span className="font-mono text-[10px] uppercase text-text-tertiary px-1.5 py-0.5 rounded bg-surface-subtle border border-border-subtle">
+                        <span className="font-mono text-[10px] text-text-tertiary px-1.5 py-0.5 rounded bg-surface-subtle border border-border-subtle">
                           {tx.category || "General"}
                         </span>
                       </td>

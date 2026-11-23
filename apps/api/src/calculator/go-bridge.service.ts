@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { execFile } from 'child_process';
-import { existsSync } from 'fs';
+import { accessSync, chmodSync, constants, copyFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { promisify } from 'util';
 import {
@@ -21,6 +21,8 @@ import {
   simulateTimelineTs,
 } from './hybrid-engine';
 import {
+  AllocationOptRequest,
+  AllocationOptResult,
   AnomalyRequest,
   AnomalyResult,
   DebtOptRequest,
@@ -31,8 +33,12 @@ import {
   ForecasterResult,
   FormulaSuiteRequest,
   FormulaSuiteResult,
+  IntelligenceBatchRequest,
+  IntelligenceBatchResult,
   LifeEnergyRequest,
   LifeEnergyResult,
+  MonteCarloRequest,
+  MonteCarloResult,
   NetWorthRequest,
   NetWorthResult,
   PaycycleHorizonRequest,
@@ -50,10 +56,13 @@ import {
   evaluateConfiguredWaterfallTs,
   evaluateEnvelopesTs,
   evaluateFormulaSuiteTs,
+  optimizeAllocationFrontierTs,
   optimizeDebtPayoffTs,
   parseStatementBatchTs,
   routeTransactionToPaycycleTs,
   runForecastTs,
+  runIntelligenceBatchTs,
+  runMonteCarloTs,
 } from './erp-engines';
 
 const execFileAsync = promisify(execFile);
@@ -76,6 +85,14 @@ export class GoBridgeService {
 
     const candidates = [
       process.env.GO_ENGINE_BIN,
+      ...(process.platform === 'linux'
+        ? [
+            join(process.cwd(), 'bin', 'go-engine-linux'),
+            join(process.cwd(), 'apps', 'api', 'bin', 'go-engine-linux'),
+            join(__dirname, '..', '..', '..', 'bin', 'go-engine-linux'),
+            join(__dirname, '..', '..', 'bin', 'go-engine-linux'),
+          ]
+        : []),
       join(process.cwd(), '..', 'go-engine', 'bin', process.platform === 'win32' ? 'go-engine.exe' : 'go-engine'),
       join(process.cwd(), 'apps', 'go-engine', 'bin', process.platform === 'win32' ? 'go-engine.exe' : 'go-engine'),
       join(__dirname, '..', '..', '..', '..', 'go-engine', 'bin', process.platform === 'win32' ? 'go-engine.exe' : 'go-engine'),
@@ -85,6 +102,26 @@ export class GoBridgeService {
 
     for (const candidate of candidates) {
       if (existsSync(candidate)) {
+        if (process.platform === 'linux') {
+          try {
+            accessSync(candidate, constants.X_OK);
+            this.resolvedBinPath = candidate;
+            return candidate;
+          } catch {
+            // Read-only bundle or missing +x in serverless container -> stage to /tmp once
+            const tmpBin = '/tmp/go-engine-linux';
+            try {
+              if (!existsSync(tmpBin)) {
+                copyFileSync(candidate, tmpBin);
+              }
+              chmodSync(tmpBin, 0o755);
+              this.resolvedBinPath = tmpBin;
+              return tmpBin;
+            } catch {
+              // Ignore and try remaining candidates / TS fallback
+            }
+          }
+        }
         this.resolvedBinPath = candidate;
         return candidate;
       }
@@ -187,5 +224,17 @@ export class GoBridgeService {
 
   evaluateFormulaSuite(req: FormulaSuiteRequest): Promise<WithEngineMeta<FormulaSuiteResult>> {
     return this.runCommand('formula-eval', req, evaluateFormulaSuiteTs);
+  }
+
+  runMonteCarlo(req: MonteCarloRequest): Promise<WithEngineMeta<MonteCarloResult>> {
+    return this.runCommand('monte-carlo', req, runMonteCarloTs);
+  }
+
+  optimizeAllocationFrontier(req: AllocationOptRequest): Promise<WithEngineMeta<AllocationOptResult>> {
+    return this.runCommand('allocation-optimize', req, optimizeAllocationFrontierTs);
+  }
+
+  runIntelligenceBatch(req: IntelligenceBatchRequest): Promise<WithEngineMeta<IntelligenceBatchResult>> {
+    return this.runCommand('intelligence-batch', req, runIntelligenceBatchTs);
   }
 }

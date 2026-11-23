@@ -10,6 +10,8 @@ import { PerspectiveProvider } from "@/context/PerspectiveContext";
 import { PrivacyMaskProvider } from "@/context/PrivacyMaskContext";
 import { LanguageProvider } from "@/context/LanguageContext";
 import { PeriodProvider } from "@/context/PeriodContext";
+import { ToastProvider } from "@/context/ToastContext";
+import { ToastViewport } from "@/components/primitives/ToastViewport";
 import { OnboardingWizardModal } from "@/components/onboarding/OnboardingWizardModal";
 import { CustomRuleRequestModal } from "@/components/shell/CustomRuleRequestModal";
 import { ProfileSettingsModal } from "@/components/shell/ProfileSettingsModal";
@@ -121,7 +123,7 @@ function AppShellProtected({ children }: { children: React.ReactNode }) {
                 <div className="flex items-center justify-between px-4 py-3 border-b border-border">
                   <div className="flex items-center gap-2">
                     <BrandMark size={18} />
-                    <span className="text-xs font-semibold tracking-wide text-text-primary uppercase font-sans">
+                    <span className="text-xs font-semibold tracking-wide text-text-primary font-sans">
                       Navigation
                     </span>
                   </div>
@@ -183,21 +185,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   if (AUTH_SHELLLESS_ROUTES.has(pathname)) {
     return (
-      <LanguageProvider>
-        <AuthProvider>
-          <div className="min-h-screen w-full overflow-y-auto overflow-x-hidden bg-canvas text-text-primary">
-            {children}
-          </div>
-        </AuthProvider>
-      </LanguageProvider>
+      <ToastProvider>
+        <LanguageProvider>
+          <AuthProvider>
+            <div className="min-h-screen w-full overflow-y-auto overflow-x-hidden bg-canvas text-text-primary">
+              {children}
+            </div>
+            <ToastViewport />
+          </AuthProvider>
+        </LanguageProvider>
+      </ToastProvider>
     );
   }
 
   return (
-    <LanguageProvider>
-      <AuthProvider>
-        <AppShellProtected>{children}</AppShellProtected>
-      </AuthProvider>
-    </LanguageProvider>
+    <ToastProvider>
+      <LanguageProvider>
+        <AuthProvider>
+          <AppShellProtected>{children}</AppShellProtected>
+          <ToastViewport />
+        </AuthProvider>
+      </LanguageProvider>
+    </ToastProvider>
   );
 }

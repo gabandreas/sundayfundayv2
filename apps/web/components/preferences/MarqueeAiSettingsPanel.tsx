@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { KeyRound, RefreshCw, ShieldCheck, Copy, Check } from "lucide-react";
+import { useToast } from "@/context/ToastContext";
 import {
   MarqueeAiProvider,
   MarqueeConfigResponse,
@@ -11,6 +12,7 @@ import {
 } from "@/lib/api";
 
 export function MarqueeAiSettingsPanel() {
+  const { toast } = useToast();
   const [config, setConfig] = useState<MarqueeConfigResponse | null>(null);
   const [provider, setProvider] = useState<MarqueeAiProvider>("TIER1_ONLY");
   const [geminiKey, setGeminiKey] = useState("");
@@ -63,9 +65,19 @@ export function MarqueeAiSettingsPanel() {
       setGroqKey("");
       setDeepseekKey("");
       setOpencodeKey("");
-      setFeedback("Marquee AI configuration encrypted with AES-256-GCM and saved.");
+      setFeedback("Marquee configuration encrypted with AES-256-GCM and saved.");
+      toast({
+        title: "Marquee settings saved",
+        description: "Configuration encrypted with AES-256-GCM and saved.",
+        variant: "success",
+      });
     } else {
-      setFeedback("Failed to save Marquee AI configuration.");
+      setFeedback("Failed to save Marquee configuration.");
+      toast({
+        title: "Save failed",
+        description: "Failed to save Marquee configuration.",
+        variant: "error",
+      });
     }
   };
 
@@ -132,10 +144,10 @@ export function MarqueeAiSettingsPanel() {
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-subtle pb-4">
           <div>
             <h3 className="text-sm font-semibold text-text-primary">
-              Marquee AI Provider &amp; Encrypted BYOK Storage
+              Marquee Co-Pilot Engine &amp; Encrypted Credentials
             </h3>
             <p className="text-xs text-text-tertiary mt-0.5">
-              Tier 1 deterministic NLU always runs in-process; enable DeepSeek, OpenCode, Gemini 3.8 Flash, or Groq Llama 3.3 70B with AES-256-GCM encrypted keys.
+              Choose whether Marquee runs exclusively on the built-in ledger engine or connects to an optional encrypted API provider.
             </p>
           </div>
           <span className="inline-flex items-center gap-1.5 text-[11px] font-mono text-delta-positive">
@@ -144,38 +156,18 @@ export function MarqueeAiSettingsPanel() {
           </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
           {(
             [
               {
-                key: "DEEPSEEK",
-                title: "Tier 2 · DeepSeek (V3 / R1)",
-                desc: "Native DeepSeek tool calling (deepseek-flash, deepseek-chat, or deepseek-reasoner) with full ledger hydration.",
-              },
-              {
-                key: "OPENCODE",
-                title: "Tier 2 · OpenCode Compatible",
-                desc: "OpenCode Zen / OpenAI-compatible tool router with configurable base endpoint and model.",
-              },
-              {
-                key: "GEMINI",
-                title: "Tier 2 · Gemini 3.8 Flash",
-                desc: "Uses @google/genai interactions API with strict function tools.",
-              },
-              {
-                key: "GROQ",
-                title: "Tier 2 · Groq Llama 3.3 70B",
-                desc: "Low-latency llama-3.3-70b-versatile tool calling with Tier 1 fallback.",
+                key: "TIER1_ONLY",
+                title: "Built-In Ledger Engine",
+                desc: "Zero-latency offline EN/ID/ZH co-pilot running strictly inside your ERP workspace.",
               },
               {
                 key: "AUTO",
-                title: "Auto Cascade (Multi-Provider)",
-                desc: "Tries DeepSeek -> OpenCode -> Gemini -> Groq -> Tier 1 NLU automatically.",
-              },
-              {
-                key: "TIER1_ONLY",
-                title: "Tier 1 Deterministic NLU",
-                desc: "Zero-latency offline EN/ID/ZH parser. Zero external API calls.",
+                title: "Auto Cloud Reasoning",
+                desc: "Uses your connected cloud credentials automatically with built-in ledger fallback.",
               },
             ] as const
           ).map((opt) => (
@@ -195,102 +187,148 @@ export function MarqueeAiSettingsPanel() {
           ))}
         </div>
 
-        {/* DeepSeek & OpenCode Credentials */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs pt-2 border-t border-border-subtle">
-          <div className="space-y-2">
-            <label htmlFor="marquee-deepseek-key" className="block font-medium text-text-secondary">
-              DeepSeek API Key ({config?.hasDeepseekKey ? `Saved: ${config.deepseekKeyPreview}` : "Not set"})
-            </label>
-            <input
-              id="marquee-deepseek-key"
-              type="password"
-              value={deepseekKey}
-              onChange={(e) => setDeepseekKey(e.target.value)}
-              placeholder={config?.hasDeepseekKey ? "Enter new key to replace saved key" : "sk-..."}
-              className="w-full bg-canvas border border-border rounded px-3 py-2 font-mono text-xs text-text-primary"
-            />
-            <div className="flex items-center gap-2 pt-1">
-              <span className="text-[11px] font-mono text-text-tertiary">Model:</span>
-              <select
-                aria-label="DeepSeek Model"
-                value={deepseekModel}
-                onChange={(e) =>
-                  setDeepseekModel(
-                    e.target.value as "deepseek-chat" | "deepseek-flash" | "deepseek-reasoner"
-                  )
-                }
-                className="bg-canvas border border-border rounded px-2 py-1 font-mono text-[11px] text-text-primary"
-              >
-                <option value="deepseek-flash">deepseek-flash (DeepSeek-V4.1-Flash)</option>
-                <option value="deepseek-chat">deepseek-chat (DeepSeek-V4.1 Alias)</option>
-                <option value="deepseek-reasoner">deepseek-reasoner (DeepSeek-R1)</option>
-              </select>
+        <details className="pt-3 border-t border-border-subtle group">
+          <summary className="cursor-pointer select-none text-xs font-medium text-text-secondary hover:text-text-primary">
+            Advanced External API Credentials &amp; Provider Pinning (Optional BYOK)
+          </summary>
+          <div className="mt-4 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-2.5 text-xs">
+              {(
+                [
+                  {
+                    key: "DEEPSEEK",
+                    title: "DeepSeek Cloud",
+                    desc: "Pin external reasoning to DeepSeek API.",
+                  },
+                  {
+                    key: "OPENCODE",
+                    title: "OpenCode / Custom",
+                    desc: "OpenAI-compatible endpoint and model.",
+                  },
+                  {
+                    key: "GEMINI",
+                    title: "Gemini Cloud",
+                    desc: "Pin external reasoning to Google AI key.",
+                  },
+                  {
+                    key: "GROQ",
+                    title: "Groq Cloud",
+                    desc: "Pin external reasoning to Groq API key.",
+                  },
+                ] as const
+              ).map((opt) => (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => setProvider(opt.key)}
+                  className={`text-left rounded p-3 cursor-pointer transition-colors ${
+                    provider === opt.key
+                      ? "erp-surface-selected"
+                      : "border border-border-subtle bg-canvas/50 hover:border-border-strong"
+                  }`}
+                >
+                  <div className="font-semibold text-text-primary">{opt.title}</div>
+                  <div className="text-[11px] text-text-tertiary mt-0.5">{opt.desc}</div>
+                </button>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs pt-2 border-t border-border-subtle">
+              <div className="space-y-2">
+                <label htmlFor="marquee-deepseek-key" className="block font-medium text-text-secondary">
+                  DeepSeek API Key ({config?.hasDeepseekKey ? `Saved: ${config.deepseekKeyPreview}` : "Not set"})
+                </label>
+                <input
+                  id="marquee-deepseek-key"
+                  type="password"
+                  value={deepseekKey}
+                  onChange={(e) => setDeepseekKey(e.target.value)}
+                  placeholder={config?.hasDeepseekKey ? "Enter new key to replace saved key" : "sk-..."}
+                  className="w-full bg-canvas border border-border rounded px-3 py-2 font-mono text-xs text-text-primary"
+                />
+                <div className="flex items-center gap-2 pt-1">
+                  <span className="text-[11px] font-mono text-text-tertiary">Preset:</span>
+                  <select
+                    aria-label="Reasoning preset"
+                    value={deepseekModel}
+                    onChange={(e) =>
+                      setDeepseekModel(
+                        e.target.value as "deepseek-chat" | "deepseek-flash" | "deepseek-reasoner"
+                      )
+                    }
+                    className="bg-canvas border border-border rounded px-2 py-1 font-mono text-[11px] text-text-primary"
+                  >
+                    <option value="deepseek-flash">Fast cloud profile</option>
+                    <option value="deepseek-chat">Standard chat profile</option>
+                    <option value="deepseek-reasoner">Extended reasoning profile</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="marquee-opencode-key" className="block font-medium text-text-secondary">
+                  OpenCode API Key ({config?.hasOpencodeKey ? `Saved: ${config.opencodeKeyPreview}` : "Not set"})
+                </label>
+                <input
+                  id="marquee-opencode-key"
+                  type="password"
+                  value={opencodeKey}
+                  onChange={(e) => setOpencodeKey(e.target.value)}
+                  placeholder={config?.hasOpencodeKey ? "Enter new key to replace saved key" : "oc-..."}
+                  className="w-full bg-canvas border border-border rounded px-3 py-2 font-mono text-xs text-text-primary"
+                />
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <input
+                    type="text"
+                    aria-label="OpenCode Base URL"
+                    value={opencodeBaseUrl}
+                    onChange={(e) => setOpencodeBaseUrl(e.target.value)}
+                    placeholder="https://api.opencode.ai/v1"
+                    className="bg-canvas border border-border rounded px-2 py-1 font-mono text-[11px] text-text-primary"
+                  />
+                  <input
+                    type="text"
+                    aria-label="Custom Endpoint Model ID"
+                    value={opencodeModel}
+                    onChange={(e) => setOpencodeModel(e.target.value)}
+                    placeholder="opencode-chat"
+                    className="bg-canvas border border-border rounded px-2 py-1 font-mono text-[11px] text-text-primary"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs pt-2 border-t border-border-subtle">
+              <div className="space-y-1.5">
+                <label htmlFor="marquee-gemini-key" className="block font-medium text-text-secondary">
+                  Gemini API Key ({config?.hasGeminiKey ? `Saved: ${config.geminiKeyPreview}` : "Not set"})
+                </label>
+                <input
+                  id="marquee-gemini-key"
+                  type="password"
+                  value={geminiKey}
+                  onChange={(e) => setGeminiKey(e.target.value)}
+                  placeholder={config?.hasGeminiKey ? "Enter new key to replace saved key" : "AIza..."}
+                  className="w-full bg-canvas border border-border rounded px-3 py-2 font-mono text-xs text-text-primary"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label htmlFor="marquee-groq-key" className="block font-medium text-text-secondary">
+                  Groq API Key ({config?.hasGroqKey ? `Saved: ${config.groqKeyPreview}` : "Not set"})
+                </label>
+                <input
+                  id="marquee-groq-key"
+                  type="password"
+                  value={groqKey}
+                  onChange={(e) => setGroqKey(e.target.value)}
+                  placeholder={config?.hasGroqKey ? "Enter new key to replace saved key" : "gsk_..."}
+                  className="w-full bg-canvas border border-border rounded px-3 py-2 font-mono text-xs text-text-primary"
+                />
+              </div>
             </div>
           </div>
-
-          <div className="space-y-2">
-            <label htmlFor="marquee-opencode-key" className="block font-medium text-text-secondary">
-              OpenCode API Key ({config?.hasOpencodeKey ? `Saved: ${config.opencodeKeyPreview}` : "Not set"})
-            </label>
-            <input
-              id="marquee-opencode-key"
-              type="password"
-              value={opencodeKey}
-              onChange={(e) => setOpencodeKey(e.target.value)}
-              placeholder={config?.hasOpencodeKey ? "Enter new key to replace saved key" : "oc-..."}
-              className="w-full bg-canvas border border-border rounded px-3 py-2 font-mono text-xs text-text-primary"
-            />
-            <div className="grid grid-cols-2 gap-2 pt-1">
-              <input
-                type="text"
-                aria-label="OpenCode Base URL"
-                value={opencodeBaseUrl}
-                onChange={(e) => setOpencodeBaseUrl(e.target.value)}
-                placeholder="https://api.opencode.ai/v1"
-                className="bg-canvas border border-border rounded px-2 py-1 font-mono text-[11px] text-text-primary"
-              />
-              <input
-                type="text"
-                aria-label="OpenCode Model"
-                value={opencodeModel}
-                onChange={(e) => setOpencodeModel(e.target.value)}
-                placeholder="opencode-chat"
-                className="bg-canvas border border-border rounded px-2 py-1 font-mono text-[11px] text-text-primary"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Gemini & Groq Credentials */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs pt-2 border-t border-border-subtle">
-          <div className="space-y-1.5">
-            <label htmlFor="marquee-gemini-key" className="block font-medium text-text-secondary">
-              Gemini API Key ({config?.hasGeminiKey ? `Saved: ${config.geminiKeyPreview}` : "Not set"})
-            </label>
-            <input
-              id="marquee-gemini-key"
-              type="password"
-              value={geminiKey}
-              onChange={(e) => setGeminiKey(e.target.value)}
-              placeholder={config?.hasGeminiKey ? "Enter new key to replace saved key" : "AIza..."}
-              className="w-full bg-canvas border border-border rounded px-3 py-2 font-mono text-xs text-text-primary"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label htmlFor="marquee-groq-key" className="block font-medium text-text-secondary">
-              Groq API Key ({config?.hasGroqKey ? `Saved: ${config.groqKeyPreview}` : "Not set"})
-            </label>
-            <input
-              id="marquee-groq-key"
-              type="password"
-              value={groqKey}
-              onChange={(e) => setGroqKey(e.target.value)}
-              placeholder={config?.hasGroqKey ? "Enter new key to replace saved key" : "gsk_..."}
-              className="w-full bg-canvas border border-border rounded px-3 py-2 font-mono text-xs text-text-primary"
-            />
-          </div>
-        </div>
+        </details>
 
         <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-border-subtle">
           <label className="inline-flex items-center gap-2 text-xs text-text-secondary cursor-pointer">
@@ -308,7 +346,7 @@ export function MarqueeAiSettingsPanel() {
             disabled={saving}
             className="px-4 py-2 rounded erp-btn-primary text-xs font-medium hover:opacity-90 disabled:opacity-50 cursor-pointer"
           >
-            {saving ? "Encrypting & Saving..." : "Save AI Configuration"}
+            {saving ? "Encrypting & Saving..." : "Save Engine Settings"}
           </button>
         </div>
 
@@ -319,13 +357,13 @@ export function MarqueeAiSettingsPanel() {
         )}
       </form>
 
-      {/* Tier 3 Webhook Token Manager */}
+      {/* Headless Webhook Token Manager */}
       <div className="rounded-lg border border-border bg-surface p-5 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle pb-3">
           <div>
             <div className="flex items-center gap-2 text-sm font-semibold text-text-primary">
               <KeyRound className="w-4 h-4 text-text-tertiary" />
-              <span>Headless Quick-Capture Webhook (Tier 3 · X-Marquee-Token)</span>
+              <span>Headless Quick-Capture Webhook (X-Marquee-Token)</span>
             </div>
             <p className="text-xs text-text-tertiary mt-0.5">
               Trigger Marquee from iOS Shortcuts, Telegram, or terminal scripts using a per-user SHA-256 hashed bearer secret.
@@ -389,13 +427,13 @@ export function MarqueeAiSettingsPanel() {
             </p>
           </div>
           <span className="px-2 py-0.5 rounded border border-border bg-canvas text-[10px] font-mono text-delta-positive">
-            15 Curated ERP Tools · Isolated per userId
+            16 Curated ERP Tools · Isolated per userId
           </span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
           <div className="rounded border border-border-subtle bg-canvas/70 p-3 space-y-1">
-            <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+            <div className="text-[11px] font-mono text-text-tertiary">
               Streamable HTTP MCP Endpoint
             </div>
             <div className="font-mono text-text-primary break-all">
@@ -403,7 +441,7 @@ export function MarqueeAiSettingsPanel() {
             </div>
           </div>
           <div className="rounded border border-border-subtle bg-canvas/70 p-3 space-y-1">
-            <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+            <div className="text-[11px] font-mono text-text-tertiary">
               Authentication Header
             </div>
             <div className="font-mono text-text-primary">
@@ -414,7 +452,7 @@ export function MarqueeAiSettingsPanel() {
 
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+            <span className="text-[11px] font-mono text-text-tertiary">
               MCP Client Configuration (claude_desktop_config.json / mcp_config.json)
             </span>
             <button

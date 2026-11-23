@@ -168,7 +168,7 @@ export function RiskPolicyTab({ config }: RiskPolicyTabProps) {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-[11px] font-sans text-text-tertiary uppercase tracking-wider mb-1.5">
+            <label className="block text-[11px] font-sans text-text-tertiary mb-1.5">
               Optimal Debt Ratio Ceiling
             </label>
             <div className="flex items-center space-x-1">
@@ -186,7 +186,7 @@ export function RiskPolicyTab({ config }: RiskPolicyTabProps) {
           </div>
 
           <div>
-            <label className="block text-[11px] font-sans text-text-tertiary uppercase tracking-wider mb-1.5">
+            <label className="block text-[11px] font-sans text-text-tertiary mb-1.5">
               Max Safe Debt Ratio (Stress Line)
             </label>
             <div className="flex items-center space-x-1">
@@ -204,7 +204,7 @@ export function RiskPolicyTab({ config }: RiskPolicyTabProps) {
           </div>
 
           <div>
-            <label className="block text-[11px] font-sans text-text-tertiary uppercase tracking-wider mb-1.5">
+            <label className="block text-[11px] font-sans text-text-tertiary mb-1.5">
               Target Savings Rate
             </label>
             <div className="flex items-center space-x-1">
@@ -222,7 +222,7 @@ export function RiskPolicyTab({ config }: RiskPolicyTabProps) {
           </div>
 
           <div>
-            <label className="block text-[11px] font-sans text-text-tertiary uppercase tracking-wider mb-1.5">
+            <label className="block text-[11px] font-sans text-text-tertiary mb-1.5">
               Critical Living Floor
             </label>
             <div className="relative">
@@ -240,7 +240,7 @@ export function RiskPolicyTab({ config }: RiskPolicyTabProps) {
           </div>
 
           <div className="md:col-span-2">
-            <label className="block text-[11px] font-sans text-text-tertiary uppercase tracking-wider mb-1.5">
+            <label className="block text-[11px] font-sans text-text-tertiary mb-1.5">
               Emergency Runway Milestones (Months)
             </label>
             <input
@@ -268,7 +268,7 @@ export function RiskPolicyTab({ config }: RiskPolicyTabProps) {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-[11px] font-sans text-text-tertiary uppercase tracking-wider mb-1.5">
+            <label className="block text-[11px] font-sans text-text-tertiary mb-1.5">
               Total Bank Credit Limit
             </label>
             <div className="relative">
@@ -286,7 +286,7 @@ export function RiskPolicyTab({ config }: RiskPolicyTabProps) {
           </div>
 
           <div>
-            <label className="block text-[11px] font-sans text-text-tertiary uppercase tracking-wider mb-1.5">
+            <label className="block text-[11px] font-sans text-text-tertiary mb-1.5">
               Credit Card Usage Limit
             </label>
             <div className="relative">
@@ -304,7 +304,7 @@ export function RiskPolicyTab({ config }: RiskPolicyTabProps) {
           </div>
 
           <div>
-            <label className="block text-[11px] font-sans text-text-tertiary uppercase tracking-wider mb-1.5">
+            <label className="block text-[11px] font-sans text-text-tertiary mb-1.5">
               PayLater Usage Limit
             </label>
             <div className="relative">
@@ -388,7 +388,7 @@ export function RiskPolicyTab({ config }: RiskPolicyTabProps) {
           </div>
 
           <div>
-            <label className="block text-[11px] font-sans text-text-tertiary uppercase tracking-wider mb-1.5">
+            <label className="block text-[11px] font-sans text-text-tertiary mb-1.5">
               Grace Period (Days Post-Cycle)
             </label>
             <input
@@ -403,7 +403,7 @@ export function RiskPolicyTab({ config }: RiskPolicyTabProps) {
           </div>
 
           <div>
-            <label className="block text-[11px] font-sans text-text-tertiary uppercase tracking-wider mb-1.5">
+            <label className="block text-[11px] font-sans text-text-tertiary mb-1.5">
               Active Tracking Boundary
             </label>
             <div className="px-3 py-1.5 bg-[#0c0e14] border border-[#282e3d] rounded text-xs font-mono text-text-secondary">

@@ -206,7 +206,7 @@ export function GlobalConfigForm({ initialConfig }: GlobalConfigFormProps) {
       {/* Section 1: Compensation & Payroll Baselines */}
       <div className="rounded-lg border border-border bg-surface p-5 space-y-4">
         <div className="border-b border-border-subtle pb-3">
-          <h2 className="text-xs font-semibold tracking-wider text-text-tertiary uppercase font-sans">
+          <h2 className="text-xs font-semibold text-text-tertiary font-sans">
             1. Compensation & Payroll Baselines
           </h2>
           <p className="text-xs font-sans text-text-secondary mt-0.5">
@@ -314,7 +314,7 @@ export function GlobalConfigForm({ initialConfig }: GlobalConfigFormProps) {
       {/* Section 2: Fixed Essentials & Operational Baseline */}
       <div className="rounded-lg border border-border bg-surface p-5 space-y-4">
         <div className="border-b border-border-subtle pb-3">
-          <h2 className="text-xs font-semibold tracking-wider text-text-tertiary uppercase font-sans">
+          <h2 className="text-xs font-semibold text-text-tertiary font-sans">
             2. Fixed Essentials & Operational Baseline
           </h2>
           <p className="text-xs font-sans text-text-secondary mt-0.5">
@@ -473,7 +473,7 @@ export function GlobalConfigForm({ initialConfig }: GlobalConfigFormProps) {
       {/* Section 3: Credit Facility & Billing Cycle */}
       <div className="rounded-lg border border-border bg-surface p-5 space-y-4">
         <div className="border-b border-border-subtle pb-3">
-          <h2 className="text-xs font-semibold tracking-wider text-text-tertiary uppercase font-sans">
+          <h2 className="text-xs font-semibold text-text-tertiary font-sans">
             3. Credit Facility & Billing Schedule
           </h2>
           <p className="text-xs font-sans text-text-secondary mt-0.5">

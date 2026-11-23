@@ -461,7 +461,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
               <div className="text-[11px] text-text-tertiary font-sans mt-0.5 flex items-center justify-between gap-2">
                 <span className="truncate">{t("app.subtitle")}</span>
                 {uiDensityMode === "SIMPLE_CLARITY" && (
-                  <span className="text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded border border-border text-text-secondary shrink-0">
+                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded border border-border text-text-secondary shrink-0">
                     Simple
                   </span>
                 )}
@@ -474,7 +474,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
         <div className="flex-1 overflow-y-auto px-3 py-3 space-y-5">
           {/* Main Financial Modules */}
           <div>
-            <div className="px-3 pb-1.5 text-[10px] font-sans tracking-wider font-semibold text-text-tertiary uppercase">
+            <div className="px-3 pb-1.5 text-[10px] font-sans font-semibold text-text-tertiary">
               {t("nav.section.engine")}
             </div>
             {renderRouteGroup(
@@ -487,7 +487,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
           {(visibleAnalysisRoutes.length > 0 ||
             customShortcuts.some((s) => s.sectionGroup === "AUDIT_DECISION")) && (
             <div>
-              <div className="px-3 pb-1.5 text-[10px] font-sans tracking-wider font-semibold text-text-tertiary uppercase">
+              <div className="px-3 pb-1.5 text-[10px] font-sans font-semibold text-text-tertiary">
                 {t("nav.section.audit")}
               </div>
               {renderRouteGroup(
@@ -499,7 +499,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
 
           {/* System & Configuration */}
           <div>
-            <div className="px-3 pb-1.5 text-[10px] font-sans tracking-wider font-semibold text-text-tertiary uppercase">
+            <div className="px-3 pb-1.5 text-[10px] font-sans font-semibold text-text-tertiary">
               {t("nav.section.system")}
             </div>
             {renderRouteGroup(

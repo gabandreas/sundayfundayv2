@@ -270,7 +270,7 @@ export function OnboardingWizardModal() {
         {step === 1 && (
           <div className="space-y-4">
             <div>
-              <label className="text-[11px] font-mono uppercase tracking-wider text-text-tertiary block mb-2">
+              <label className="text-[11px] font-mono text-text-tertiary block mb-2">
                 Select Your Workspace Blueprint (Configures Active Modules & Allocation Formula)
               </label>
               <div className="space-y-2">
@@ -299,7 +299,7 @@ export function OnboardingWizardModal() {
                           </span>
                           {preset.uiDensityMode === "SIMPLE_CLARITY" && (
                             <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-surface-subtle border border-border text-caution">
-                              SIMPLE CLARITY UI
+                              Simple Clarity UI
                             </span>
                           )}
                         </div>
@@ -315,7 +315,7 @@ export function OnboardingWizardModal() {
 
             <div className="grid grid-cols-2 gap-4 pt-2 border-t border-border-subtle">
               <div>
-                <label className="text-[11px] font-mono uppercase tracking-wider text-text-tertiary block mb-1.5">
+                <label className="text-[11px] font-mono text-text-tertiary block mb-1.5">
                   Estimated Net Monthly Inflow / Pension
                 </label>
                 <div className="relative">
@@ -337,7 +337,7 @@ export function OnboardingWizardModal() {
               </div>
 
               <div>
-                <label className="text-[11px] font-mono uppercase tracking-wider text-text-tertiary block mb-1.5">
+                <label className="text-[11px] font-mono text-text-tertiary block mb-1.5">
                   Monthly Payday / Pension Anchor Date
                 </label>
                 <select
@@ -467,7 +467,7 @@ export function OnboardingWizardModal() {
 
             {/* Daily Operational Pool */}
             <div className="p-3.5 rounded border border-border bg-surface-subtle space-y-1.5">
-              <label className="text-[11px] font-mono uppercase tracking-wider text-text-tertiary block">
+              <label className="text-[11px] font-mono text-text-tertiary block">
                 Monthly Food & General Daily Living Target
               </label>
               <div className="relative">
@@ -494,7 +494,7 @@ export function OnboardingWizardModal() {
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-[11px] font-mono uppercase tracking-wider text-text-tertiary block mb-1.5">
+                <label className="text-[11px] font-mono text-text-tertiary block mb-1.5">
                   Allocation Formula Engine
                 </label>
                 <select
@@ -520,7 +520,7 @@ export function OnboardingWizardModal() {
               </div>
 
               <div>
-                <label className="text-[11px] font-mono uppercase tracking-wider text-text-tertiary block mb-1.5">
+                <label className="text-[11px] font-mono text-text-tertiary block mb-1.5">
                   Dashboard UI Density Mode
                 </label>
                 <select
@@ -541,7 +541,7 @@ export function OnboardingWizardModal() {
             </div>
 
             <div>
-              <label className="text-[11px] font-mono uppercase tracking-wider text-text-tertiary block mb-1.5">
+              <label className="text-[11px] font-mono text-text-tertiary block mb-1.5">
                 Target Monthly Core Savings / Reserve
               </label>
               <div className="relative">
@@ -563,7 +563,7 @@ export function OnboardingWizardModal() {
 
             {/* Cashflow Feasibility Preview */}
             <div className="p-3.5 rounded bg-surface-subtle border border-border-subtle space-y-2 text-xs font-mono">
-              <div className="flex items-center justify-between text-[10px] uppercase text-text-tertiary tracking-wider font-semibold">
+              <div className="flex items-center justify-between text-[10px] text-text-tertiary font-semibold">
                 <span>Projected Monthly Cashflow Summary</span>
                 <span>{selectedModules.length} Modules Active</span>
               </div>
