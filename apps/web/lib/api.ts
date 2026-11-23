@@ -2346,11 +2346,10 @@ export type PayrollMode =
 
 export type LifeStagePreset =
   | "SUPERADMIN_BESPOKE"
-  | "STUDENT_FIRST_JOBBER"
+  | "STANDARD_GENERAL"
   | "CORPORATE_PROFESSIONAL"
   | "FREELANCER_VARIABLE"
-  | "FAMILY_HOUSEHOLD"
-  | "RETIREE_GOLDEN_AGE";
+  | "FAMILY_HOUSEHOLD";
 
 export type UiDensityMode = "COMMAND_COCKPIT" | "SIMPLE_CLARITY";
 
@@ -2367,8 +2366,12 @@ export type ModuleKey =
   | "ledger"
   | "preferences"
   | "corporate_payroll"
+  | "payday_wizard"
+  | "cash_radar"
   | "credit_liabilities"
   | "savings_vault"
+  | "statement_import"
+  | "scenarios"
   | "wishlist_simulator"
   | "discipline_audit"
   | "advanced_analytics"
@@ -2381,12 +2384,29 @@ export const ALL_MODULE_KEYS: ModuleKey[] = [
   "ledger",
   "preferences",
   "corporate_payroll",
+  "payday_wizard",
+  "cash_radar",
   "credit_liabilities",
   "savings_vault",
+  "statement_import",
+  "scenarios",
   "wishlist_simulator",
   "discipline_audit",
   "advanced_analytics",
   "executive_reports",
+];
+
+export const SUNDAY_FUNDAY_STANDARD_MODULES: ModuleKey[] = [
+  "overview",
+  "ledger",
+  "allocations",
+  "income",
+  "savings_vault",
+  "cash_radar",
+  "executive_reports",
+  "scenarios",
+  "wishlist_simulator",
+  "preferences",
 ];
 
 export interface CustomIncomeDeductionRow {
@@ -4413,16 +4433,34 @@ export interface AuthenticatedUser {
   lifeStagePreset?: LifeStagePreset;
   uiDensityMode?: UiDensityMode;
   status: UserStatus;
+  mustChangePassword?: boolean;
+  passwordChangedAt?: string | null;
   createdAt?: string;
 }
 
 export interface AuthResponse {
   accessToken?: string;
+  refreshToken?: string;
+  sessionId?: string;
   expiresIn?: number;
+  hasSecurityPin?: boolean;
+  mustChangePassword?: boolean;
   user?: AuthenticatedUser;
   requiresPin?: boolean;
   detectedIp?: string;
   message?: string;
+}
+
+export interface ActiveSessionRecord {
+  sessionId: string;
+  deviceId: string | null;
+  deviceName: string;
+  platform: string;
+  clientIp: string | null;
+  lastUsedAt: string;
+  createdAt: string;
+  expiresAt: string;
+  isCurrent: boolean;
 }
 
 export interface AdminUserSummary {
@@ -4436,8 +4474,30 @@ export interface AdminUserSummary {
   lifeStagePreset?: LifeStagePreset;
   uiDensityMode?: UiDensityMode;
   status: UserStatus;
+  mustChangePassword?: boolean;
+  passwordChangedAt?: string | null;
+  activeSessionCount?: number;
+  baseSalary?: number;
+  payrollPayoutDay?: number;
+  enabledModules?: ModuleKey[];
   snapshotCount: number;
   createdAt: string;
+}
+
+export interface AdminAuditLogItem {
+  id: number;
+  userId: number;
+  action: string;
+  category: string;
+  summary: string;
+  details: string | null;
+  severity: string;
+  createdAt: string;
+  user?: {
+    id: number;
+    username: string;
+    fullName: string;
+  };
 }
 
 export interface ModuleRegistryItem {
@@ -4457,81 +4517,115 @@ export const MODULE_REGISTRY_CATALOG: ModuleRegistryItem[] = [
     description: "Real-time daily pacing, waterfall summary, and cycle health.",
   },
   {
-    key: "corporate_payroll",
-    label: "Payroll & Income",
-    route: "/payroll",
-    isCore: false,
-    description: "Salary, allowances, freelance streams, pension inflows, and THR.",
+    key: "ledger",
+    label: "Transactions",
+    route: "/ledger",
+    isCore: true,
+    description: "Unified cash movement history and expense filtering.",
   },
   {
     key: "allocations",
-    label: "Budget & Allocations",
+    label: "Budgets & Envelopes",
     route: "/allocations",
     isCore: true,
-    description: "Selectable formula engines (Waterfall, Savings Lock, 50/30/20, Drawdown) and routine envelopes.",
+    description: "Monthly allocation plan, formula rules, and spending envelopes.",
   },
   {
-    key: "credit_liabilities",
-    label: "Credits & Debts",
-    route: "/credits",
-    isCore: false,
-    description: "12-month liability matrix, credit cards, PayLater, and installment contracts.",
+    key: "income",
+    label: "Income & Cash Flow",
+    route: "/payroll",
+    isCore: true,
+    description: "Base monthly inflow, recurring inflows, and payday schedule.",
   },
   {
     key: "savings_vault",
-    label: "Savings & Goals",
+    label: "Accounts & Goals",
     route: "/savings",
     isCore: false,
-    description: "Dual-instrument vault (Liquid Cash & RDPU), goal tracking, and wealth target planner.",
+    description: "Emergency reserve, liquid accounts, and long-term savings goals.",
+  },
+  {
+    key: "cash_radar",
+    label: "Bills & Recurring Calendar",
+    route: "/calendar",
+    isCore: false,
+    description: "Day-by-day running cash balance, recurring bills, and low-cash alerts.",
+  },
+  {
+    key: "executive_reports",
+    label: "Reports & Trends",
+    route: "/reports",
+    isCore: false,
+    description: "Monthly closing statement, comparative review, and cashflow forecast.",
+  },
+  {
+    key: "scenarios",
+    label: "Scenario & Goal Planner",
+    route: "/scenarios",
+    isCore: false,
+    description: "Forward cashflow simulation and milestone readiness planner.",
   },
   {
     key: "wishlist_simulator",
     label: "Wishlist Simulator",
     route: "/wishlist",
     isCore: false,
-    description: "Cash vs. installment affordability simulator and debt-ratio guard.",
+    description: "Purchase affordability check and savings goal alignment.",
   },
   {
-    key: "ledger",
-    label: "Transactions Ledger",
-    route: "/ledger",
-    isCore: true,
-    description: "Unified cash movement history, bank CSV import, and balance reconciliation.",
-  },
-  {
-    key: "discipline_audit",
-    label: "Discipline Audit",
-    route: "/audit",
+    key: "credit_liabilities",
+    label: "Debts & Credit Matrix (Opt-In)",
+    route: "/credit",
     isCore: false,
-    description: "100-point financial discipline scorecard and immutable governance log.",
+    description: "12-month debt schedule, credit cards, PayLater, and installment contracts.",
+  },
+  {
+    key: "corporate_payroll",
+    label: "Corporate Payroll & Attendance (Opt-In)",
+    route: "/payroll",
+    isCore: false,
+    description: "Attendance cutoff windows, allowances, BPJS deductions, and THR estimator.",
+  },
+  {
+    key: "payday_wizard",
+    label: "Payday & Closing Wizard (Opt-In)",
+    route: "/payday-wizard",
+    isCore: false,
+    description: "Step-by-step period closing and next-cycle initialization checklist.",
+  },
+  {
+    key: "statement_import",
+    label: "Bank Statement Import (Opt-In)",
+    route: "/import",
+    isCore: false,
+    description: "CSV / Excel transaction import and auto-categorization pipeline.",
   },
   {
     key: "advanced_analytics",
-    label: "Analytics & Velocity",
+    label: "Advanced Trend Analytics (Opt-In)",
     route: "/analytics",
     isCore: false,
-    description: "Multi-month cashflow velocity, debt burn-down, and net worth trajectory.",
+    description: "Multi-month velocity, spending variance, and net worth trajectory.",
   },
   {
-    key: "executive_reports",
-    label: "Executive Reports",
-    route: "/reports",
+    key: "discipline_audit",
+    label: "Discipline Audit (Opt-In)",
+    route: "/audit",
     isCore: false,
-    description: "Printable monthly closing statement, comparative statement, and 3-month liquidity forecast.",
+    description: "100-point financial discipline scorecard and governance log.",
   },
   {
     key: "preferences",
     label: "Preferences & Modules",
     route: "/preferences",
     isCore: true,
-    description: "Self-service module manager, UI density switcher, and bespoke rule request studio.",
+    description: "Account settings, display controls, notifications, and active modules.",
   },
 ];
 
 export interface LifeStagePresetMeta {
   id: LifeStagePreset;
   title: string;
-  ageRange: string;
   subtitle: string;
   formulaEngineType: FormulaEngineType;
   formulaLabel: string;
@@ -4545,77 +4639,65 @@ export interface LifeStagePresetMeta {
 
 export const LIFE_STAGE_PRESET_CATALOG: LifeStagePresetMeta[] = [
   {
-    id: "STUDENT_FIRST_JOBBER",
-    title: "Student / First-Jobber",
-    ageRange: "Ages 18–24",
-    subtitle: "Allowance or entry salary with Pay-Yourself-First savings lock and zero corporate payroll clutter.",
-    formulaEngineType: "SAVINGS_FIRST_LOCK",
-    formulaLabel: "Savings-First Lock (20% Locked First)",
+    id: "STANDARD_GENERAL",
+    title: "Sunday Funday Standard",
+    subtitle: "US Personal Finance baseline: Overview, Transactions, Budgets, Income & Cash Flow, Accounts & Goals, Bills, Reports, and Planner.",
+    formulaEngineType: "PERCENTAGE_SPLIT",
+    formulaLabel: "Balanced Split (Needs / Savings / Flexible)",
     uiDensityMode: "COMMAND_COCKPIT",
-    enabledModules: [
-      "overview",
-      "income",
-      "corporate_payroll",
-      "allocations",
-      "ledger",
-      "savings_vault",
-      "wishlist_simulator",
-      "preferences",
-    ],
+    enabledModules: [...SUNDAY_FUNDAY_STANDARD_MODULES],
     routineCategories: [
-      { id: "transport", label: "Kos / Boarding & Utilities", target: 1500000 },
-      { id: "internet", label: "Campus Commute & Transit", target: 400000 },
-      { id: "vape", label: "Mobile Data & Subscriptions", target: 250000 },
-      { id: "haircut", label: "Study Materials & Personal Care", target: 200000 },
+      { id: "transport", label: "Housing & Utilities", target: 2000000 },
+      { id: "internet", label: "Groceries & Dining", target: 1200000 },
+      { id: "vape", label: "Transport & Mobility", target: 500000 },
+      { id: "haircut", label: "Subscriptions & Lifestyle", target: 350000 },
     ],
-    defaultSalary: 5000000,
-    defaultDailyLiving: 1800000,
-    defaultSavings: 1000000,
+    defaultSalary: 10000000,
+    defaultDailyLiving: 2000000,
+    defaultSavings: 1500000,
   },
   {
     id: "CORPORATE_PROFESSIONAL",
-    title: "Corporate Professional",
-    ageRange: "Ages 24–40",
-    subtitle: "Full-suite ERP with corporate payroll, credit card & PayLater matrix, savings vault, and audit.",
+    title: "Corporate Professional (Opt-In Credit & Payroll)",
+    subtitle: "Full-suite ERP adding Corporate Payroll, Credit & Debts Matrix, Statement Import, and Discipline Audit.",
     formulaEngineType: "DEBT_FIRST_WATERFALL",
     formulaLabel: "Debt-First Waterfall (Bills -> Routine -> Core Savings -> Flexible Surplus)",
     uiDensityMode: "COMMAND_COCKPIT",
     enabledModules: [...ALL_MODULE_KEYS],
     routineCategories: [
       { id: "transport", label: "Housing & Utilities", target: 2000000 },
-      { id: "internet", label: "Commute & Fuel", target: 600000 },
-      { id: "vape", label: "Internet & Subscriptions", target: 400000 },
-      { id: "haircut", label: "Personal Care & Grooming", target: 250000 },
+      { id: "internet", label: "Groceries & Dining", target: 1000000 },
+      { id: "vape", label: "Transport & Mobility", target: 600000 },
+      { id: "haircut", label: "Subscriptions & Lifestyle", target: 300000 },
     ],
-    defaultSalary: 10000000,
+    defaultSalary: 12000000,
     defaultDailyLiving: 3000000,
     defaultSavings: 1500000,
   },
   {
     id: "FREELANCER_VARIABLE",
-    title: "Freelancer / Creator / Variable Earner",
-    ageRange: "Ages 22–45",
-    subtitle: "Multi-client project payouts with Percentage Split (50/30/20) and tax reserve buckets.",
+    title: "Freelancer / Variable Cashflow",
+    subtitle: "Multi-client project inflows with Percentage Split (50/30/20) and tax reserve buckets.",
     formulaEngineType: "PERCENTAGE_SPLIT",
     formulaLabel: "Percentage Split (50% Needs / 30% Wants / 20% Savings)",
     uiDensityMode: "COMMAND_COCKPIT",
     enabledModules: [
       "overview",
       "income",
-      "corporate_payroll",
       "allocations",
       "ledger",
-      "credit_liabilities",
+      "cash_radar",
       "savings_vault",
+      "scenarios",
       "wishlist_simulator",
-      "advanced_analytics",
+      "executive_reports",
       "preferences",
     ],
     routineCategories: [
-      { id: "transport", label: "Tax Reserve & BPJS Mandiri", target: 1000000 },
-      { id: "internet", label: "Software, Cloud & Fiber Internet", target: 750000 },
-      { id: "vape", label: "Studio / Workspace & Utilities", target: 1500000 },
-      { id: "haircut", label: "Client Meetings & Mobility", target: 500000 },
+      { id: "transport", label: "Tax Reserve & Insurance", target: 1500000 },
+      { id: "internet", label: "Workspace & Software", target: 750000 },
+      { id: "vape", label: "Transport & Mobility", target: 500000 },
+      { id: "haircut", label: "Lifestyle & Misc", target: 500000 },
     ],
     defaultSalary: 12000000,
     defaultDailyLiving: 3500000,
@@ -4623,50 +4705,21 @@ export const LIFE_STAGE_PRESET_CATALOG: LifeStagePresetMeta[] = [
   },
   {
     id: "FAMILY_HOUSEHOLD",
-    title: "Family & Household CFO",
-    ageRange: "Ages 30–55",
-    subtitle: "Dual-income household, KPR/auto installments, school tuition, groceries, and executive reporting.",
+    title: "Family & Household Budget",
+    subtitle: "Household cashflow, housing/tuition commitments, shared groceries, and executive reporting.",
     formulaEngineType: "DEBT_FIRST_WATERFALL",
-    formulaLabel: "Debt-First Waterfall (Household Bills -> Education -> Family Reserve)",
+    formulaLabel: "Debt-First Waterfall (Bills -> Routine -> Core Savings -> Flexible Surplus)",
     uiDensityMode: "COMMAND_COCKPIT",
-    enabledModules: [...ALL_MODULE_KEYS],
+    enabledModules: [...SUNDAY_FUNDAY_STANDARD_MODULES, "credit_liabilities"],
     routineCategories: [
-      { id: "transport", label: "Mortgage / Housing & Maintenance", target: 4500000 },
-      { id: "internet", label: "Children Education & Daycare", target: 2500000 },
-      { id: "vape", label: "Household Groceries & Utilities", target: 3000000 },
-      { id: "haircut", label: "Family Health & Insurance", target: 1200000 },
+      { id: "transport", label: "Housing & Utilities", target: 4500000 },
+      { id: "internet", label: "Groceries & Household", target: 3000000 },
+      { id: "vape", label: "Education & Dependents", target: 2500000 },
+      { id: "haircut", label: "Transport & Health", target: 1200000 },
     ],
     defaultSalary: 20000000,
     defaultDailyLiving: 4500000,
     defaultSavings: 3000000,
-  },
-  {
-    id: "RETIREE_GOLDEN_AGE",
-    title: "Golden Age / Retiree",
-    ageRange: "Ages 55–70+",
-    subtitle: "Simple Clarity high-contrast layout with Pension + Vault Drawdown and healthcare priority envelopes.",
-    formulaEngineType: "RETIREMENT_DRAWDOWN",
-    formulaLabel: "Retirement Drawdown (Pension + Vault Drawdown -> Healthcare & Living)",
-    uiDensityMode: "SIMPLE_CLARITY",
-    enabledModules: [
-      "overview",
-      "income",
-      "corporate_payroll",
-      "allocations",
-      "ledger",
-      "savings_vault",
-      "executive_reports",
-      "preferences",
-    ],
-    routineCategories: [
-      { id: "transport", label: "Healthcare, Checkups & Supplements", target: 1500000 },
-      { id: "internet", label: "Home Electricity, Water & Care", target: 1000000 },
-      { id: "vape", label: "Family Gifts & Community", target: 600000 },
-      { id: "haircut", label: "Daily Mobility & Leisure", target: 400000 },
-    ],
-    defaultSalary: 6000000,
-    defaultDailyLiving: 2500000,
-    defaultSavings: 500000,
   },
 ];
 
@@ -4774,16 +4827,136 @@ export async function loginUser(payload: {
   return data;
 }
 
-export async function refreshSessionToken(): Promise<AuthResponse> {
+export async function refreshSessionToken(refreshToken?: string | null): Promise<AuthResponse> {
   const res = await fetch(`${API_URL}/api/auth/refresh`, {
     method: "POST",
-    headers: await getAuthHeaders(),
+    headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify(refreshToken ? { refreshToken } : {}),
   });
   const data = await res.json();
   if (!res.ok) {
     throw new Error(data.message || "Failed to refresh session");
   }
   return data;
+}
+
+export async function logoutUserApi(refreshToken?: string | null): Promise<void> {
+  const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+  const timer = controller ? setTimeout(() => controller.abort(), 2500) : null;
+  try {
+    await fetch(`${API_URL}/api/auth/logout`, {
+      method: "POST",
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(refreshToken ? { refreshToken } : {}),
+      signal: controller?.signal,
+    });
+  } catch {
+    // Ignore transient network errors when tearing down client session
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+export async function forgotPasswordApi(payload: {
+  identifier: string;
+  locale?: string;
+}): Promise<{ accepted: boolean; message: string }> {
+  const res = await fetch(`${API_URL}/api/auth/forgot-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(
+      Array.isArray(data.message) ? data.message.join(", ") : data.message || "Failed to request password reset",
+    );
+  }
+  return data;
+}
+
+export async function validateResetTokenApi(token: string): Promise<{ valid: boolean; expiresAt?: string }> {
+  const res = await fetch(
+    `${API_URL}/api/auth/reset-password/validate?token=${encodeURIComponent(token)}`,
+    { cache: "no-store" },
+  );
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.message || "This password reset link is invalid or has expired.");
+  }
+  return data;
+}
+
+export async function resetPasswordApi(payload: {
+  token: string;
+  newPassword: string;
+  confirmPassword: string;
+  locale?: string;
+}): Promise<{ success: boolean; message: string }> {
+  const res = await fetch(`${API_URL}/api/auth/reset-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(
+      Array.isArray(data.message) ? data.message.join(", ") : data.message || "Failed to reset password",
+    );
+  }
+  return data;
+}
+
+export async function completeFirstLoginPasswordApi(payload: {
+  newPassword: string;
+  confirmPassword: string;
+  locale?: string;
+}): Promise<AuthResponse> {
+  const res = await fetch(`${API_URL}/api/auth/complete-first-login-password`, {
+    method: "POST",
+    headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(
+      Array.isArray(data.message) ? data.message.join(", ") : data.message || "Failed to update temporary password",
+    );
+  }
+  return data;
+}
+
+export async function listActiveSessionsApi(): Promise<ActiveSessionRecord[]> {
+  const res = await fetch(`${API_URL}/api/auth/sessions`, {
+    headers: await getAuthHeaders(),
+    cache: "no-store",
+  });
+  if (!res.ok) return [];
+  return await res.json().catch(() => []);
+}
+
+export async function revokeSessionApi(sessionId: string): Promise<{ success: boolean }> {
+  const res = await fetch(`${API_URL}/api/auth/sessions/${encodeURIComponent(sessionId)}`, {
+    method: "DELETE",
+    headers: await getAuthHeaders(),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.message || "Failed to revoke session");
+  }
+  return await res.json();
+}
+
+export async function logoutAllDevicesApi(): Promise<{ success: boolean; message?: string }> {
+  const res = await fetch(`${API_URL}/api/auth/logout-all`, {
+    method: "POST",
+    headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.message || "Failed to sign out other devices");
+  }
+  return await res.json();
 }
 
 export async function fetchSessionInfo(): Promise<{
@@ -4913,33 +5086,134 @@ export async function fetchAdminUsers(): Promise<AdminUserSummary[]> {
   return await res.json();
 }
 
+export interface CreateAdminClientResult extends AuthenticatedUser {
+  temporaryPassword: string;
+  welcomeEmailSent: boolean;
+  enabledModules: ModuleKey[];
+}
+
 export async function createAdminClient(payload: {
+  accountName?: string;
+  username?: string;
   email: string;
   fullName: string;
-  role: UserRole;
-  blueprintType: BlueprintType;
+  role?: UserRole;
+  blueprintType?: BlueprintType;
   lifeStagePreset?: LifeStagePreset;
   uiDensityMode?: UiDensityMode;
   password?: string;
   tempPassword?: string;
   initializeSnapshot?: boolean;
   initializeFirstPeriod?: boolean;
+  initialMonthlyIncome?: number;
   initialSalary?: number;
-}): Promise<AuthenticatedUser> {
+  paydayAnchorDay?: number;
+  enabledModules?: ModuleKey[];
+  sendWelcomeEmail?: boolean;
+  locale?: string;
+  mustChangePassword?: boolean;
+}): Promise<CreateAdminClientResult> {
+  const customPassword = (payload.password || payload.tempPassword || "").trim();
   const res = await fetch(`${API_URL}/api/admin/clients`, {
     method: "POST",
     headers: await getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({
-      ...payload,
-      password: payload.password || payload.tempPassword || "SundayFunday#2026",
+      accountName: payload.accountName,
+      username: payload.username,
+      email: payload.email,
+      fullName: payload.fullName,
+      role: payload.role,
+      blueprintType: payload.blueprintType,
+      lifeStagePreset: payload.lifeStagePreset,
+      uiDensityMode: payload.uiDensityMode,
+      ...(customPassword ? { password: customPassword } : {}),
       initializeSnapshot: payload.initializeSnapshot ?? payload.initializeFirstPeriod ?? true,
+      initialMonthlyIncome: payload.initialMonthlyIncome ?? payload.initialSalary ?? 0,
+      paydayAnchorDay: payload.paydayAnchorDay ?? 1,
+      enabledModules: payload.enabledModules,
+      sendWelcomeEmail: payload.sendWelcomeEmail ?? false,
+      locale: payload.locale,
+      mustChangePassword: payload.mustChangePassword ?? true,
     }),
   });
   const data = await res.json();
   if (!res.ok) {
-    throw new Error(data.message || "Failed to create client account");
+    throw new Error(
+      Array.isArray(data.message)
+        ? data.message.join(", ")
+        : data.message || "Failed to create client account"
+    );
   }
   return data;
+}
+
+export async function resetAdminClientPassword(
+  id: number,
+  payload?: { temporaryPassword?: string; sendEmail?: boolean; locale?: string }
+): Promise<{
+  success: boolean;
+  userId: number;
+  accountName: string;
+  username: string;
+  email: string;
+  temporaryPassword: string;
+  mustChangePassword: boolean;
+  welcomeEmailSent: boolean;
+}> {
+  const res = await fetch(`${API_URL}/api/admin/users/${id}/reset-password`, {
+    method: "POST",
+    headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify(payload || {}),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(
+      Array.isArray(data.message)
+        ? data.message.join(", ")
+        : data.message || "Failed to reset client password"
+    );
+  }
+  return data;
+}
+
+export async function revokeAdminUserSessions(
+  id: number
+): Promise<{ success: boolean; userId: number; revokedCount: number }> {
+  const res = await fetch(`${API_URL}/api/admin/users/${id}/revoke-sessions`, {
+    method: "POST",
+    headers: await getAuthHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || "Failed to revoke user sessions");
+  }
+  return data;
+}
+
+export async function deleteAdminClient(
+  id: number
+): Promise<{ success: boolean; deletedUserId: number }> {
+  const res = await fetch(`${API_URL}/api/admin/users/${id}`, {
+    method: "DELETE",
+    headers: await getAuthHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || "Failed to delete client account");
+  }
+  return data;
+}
+
+export async function fetchAdminAuditLogs(limit: number = 60): Promise<AdminAuditLogItem[]> {
+  const res = await fetch(`${API_URL}/api/admin/audit-logs?limit=${limit}`, {
+    headers: await getAuthHeaders(),
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || "Failed to fetch security audit logs");
+  }
+  return await res.json();
 }
 
 export async function updateAdminClient(
@@ -6883,7 +7157,15 @@ export async function saveSavingsPockets(
 export async function changeAccountPassword(payload: {
   currentPassword: string;
   newPassword: string;
-}): Promise<{ success: boolean; message?: string; error?: string }> {
+  confirmPassword?: string;
+}): Promise<{
+  success: boolean;
+  message?: string;
+  error?: string;
+  accessToken?: string;
+  refreshToken?: string;
+  user?: AuthenticatedUser;
+}> {
   try {
     const res = await fetch(`${API_URL}/api/auth/change-password`, {
       method: "POST",
@@ -6892,9 +7174,18 @@ export async function changeAccountPassword(payload: {
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) {
-      return { success: false, error: body?.message || "Password update failed" };
+      return {
+        success: false,
+        error: Array.isArray(body?.message) ? body.message.join(", ") : body?.message || "Password update failed",
+      };
     }
-    return { success: true, message: body?.message || "Password updated cleanly." };
+    return {
+      success: true,
+      message: body?.message || "Password updated cleanly.",
+      accessToken: body?.accessToken,
+      refreshToken: body?.refreshToken,
+      user: body?.user,
+    };
   } catch (err: any) {
     return { success: false, error: err?.message || "Network error" };
   }

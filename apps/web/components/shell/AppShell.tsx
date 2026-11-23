@@ -18,9 +18,18 @@ import { MarqueeFloatingLauncher } from "@/components/marquee/MarqueeFloatingLau
 import { BrandMark } from "@/components/primitives/BrandMark";
 import { WorkspaceSkeleton } from "@/components/primitives/WorkspaceSkeleton";
 import { TopProgressBar } from "./TopProgressBar";
+import { useLanguage } from "@/context/LanguageContext";
+
+const AUTH_SHELLLESS_ROUTES = new Set([
+  "/login",
+  "/forgot-password",
+  "/reset-password",
+  "/change-password",
+]);
 
 function AppShellProtected({ children }: { children: React.ReactNode }) {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, isSigningOut } = useAuth();
+  const { t } = useLanguage();
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const [isMarqueeOpen, setIsMarqueeOpen] = useState(false);
 
@@ -39,6 +48,15 @@ function AppShellProtected({ children }: { children: React.ReactNode }) {
       window.removeEventListener("erp:marquee-toggle", onToggle);
     };
   }, []);
+
+  if (isSigningOut) {
+    return (
+      <div className="min-h-screen w-screen bg-canvas text-text-primary flex flex-col items-center justify-center gap-3">
+        <BrandMark size={24} />
+        <p className="text-xs font-mono text-text-secondary">{t("auth.signingOut")}</p>
+      </div>
+    );
+  }
 
   if (isLoading || !user) {
     return (
@@ -163,7 +181,7 @@ function AppShellProtected({ children }: { children: React.ReactNode }) {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
-  if (pathname === "/login") {
+  if (AUTH_SHELLLESS_ROUTES.has(pathname)) {
     return (
       <LanguageProvider>
         <AuthProvider>

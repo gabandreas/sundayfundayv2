@@ -10,6 +10,7 @@ interface ContractualBaseRateEditorProps {
   year: number;
   isLocked: boolean;
   config: GlobalConfig | null;
+  hideAllowances?: boolean;
 }
 
 export function ContractualBaseRateEditor({
@@ -17,15 +18,16 @@ export function ContractualBaseRateEditor({
   year,
   isLocked,
   config,
+  hideAllowances = false,
 }: ContractualBaseRateEditorProps) {
   const [baseSalary, setBaseSalary] = useState(
-    (config?.baseSalary ?? 5300000).toString()
+    (config?.baseSalary ?? 0).toString()
   );
   const [dailyAllowance, setDailyAllowance] = useState(
-    (config?.dailyAllowance ?? 25000).toString()
+    (config?.dailyAllowance ?? 0).toString()
   );
   const [laptopAllowance, setLaptopAllowance] = useState(
-    (config?.laptopAllowance ?? 250000).toString()
+    (config?.laptopAllowance ?? 0).toString()
   );
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -109,47 +111,49 @@ export function ContractualBaseRateEditor({
             />
           </div>
 
-          {/* Daily Attendance Rate */}
-          <div>
-            <label className="block text-[11px] font-sans font-medium text-text-secondary mb-1">
-              Daily Attendance Rate (Rp)
-            </label>
-            <input
-              type="number"
-              min="0"
-              step="1000"
-              value={dailyAllowance}
-              onChange={(e) => setDailyAllowance(e.target.value)}
-              disabled={isLocked || isSubmitting}
-              className="w-full bg-surface-subtle border border-border-subtle rounded px-3 py-1.5 text-xs font-mono tabular-nums text-text-primary focus:outline-none focus:border-border-active disabled:opacity-50"
-            />
-          </div>
+          {/* Daily Attendance Rate & Allowances (corporate payroll only) */}
+          {!hideAllowances && (
+            <>
+              <div>
+                <label className="block text-[11px] font-sans font-medium text-text-secondary mb-1">
+                  Daily Attendance Rate (Rp)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1000"
+                  value={dailyAllowance}
+                  onChange={(e) => setDailyAllowance(e.target.value)}
+                  disabled={isLocked || isSubmitting}
+                  className="w-full bg-surface-subtle border border-border-subtle rounded px-3 py-1.5 text-xs font-mono tabular-nums text-text-primary focus:outline-none focus:border-border-active disabled:opacity-50"
+                />
+              </div>
 
-          {/* Laptop Allowance */}
-          <div>
-            <label className="block text-[11px] font-sans font-medium text-text-secondary mb-1">
-              Laptop Allowance (Rp)
-            </label>
-            <input
-              type="number"
-              min="0"
-              step="10000"
-              value={laptopAllowance}
-              onChange={(e) => setLaptopAllowance(e.target.value)}
-              disabled={isLocked || isSubmitting}
-              className="w-full bg-surface-subtle border border-border-subtle rounded px-3 py-1.5 text-xs font-mono tabular-nums text-text-primary focus:outline-none focus:border-border-active disabled:opacity-50"
-            />
-          </div>
+              <div>
+                <label className="block text-[11px] font-sans font-medium text-text-secondary mb-1">
+                  Laptop Allowance (Rp)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="10000"
+                  value={laptopAllowance}
+                  onChange={(e) => setLaptopAllowance(e.target.value)}
+                  disabled={isLocked || isSubmitting}
+                  className="w-full bg-surface-subtle border border-border-subtle rounded px-3 py-1.5 text-xs font-mono tabular-nums text-text-primary focus:outline-none focus:border-border-active disabled:opacity-50"
+                />
+              </div>
 
-          {/* BPJS Deduction Preview */}
-          <div>
-            <label className="block text-[11px] font-sans font-medium text-text-secondary mb-1">
-              BPJS Deduction (3% Fixed)
-            </label>
-            <div className="w-full bg-surface-subtle border border-border-subtle rounded px-3 py-1.5 text-xs font-mono tabular-nums text-text-tertiary">
-              {formatRupiah(bpjsPreview)}
-            </div>
-          </div>
+              <div>
+                <label className="block text-[11px] font-sans font-medium text-text-secondary mb-1">
+                  BPJS Deduction (3% Fixed)
+                </label>
+                <div className="w-full bg-surface-subtle border border-border-subtle rounded px-3 py-1.5 text-xs font-mono tabular-nums text-text-tertiary">
+                  {formatRupiah(bpjsPreview)}
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         {errorMsg && (

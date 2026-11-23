@@ -267,9 +267,7 @@ export class CreditService {
     dto: CreateCreditCardTransactionDto,
     userId: number = 1,
   ): Promise<CreditCardTransaction> {
-    const config =
-      (await this.prisma.globalConfig.findFirst({ where: { userId } })) ||
-      (await this.prisma.globalConfig.findFirst({ where: { userId: 1 } }));
+    const config = await this.prisma.globalConfig.findFirst({ where: { userId } });
     const studioConfig = resolveStudioConfig(userId, config?.formulaParamsJson, config);
     const ccInst = studioConfig.instrumentsTable.find(
       (i) => i.active && i.type === 'CREDIT_CARD',
@@ -1177,8 +1175,7 @@ export class CreditService {
 
     const config =
       (await this.prisma.globalConfig.findUnique({ where: { userId } })) ||
-      (await this.prisma.globalConfig.findFirst({ where: { userId } })) ||
-      (await this.prisma.globalConfig.findFirst({ where: { userId: 1 } }));
+      (await this.prisma.globalConfig.findFirst({ where: { userId } }));
     if (!config) {
       throw new BadRequestException(
         'Global configuration has not been initialized',
@@ -2141,9 +2138,7 @@ export class CreditService {
       throw new BadRequestException('Monthly amount or total amount must be greater than Rp 0');
     }
 
-    const cfgRow =
-      (await this.prisma.globalConfig?.findFirst({ where: { userId } })) ||
-      (await this.prisma.globalConfig?.findFirst({ where: { userId: 1 } }));
+    const cfgRow = await this.prisma.globalConfig?.findFirst({ where: { userId } });
     const studioConfig = resolveStudioConfig(userId, cfgRow?.formulaParamsJson, cfgRow);
     const targetInstType =
       dto.category === LiabilityCategory.PAYLATER

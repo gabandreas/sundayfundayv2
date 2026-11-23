@@ -31,16 +31,6 @@ const PRESET_AMOUNTS = [
   { label: "100k", value: 100000 },
 ];
 
-const FIXED_ESSENTIAL_OPTIONS: Array<{
-  value: FixedEssentialCategory;
-  label: string;
-}> = [
-  { value: "TRANSPORT", label: "Transport (Fuel / Grab / KRL)" },
-  { value: "INTERNET", label: "Internet & Data Package" },
-  { value: "VAPE", label: "Vape Supplies & Liquid" },
-  { value: "HAIRCUT", label: "Haircut & Grooming" },
-];
-
 export function RecordExpenseCard({
   month,
   year,
@@ -48,7 +38,25 @@ export function RecordExpenseCard({
   trueHourlyWageRp,
 }: RecordExpenseCardProps) {
   const { t } = useLanguage();
-  const { studioConfig } = usePerspective();
+  const {
+    studioConfig,
+    getRoutineLabel,
+    isBespokeWorkspace,
+    isModuleEnabled,
+  } = usePerspective();
+  const hasCreditInstruments =
+    isBespokeWorkspace ||
+    isModuleEnabled("credit_liabilities") ||
+    (studioConfig?.instrumentsTable?.some((i) => i.active) ?? false);
+  const routineEssentialOptions: Array<{
+    value: FixedEssentialCategory;
+    label: string;
+  }> = [
+    { value: "TRANSPORT", label: getRoutineLabel("transport") },
+    { value: "INTERNET", label: getRoutineLabel("internet") },
+    { value: "VAPE", label: getRoutineLabel("vape") },
+    { value: "HAIRCUT", label: getRoutineLabel("haircut") },
+  ];
   const descInputRef = useRef<HTMLInputElement>(null);
   const [label, setLabel] = useState("");
   const [amount, setAmount] = useState<string>("");
@@ -285,7 +293,7 @@ export function RecordExpenseCard({
               }
               className="w-full px-2 py-1 rounded bg-surface-subtle border border-border text-[11px] font-sans text-text-primary focus:outline-none focus:border-border-strong"
             >
-              {FIXED_ESSENTIAL_OPTIONS.map((opt) => (
+              {routineEssentialOptions.map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}
                 </option>
@@ -301,30 +309,36 @@ export function RecordExpenseCard({
 
           {expenseMode !== "OPERATIONAL_REFUND" && (
             <div className="space-y-1.5 pt-0.5">
-              <div className="grid grid-cols-3 gap-1 p-0.5 rounded bg-surface-subtle border border-border-subtle">
-                {(
-                  [
-                    { id: "CASH", label: "Living Cash" },
-                    { id: "PAYLATER", label: "PayLater" },
-                    { id: "CC", label: "Credit Card" },
-                  ] as const
-                ).map((pm) => (
-                  <button
-                    key={pm.id}
-                    type="button"
-                    onClick={() => setPaymentMethod(pm.id)}
-                    className={`px-2 py-1 rounded text-[10px] font-mono transition-colors cursor-pointer ${
-                      paymentMethod === pm.id
-                        ? "bg-surface-active text-text-primary border border-border font-semibold"
-                        : "text-text-tertiary hover:text-text-secondary"
-                    }`}
-                  >
-                    {pm.label}
-                  </button>
-                ))}
-              </div>
+              {hasCreditInstruments ? (
+                <div className="grid grid-cols-3 gap-1 p-0.5 rounded bg-surface-subtle border border-border-subtle">
+                  {(
+                    [
+                      { id: "CASH", label: "Living Cash" },
+                      { id: "PAYLATER", label: "PayLater" },
+                      { id: "CC", label: "Credit Card" },
+                    ] as const
+                  ).map((pm) => (
+                    <button
+                      key={pm.id}
+                      type="button"
+                      onClick={() => setPaymentMethod(pm.id)}
+                      className={`px-2 py-1 rounded text-[10px] font-mono transition-colors cursor-pointer ${
+                        paymentMethod === pm.id
+                          ? "bg-surface-active text-text-primary border border-border font-semibold"
+                          : "text-text-tertiary hover:text-text-secondary"
+                      }`}
+                    >
+                      {pm.label}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="px-2 py-1 rounded bg-surface-subtle border border-border-subtle text-[10px] font-mono text-text-secondary">
+                  Payment Method: Cash / Debit
+                </div>
+              )}
 
-              {paymentMethod !== "CASH" && (
+              {hasCreditInstruments && paymentMethod !== "CASH" && (
                 <div className="p-2 rounded bg-surface-subtle border border-border-subtle space-y-2 text-[10px]">
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-mono text-text-tertiary">Tenor:</span>

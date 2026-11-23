@@ -15,10 +15,18 @@ const PREFERENCES_TABS: Array<{ id: PreferencesTabKey; label: string }> = [
 interface PreferencesNavProps {
   currentTab: PreferencesTabKey;
   onSelectTab: (tab: PreferencesTabKey) => void;
+  hideFormula?: boolean;
 }
 
-export function PreferencesNav({ currentTab, onSelectTab }: PreferencesNavProps) {
+export function PreferencesNav({
+  currentTab,
+  onSelectTab,
+  hideFormula = false,
+}: PreferencesNavProps) {
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const visibleTabs = hideFormula
+    ? PREFERENCES_TABS.filter((tab) => tab.id !== "formula")
+    : PREFERENCES_TABS;
 
   return (
     <div
@@ -26,7 +34,7 @@ export function PreferencesNav({ currentTab, onSelectTab }: PreferencesNavProps)
       aria-label="Configuration sections"
       className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-border"
     >
-      {PREFERENCES_TABS.map((tab, idx) => {
+      {visibleTabs.map((tab, idx) => {
         const isActive = currentTab === tab.id;
         return (
           <button
@@ -44,7 +52,7 @@ export function PreferencesNav({ currentTab, onSelectTab }: PreferencesNavProps)
             onKeyDown={(e) =>
               handleTabListKeyDown(
                 e,
-                PREFERENCES_TABS.map((t) => t.id),
+                visibleTabs.map((t) => t.id),
                 idx,
                 onSelectTab,
                 tabRefs,

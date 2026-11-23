@@ -12,6 +12,7 @@ interface PayrollCashflowHighlightsProps {
   thrAmount?: number;
   bonusAmount?: number;
   workingDays: number;
+  isStandardMode?: boolean;
 }
 
 export function PayrollCashflowHighlights({
@@ -21,40 +22,49 @@ export function PayrollCashflowHighlights({
   thrAmount = 0,
   bonusAmount = 0,
   workingDays,
+  isStandardMode = false,
 }: PayrollCashflowHighlightsProps) {
   const { isAmountsMasked } = usePrivacyMask();
   const supplementalTotal = Math.round((thrAmount || 0) + (bonusAmount || 0) + (extraIncome || 0));
-  const hasThrOrBonus = thrAmount > 0 || bonusAmount > 0;
+  const hasThrOrBonus = !isStandardMode && (thrAmount > 0 || bonusAmount > 0);
 
   return (
     <div className="grid grid-cols-12 gap-4">
       {/* Centerpiece: Final Total Income */}
-      <div className="col-span-4">
+      <div className={isStandardMode ? "col-span-4" : "col-span-4"}>
         <MetricCard
-          label="Final Total Income"
+          label={isStandardMode ? "Monthly Total Income" : "Final Total Income"}
           amount={finalTotalIncome}
           value={formatRupiah(finalTotalIncome, isAmountsMasked)}
           hasCurrency={true}
-          footer="Net distributed salary + bonuses + THR + windfall"
+          footer={
+            isStandardMode
+              ? "Base monthly income + extra inflows"
+              : "Net distributed salary + bonuses + THR + windfall"
+          }
           isCenterpiece={true}
           statusVariant="default"
         />
       </div>
 
       {/* Net Distributed Base */}
-      <div className="col-span-3">
+      <div className={isStandardMode ? "col-span-4" : "col-span-3"}>
         <MetricCard
-          label="Net Distributed Salary"
+          label={isStandardMode ? "Base Monthly Income" : "Net Distributed Salary"}
           amount={netSalaryIncome}
           value={formatRupiah(netSalaryIncome, isAmountsMasked)}
           hasCurrency={true}
-          footer="Base payroll + daily allowances - BPJS"
+          footer={
+            isStandardMode
+              ? "Recurring fixed base income"
+              : "Base payroll + daily allowances - BPJS"
+          }
           statusVariant="default"
         />
       </div>
 
       {/* Windfall / Extra / THR */}
-      <div className="col-span-3">
+      <div className={isStandardMode ? "col-span-4" : "col-span-3"}>
         <MetricCard
           label={hasThrOrBonus ? "THR, Bonus & Windfall" : "Extra / Windfall"}
           amount={supplementalTotal}
@@ -63,21 +73,23 @@ export function PayrollCashflowHighlights({
           footer={
             hasThrOrBonus
               ? `THR ${formatRupiah(thrAmount, isAmountsMasked)} + extras`
-              : "Freelance & bonuses"
+              : "Freelance, side income & bonuses"
           }
           statusVariant="default"
         />
       </div>
 
-      {/* Working Days */}
-      <div className="col-span-2">
-        <MetricCard
-          label="Working Days"
-          value={`${workingDays} days`}
-          footer="Attended office days"
-          statusVariant="default"
-        />
-      </div>
+      {/* Working Days (Corporate Attendance Payroll only) */}
+      {!isStandardMode && (
+        <div className="col-span-2">
+          <MetricCard
+            label="Working Days"
+            value={`${workingDays} days`}
+            footer="Attended office days"
+            statusVariant="default"
+          />
+        </div>
+      )}
     </div>
   );
 }

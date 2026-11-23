@@ -1,6 +1,7 @@
 import React from "react";
 import {
   GlobalConfig,
+  SUNDAY_FUNDAY_STANDARD_MODULES,
   fetchCustomRequests,
   fetchEmailStatus,
   fetchGlobalConfig,
@@ -16,20 +17,20 @@ import { PageHeader } from "@/components/primitives/PageHeader";
 export const dynamic = "force-dynamic";
 
 const FALLBACK_CONFIG: GlobalConfig = {
-  id: 1,
-  baseSalary: 5300000,
-  dailyAllowance: 25000,
-  laptopAllowance: 250000,
-  dailyOperational: 1500000,
-  transport: 300000,
+  id: 0,
+  baseSalary: 0,
+  dailyAllowance: 0,
+  laptopAllowance: 0,
+  dailyOperational: 0,
+  transport: 0,
   internet: 0,
-  vape: 150000,
-  haircut: 85000,
-  baseSavings: 1000000,
-  creditLimit: 7000000,
-  creditStatementDay: 25,
+  vape: 0,
+  haircut: 0,
+  baseSavings: 0,
+  creditLimit: 0,
+  creditStatementDay: 20,
   creditDueDay: 11,
-  payrollPayoutDay: 27,
+  payrollPayoutDay: 1,
   ccUsageLimit: 0,
   paylaterUsageLimit: 0,
   payrollRules: [],
@@ -41,24 +42,13 @@ const FALLBACK_CONFIG: GlobalConfig = {
     optimalDebtRatioPercent: 20,
     maxSafeDebtRatioPercent: 35,
     targetSavingsRatePercent: 20,
-    criticalOperationalFloorRp: 1000000,
+    criticalOperationalFloorRp: 0,
     runwayMilestoneMonths: [3, 6, 12],
   },
-  lifeStagePreset: "SUPERADMIN_BESPOKE",
-  enabledModulesJson: [
-    "overview",
-    "corporate_payroll",
-    "allocations",
-    "credit_liabilities",
-    "savings_vault",
-    "ledger",
-    "wishlist_simulator",
-    "discipline_audit",
-    "advanced_analytics",
-    "executive_reports",
-  ],
+  lifeStagePreset: "STANDARD_GENERAL",
+  enabledModulesJson: [...SUNDAY_FUNDAY_STANDARD_MODULES],
   uiDensityMode: "COMMAND_COCKPIT",
-  profileMode: "SUPERADMIN_BESPOKE",
+  profileMode: "STANDARD_GENERAL",
   killSwitchLeadDays: 14,
   killSwitchBannerEnabled: true,
   createdAt: "2026-07-01T00:00:00.000Z",
@@ -93,9 +83,6 @@ export default async function PreferencesPage({
 }) {
   const sp = (await searchParams) ?? {};
   const raw = sp.sub || sp.tab || "";
-  const currentTab: PreferencesTabKey = isValidPreferencesTab(raw)
-    ? raw
-    : TAB_ALIASES[raw] ?? "formula";
 
   const activePeriod = getDefaultPeriodFromNow();
 
@@ -116,12 +103,16 @@ export default async function PreferencesPage({
   ]);
 
   const resolvedConfig = config ?? FALLBACK_CONFIG;
+  const currentTab: PreferencesTabKey = isValidPreferencesTab(raw)
+    ? raw
+    : TAB_ALIASES[raw] ??
+      (resolvedConfig.profileMode === "SUPERADMIN_BESPOKE" ? "formula" : "display");
 
   return (
     <div className="space-y-6 w-full max-w-full">
       <PageHeader
-        title="Modular ERP Configuration Studio"
-        subtitle="Calculation rules, payment methods & accounts, routine templates, display & password controls, alerts, and backups."
+        title="Workspace Preferences"
+        subtitle="Payment methods & accounts, budget categories, display & password controls, notifications, and backups."
       />
 
       <PreferencesStudio

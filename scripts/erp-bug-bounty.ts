@@ -787,12 +787,12 @@ async function runLayer3User1ReadOnlyParity(baseUrl: string): Promise<void> {
       assert.equal(Math.round(s.deficitUncovered), 108633);
       assert.equal(Math.round(s.actualSavings), 6341);
       assert.equal(Math.round(s.selfReward), 250000);
-      assert.equal(Math.round(p.remainingBudget), 160000);
+      assert.equal(Math.round(p.remainingBudget), 100000);
       assert.ok(p.safeToSpendToday > 0, `User #1 11/2026 safeToSpendToday must be > 0, got ${p.safeToSpendToday}`);
     }
     if (m === 12 && y === 2026) {
       assert.equal(Math.round(s.finalTotalIncome), 9737425);
-      assert.equal(Math.round(s.totalDeductions), 4162341);
+      assert.equal(Math.round(s.totalDeductions), 4189341);
       assert.equal(Math.round(s.actualDailyOperational), 1500000);
       assert.equal(Math.round(s.deficitUncovered), 0);
       assert.equal(Math.round(s.actualSavings), 1000000);

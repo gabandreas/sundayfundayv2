@@ -10,6 +10,7 @@ import {
 } from "@/lib/api";
 import { PreferencesNav } from "./PreferencesNav";
 import { usePeriod } from "@/context/PeriodContext";
+import { usePerspective } from "@/context/PerspectiveContext";
 import { PREFERENCES_TAB_KEYS, PreferencesTabKey } from "@/lib/tabs";
 import { useSubModule } from "@/hooks/useSubModule";
 import { ModuleManagerTab } from "./ModuleManagerTab";
@@ -76,11 +77,14 @@ export function PreferencesStudio({
   initialKillSwitchNotificationConfig,
   initialEmailStatus,
 }: PreferencesStudioProps) {
+  const { isBespokeWorkspace } = usePerspective();
   const [activeTab, selectTab] = useSubModule<PreferencesTabKey>(
     PREFERENCES_TAB_KEYS,
     initialTab,
     PREF_ALIASES,
   );
+  const effectiveTab: PreferencesTabKey =
+    !isBespokeWorkspace && activeTab === "formula" ? "display" : activeTab;
   const { month: periodMonth, year: periodYear } = usePeriod();
   const currentMonth = periodMonth || activeMonth;
   const currentYear = periodYear || activeYear;
@@ -91,10 +95,14 @@ export function PreferencesStudio({
 
   return (
     <div className="space-y-6 w-full max-w-full pb-16">
-      <PreferencesNav currentTab={activeTab} onSelectTab={selectTab} />
+      <PreferencesNav
+        currentTab={effectiveTab}
+        onSelectTab={selectTab}
+        hideFormula={!isBespokeWorkspace}
+      />
 
       <div className="relative w-full">
-        {activeTab === "formula" && (
+        {effectiveTab === "formula" && isBespokeWorkspace && (
           <div id="preferences-panel-formula" className="space-y-6">
             <PriorityTiersEditor initialConfig={config.studioConfig} />
             <PaycycleFormulaStudioCard initialConfig={config.studioConfig} />
@@ -103,7 +111,7 @@ export function PreferencesStudio({
           </div>
         )}
 
-        {activeTab === "instruments" && (
+        {effectiveTab === "instruments" && (
           <div id="preferences-panel-instruments" className="space-y-6">
             <InstrumentsTableCard initialConfig={config.studioConfig} />
             <AssetAccountsTableCard initialConfig={config.studioConfig} />
@@ -111,7 +119,7 @@ export function PreferencesStudio({
           </div>
         )}
 
-        {activeTab === "templates" && (
+        {effectiveTab === "templates" && (
           <div id="preferences-panel-templates" className="space-y-6">
             <RoutineTemplatesTableCard initialConfig={config.studioConfig} />
             <AllocationBucketsTab
@@ -123,7 +131,7 @@ export function PreferencesStudio({
           </div>
         )}
 
-        {activeTab === "display" && (
+        {effectiveTab === "display" && (
           <div id="preferences-panel-display" className="space-y-6">
             <AccountDisplayPanel initialConfig={config.studioConfig} />
             <MarqueeAiSettingsPanel />
@@ -133,7 +141,7 @@ export function PreferencesStudio({
           </div>
         )}
 
-        {activeTab === "notifications" && (
+        {effectiveTab === "notifications" && (
           <div id="preferences-panel-notifications" className="space-y-6">
             <SubscriptionKillSwitchTab
               config={config}
@@ -154,7 +162,7 @@ export function PreferencesStudio({
           </div>
         )}
 
-        {activeTab === "backup" && (
+        {effectiveTab === "backup" && (
           <div id="preferences-panel-backup" className="space-y-6">
             <DatabaseBackupRestoreCard />
           </div>

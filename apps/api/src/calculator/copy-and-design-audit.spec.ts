@@ -508,6 +508,7 @@ describe('System-Wide Anti-AI-Slop Visual Design, Temporal Chart Axis & Human Co
       'BiometricChallenge',
       'UserIdentity',
       'IdempotencyRecord',
+      'PasswordResetToken',
     ];
     for (const modelName of tenantModels) {
       const rx = new RegExp(`model\\s+${modelName}\\s+\\{([\\s\\S]*?)\\n\\}`, 'm');
@@ -516,6 +517,32 @@ describe('System-Wide Anti-AI-Slop Visual Design, Temporal Chart Axis & Human Co
         modelName,
         hasUserId: true,
         hasUserRel: true,
+      });
+    }
+  });
+
+  it('removes Switch Account, locked-identity lock screens, and Age Bracket presets from web UI', () => {
+    const webUiFiles = [
+      ...collectFiles(path.join(WEB_DIR, 'app'), ['.ts', '.tsx']),
+      ...collectFiles(path.join(WEB_DIR, 'components'), ['.ts', '.tsx']),
+      ...collectFiles(path.join(WEB_DIR, 'context'), ['.ts', '.tsx']),
+    ];
+    for (const file of webUiFiles) {
+      const content = fs.readFileSync(file, 'utf8');
+      const rel = path.relative(REPO_ROOT, file);
+      expect({
+        file: rel,
+        hasSwitchOrLock: /Switch Account|erp_locked_identity|lockedIdentity|auth\.switchAccount|Session Locked/.test(content),
+      }).toEqual({
+        file: rel,
+        hasSwitchOrLock: false,
+      });
+      expect({
+        file: rel,
+        hasAgePresetCopy: /Ages\s+\d{2}[–-]\d{2}|STUDENT_FIRST_JOBBER|RETIREE_GOLDEN_AGE/.test(content),
+      }).toEqual({
+        file: rel,
+        hasAgePresetCopy: false,
       });
     }
   });

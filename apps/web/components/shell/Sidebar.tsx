@@ -46,9 +46,11 @@ interface SubModuleDef {
 
 interface RouteItem {
   labelKey: TranslationKey;
+  standardLabelKey?: TranslationKey;
   href: string;
   icon: typeof LayoutDashboard;
   moduleKey?: ModuleKey;
+  standardOnly?: boolean;
   subModules?: SubModuleDef[];
 }
 
@@ -86,11 +88,37 @@ export const SUBMODULES_BY_ROUTE: Record<string, SubModuleDef[]> = {
 };
 
 const PRIMARY_ROUTES: RouteItem[] = [
-  { labelKey: "nav.overview", href: "/", icon: LayoutDashboard, moduleKey: "overview" },
-  { labelKey: "nav.paydayWizard", href: "/payday-wizard", icon: ListChecks },
-  { labelKey: "nav.cashRadar", href: "/calendar", icon: CalendarDays },
+  {
+    labelKey: "nav.overview",
+    standardLabelKey: "nav.standard.overview",
+    href: "/",
+    icon: LayoutDashboard,
+    moduleKey: "overview",
+  },
+  {
+    labelKey: "nav.ledger",
+    standardLabelKey: "nav.standard.transactions",
+    href: "/ledger",
+    icon: ReceiptText,
+    moduleKey: "ledger",
+    standardOnly: true,
+  },
+  {
+    labelKey: "nav.paydayWizard",
+    href: "/payday-wizard",
+    icon: ListChecks,
+    moduleKey: "payday_wizard",
+  },
+  {
+    labelKey: "nav.cashRadar",
+    standardLabelKey: "nav.standard.bills",
+    href: "/calendar",
+    icon: CalendarDays,
+    moduleKey: "cash_radar",
+  },
   {
     labelKey: "nav.payroll",
+    standardLabelKey: "nav.standard.income",
     href: "/payroll",
     icon: Wallet,
     moduleKey: "corporate_payroll",
@@ -98,6 +126,7 @@ const PRIMARY_ROUTES: RouteItem[] = [
   },
   {
     labelKey: "nav.allocations",
+    standardLabelKey: "nav.standard.budgets",
     href: "/allocations",
     icon: ArrowDownNarrowWide,
     moduleKey: "allocations",
@@ -112,6 +141,7 @@ const PRIMARY_ROUTES: RouteItem[] = [
   },
   {
     labelKey: "nav.savings",
+    standardLabelKey: "nav.standard.accounts",
     href: "/savings",
     icon: PiggyBank,
     moduleKey: "savings_vault",
@@ -121,14 +151,17 @@ const PRIMARY_ROUTES: RouteItem[] = [
     labelKey: "nav.import",
     href: "/import",
     icon: FileUp,
+    moduleKey: "statement_import",
   },
 ];
 
 const ANALYSIS_ROUTES: RouteItem[] = [
   {
     labelKey: "nav.scenarios",
+    standardLabelKey: "nav.standard.planner",
     href: "/scenarios",
     icon: FlaskConical,
+    moduleKey: "scenarios",
   },
   {
     labelKey: "nav.analytics",
@@ -138,6 +171,7 @@ const ANALYSIS_ROUTES: RouteItem[] = [
   },
   {
     labelKey: "nav.reports",
+    standardLabelKey: "nav.standard.reports",
     href: "/reports",
     icon: FileSpreadsheet,
     moduleKey: "executive_reports",
@@ -159,7 +193,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { user } = useAuth();
-  const { isModuleEnabled, lifeStagePreset, uiDensityMode, studioConfig } = usePerspective();
+  const { isModuleEnabled, isBespokeWorkspace, uiDensityMode, studioConfig } = usePerspective();
   const { t } = useLanguage();
   const { month, year } = usePeriod();
 
@@ -205,15 +239,25 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
   const customShortcuts = navCfg?.customShortcuts ?? [];
 
   const isRouteHidden = (href: string) => Boolean(overrides[href]?.hidden);
-  const getRouteLabel = (href: string, labelKey: TranslationKey) =>
-    overrides[href]?.label?.trim() || t(labelKey);
+  const getRouteLabel = (route: RouteItem) => {
+    const customLabel = overrides[route.href]?.label?.trim();
+    if (customLabel) return customLabel;
+    if (!isBespokeWorkspace && route.standardLabelKey) {
+      return t(route.standardLabelKey);
+    }
+    return t(route.labelKey);
+  };
 
   const visiblePrimaryRoutes = PRIMARY_ROUTES.filter((route) => {
     if (isRouteHidden(route.href)) return false;
+    if (route.standardOnly && isBespokeWorkspace) return false;
     if (!route.moduleKey) return true;
-    return route.moduleKey === "corporate_payroll"
-      ? isModuleEnabled("corporate_payroll") || isModuleEnabled("income")
-      : isModuleEnabled(route.moduleKey);
+    if (route.moduleKey === "corporate_payroll") {
+      return isBespokeWorkspace
+        ? isModuleEnabled("corporate_payroll") || isModuleEnabled("income")
+        : isModuleEnabled("income") || isModuleEnabled("corporate_payroll");
+    }
+    return isModuleEnabled(route.moduleKey);
   });
 
   const visibleAnalysisRoutes = ANALYSIS_ROUTES.filter((route) => {
@@ -223,12 +267,19 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
   });
 
   const rawSystemRoutes: RouteItem[] = [
+    ...(!isBespokeWorkspace && isModuleEnabled("wishlist_simulator")
+      ? [{ labelKey: "nav.wishlist" as TranslationKey, href: "/wishlist", icon: BookmarkCheck }]
+      : []),
     { labelKey: "nav.subscriptions", href: "/subscriptions", icon: Repeat },
     {
       labelKey: "nav.preferences",
       href: "/preferences",
       icon: Sliders,
-      subModules: SUBMODULES_BY_ROUTE["/preferences"],
+      subModules: isBespokeWorkspace
+        ? SUBMODULES_BY_ROUTE["/preferences"]
+        : SUBMODULES_BY_ROUTE["/preferences"]
+            .filter((s) => s.key !== "formula")
+            .map((s) => ({ ...s, defaultSub: s.key === "display" })),
     },
     ...(user?.role === "SUPERADMIN"
       ? [{ labelKey: "nav.admin" as TranslationKey, href: "/admin", icon: ShieldCheck }]
@@ -261,8 +312,11 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
     <div className="space-y-0.5">
       {routes.map((route) => {
         const active = isRouteActive(route.href);
-        const subs = route.subModules;
-        const label = getRouteLabel(route.href, route.labelKey);
+        const subs =
+          !isBespokeWorkspace && route.href === "/payroll" && !isModuleEnabled("corporate_payroll")
+            ? undefined
+            : route.subModules;
+        const label = getRouteLabel(route);
 
         if (!subs || subs.length === 0) {
           return (
@@ -462,14 +516,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
         </div>
         <div className="px-4 py-3 border-t border-border-subtle flex items-center justify-between text-[11px] text-text-tertiary">
           <span className="truncate font-mono text-[10px]">
-            {({
-              SUPERADMIN_BESPOKE: "Personal Workspace",
-              EARLY_CAREER: "Early Career",
-              DEBT_PAYOFF: "Debt Payoff Focus",
-              SAVINGS_GROWTH: "Savings Growth",
-              VARIABLE_INCOME: "Variable Income",
-            } as Record<string, string>)[lifeStagePreset] ??
-              lifeStagePreset.replace(/_/g, " ")}
+            {isBespokeWorkspace ? "Personal Workspace" : "Standard Workspace"}
           </span>
           <Link
             href="/preferences?sub=navigation"

@@ -9,6 +9,7 @@ import {
   Param,
   ParseIntPipe,
   Req,
+  Query,
   UseGuards,
   Res,
   HttpCode,
@@ -20,6 +21,7 @@ import { PlatformOwnerGuard } from '../auth/roles.guard';
 import { extractClientIp, getUserIdOrThrow } from '../auth/auth.utils';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
+import { ResetClientPasswordDto } from './dto/reset-client-password.dto';
 import { UpdateFeatureRequestDto } from './dto/update-feature-request.dto';
 import {
   AddTrustedIpDto,
@@ -39,29 +41,63 @@ export class AdminController {
   }
 
   @Post('users')
-  async createClient(@Body() dto: CreateClientDto) {
-    return this.adminService.createClient(dto);
+  async createClient(@Body() dto: CreateClientDto, @Req() req: any) {
+    return this.adminService.createClient(dto, getUserIdOrThrow(req));
   }
 
   @Post('clients')
-  async createClientAlias(@Body() dto: CreateClientDto) {
-    return this.adminService.createClient(dto);
+  async createClientAlias(@Body() dto: CreateClientDto, @Req() req: any) {
+    return this.adminService.createClient(dto, getUserIdOrThrow(req));
   }
 
   @Patch('users/:id')
   async updateClient(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateClientDto,
+    @Req() req: any,
   ) {
-    return this.adminService.updateClient(id, dto);
+    return this.adminService.updateClient(id, dto, getUserIdOrThrow(req));
   }
 
   @Patch('clients/:id')
   async updateClientAlias(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateClientDto,
+    @Req() req: any,
   ) {
-    return this.adminService.updateClient(id, dto);
+    return this.adminService.updateClient(id, dto, getUserIdOrThrow(req));
+  }
+
+  @Post('users/:id/reset-password')
+  @HttpCode(HttpStatus.OK)
+  async resetClientPassword(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ResetClientPasswordDto,
+    @Req() req: any,
+  ) {
+    return this.adminService.resetClientPassword(id, dto, getUserIdOrThrow(req));
+  }
+
+  @Post('users/:id/revoke-sessions')
+  @HttpCode(HttpStatus.OK)
+  async revokeUserSessions(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: any,
+  ) {
+    return this.adminService.revokeUserSessions(id, getUserIdOrThrow(req));
+  }
+
+  @Delete('users/:id')
+  async deleteClient(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: any,
+  ) {
+    return this.adminService.deleteClient(id, getUserIdOrThrow(req));
+  }
+
+  @Get('audit-logs')
+  async getSecurityAuditLogs(@Query('limit') limit?: string) {
+    return this.adminService.getSecurityAuditLogs(limit ? Number(limit) : 60);
   }
 
   @Get('users/:id/config')

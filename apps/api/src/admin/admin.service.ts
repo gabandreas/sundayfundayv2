@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   UnauthorizedException,
+  Optional,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -11,10 +12,22 @@ import {
   hashPin,
   verifyPin,
   normalizeIp,
+  validatePasswordStrength,
+  generateSecureTemporaryPassword,
 } from '../auth/auth.utils';
-import { ALL_MODULE_KEYS, getLifeStagePresetDefaults } from '../auth/auth.types';
+import {
+  ALL_MODULE_KEYS,
+  DEFAULT_STANDARD_ROUTINE_LABELS,
+  getLifeStagePresetDefaults,
+  ModuleKey,
+  SUNDAY_FUNDAY_STANDARD_MODULES,
+} from '../auth/auth.types';
+import { getJakartaDateParts } from '../calculator/pacing';
+import { buildDefaultStudioConfig } from '../config/studio.defaults';
+import { EmailService } from '../email/email.service';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
+import { ResetClientPasswordDto } from './dto/reset-client-password.dto';
 import { UpdateFeatureRequestDto } from './dto/update-feature-request.dto';
 import {
   AddTrustedIpDto,
@@ -25,44 +38,119 @@ import { RestoreBackupDto, RestoreMode } from './dto/restore-backup.dto';
 
 @Injectable()
 export class AdminService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly emailService?: EmailService,
+  ) {}
+
+  private resolvePublicLoginUrl(): string {
+    const base =
+      process.env.WEB_PUBLIC_URL ||
+      process.env.FRONTEND_URL ||
+      'http://localhost:3000';
+    return `${base.replace(/\/+$/, '')}/login`;
+  }
+
+  private normalizeModules(modules?: string[]): ModuleKey[] {
+    const core: ModuleKey[] = [
+      'overview',
+      'income',
+      'allocations',
+      'ledger',
+      'preferences',
+    ];
+    const validSet = new Set<string>(ALL_MODULE_KEYS);
+    const filtered = Array.isArray(modules)
+      ? (modules.filter((m) => validSet.has(m)) as ModuleKey[])
+      : [...SUNDAY_FUNDAY_STANDARD_MODULES];
+    return Array.from(new Set<ModuleKey>([...core, ...filtered]));
+  }
 
   async getUsers() {
-    const users = await this.prisma.user.findMany({
-      orderBy: { id: 'asc' },
-      select: {
-        id: true,
-        accountName: true,
-        username: true,
-        email: true,
-        fullName: true,
-        role: true,
-        status: true,
-        blueprintType: true,
-        lifeStagePreset: true,
-        uiDensityMode: true,
-        ipWhitelistEnforced: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
-
-    // Get snapshot counts for each user
-    const snapshotCounts = await this.prisma.monthlySnapshot.groupBy({
-      by: ['userId'],
-      _count: { id: true },
-    });
+    const [users, snapshotCounts, sessionCounts] = await Promise.all([
+      this.prisma.user.findMany({
+        orderBy: { id: 'asc' },
+        select: {
+          id: true,
+          accountName: true,
+          username: true,
+          email: true,
+          fullName: true,
+          role: true,
+          status: true,
+          blueprintType: true,
+          lifeStagePreset: true,
+          uiDensityMode: true,
+          ipWhitelistEnforced: true,
+          mustChangePassword: true,
+          passwordChangedAt: true,
+          tokenVersion: true,
+          createdAt: true,
+          updatedAt: true,
+          globalConfig: {
+            select: {
+              baseSalary: true,
+              payrollPayoutDay: true,
+              enabledModulesJson: true,
+            },
+          },
+        },
+      }),
+      this.prisma.monthlySnapshot.groupBy({
+        by: ['userId'],
+        _count: { id: true },
+      }),
+      this.prisma.refreshToken.groupBy({
+        by: ['userId'],
+        where: {
+          revokedAt: null,
+          expiresAt: { gt: new Date() },
+        },
+        _count: { id: true },
+      }),
+    ]);
 
     const countMap = new Map<number, number>();
     snapshotCounts.forEach((c) => countMap.set(c.userId, c._count.id));
 
-    return users.map((u) => ({
-      ...u,
-      snapshotCount: countMap.get(u.id) || 0,
-    }));
+    const sessionMap = new Map<number, number>();
+    sessionCounts.forEach((s) => sessionMap.set(s.userId, s._count.id));
+
+    return users.map((u) => {
+      const enabledRaw = u.globalConfig?.enabledModulesJson;
+      const enabledModules = Array.isArray(enabledRaw)
+        ? (enabledRaw as string[])
+        : u.id === 1
+          ? [...ALL_MODULE_KEYS]
+          : [...SUNDAY_FUNDAY_STANDARD_MODULES];
+
+      return {
+        id: u.id,
+        accountName: u.accountName,
+        username: u.username,
+        email: u.email,
+        fullName: u.fullName,
+        role: u.role,
+        status: u.status,
+        blueprintType: u.blueprintType,
+        lifeStagePreset: u.lifeStagePreset,
+        uiDensityMode: u.uiDensityMode,
+        ipWhitelistEnforced: u.ipWhitelistEnforced,
+        mustChangePassword: u.mustChangePassword,
+        passwordChangedAt: u.passwordChangedAt,
+        tokenVersion: u.tokenVersion,
+        createdAt: u.createdAt,
+        updatedAt: u.updatedAt,
+        snapshotCount: countMap.get(u.id) || 0,
+        activeSessionCount: sessionMap.get(u.id) || 0,
+        baseSalary: u.globalConfig?.baseSalary ?? 0,
+        payrollPayoutDay: u.globalConfig?.payrollPayoutDay ?? (u.id === 1 ? 27 : 1),
+        enabledModules,
+      };
+    });
   }
 
-  async createClient(dto: CreateClientDto) {
+  async createClient(dto: CreateClientDto, actorUserId: number = 1) {
     const email = dto.email.trim().toLowerCase();
     const existing = await this.prisma.user.findUnique({
       where: { email },
@@ -71,6 +159,16 @@ export class AdminService {
     if (existing) {
       throw new BadRequestException('A user with this email already exists.');
     }
+
+    const rawPassword = dto.password?.trim();
+    if (rawPassword) {
+      const strength = validatePasswordStrength(rawPassword);
+      if (!strength.valid) {
+        throw new BadRequestException(strength.message);
+      }
+    }
+    const temporaryPassword = rawPassword || generateSecureTemporaryPassword(14);
+    const mustChangePassword = dto.mustChangePassword ?? true;
 
     const accountName = (dto.accountName || 'client').trim().toLowerCase();
     const username = (dto.username || email.split('@')[0]).trim().toLowerCase();
@@ -83,36 +181,64 @@ export class AdminService {
     });
 
     if (existingPair) {
-      throw new BadRequestException('A user with this Account Name and Username already exists.');
+      throw new BadRequestException(
+        'A user with this Account Name and Username already exists.',
+      );
     }
 
     const role = dto.role || 'STANDARD_MEMBER';
-    const blueprintType = dto.blueprintType || (role === 'BESPOKE_CLIENT' ? 'BESPOKE_CUSTOM' : 'STANDARD_GENERAL');
-    const lifeStagePreset = dto.lifeStagePreset || 'CORPORATE_PROFESSIONAL';
+    const blueprintType =
+      dto.blueprintType ||
+      (role === 'BESPOKE_CLIENT' ? 'BESPOKE_CUSTOM' : 'STANDARD_GENERAL');
+    const lifeStagePreset = dto.lifeStagePreset || 'STANDARD_GENERAL';
     const presetDefaults = getLifeStagePresetDefaults(lifeStagePreset);
-    const uiDensityMode = dto.uiDensityMode || presetDefaults.uiDensityMode || 'COMMAND_COCKPIT';
+    const uiDensityMode =
+      dto.uiDensityMode || presetDefaults.uiDensityMode || 'COMMAND_COCKPIT';
+
+    const enabledModules = dto.enabledModules?.length
+      ? this.normalizeModules(dto.enabledModules)
+      : blueprintType === 'STANDARD_GENERAL'
+        ? [...SUNDAY_FUNDAY_STANDARD_MODULES]
+        : [...presetDefaults.enabledModules];
+
+    const initialMonthlyIncome = Math.max(
+      0,
+      Math.round(Number(dto.initialMonthlyIncome ?? 0)),
+    );
+    const paydayAnchorDay = Math.min(
+      31,
+      Math.max(1, Math.round(Number(dto.paydayAnchorDay ?? 1))),
+    );
+    const hasCreditModule = enabledModules.includes('credit_liabilities');
 
     const user = await this.prisma.user.create({
       data: {
         accountName,
         username,
         email,
-        passwordHash: hashPassword(dto.password),
+        passwordHash: hashPassword(temporaryPassword),
         fullName: dto.fullName.trim(),
         role,
         status: 'ACTIVE',
         blueprintType,
         lifeStagePreset,
         uiDensityMode,
+        mustChangePassword,
         ipWhitelistEnforced: false,
       },
     });
 
-    // Create default GlobalConfig for this client
+    const studioDefaults = buildDefaultStudioConfig(user.id, {
+      payrollPayoutDay: paydayAnchorDay,
+      baseSavings: 0,
+      dailyOperational: 0,
+      creditLimit: hasCreditModule ? 5_000_000 : 0,
+    });
+
     await this.prisma.globalConfig.create({
       data: {
         userId: user.id,
-        baseSalary: 0,
+        baseSalary: initialMonthlyIncome,
         dailyAllowance: 0,
         laptopAllowance: 0,
         dailyOperational: 0,
@@ -121,30 +247,41 @@ export class AdminService {
         vape: 0,
         haircut: 0,
         baseSavings: 0,
-        creditLimit: 5000000,
+        creditLimit: hasCreditModule ? 5_000_000 : 0,
         creditStatementDay: 20,
         creditDueDay: 11,
-        payrollPayoutDay: 25,
-        profileMode: blueprintType === 'SUPERADMIN_BESPOKE' ? 'SUPERADMIN_BESPOKE' : 'STANDARD_GENERAL',
+        payrollPayoutDay: paydayAnchorDay,
+        profileMode:
+          blueprintType === 'SUPERADMIN_BESPOKE'
+            ? 'SUPERADMIN_BESPOKE'
+            : 'STANDARD_GENERAL',
         payrollMode: presetDefaults.payrollMode,
         lifeStagePreset,
         uiDensityMode,
-        formulaEngineType: presetDefaults.formulaEngineType,
-        enabledModulesJson: presetDefaults.enabledModules as any,
-        customRoutineLabelsJson: presetDefaults.customRoutineLabels as any,
+        formulaEngineType:
+          blueprintType === 'STANDARD_GENERAL'
+            ? 'PERCENTAGE_SPLIT'
+            : presetDefaults.formulaEngineType,
+        enabledModulesJson: enabledModules as any,
+        customRoutineLabelsJson:
+          blueprintType === 'STANDARD_GENERAL'
+            ? (DEFAULT_STANDARD_ROUTINE_LABELS as any)
+            : (presetDefaults.customRoutineLabels as any),
+        formulaParamsJson: studioDefaults as any,
         onboardingCompleted: !dto.initializeSnapshot,
       },
     });
 
     if (dto.initializeSnapshot) {
+      const jkt = getJakartaDateParts(new Date());
       await this.prisma.monthlySnapshot.create({
         data: {
           userId: user.id,
-          month: 10,
-          year: 2026,
+          month: jkt.month,
+          year: jkt.year,
           status: 'DRAFT',
-          finalTotalIncome: 0,
-          netSalaryIncome: 0,
+          finalTotalIncome: initialMonthlyIncome,
+          netSalaryIncome: initialMonthlyIncome,
           totalDeductions: 0,
           dailyOperational: 0,
           actualDailyOperational: 0,
@@ -154,8 +291,36 @@ export class AdminService {
       });
     }
 
+    let welcomeEmailSent = false;
+    if (dto.sendWelcomeEmail && this.emailService) {
+      const dispatch = await this.emailService.sendWelcomeCredentialsEmail({
+        userId: user.id,
+        recipientEmail: user.email,
+        fullName: user.fullName,
+        accountName: user.accountName,
+        username: user.username,
+        temporaryPassword,
+        loginUrl: this.resolvePublicLoginUrl(),
+        locale: dto.locale,
+      });
+      welcomeEmailSent = Boolean(dispatch);
+    }
+
+    await this.prisma.auditLog.create({
+      data: {
+        userId: actorUserId,
+        action: 'ADMIN_CREATE_CLIENT',
+        category: 'SETTINGS',
+        summary: `Provisioned client workspace #${user.id} (${user.username})`,
+        details: `accountName=${accountName}; modules=${enabledModules.join(',')}; mustChangePassword=${mustChangePassword}; welcomeEmail=${welcomeEmailSent}`,
+        severity: 'INFO',
+      },
+    });
+
     return {
       id: user.id,
+      accountName: user.accountName,
+      username: user.username,
       email: user.email,
       fullName: user.fullName,
       role: user.role,
@@ -163,16 +328,28 @@ export class AdminService {
       blueprintType: user.blueprintType,
       lifeStagePreset: user.lifeStagePreset,
       uiDensityMode: user.uiDensityMode,
+      mustChangePassword: user.mustChangePassword,
+      enabledModules,
+      temporaryPassword,
+      welcomeEmailSent,
     };
   }
 
-  async updateClient(id: number, dto: UpdateClientDto) {
+  async updateClient(id: number, dto: UpdateClientDto, actorUserId: number = 1) {
     const user = await this.prisma.user.findUnique({
       where: { id },
     });
 
     if (!user) {
       throw new NotFoundException('User not found.');
+    }
+
+    if (user.role === 'SUPERADMIN' || user.id === 1) {
+      if (dto.status === 'SUSPENDED' || (dto.role && dto.role !== 'SUPERADMIN')) {
+        throw new BadRequestException(
+          'Platform Owner (SUPERADMIN) cannot be suspended or demoted.',
+        );
+      }
     }
 
     const updateData: any = {};
@@ -182,13 +359,29 @@ export class AdminService {
     if (dto.lifeStagePreset) updateData.lifeStagePreset = dto.lifeStagePreset;
     if (dto.uiDensityMode) updateData.uiDensityMode = dto.uiDensityMode;
     if (dto.fullName) updateData.fullName = dto.fullName.trim();
-    if (dto.password) updateData.passwordHash = hashPassword(dto.password);
+    if (dto.mustChangePassword !== undefined) {
+      updateData.mustChangePassword = dto.mustChangePassword;
+    }
+    if (dto.password) {
+      const strength = validatePasswordStrength(dto.password);
+      if (!strength.valid) {
+        throw new BadRequestException(strength.message);
+      }
+      updateData.passwordHash = hashPassword(dto.password);
+      updateData.mustChangePassword = dto.mustChangePassword ?? true;
+      updateData.tokenVersion = { increment: 1 };
+    }
+    if (dto.status === 'SUSPENDED') {
+      updateData.tokenVersion = { increment: 1 };
+    }
 
     const updated = await this.prisma.user.update({
       where: { id },
       data: updateData,
       select: {
         id: true,
+        accountName: true,
+        username: true,
         email: true,
         fullName: true,
         role: true,
@@ -196,9 +389,23 @@ export class AdminService {
         blueprintType: true,
         lifeStagePreset: true,
         uiDensityMode: true,
+        mustChangePassword: true,
         updatedAt: true,
       },
     });
+
+    if (dto.status === 'SUSPENDED' || dto.password) {
+      await this.prisma.refreshToken.updateMany({
+        where: { userId: id, revokedAt: null },
+        data: {
+          revokedAt: new Date(),
+          revokeReason:
+            dto.status === 'SUSPENDED'
+              ? 'ADMIN_SUSPENDED'
+              : 'ADMIN_PASSWORD_UPDATED',
+        },
+      });
+    }
 
     if (dto.lifeStagePreset || dto.uiDensityMode) {
       const presetDefaults = dto.lifeStagePreset
@@ -210,23 +417,206 @@ export class AdminService {
           data: {
             ...(dto.lifeStagePreset
               ? {
-                lifeStagePreset: dto.lifeStagePreset,
-                ...(presetDefaults
-                  ? {
-                    enabledModulesJson: presetDefaults.enabledModules as any,
-                    formulaEngineType: presetDefaults.formulaEngineType,
-                    uiDensityMode: dto.uiDensityMode || presetDefaults.uiDensityMode,
-                  }
-                  : {}),
-              }
+                  lifeStagePreset: dto.lifeStagePreset,
+                  ...(presetDefaults
+                    ? {
+                        enabledModulesJson: presetDefaults.enabledModules as any,
+                        formulaEngineType: presetDefaults.formulaEngineType,
+                        uiDensityMode: dto.uiDensityMode || presetDefaults.uiDensityMode,
+                      }
+                    : {}),
+                }
               : {}),
             ...(dto.uiDensityMode ? { uiDensityMode: dto.uiDensityMode } : {}),
           },
         })
-        .catch(() => { });
+        .catch(() => {});
     }
 
+    await this.prisma.auditLog.create({
+      data: {
+        userId: actorUserId,
+        action: 'ADMIN_UPDATE_CLIENT',
+        category: 'SETTINGS',
+        summary: `Updated account #${id} (${user.username})`,
+        details: Object.keys(dto).join(', '),
+        severity: dto.status === 'SUSPENDED' ? 'WARNING' : 'INFO',
+      },
+    });
+
     return updated;
+  }
+
+  async resetClientPassword(
+    id: number,
+    dto: ResetClientPasswordDto = {},
+    actorUserId: number = 1,
+  ) {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) {
+      throw new NotFoundException('User not found.');
+    }
+    if (user.role === 'SUPERADMIN' || user.id === 1) {
+      throw new BadRequestException(
+        'Use the Superadmin Security Credentials flow to rotate owner credentials.',
+      );
+    }
+
+    const customTemp = dto.temporaryPassword?.trim();
+    if (customTemp) {
+      const strength = validatePasswordStrength(customTemp);
+      if (!strength.valid) {
+        throw new BadRequestException(strength.message);
+      }
+    }
+    const temporaryPassword = customTemp || generateSecureTemporaryPassword(14);
+    const now = new Date();
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id },
+        data: {
+          passwordHash: hashPassword(temporaryPassword),
+          mustChangePassword: true,
+          tokenVersion: { increment: 1 },
+        },
+      });
+      await tx.refreshToken.updateMany({
+        where: { userId: id, revokedAt: null },
+        data: { revokedAt: now, revokeReason: 'ADMIN_RESET_PASSWORD' },
+      });
+      await tx.passwordResetToken.updateMany({
+        where: { userId: id, usedAt: null },
+        data: { usedAt: now },
+      });
+      await tx.auditLog.create({
+        data: {
+          userId: actorUserId,
+          action: 'ADMIN_RESET_PASSWORD',
+          category: 'SETTINGS',
+          summary: `Issued temporary password reset for #${user.id} (${user.username})`,
+          details: 'mustChangePassword=true; active sessions revoked',
+          severity: 'WARNING',
+        },
+      });
+    });
+
+    let welcomeEmailSent = false;
+    if (dto.sendEmail && this.emailService) {
+      const dispatch = await this.emailService.sendWelcomeCredentialsEmail({
+        userId: user.id,
+        recipientEmail: user.email,
+        fullName: user.fullName,
+        accountName: user.accountName,
+        username: user.username,
+        temporaryPassword,
+        loginUrl: this.resolvePublicLoginUrl(),
+        locale: dto.locale,
+      });
+      welcomeEmailSent = Boolean(dispatch);
+    }
+
+    return {
+      success: true,
+      userId: user.id,
+      accountName: user.accountName,
+      username: user.username,
+      email: user.email,
+      temporaryPassword,
+      mustChangePassword: true,
+      welcomeEmailSent,
+    };
+  }
+
+  async revokeUserSessions(id: number, actorUserId: number = 1) {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) {
+      throw new NotFoundException('User not found.');
+    }
+
+    const now = new Date();
+    const revoked = await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id },
+        data: { tokenVersion: { increment: 1 } },
+      });
+      const tokenRes = await tx.refreshToken.updateMany({
+        where: { userId: id, revokedAt: null },
+        data: { revokedAt: now, revokeReason: 'ADMIN_REVOKED' },
+      });
+      await tx.auditLog.create({
+        data: {
+          userId: actorUserId,
+          action: 'ADMIN_REVOKE_SESSIONS',
+          category: 'SETTINGS',
+          summary: `Revoked all active sessions for #${user.id} (${user.username})`,
+          details: `revokedCount=${tokenRes.count}`,
+          severity: 'WARNING',
+        },
+      });
+      return tokenRes;
+    });
+
+    return {
+      success: true,
+      userId: id,
+      revokedCount: revoked.count,
+    };
+  }
+
+  async deleteClient(id: number, actorUserId: number = 1) {
+    if (id === 1 || id === 2) {
+      throw new BadRequestException(
+        'Protected workspace accounts (Owner and Demo Sandbox) cannot be deleted.',
+      );
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) {
+      throw new NotFoundException('User not found.');
+    }
+    if (user.role === 'SUPERADMIN') {
+      throw new BadRequestException('SUPERADMIN accounts cannot be deleted.');
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.delete({ where: { id } });
+      await tx.auditLog.create({
+        data: {
+          userId: actorUserId,
+          action: 'ADMIN_DELETE_CLIENT',
+          category: 'SETTINGS',
+          summary: `Deleted client workspace #${id} (${user.username})`,
+          details: `email=${user.email}`,
+          severity: 'WARNING',
+        },
+      });
+    });
+
+    return {
+      success: true,
+      deletedUserId: id,
+    };
+  }
+
+  async getSecurityAuditLogs(limit: number = 60) {
+    const safeLimit = Math.min(200, Math.max(1, Math.trunc(limit || 60)));
+    return this.prisma.auditLog.findMany({
+      where: {
+        OR: [
+          { action: { startsWith: 'ADMIN_' } },
+          { action: { startsWith: 'AUTH_' } },
+          { category: 'SETTINGS' },
+        ],
+      },
+      orderBy: { createdAt: 'desc' },
+      take: safeLimit,
+      include: {
+        user: {
+          select: { id: true, username: true, fullName: true },
+        },
+      },
+    });
   }
 
   async getUserConfig(userId: number) {
@@ -368,9 +758,10 @@ export class AdminService {
       throw new NotFoundException('Platform Owner user not found.');
     }
 
-    const isCurrentPasswordValid =
-      verifyPassword(dto.currentPassword, owner.passwordHash) ||
-      (owner.username === 'superadmin' && dto.currentPassword === (process.env.SYS_ADMIN_PASSWORD || 'SuperAdmin#2026!'));
+    const isCurrentPasswordValid = verifyPassword(
+      dto.currentPassword,
+      owner.passwordHash,
+    );
     if (!isCurrentPasswordValid) {
       throw new UnauthorizedException('Current password verification failed.');
     }

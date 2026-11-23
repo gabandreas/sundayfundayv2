@@ -273,7 +273,109 @@ async function main() {
     );
     console.log('  PASS [5/6]: /admin renders Access Restricted for consumer role USER.');
 
-    console.log('  PASS [6/6]: Full Headless DOM & UX Flow E2E completed with 0 defects.');
+    // 7. Verify Clean Auth Routes (/login, /forgot-password, /reset-password), US Standard Sandbox Workspace, and Superadmin Console
+    await page.evaluate(() => {
+      localStorage.clear();
+      sessionStorage.clear();
+      document.cookie = 'erp_auth_token=; path=/; max-age=0';
+      document.cookie = 'erp_user_id=; path=/; max-age=0';
+    });
+    await page.goto(`${WEB_URL}/login`, { waitUntil: 'networkidle2', timeout: 45000 });
+    await page.waitForSelector('input[name="username"]', { timeout: 15000 });
+    const loginText = await page.evaluate(() => document.body.innerText);
+    assert.ok(!loginText.includes('Switch Account'), '/login must not contain Switch Account');
+    assert.ok(!loginText.includes('User Session'), '/login must not contain User Session');
+    assert.ok(!loginText.includes('Session Locked'), '/login must not contain Session Locked');
+    const hasForgotLink = await page.evaluate(() =>
+      Boolean(document.querySelector('a[href*="/forgot-password"]')),
+    );
+    assert.equal(hasForgotLink, true, '/login must include /forgot-password link');
+
+    await page.goto(`${WEB_URL}/forgot-password`, { waitUntil: 'networkidle2', timeout: 45000 });
+    assert.equal(new URL(page.url()).pathname, '/forgot-password', '/forgot-password must render cleanly without login redirect');
+    await page.waitForSelector('#forgot-identifier', { timeout: 15000 });
+
+    await page.goto(`${WEB_URL}/reset-password`, { waitUntil: 'networkidle2', timeout: 45000 });
+    assert.equal(new URL(page.url()).pathname, '/reset-password', '/reset-password must render cleanly without login redirect');
+
+    // Demo Sandbox -> US Personal Finance Standard Sidebar & zero Gabriel leaks
+    const demoRes = await fetch(`${API_URL}/api/auth/demo-login`, { method: 'POST' });
+    const demoBody: any = await demoRes.json();
+    assert.equal(demoRes.status, 200, 'demo-login must succeed');
+    await page.evaluate(
+      (token, user) => {
+        const serialized = JSON.stringify(user);
+        localStorage.setItem('erp_auth_token', token);
+        localStorage.setItem('erp_auth_user', serialized);
+        localStorage.setItem('erp_locale', 'en');
+        sessionStorage.setItem('erp_auth_token', token);
+        sessionStorage.setItem('erp_auth_user', serialized);
+        document.cookie = `erp_user_id=${user.id}; path=/; max-age=604800; SameSite=Lax`;
+        document.cookie = `erp_auth_token=${encodeURIComponent(token)}; path=/; max-age=604800; SameSite=Lax`;
+      },
+      demoBody.accessToken,
+      demoBody.user,
+    );
+    await page.goto(`${WEB_URL}/?month=11&year=2026`, { waitUntil: 'networkidle2', timeout: 60000 });
+    await page.waitForFunction(
+      () =>
+        document.body.innerText.includes('Transactions') &&
+        document.body.innerText.includes('Budgets & Envelopes'),
+      { timeout: 15000 },
+    );
+    const sandboxText = await page.evaluate(() => document.body.innerText);
+    for (const stdNav of [
+      'Transactions',
+      'Budgets & Envelopes',
+      'Income & Cash Flow',
+      'Accounts & Goals',
+      'Bills & Recurring',
+    ]) {
+      assert.ok(sandboxText.includes(stdNav), `Standard Sandbox sidebar must include "${stdNav}"`);
+    }
+    assert.ok(
+      !/\bVape\b|\bHaircut\b|\bKRL Commuter\b/i.test(sandboxText),
+      'Standard Sandbox must not leak User #1 Vape/Haircut/KRL labels',
+    );
+
+    // Superadmin (/admin) -> Provision modal + Security Audit Log + Zero Age brackets
+    await page.evaluate(
+      (token, user) => {
+        const serialized = JSON.stringify(user);
+        localStorage.setItem('erp_auth_token', token);
+        localStorage.setItem('erp_auth_user', serialized);
+        sessionStorage.setItem('erp_auth_token', token);
+        sessionStorage.setItem('erp_auth_user', serialized);
+        document.cookie = `erp_user_id=${user.id}; path=/; max-age=604800; SameSite=Lax`;
+        document.cookie = `erp_auth_token=${encodeURIComponent(token)}; path=/; max-age=604800; SameSite=Lax`;
+      },
+      superAdmin.token,
+      superAdmin.user,
+    );
+    await page.goto(`${WEB_URL}/admin`, { waitUntil: 'networkidle2', timeout: 60000 });
+    await page.waitForFunction(
+      () => document.body.innerText.includes('Provision Client Account'),
+      { timeout: 15000 },
+    );
+    const adminConsoleText = await page.evaluate(() => document.body.innerText);
+    assert.ok(
+      !/Ages\s+\d{2}/i.test(adminConsoleText),
+      '/admin console must not show removed Age Bracket labels',
+    );
+    await page.evaluate(() => {
+      const buttons = Array.from(document.querySelectorAll('button'));
+      const secBtn = buttons.find((b) => b.textContent?.includes('Security, IP Whitelist & Backup'));
+      secBtn?.click();
+    });
+    await page.waitForFunction(
+      () => document.body.innerText.includes('Security & Admin Audit Log'),
+      { timeout: 10000 },
+    );
+    console.log(
+      '  PASS [6/7]: Auth routes (/login, /forgot-password, /reset-password), US Standard Sandbox workspace, and Superadmin Console verified.',
+    );
+
+    console.log('  PASS [7/7]: Full Headless DOM & UX Flow E2E completed with 0 defects.');
   } finally {
     await browser.close();
   }

@@ -98,7 +98,12 @@ export function RoutineBillsQuotaCard({
     if (oneOffMatch?.label) {
       return oneOffMatch.label;
     }
-    if (snapshot?.month === 10 && snapshot?.year === 2026 && slot.toUpperCase() === "INTERNET") {
+    if (
+      user?.id === 1 &&
+      snapshot?.month === 10 &&
+      snapshot?.year === 2026 &&
+      slot.toUpperCase() === "INTERNET"
+    ) {
       return "Nov 25 Bill";
     }
     const bucket = (snapshot?.bucketRealizationsJson as any[])?.find(

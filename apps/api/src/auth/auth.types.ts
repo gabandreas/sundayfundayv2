@@ -35,8 +35,12 @@ export type ModuleKey =
   | 'ledger'
   | 'preferences'
   | 'corporate_payroll'
+  | 'payday_wizard'
+  | 'cash_radar'
   | 'credit_liabilities'
   | 'savings_vault'
+  | 'statement_import'
+  | 'scenarios'
   | 'wishlist_simulator'
   | 'discipline_audit'
   | 'advanced_analytics'
@@ -49,13 +53,37 @@ export const ALL_MODULE_KEYS: ModuleKey[] = [
   'ledger',
   'preferences',
   'corporate_payroll',
+  'payday_wizard',
+  'cash_radar',
   'credit_liabilities',
   'savings_vault',
+  'statement_import',
+  'scenarios',
   'wishlist_simulator',
   'discipline_audit',
   'advanced_analytics',
   'executive_reports',
 ];
+
+export const SUNDAY_FUNDAY_STANDARD_MODULES: ModuleKey[] = [
+  'overview',
+  'ledger',
+  'allocations',
+  'income',
+  'savings_vault',
+  'cash_radar',
+  'executive_reports',
+  'scenarios',
+  'wishlist_simulator',
+  'preferences',
+];
+
+export const DEFAULT_STANDARD_ROUTINE_LABELS: Record<string, string> = {
+  transport: 'Housing & Utilities',
+  internet: 'Groceries & Dining',
+  vape: 'Transport & Mobility',
+  haircut: 'Subscriptions & Lifestyle',
+};
 
 export interface AuthenticatedUser {
   id: number;
@@ -69,6 +97,8 @@ export interface AuthenticatedUser {
   lifeStagePreset: LifeStagePreset;
   uiDensityMode: UiDensityMode;
   ipWhitelistEnforced: boolean;
+  mustChangePassword?: boolean;
+  passwordChangedAt?: Date | string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -200,6 +230,17 @@ export function getLifeStagePresetDefaults(
         },
       };
 
+    case 'STANDARD_GENERAL':
+      return {
+        lifeStagePreset: 'STANDARD_GENERAL' as any,
+        formulaEngineType: 'PERCENTAGE_SPLIT',
+        formulaParamsJson: {},
+        uiDensityMode: 'COMMAND_COCKPIT',
+        payrollMode: 'SIMPLE_FIXED_SALARY',
+        enabledModules: [...SUNDAY_FUNDAY_STANDARD_MODULES],
+        customRoutineLabels: { ...DEFAULT_STANDARD_ROUTINE_LABELS },
+      };
+
     case 'CORPORATE_PROFESSIONAL':
     default:
       return {
@@ -208,13 +249,8 @@ export function getLifeStagePresetDefaults(
         formulaParamsJson: {},
         uiDensityMode: 'COMMAND_COCKPIT',
         payrollMode: 'SIMPLE_FIXED_SALARY',
-        enabledModules: [...ALL_MODULE_KEYS],
-        customRoutineLabels: {
-          transport: 'Transport & Commute',
-          internet: 'Internet & Utilities',
-          vape: 'Subscriptions & Lifestyle',
-          haircut: 'Personal Care',
-        },
+        enabledModules: [...SUNDAY_FUNDAY_STANDARD_MODULES],
+        customRoutineLabels: { ...DEFAULT_STANDARD_ROUTINE_LABELS },
       };
   }
 }

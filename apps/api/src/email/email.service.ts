@@ -1214,4 +1214,284 @@ export class EmailService {
       return null;
     }
   }
+
+  private async resolveSystemTransportConfig(): Promise<SmtpTransportConfig | null> {
+    const envUser = process.env.SMTP_USER?.trim() || '';
+    const envPass = process.env.SMTP_PASS || '';
+    if (envUser && envPass) {
+      const built = buildSmtpTransportConfig({ user: envUser, pass: envPass });
+      return built.pass ? built : null;
+    }
+
+    try {
+      const cfg =
+        (await this.prisma.globalConfig?.findFirst({
+          where: {
+            killSwitchSmtpAppPassword: { not: null },
+          },
+          orderBy: { userId: 'asc' },
+          select: {
+            killSwitchSmtpUser: true,
+            killSwitchSmtpAppPassword: true,
+          },
+        })) ?? null;
+
+      if (cfg?.killSwitchSmtpAppPassword) {
+        const built = buildSmtpTransportConfig({
+          user: cfg.killSwitchSmtpUser?.trim() || ERP_NOTIFICATION_EMAIL,
+          pass: cfg.killSwitchSmtpAppPassword,
+        });
+        return built.pass ? built : null;
+      }
+    } catch {
+      // Safe fallback when database lookup unavailable in unit mocks
+    }
+    return null;
+  }
+
+  private normalizeLocale(locale?: string | null): EmailLocale {
+    const up = String(locale || 'EN').trim().toUpperCase();
+    if (up === 'ID' || up === 'ZH') return up;
+    return 'EN';
+  }
+
+  async sendPasswordResetEmail(params: {
+    userId: number;
+    recipientEmail: string;
+    fullName: string;
+    resetUrl: string;
+    expiresMinutes: number;
+    locale?: string;
+  }): Promise<EmailDispatchResult | null> {
+    try {
+      const locale = this.normalizeLocale(params.locale);
+      const transport = await this.resolveSystemTransportConfig();
+
+      const copy: Record<
+        EmailLocale,
+        { title: string; subtitle: string; intro: string; cta: string; note: string }
+      > = {
+        EN: {
+          title: 'Reset Your Password',
+          subtitle: 'Single-use password recovery link',
+          intro: `Hi ${params.fullName}, we received a request to reset the password for your Sunday Funday ERP account. This link stays valid for ${params.expiresMinutes} minutes and can only be used once.`,
+          cta: 'Choose a New Password',
+          note: 'If you did not request a password reset, you can safely ignore this email. Your existing password remains unchanged.',
+        },
+        ID: {
+          title: 'Atur Ulang Password Anda',
+          subtitle: 'Tautan pemulihan password sekali pakai',
+          intro: `Halo ${params.fullName}, kami menerima permintaan untuk mengatur ulang password akun Sunday Funday ERP Anda. Tautan ini berlaku selama ${params.expiresMinutes} menit dan hanya dapat dipakai satu kali.`,
+          cta: 'Buat Password Baru',
+          note: 'Jika Anda tidak meminta pengaturan ulang password, abaikan saja email ini. Password lama Anda tetap aman dan tidak berubah.',
+        },
+        ZH: {
+          title: '重置您的账户密码',
+          subtitle: '一次性密码重置链接',
+          intro: `${params.fullName} 您好，我们收到了重置您 Sunday Funday ERP 账户密码的请求。此链接在 ${params.expiresMinutes} 分钟内有效，且仅可使用一次。`,
+          cta: '设置新密码',
+          note: '如果您本人未发起此请求，请直接忽略此邮件，您当前的密码不会发生任何更改。',
+        },
+      };
+
+      const c = copy[locale];
+      const safeUrl = escapeHtml(params.resetUrl);
+      const html = wrapCorporateHtml({
+        kicker: 'SUNDAY FUNDAY ERP · ACCOUNT RECOVERY',
+        title: c.title,
+        subtitle: c.subtitle,
+        bodyHtml: `
+          <p style="margin:0 0 18px 0;color:#334155;">${escapeHtml(c.intro)}</p>
+          <p style="margin:0 0 22px 0;">
+            <a href="${safeUrl}" style="display:inline-block;padding:12px 20px;background-color:#0F766E;color:#FFFFFF;text-decoration:none;font-size:13px;font-weight:600;border-radius:6px;">${escapeHtml(c.cta)}</a>
+          </p>
+          <p style="margin:0 0 10px 0;font-size:12px;color:#64748B;">Or paste this link into your browser:</p>
+          <div style="padding:10px 12px;background-color:#F8FAFC;border:1px solid #E2E8F0;border-radius:6px;font-family:'SFMono-Regular',Consolas,monospace;font-size:12px;word-break:break-all;color:#0F172A;margin-bottom:18px;">${safeUrl}</div>
+          <p style="margin:0;font-size:13px;color:#475569;">${escapeHtml(c.note)}</p>
+        `,
+        footerNote: `Delivered to ${params.recipientEmail} from Sunday Funday ERP · Account Security`,
+        accentColor: '#0F766E',
+      });
+
+      return await this.dispatchEmail({
+        userId: params.userId,
+        recipientEmail: params.recipientEmail,
+        smtpUser: transport?.user || ERP_NOTIFICATION_EMAIL,
+        smtpPass: transport?.pass || null,
+        host: transport?.host,
+        port: transport?.port,
+        secure: transport?.secure,
+        previewOnly: !transport,
+        locale,
+        subject: `${c.title} — Sunday Funday ERP`,
+        html,
+        textFallback: `${c.title}\n\n${c.intro}\n\n${params.resetUrl}\n\n${c.note}`,
+        auditAction: 'AUTH_PASSWORD_RESET_EMAIL',
+        auditSummary: `Dispatched password recovery link to ${params.recipientEmail}`,
+      });
+    } catch (err: any) {
+      this.logger.warn(`Password reset email suppressed: ${err?.message}`);
+      return null;
+    }
+  }
+
+  async sendPasswordChangedAlert(params: {
+    userId: number;
+    recipientEmail: string;
+    fullName: string;
+    clientIp: string;
+    reason: 'RESET_TOKEN' | 'FIRST_LOGIN' | 'USER_CHANGE' | 'ADMIN_RESET';
+    locale?: string;
+  }): Promise<EmailDispatchResult | null> {
+    try {
+      const locale = this.normalizeLocale(params.locale);
+      const transport = await this.resolveSystemTransportConfig();
+      const jkt = getJakartaDateParts();
+
+      const copy: Record<
+        EmailLocale,
+        { title: string; subtitle: string; body: string }
+      > = {
+        EN: {
+          title: 'Password Updated',
+          subtitle: 'Account credential change confirmation',
+          body: `Hi ${params.fullName}, your Sunday Funday ERP password was updated on ${jkt.isoDate} WIB (IP: ${params.clientIp}). All previous sessions were signed out automatically.`,
+        },
+        ID: {
+          title: 'Password Berhasil Diperbarui',
+          subtitle: 'Konfirmasi perubahan kredensial akun',
+          body: `Halo ${params.fullName}, password akun Sunday Funday ERP Anda baru saja diperbarui pada ${jkt.isoDate} WIB (IP: ${params.clientIp}). Seluruh sesi aktif sebelumnya telah dikeluarkan otomatis.`,
+        },
+        ZH: {
+          title: '密码已更新',
+          subtitle: '账户凭证变更确认通知',
+          body: `${params.fullName} 您好，您的 Sunday Funday ERP 账户密码已于 ${jkt.isoDate} WIB 更新（来源 IP: ${params.clientIp}），此前所有登录会话已自动注销。`,
+        },
+      };
+
+      const c = copy[locale];
+      const html = wrapCorporateHtml({
+        kicker: 'SUNDAY FUNDAY ERP · CREDENTIAL NOTICE',
+        title: c.title,
+        subtitle: c.subtitle,
+        bodyHtml: `<p style="margin:0;color:#334155;">${escapeHtml(c.body)}</p>`,
+        footerNote: `Delivered to ${params.recipientEmail} from Sunday Funday ERP · Session Guard`,
+        accentColor: '#0F766E',
+      });
+
+      return await this.dispatchEmail({
+        userId: params.userId,
+        recipientEmail: params.recipientEmail,
+        smtpUser: transport?.user || ERP_NOTIFICATION_EMAIL,
+        smtpPass: transport?.pass || null,
+        host: transport?.host,
+        port: transport?.port,
+        secure: transport?.secure,
+        previewOnly: !transport,
+        locale,
+        subject: `${c.title} — Sunday Funday ERP`,
+        html,
+        textFallback: c.body,
+        auditAction: 'AUTH_PASSWORD_CHANGED_EMAIL',
+        auditSummary: `Dispatched password change alert (${params.reason}) to ${params.recipientEmail}`,
+      });
+    } catch (err: any) {
+      this.logger.warn(`Password changed alert suppressed: ${err?.message}`);
+      return null;
+    }
+  }
+
+  async sendWelcomeCredentialsEmail(params: {
+    userId: number;
+    recipientEmail: string;
+    fullName: string;
+    accountName: string;
+    username: string;
+    temporaryPassword: string;
+    loginUrl: string;
+    locale?: string;
+  }): Promise<EmailDispatchResult | null> {
+    try {
+      const locale = this.normalizeLocale(params.locale);
+      const transport = await this.resolveSystemTransportConfig();
+
+      const copy: Record<
+        EmailLocale,
+        { title: string; subtitle: string; intro: string; cta: string; note: string }
+      > = {
+        EN: {
+          title: 'Your Sunday Funday Workspace Is Ready',
+          subtitle: 'Account credentials and first-login instructions',
+          intro: `Hi ${params.fullName}, an account has been provisioned for you on Sunday Funday ERP. Sign in with the temporary password below—you will be prompted to set a personal password immediately after signing in.`,
+          cta: 'Sign In to Workspace',
+          note: 'Do not share this temporary password. It expires as soon as you set your permanent password.',
+        },
+        ID: {
+          title: 'Akun Sunday Funday Anda Sudah Siap',
+          subtitle: 'Kredensial masuk dan panduan login pertama',
+          intro: `Halo ${params.fullName}, akun Sunday Funday ERP Anda telah dibuat oleh administrator. Masuk menggunakan username dan password sementara di bawah ini—setelah masuk, Anda wajib langsung membuat password pribadi baru.`,
+          cta: 'Masuk ke Aplikasi',
+          note: 'Jangan bagikan password sementara ini. Setelah Anda mengganti password pribadi, password sementara tidak berlaku lagi.',
+        },
+        ZH: {
+          title: '您的 Sunday Funday 账户已就绪',
+          subtitle: '登录凭证与首次登录说明',
+          intro: `${params.fullName} 您好，管理员已为您创建 Sunday Funday ERP 账户。请使用下方临时密码登录，登录后系统会要求您立即设置个人新密码。`,
+          cta: '立即登录',
+          note: '请勿与他人分享此临时密码。设置永久密码后，临时密码将立即失效。',
+        },
+      };
+
+      const c = copy[locale];
+      const safeUrl = escapeHtml(params.loginUrl);
+      const html = wrapCorporateHtml({
+        kicker: 'SUNDAY FUNDAY ERP · ACCOUNT PROVISIONED',
+        title: c.title,
+        subtitle: c.subtitle,
+        bodyHtml: `
+          <p style="margin:0 0 18px 0;color:#334155;">${escapeHtml(c.intro)}</p>
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;background-color:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;margin-bottom:20px;">
+            <tr>
+              <td style="padding:10px 14px;border-bottom:1px solid #E2E8F0;font-size:13px;color:#475569;">Username / Email</td>
+              <td style="padding:10px 14px;border-bottom:1px solid #E2E8F0;text-align:right;font-family:'SFMono-Regular',Consolas,monospace;font-size:13px;font-weight:600;color:#0F172A;">${escapeHtml(params.username)} / ${escapeHtml(params.recipientEmail)}</td>
+            </tr>
+            <tr>
+              <td style="padding:10px 14px;border-bottom:1px solid #E2E8F0;font-size:13px;color:#475569;">Temporary Password</td>
+              <td style="padding:10px 14px;border-bottom:1px solid #E2E8F0;text-align:right;font-family:'SFMono-Regular',Consolas,monospace;font-size:13px;font-weight:700;color:#0F766E;">${escapeHtml(params.temporaryPassword)}</td>
+            </tr>
+            <tr>
+              <td style="padding:10px 14px;font-size:13px;color:#475569;">Workspace Tenant</td>
+              <td style="padding:10px 14px;text-align:right;font-family:'SFMono-Regular',Consolas,monospace;font-size:13px;color:#0F172A;">${escapeHtml(params.accountName)}</td>
+            </tr>
+          </table>
+          <p style="margin:0 0 18px 0;">
+            <a href="${safeUrl}" style="display:inline-block;padding:12px 20px;background-color:#0F766E;color:#FFFFFF;text-decoration:none;font-size:13px;font-weight:600;border-radius:6px;">${escapeHtml(c.cta)}</a>
+          </p>
+          <p style="margin:0;font-size:13px;color:#475569;">${escapeHtml(c.note)}</p>
+        `,
+        footerNote: `Delivered to ${params.recipientEmail} from Sunday Funday ERP · Platform Admin`,
+        accentColor: '#0F766E',
+      });
+
+      return await this.dispatchEmail({
+        userId: params.userId,
+        recipientEmail: params.recipientEmail,
+        smtpUser: transport?.user || ERP_NOTIFICATION_EMAIL,
+        smtpPass: transport?.pass || null,
+        host: transport?.host,
+        port: transport?.port,
+        secure: transport?.secure,
+        previewOnly: !transport,
+        locale,
+        subject: `${c.title} — Sunday Funday ERP`,
+        html,
+        textFallback: `${c.title}\nUsername: ${params.username}\nTemporary Password: ${params.temporaryPassword}\nSign in: ${params.loginUrl}`,
+        auditAction: 'AUTH_WELCOME_CREDENTIALS_EMAIL',
+        auditSummary: `Dispatched provisioned credentials to ${params.recipientEmail}`,
+      });
+    } catch (err: any) {
+      this.logger.warn(`Welcome credentials email suppressed: ${err?.message}`);
+      return null;
+    }
+  }
 }

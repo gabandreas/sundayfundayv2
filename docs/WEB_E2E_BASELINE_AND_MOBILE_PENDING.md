@@ -1,7 +1,7 @@
 # Web E2E Baseline & Mobile Pending Handoff (`WEB_E2E_BASELINE_AND_MOBILE_PENDING.md`)
 
-> **Checkpoint Timestamp:** `2026-11-23 21:14 +07:00`
-> **Active Decision:** Development on **Flutter Mobile (`apps/mobile`) is PAUSED (pending)** right after Phase 0–5 build completion (`de999e8`), returning full focus to **end-to-end Website (`apps/web` + `apps/api` + `apps/go-engine`) bug fixing and stabilization**.
+> **Checkpoint Timestamp:** `2026-11-23 22:45 +07:00`
+> **Active Decision:** Website end-to-end overhaul (`apps/web` + `apps/api`) completed and verified; **Flutter Mobile (`apps/mobile`) remains PAUSED (pending)** right after Phase 0–5 build completion (`de999e8`).
 
 ---
 
@@ -34,6 +34,7 @@ This section is the permanent chronological anchor so future sessions never lose
 | `2026-11-23 10:39–10:48` | `d068b6b`, `cec2a57` | Preferences & Form Controls | Polished `Preferences` instrument cards (`StudioTables.tsx`), Marquee reasoning copy, native dark `color-scheme` across checkboxes & form inputs (`globals.css`). |
 | `2026-11-23 13:26:28` | `0d1c05b` | Marquee V4 + MCP | ReAct 4-hop tool loop, guardrails, persistent user memory rules, history search tool, `POST /api/marquee/mcp` + `scripts/sundayfunday-mcp.ts`. |
 | **`2026-11-23 14:19:22`** | **`af79048`** | **Last Pre-Mobile Web/API/Docs Commit** | Hardened multi-tenant `userId` scoping across selectors/services, Postgres-backed `AuthRateLimit`, AST-only formula evaluation, `MarqueeWorkspaceClient` & `MarqueeAiSettingsPanel` layout/hardening, and `ERD_AND_MOBILE_API_CONTRACT.md`. |
+| **`2026-11-23 22:45`** | *(this workstream)* | **Web Auth, Standard Menu & Admin Overhaul** | Removed Switch Account & Session Locked banners; shipped Forgot Password (`/forgot-password`), single-use SHA-256 Reset Password (`/reset-password`), First-Login forced password setup (`/change-password`), session/device revocation, and zero hardcoded passwords; eliminated 22 `userId: 1` query fallbacks + Gabriel defaults across `studio.defaults.ts` & `marquee-context.service.ts`; standardized non-owner menus to Sunday Funday Standard (US Personal Finance); purged Age Bracket presets (`Ages 20-70`); overhauled `/admin` engine & UI (CSPRNG temp passwords, Credentials Dialog, Module capabilities, Reset Password, Revoke Sessions, Delete Client, Security Audit Log) and migrated User #4 (`meimeri`) in Neon DB. |
 
 ---
 
@@ -51,7 +52,7 @@ This section is the permanent chronological anchor so future sessions never lose
   - `id: 1` — `cheeseburger` / `cheeseburger` (`gabandreas22@gmail.com`) — `role: USER`, **Protected User #1 Golden Ledger** (never run destructive writes/tests here).
   - `id: 2` — `demo` / `guest` (`demo@sundayfunday.id`) — `role: DEMO_SANDBOX` (target for E2E/bug-bounty mutations).
   - `id: 3` — `superadmin` / `superadmin` (`superadmin@sundayfunday.erp`) — `role: SUPERADMIN` (sole role allowed into `/admin` & `/admin/sql`; default password `SuperAdmin#2026!`, Security PIN `271026`).
-  - `id: 4` — `mei` / `meimeri` (`meimeri95@gmail.com`) — `role: BESPOKE_CLIENT`, created `2026-11-23 14:08:48Z` via `/admin` (verified matching default modal tempPassword `Password#2026`).
+  - `id: 4` — `mei` / `meimeri` (`meimeri95@gmail.com`) — `role: STANDARD_MEMBER`, `blueprintType: STANDARD_GENERAL`, `mustChangePassword: true`, `tokenVersion: 1` (migrated to Sunday Funday Standard; empty `10/2026` draft removed, `11/2026` draft active; ready for one-time temp password issuance via `/admin` -> `Reset Password`).
 - **Local PostgreSQL (`127.0.0.1:5433`):** Observed offline during quick CLI probe (`Can't reach database server at 127.0.0.1:5433`); use `npm run erp:sync` after starting local DB/proxy if doing offline local DB verification.
 
 ---
@@ -87,13 +88,12 @@ This section is the permanent chronological anchor so future sessions never lose
 
 > **User signaled on `2026-11-23 21:05–21:13 +07:00`:** Web still has multiple bugs to review and fix end-to-end before resuming mobile.
 
-### Already Confirmed Directly in Code (`2026-11-23`)
-1. **`/admin` "Provision New Client Account" Modal Missing Password Field & Dropping Initial Salary (`User #4` incident):**
-   - `apps/web/app/admin/page.tsx` (`createForm.tempPassword: "Password#2026"` at line `85`, modal JSX lines `1491–1632`) renders no password input field in UI, silently provisioning new users with `Password#2026`.
-   - `apps/web/app/admin/page.tsx` (`184–185`) submits `initializeFirstPeriod` and `initialSalary`, but `apps/api/src/admin/dto/create-client.dto.ts` and `apps/api/src/admin/admin.service.ts` (`115–155`) ignore `initialSalary` (saving `baseSalary: 0`) and hardcode an empty `10/2026` snapshot (`finalTotalIncome: 0`).
-   - Also check UX behavior after creating a client / switching accounts and check whether Web + Mobile need `SUPERADMIN` client-management clarity or clearer defaults.
-2. **Additional Website Bugs (Awaiting User Walkthrough):**
-   - Document and reproduce each reported bug with a failing TDD test (`RED`) before patching (`GREEN -> REFACTOR`).
+### Resolved Website Bugs (`2026-11-23 22:45 +07:00`)
+1. **`/admin` "Provision Client Account" & Engine Overhaul (Resolved):** Added optional CSPRNG temporary password generation + welcome email option + `mustChangePassword = true` first-login flow, `initialMonthlyIncome` + current Jakarta month snapshot seeding, capability module checkboxes, `Reset Password` (with one-time Credentials Handoff modal), `Revoke Sessions`, `Delete Client` (guarded), and `Security & Admin Audit Log`.
+2. **End-to-End Web Auth Lifecycle & UI (Resolved):** Removed broken Switch Account and locked-identity banners; shipped `/forgot-password`, `/reset-password` (30-min SHA-256 single-use tokens, zero enumeration), forced `/change-password` (`complete-first-login-password`), active session revocation (`tokenVersion` + `RefreshToken`), smooth Sign Out (`logoutUserApi`), and purged all hardcoded passwords/PINs across auth/admin services.
+3. **Multi-Tenant Isolation & Sunday Funday Standard Menu (Resolved):** Purged all 22 `userId: 1` `globalConfig` query fallbacks, isolated `studio.defaults.ts` & `marquee-context.service.ts` strictly by `userId === 1`, standardized non-owner menus onto US Personal Finance Standard with opt-in Debts/Corporate Payroll, and removed all `Ages XX-XX` / life-stage bracket labels across web UI.
+4. **Future Bug Queue:**
+   - Any additional bugs surfaced during live user review should still follow strict TDD (`RED -> GREEN -> REFACTOR`) in `apps/api` / `apps/web`.
 
 ---
 

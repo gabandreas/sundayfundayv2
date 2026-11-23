@@ -106,8 +106,7 @@ export class ReportsSelectors {
       fullAuditReport,
     ] = await Promise.all([
       (await this.prisma.globalConfig.findUnique({ where: { userId } })) ||
-        (await this.prisma.globalConfig.findFirst({ where: { userId } })) ||
-        (await this.prisma.globalConfig.findFirst({ where: { userId: 1 } })),
+        (await this.prisma.globalConfig.findFirst({ where: { userId } })),
       this.prisma.monthlySnapshot.findUnique({
         where: { userId_month_year: { userId, month, year } },
         include: {
@@ -1433,8 +1432,7 @@ export class ReportsSelectors {
       bulkBills,
     ] = await Promise.all([
       (await this.prisma.globalConfig.findUnique({ where: { userId } })) ||
-        (await this.prisma.globalConfig.findFirst({ where: { userId } })) ||
-        (await this.prisma.globalConfig.findFirst({ where: { userId: 1 } })),
+        (await this.prisma.globalConfig.findFirst({ where: { userId } })),
       this.prisma.monthlySnapshot.findMany({
         where: { userId },
         include: { transactions: true },

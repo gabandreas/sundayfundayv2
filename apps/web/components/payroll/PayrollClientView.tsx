@@ -17,6 +17,7 @@ import { usePeriodSlice } from "@/hooks/usePeriodSlice";
 import { useSubModule } from "@/hooks/useSubModule";
 import { PAYROLL_SUB_KEYS, PayrollSubKey } from "@/lib/tabs";
 import { useLanguage } from "@/context/LanguageContext";
+import { usePerspective } from "@/context/PerspectiveContext";
 import { PageHeader } from "@/components/primitives/PageHeader";
 import { SubModuleNav } from "@/components/primitives/SubModuleNav";
 import { TrueHourlyLifeEnergyPanel } from "@/components/finance/ModuleGoPanels";
@@ -48,6 +49,8 @@ export function PayrollClientView({
   initialData,
 }: PayrollClientViewProps) {
   const { t } = useLanguage();
+  const { isBespokeWorkspace, isModuleEnabled } = usePerspective();
+  const showCorporatePayroll = isBespokeWorkspace || isModuleEnabled("corporate_payroll");
   const [activeSub, selectSub] = useSubModule<PayrollSubKey>(PAYROLL_SUB_KEYS, "payslip");
   const [intel, setIntel] = useState<IntelligenceBundleResponse | null>(null);
   const { month, year, data, isPreBoundary } =
@@ -110,26 +113,32 @@ export function PayrollClientView({
   return (
     <div className="space-y-6 w-full max-w-full">
       <PageHeader
-        title={t("nav.payroll")}
-        subtitle="Calculated monthly payroll statement, multi-wave disbursement timeline, and true hourly life-energy cost."
+        title={showCorporatePayroll ? t("nav.payroll") : t("nav.standard.income")}
+        subtitle={
+          showCorporatePayroll
+            ? "Calculated monthly payroll statement, multi-wave disbursement timeline, and true hourly life-energy cost."
+            : "Monthly income baseline, recurring cash inflows, and payday schedule."
+        }
         periodLabel={`${month}/${year}`}
         status={snapshot?.status ?? "DRAFT"}
         statusLabel={isLocked ? "Closed" : "Active Draft"}
       />
 
-      <SubModuleNav
-        items={[
-          { key: "payslip", label: t("sub.payroll.payslip") },
-          { key: "timeline", label: t("sub.payroll.timeline") },
-          { key: "lifeenergy", label: t("sub.payroll.lifeenergy") },
-        ]}
-        activeKey={activeSub}
-        onSelect={selectSub}
-      />
+      {showCorporatePayroll && (
+        <SubModuleNav
+          items={[
+            { key: "payslip", label: t("sub.payroll.payslip") },
+            { key: "timeline", label: t("sub.payroll.timeline") },
+            { key: "lifeenergy", label: t("sub.payroll.lifeenergy") },
+          ]}
+          activeKey={activeSub}
+          onSelect={selectSub}
+        />
+      )}
 
-      {activeSub === "payslip" && (
+      {(activeSub === "payslip" || !showCorporatePayroll) && (
         <div className="space-y-6">
-          <PayrollArchetypeSelector />
+          {showCorporatePayroll && <PayrollArchetypeSelector />}
 
           <section className="space-y-3">
             <div className="text-[11px] font-sans font-medium text-text-tertiary uppercase tracking-wider">
@@ -142,39 +151,38 @@ export function PayrollClientView({
               thrAmount={payroll?.thrAmount ?? snapshot?.thrAmount ?? 0}
               bonusAmount={payroll?.bonusAmount ?? snapshot?.bonusAmount ?? 0}
               workingDays={workingDays}
+              isStandardMode={!showCorporatePayroll}
             />
           </section>
 
           <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            <div className="lg:col-span-7 space-y-4">
-              {payroll ? (
-                <PayrollStatementTable payroll={payroll} />
-              ) : (
-                <div className="bg-surface border border-border-subtle rounded-lg p-6 text-center text-xs font-sans text-text-tertiary">
-                  No payroll calculation found for period {month}/{year}.
-                </div>
-              )}
+            {showCorporatePayroll && (
+              <div className="lg:col-span-7 space-y-4">
+                {payroll ? (
+                  <PayrollStatementTable payroll={payroll} />
+                ) : (
+                  <div className="bg-surface border border-border-subtle rounded-lg p-6 text-center text-xs font-sans text-text-tertiary">
+                    No payroll calculation found for period {month}/{year}.
+                  </div>
+                )}
 
-              <ThrBonusEstimatorCard
-                key={`thr-estimator-${month}-${year}-${snapshot?.thrAmount ?? 0}`}
-                baseSalary={payroll?.baseSalary ?? config?.baseSalary ?? 5300000}
-                dailyAllowance={
-                  payroll?.dailyAllowance ?? config?.dailyAllowance ?? 25000
-                }
-                laptopAllowance={
-                  payroll?.laptopAllowance ?? config?.laptopAllowance ?? 250000
-                }
-                currentWorkingDays={workingDays}
-                currentSalaryAdjustment={snapshot?.salaryAdjustment ?? 0}
-                currentCafeteriaDeduction={snapshot?.cafeteriaDeduction ?? 0}
-                currentExtraIncome={extraIncome}
-                currentThrAmount={payroll?.thrAmount ?? snapshot?.thrAmount ?? 0}
-                currentMonth={month}
-              />
-            </div>
+                <ThrBonusEstimatorCard
+                  key={`thr-estimator-${month}-${year}-${snapshot?.thrAmount ?? 0}`}
+                  baseSalary={payroll?.baseSalary ?? config?.baseSalary ?? 0}
+                  dailyAllowance={payroll?.dailyAllowance ?? config?.dailyAllowance ?? 0}
+                  laptopAllowance={payroll?.laptopAllowance ?? config?.laptopAllowance ?? 0}
+                  currentWorkingDays={workingDays}
+                  currentSalaryAdjustment={snapshot?.salaryAdjustment ?? 0}
+                  currentCafeteriaDeduction={snapshot?.cafeteriaDeduction ?? 0}
+                  currentExtraIncome={extraIncome}
+                  currentThrAmount={payroll?.thrAmount ?? snapshot?.thrAmount ?? 0}
+                  currentMonth={month}
+                />
+              </div>
+            )}
 
-            <div className="lg:col-span-5 space-y-6">
-              {snapshot && (
+            <div className={`${showCorporatePayroll ? "lg:col-span-5" : "lg:col-span-12"} space-y-6`}>
+              {snapshot && showCorporatePayroll && (
                 <PayrollAdjustmentForm
                   key={`payroll-form-${snapshot.id}-${month}-${year}`}
                   snapshotId={snapshot.id}
@@ -187,7 +195,7 @@ export function PayrollClientView({
                   initialBonusAmount={snapshot.bonusAmount ?? 0}
                   hasThr={(snapshot.thrAmount ?? 0) > 0}
                   initialThrAmount={snapshot.thrAmount ?? 0}
-                  baseSalary={config?.baseSalary ?? 5300000}
+                  baseSalary={config?.baseSalary ?? 0}
                   initialPayrollPayoutDate={snapshot.payrollPayoutDate}
                 />
               )}
@@ -198,6 +206,7 @@ export function PayrollClientView({
                 year={year}
                 isLocked={isLocked}
                 config={config}
+                hideAllowances={!showCorporatePayroll}
               />
 
               <QuickIncomeForm month={month} year={year} isLocked={isLocked} />
@@ -206,11 +215,11 @@ export function PayrollClientView({
         </div>
       )}
 
-      {activeSub === "timeline" && (
+      {showCorporatePayroll && activeSub === "timeline" && (
         <PaydayTimelineSimulator month={month} year={year} />
       )}
 
-      {activeSub === "lifeenergy" && (
+      {showCorporatePayroll && activeSub === "lifeenergy" && (
         <TrueHourlyLifeEnergyPanel intel={intel} />
       )}
     </div>

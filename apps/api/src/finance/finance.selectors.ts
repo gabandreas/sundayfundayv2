@@ -169,9 +169,7 @@ export class FinanceSelectors {
     year: number,
     userId: number = 1,
   ): Promise<PayrollResult> {
-    const config =
-      (await this.prisma.globalConfig.findFirst({ where: { userId } })) ||
-      (await this.prisma.globalConfig.findFirst({ where: { userId: 1 } }));
+    const config = await this.prisma.globalConfig.findFirst({ where: { userId } });
 
     let snapshot = await this.prisma.monthlySnapshot.findUnique({
       where: { userId_month_year: { userId, month, year } },
@@ -229,9 +227,7 @@ export class FinanceSelectors {
 
     const periodOr = periods.map((p) => ({ month: p.month, year: p.year }));
     const [config, snapshots] = await Promise.all([
-      (async () =>
-        (await this.prisma.globalConfig.findFirst({ where: { userId } })) ||
-        (await this.prisma.globalConfig.findFirst({ where: { userId: 1 } })))(),
+      this.prisma.globalConfig.findFirst({ where: { userId } }),
       this.prisma.monthlySnapshot.findMany({
         where: { userId, OR: periodOr },
         include: { transactions: true },
@@ -278,9 +274,7 @@ export class FinanceSelectors {
     weekendMultiplier?: number,
     userId: number = 1,
   ): Promise<EnrichedPacingResult> {
-    const config =
-      (await this.prisma.globalConfig.findFirst({ where: { userId } })) ||
-      (await this.prisma.globalConfig.findFirst({ where: { userId: 1 } }));
+    const config = await this.prisma.globalConfig.findFirst({ where: { userId } });
 
     let snapshot = await this.prisma.monthlySnapshot.findUnique({
       where: { userId_month_year: { userId, month, year } },
@@ -421,9 +415,7 @@ export class FinanceSelectors {
       userId = 1,
     } = params;
 
-    const config =
-      (await this.prisma.globalConfig.findFirst({ where: { userId } })) ||
-      (await this.prisma.globalConfig.findFirst({ where: { userId: 1 } }));
+    const config = await this.prisma.globalConfig.findFirst({ where: { userId } });
     if (!config) {
       throw new NotFoundException('Global configuration not found');
     }
@@ -654,9 +646,7 @@ export class FinanceSelectors {
     },
     userId: number = 1,
   ): Promise<WithEngineMeta<CutoffSimulateResult>> {
-    const cfgRow =
-      (await this.prisma.globalConfig.findFirst({ where: { userId } })) ||
-      (await this.prisma.globalConfig.findFirst({ where: { userId: 1 } }));
+    const cfgRow = await this.prisma.globalConfig.findFirst({ where: { userId } });
     const studioConfig = resolveStudioConfig(userId, cfgRow?.formulaParamsJson, cfgRow);
     const targetInstType =
       dto.instrument === 'SPAYLATER'
@@ -931,9 +921,7 @@ export class FinanceSelectors {
   ): Promise<WithEngineMeta<CashRadarResult>> {
     const nextP = addHybridMonths(month, year, 1);
     const [config, curSnap, nextSnap, matrix] = await Promise.all([
-      (async () =>
-        (await this.prisma.globalConfig.findFirst({ where: { userId } })) ||
-        (await this.prisma.globalConfig.findFirst({ where: { userId: 1 } })))(),
+      this.prisma.globalConfig.findFirst({ where: { userId } }),
       this.snapshotsSelectors.getOrCreateDraftSnapshot(month, year, userId),
       this.snapshotsSelectors.getOrCreateDraftSnapshot(nextP.month, nextP.year, userId),
       this.creditSelectors
@@ -2214,9 +2202,7 @@ export class FinanceSelectors {
           updatedAt: true,
         },
       }),
-      (async () =>
-        (await this.prisma.globalConfig.findFirst({ where: { userId } })) ||
-        (await this.prisma.globalConfig.findFirst({ where: { userId: 1 } })))(),
+      this.prisma.globalConfig.findFirst({ where: { userId } }),
       this.prisma.monthlySnapshot.findUnique({
         where: { userId_month_year: { userId, month, year } },
       }),

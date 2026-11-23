@@ -12,6 +12,7 @@ import {
   FormulaParams,
   ModuleKey,
   ALL_MODULE_KEYS,
+  SUNDAY_FUNDAY_STANDARD_MODULES,
   CustomRoutineLabels,
   ModularStudioConfig,
   fetchGlobalConfig,
@@ -22,6 +23,7 @@ import { getRoutineEnvelopeLabel, getSavingsVaultLabels } from "@/lib/utils";
 
 interface PerspectiveContextType {
   profileMode: ProfileMode;
+  isBespokeWorkspace: boolean;
   payrollMode: PayrollMode;
   lifeStagePreset: LifeStagePreset;
   uiDensityMode: UiDensityMode;
@@ -56,29 +58,41 @@ export function PerspectiveProvider({ children }: { children: React.ReactNode })
   const [, startTransition] = useTransition();
   const { user } = useAuth();
 
-  const [profileMode, setProfileModeState] = useState<ProfileMode>("SUPERADMIN_BESPOKE");
-  const [payrollMode, setPayrollModeState] = useState<PayrollMode>("BESPOKE_ATTENDANCE");
-  const [lifeStagePreset, setLifeStagePresetState] = useState<LifeStagePreset>("SUPERADMIN_BESPOKE");
+  const [profileMode, setProfileModeState] = useState<ProfileMode>("STANDARD_GENERAL");
+  const [payrollMode, setPayrollModeState] = useState<PayrollMode>("SIMPLE_FIXED_SALARY");
+  const [lifeStagePreset, setLifeStagePresetState] = useState<LifeStagePreset>("STANDARD_GENERAL");
   const [uiDensityMode, setUiDensityModeState] = useState<UiDensityMode>("COMMAND_COCKPIT");
-  const [enabledModules, setEnabledModulesState] = useState<ModuleKey[]>([...ALL_MODULE_KEYS]);
-  const [formulaEngineType, setFormulaEngineTypeState] = useState<FormulaEngineType>("DEBT_FIRST_WATERFALL");
+  const [enabledModules, setEnabledModulesState] = useState<ModuleKey[]>([...SUNDAY_FUNDAY_STANDARD_MODULES]);
+  const [formulaEngineType, setFormulaEngineTypeState] = useState<FormulaEngineType>("PERCENTAGE_SPLIT");
   const [formulaParamsJson, setFormulaParamsJsonState] = useState<FormulaParams | null>(null);
   const [customRoutineLabels, setCustomRoutineLabelsState] = useState<CustomRoutineLabels>({});
   const [studioConfig, setStudioConfigState] = useState<ModularStudioConfig | null>(null);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   const [isCustomRequestModalOpen, setIsCustomRequestModalOpen] = useState(false);
 
+  const isBespokeWorkspace =
+    user?.id === 1 ||
+    user?.blueprintType === "SUPERADMIN_BESPOKE" ||
+    profileMode === "SUPERADMIN_BESPOKE";
+
   useEffect(() => {
-    if (user?.blueprintType) {
-      setProfileModeState(user.blueprintType);
+    if (!user) return;
+    if (user.blueprintType === "SUPERADMIN_BESPOKE" || user.id === 1) {
+      setProfileModeState("SUPERADMIN_BESPOKE");
+      setPayrollModeState("BESPOKE_ATTENDANCE");
+      setLifeStagePresetState(user.lifeStagePreset || "SUPERADMIN_BESPOKE");
+      setFormulaEngineTypeState("DEBT_FIRST_WATERFALL");
+      setEnabledModulesState([...ALL_MODULE_KEYS]);
+    } else {
+      setProfileModeState("STANDARD_GENERAL");
+      setPayrollModeState("SIMPLE_FIXED_SALARY");
+      setLifeStagePresetState(user.lifeStagePreset || "STANDARD_GENERAL");
+      setEnabledModulesState([...SUNDAY_FUNDAY_STANDARD_MODULES]);
     }
-    if (user?.lifeStagePreset) {
-      setLifeStagePresetState(user.lifeStagePreset);
-    }
-    if (user?.uiDensityMode) {
+    if (user.uiDensityMode) {
       setUiDensityModeState(user.uiDensityMode);
     }
-  }, [user?.blueprintType, user?.lifeStagePreset, user?.uiDensityMode]);
+  }, [user?.id, user?.blueprintType, user?.lifeStagePreset, user?.uiDensityMode]);
 
   // Sync initial config from server whenever user changes
   useEffect(() => {
@@ -100,7 +114,13 @@ export function PerspectiveProvider({ children }: { children: React.ReactNode })
       if (Array.isArray(config.enabledModulesJson) && config.enabledModulesJson.length > 0) {
         setEnabledModulesState(config.enabledModulesJson as ModuleKey[]);
       } else {
-        setEnabledModulesState([...ALL_MODULE_KEYS]);
+        const bespoke =
+          user?.id === 1 ||
+          user?.blueprintType === "SUPERADMIN_BESPOKE" ||
+          config.profileMode === "SUPERADMIN_BESPOKE";
+        setEnabledModulesState(
+          bespoke ? [...ALL_MODULE_KEYS] : [...SUNDAY_FUNDAY_STANDARD_MODULES],
+        );
       }
       if (config.formulaEngineType) {
         setFormulaEngineTypeState(config.formulaEngineType);
@@ -138,7 +158,18 @@ export function PerspectiveProvider({ children }: { children: React.ReactNode })
   const isModuleEnabled = (key: ModuleKey): boolean => {
     const coreModules: ModuleKey[] = ["overview", "income", "allocations", "ledger", "preferences"];
     if (coreModules.includes(key)) return true;
-    if (!enabledModules || enabledModules.length === 0) return true;
+    if (isBespokeWorkspace) {
+      const legacyImplicitModules: ModuleKey[] = [
+        "payday_wizard",
+        "cash_radar",
+        "statement_import",
+        "scenarios",
+      ];
+      if (legacyImplicitModules.includes(key)) return true;
+    }
+    if (!enabledModules || enabledModules.length === 0) {
+      return isBespokeWorkspace;
+    }
     return enabledModules.includes(key);
   };
 
@@ -298,6 +329,7 @@ export function PerspectiveProvider({ children }: { children: React.ReactNode })
     <PerspectiveContext.Provider
       value={{
         profileMode,
+        isBespokeWorkspace,
         payrollMode,
         lifeStagePreset,
         uiDensityMode,

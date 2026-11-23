@@ -26,6 +26,9 @@ import {
   isWeakPin,
   hashOpaqueToken,
   generateOpaqueRefreshToken,
+  generatePasswordResetToken,
+  generateSecureTemporaryPassword,
+  validatePasswordStrength,
   normalizeAndValidatePublicKeyPem,
   verifyBiometricSignature,
   signToken,
@@ -37,6 +40,9 @@ import {
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { CompleteFirstLoginPasswordDto } from './dto/complete-first-login-password.dto';
 import {
   RefreshTokenDto,
   SetupPinDto,
@@ -49,7 +55,9 @@ import {
 import {
   AuthenticatedUser,
   BlueprintType,
+  DEFAULT_STANDARD_ROUTINE_LABELS,
   LifeStagePreset,
+  SUNDAY_FUNDAY_STANDARD_MODULES,
   UiDensityMode,
   UserRole,
   UserStatus,
@@ -175,6 +183,8 @@ export class AuthService implements OnModuleInit {
       {
         sub: user.id,
         sid: sessionId,
+        tv: user.tokenVersion ?? 0,
+        mcp: Boolean(user.mustChangePassword),
         accountName: user.accountName || 'cheeseburger',
         username: user.username || 'cheeseburger',
         email: user.email,
@@ -191,6 +201,7 @@ export class AuthService implements OnModuleInit {
       ...(sessionId ? { sessionId } : {}),
       expiresIn: 1800,
       hasSecurityPin: Boolean(user.securityPinHash),
+      mustChangePassword: Boolean(user.mustChangePassword),
       user: this.toAuthenticatedUser(user),
     };
   }
@@ -249,37 +260,39 @@ export class AuthService implements OnModuleInit {
   }
 
   /**
-   * Idempotently seeds User #1 (Platform Owner) and User #2 (Demo Sandbox)
-   * without mutating any existing financial rows.
+   * Idempotently seeds User #1 (Primary Consumer), User #2 (Demo Sandbox), and System Superadmin
+   * on an empty database without ever overwriting existing credentials or financial rows.
    */
   async bootstrapDefaultAccounts() {
     try {
-      // 1. Ensure User #1 (Platform Owner) exists
-      const ownerEmail = process.env.SUPERADMIN_EMAIL || 'gabandreas22@gmail.com';
+      // 1. Ensure User #1 (Primary Consumer) exists without altering existing credentials
+      const ownerEmail = process.env.OWNER_EMAIL || process.env.SUPERADMIN_EMAIL || 'gabandreas22@gmail.com';
       let owner = await this.prisma.user.findFirst({
         where: { OR: [{ id: 1 }, { email: ownerEmail }] },
       });
 
       if (!owner) {
+        const initialOwnerPass =
+          process.env.OWNER_INITIAL_PASSWORD || generateSecureTemporaryPassword(16);
+        const initialOwnerPin = process.env.OWNER_INITIAL_PIN;
         owner = await this.prisma.user.create({
           data: {
             id: 1,
             accountName: 'cheeseburger',
             username: 'cheeseburger',
             email: ownerEmail,
-            passwordHash: hashPassword('Djakarta2026Nov!@#'),
+            passwordHash: hashPassword(initialOwnerPass),
             fullName: 'Gabriel',
             role: 'USER',
             status: 'ACTIVE',
             blueprintType: 'SUPERADMIN_BESPOKE',
             lifeStagePreset: 'SUPERADMIN_BESPOKE',
             uiDensityMode: 'COMMAND_COCKPIT',
-            securityPinHash: hashPin('271026'),
+            ...(initialOwnerPin ? { securityPinHash: hashPin(initialOwnerPin) } : {}),
             ipWhitelistEnforced: false,
           },
         });
       } else {
-        // Ensure consumer role, bespoke blueprint, and enterprise credentials are aligned for User #1
         const updates: any = {};
         if (owner.role !== 'USER') updates.role = 'USER';
         if (owner.blueprintType !== 'SUPERADMIN_BESPOKE') updates.blueprintType = 'SUPERADMIN_BESPOKE';
@@ -287,9 +300,6 @@ export class AuthService implements OnModuleInit {
         if (owner.accountName !== 'cheeseburger') updates.accountName = 'cheeseburger';
         if (owner.username !== 'cheeseburger') updates.username = 'cheeseburger';
         if (!owner.fullName) updates.fullName = 'Gabriel';
-        if (!isPasswordHashV2(owner.passwordHash) || !verifyPassword('Djakarta2026Nov!@#', owner.passwordHash)) {
-          updates.passwordHash = hashPassword('Djakarta2026Nov!@#');
-        }
 
         if (Object.keys(updates).length > 0) {
           await this.prisma.user.update({
@@ -321,7 +331,7 @@ export class AuthService implements OnModuleInit {
         }
       }
 
-      // 2. Ensure User #2 (General Sandbox Demo Account) exists
+      // 2. Ensure User #2 (General Sandbox Demo Account) exists using Sunday Funday Standard modules
       const demoEmail = 'demo@sundayfunday.id';
       let demoUser = await this.prisma.user.findFirst({
         where: {
@@ -335,13 +345,15 @@ export class AuthService implements OnModuleInit {
       });
 
       if (!demoUser) {
+        const initialDemoPass =
+          process.env.DEMO_INITIAL_PASSWORD || generateSecureTemporaryPassword(16);
         demoUser = await this.prisma.user.create({
           data: {
             id: 2,
             accountName: 'demo',
             username: 'guest',
             email: demoEmail,
-            passwordHash: hashPassword('Sandbox2026!'),
+            passwordHash: hashPassword(initialDemoPass),
             fullName: 'General Sandbox (Demo)',
             role: 'DEMO_SANDBOX',
             status: 'ACTIVE',
@@ -357,9 +369,6 @@ export class AuthService implements OnModuleInit {
         if (demoUser.username !== 'guest') demoUpdates.username = 'guest';
         if (demoUser.fullName !== 'General Sandbox (Demo)') demoUpdates.fullName = 'General Sandbox (Demo)';
         if (demoUser.role !== 'DEMO_SANDBOX') demoUpdates.role = 'DEMO_SANDBOX';
-        if (!isPasswordHashV2(demoUser.passwordHash) || !verifyPassword('Sandbox2026!', demoUser.passwordHash)) {
-          demoUpdates.passwordHash = hashPassword('Sandbox2026!');
-        }
         if (Object.keys(demoUpdates).length > 0) {
           demoUser = await this.prisma.user.update({
             where: { id: demoUser.id },
@@ -368,13 +377,12 @@ export class AuthService implements OnModuleInit {
         }
       }
 
-      // Ensure Demo user has their own isolated GlobalConfig
+      // Ensure Demo user has their own isolated GlobalConfig aligned with Sunday Funday Standard
       const demoConfig = await this.prisma.globalConfig.findUnique({
         where: { userId: demoUser.id },
       });
 
       if (!demoConfig) {
-        const corporateDefaults = getLifeStagePresetDefaults('CORPORATE_PROFESSIONAL');
         await this.prisma.globalConfig.create({
           data: {
             userId: demoUser.id,
@@ -388,21 +396,21 @@ export class AuthService implements OnModuleInit {
             haircut: 150000,
             baseSavings: 1500000,
             creditLimit: 15000000,
-            creditStatementDay: 20,
+            creditStatementDay: 25,
             creditDueDay: 11,
             payrollPayoutDay: 25,
             profileMode: 'STANDARD_GENERAL',
             payrollMode: 'SIMPLE_FIXED_SALARY',
             lifeStagePreset: 'CORPORATE_PROFESSIONAL',
             uiDensityMode: 'COMMAND_COCKPIT',
-            formulaEngineType: corporateDefaults.formulaEngineType,
-            enabledModulesJson: corporateDefaults.enabledModules as any,
-            customRoutineLabelsJson: corporateDefaults.customRoutineLabels as any,
+            formulaEngineType: 'DEBT_FIRST_WATERFALL',
+            enabledModulesJson: SUNDAY_FUNDAY_STANDARD_MODULES as any,
+            customRoutineLabelsJson: DEFAULT_STANDARD_ROUTINE_LABELS as any,
           },
         });
       }
 
-      // Ensure Demo user has at least one initial sample snapshot (e.g. 10/2026)
+      // Ensure Demo user has at least one initial sample snapshot
       const demoSnapshot = await this.prisma.monthlySnapshot.findFirst({
         where: { userId: demoUser.id },
       });
@@ -411,7 +419,7 @@ export class AuthService implements OnModuleInit {
         await this.seedDemoWorkspace(demoUser.id);
       }
 
-      // 3. Dedicated System SUPERADMIN Account (strictly isolated from User #1 consumer data)
+      // 3. Dedicated System SUPERADMIN Account (never overwrites existing credentials)
       const superadminUsername = 'superadmin';
       const superadminEmail = process.env.SYS_ADMIN_EMAIL || 'superadmin@sundayfunday.erp';
       const existingSuperadmin = await this.prisma.user.findFirst({
@@ -419,19 +427,22 @@ export class AuthService implements OnModuleInit {
       });
 
       if (!existingSuperadmin) {
+        const initialAdminPass =
+          process.env.SYS_ADMIN_PASSWORD || generateSecureTemporaryPassword(16);
+        const initialAdminPin = process.env.SYS_ADMIN_INITIAL_PIN;
         await this.prisma.user.create({
           data: {
             accountName: superadminUsername,
             username: superadminUsername,
             email: superadminEmail,
-            passwordHash: hashPassword(process.env.SYS_ADMIN_PASSWORD || 'SuperAdmin#2026!'),
+            passwordHash: hashPassword(initialAdminPass),
             fullName: 'System Superadmin',
             role: 'SUPERADMIN',
             status: 'ACTIVE',
             blueprintType: 'SUPERADMIN_BESPOKE',
             lifeStagePreset: 'SUPERADMIN_BESPOKE',
             uiDensityMode: 'COMMAND_COCKPIT',
-            securityPinHash: hashPin('271026'),
+            ...(initialAdminPin ? { securityPinHash: hashPin(initialAdminPin) } : {}),
             ipWhitelistEnforced: false,
           },
         });
@@ -716,19 +727,25 @@ export class AuthService implements OnModuleInit {
       throw new UnauthorizedException('Session invalid or expired. Please re-authenticate.');
     }
 
-    const token = signToken({
-      sub: user.id,
-      accountName: user.accountName || 'cheeseburger',
-      username: user.username || 'cheeseburger',
-      email: user.email,
-      fullName: user.fullName,
-      role: user.role,
-      blueprintType: user.blueprintType,
-    }, 1800);
+    const token = signToken(
+      {
+        sub: user.id,
+        tv: user.tokenVersion ?? 0,
+        mcp: Boolean(user.mustChangePassword),
+        accountName: user.accountName || 'cheeseburger',
+        username: user.username || 'cheeseburger',
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+        blueprintType: user.blueprintType,
+      },
+      1800,
+    );
 
     return {
       accessToken: token,
       expiresIn: 1800,
+      mustChangePassword: Boolean(user.mustChangePassword),
       user: this.toAuthenticatedUser(user),
     };
   }
@@ -918,6 +935,8 @@ export class AuthService implements OnModuleInit {
 
     const accessToken = signToken({
       sub: updated.id,
+      tv: updated.tokenVersion ?? 0,
+      mcp: Boolean(updated.mustChangePassword),
       email: updated.email,
       accountName: updated.accountName,
       username: updated.username,
@@ -981,7 +1000,8 @@ export class AuthService implements OnModuleInit {
 
   async changePassword(
     userId: number,
-    dto: { currentPassword: string; newPassword: string },
+    dto: { currentPassword: string; newPassword: string; confirmPassword?: string },
+    clientIp: string = '127.0.0.1',
   ) {
     if (userId === 2) {
       throw new BadRequestException(
@@ -996,22 +1016,364 @@ export class AuthService implements OnModuleInit {
     if (!check.isValid) {
       throw new UnauthorizedException('Current password is incorrect.');
     }
-    if (!dto.newPassword || dto.newPassword.length < 8) {
-      throw new BadRequestException('New password must be at least 8 characters long.');
+    if (
+      dto.confirmPassword !== undefined &&
+      dto.confirmPassword !== dto.newPassword
+    ) {
+      throw new BadRequestException('New password and confirmation do not match.');
     }
-    await this.prisma.user.update({
+    const strength = validatePasswordStrength(dto.newPassword);
+    if (!strength.valid) {
+      throw new BadRequestException(
+        strength.message ||
+          'New password must be at least 10 characters with uppercase, lowercase, and numbers.',
+      );
+    }
+    if (verifyPassword(dto.newPassword, user.passwordHash)) {
+      throw new BadRequestException(
+        'New password must be different from your current password.',
+      );
+    }
+
+    const updatedRaw = await this.prisma.user.update({
       where: { id: userId },
-      data: { passwordHash: hashPassword(dto.newPassword) },
+      data: {
+        passwordHash: hashPassword(dto.newPassword),
+        mustChangePassword: false,
+        passwordChangedAt: new Date(),
+        tokenVersion: { increment: 1 },
+      },
+    });
+    const nextUser = updatedRaw?.id
+      ? updatedRaw
+      : {
+          ...user,
+          mustChangePassword: false,
+          tokenVersion: (user.tokenVersion ?? 0) + 1,
+        };
+
+    if (typeof (this.prisma as any)?.refreshToken?.updateMany === 'function') {
+      await (this.prisma as any).refreshToken
+        .updateMany({
+          where: { userId, revokedAt: null },
+          data: { revokedAt: new Date(), revokeReason: 'PASSWORD_CHANGED' },
+        })
+        .catch(() => {});
+    }
+
+    await this.recordSecurityAudit({
+      userId,
+      action: 'PASSWORD_CHANGED',
+      summary: 'Updated account password and rotated active session.',
+      details: { clientIp: normalizeIp(clientIp) },
     });
 
-    if (this.hasMobileAuthStore()) {
-      await (this.prisma as any).refreshToken.updateMany({
-        where: { userId, revokedAt: null },
-        data: { revokedAt: new Date(), revokeReason: 'PASSWORD_CHANGED' },
+    if (user.email) {
+      void this.emailService?.sendPasswordChangedAlert({
+        userId,
+        recipientEmail: user.email,
+        fullName: user.fullName || user.username,
+        clientIp: normalizeIp(clientIp),
+        reason: 'USER_CHANGE',
       });
     }
 
-    return { success: true, message: 'Account password updated cleanly.' };
+    const session = await this.issueSessionBundle(nextUser, {
+      platform: 'WEB',
+      clientIp: normalizeIp(clientIp),
+    });
+
+    return {
+      success: true,
+      message: 'Account password updated cleanly.',
+      ...session,
+    };
+  }
+
+  async completeFirstLoginPassword(
+    userId: number,
+    dto: CompleteFirstLoginPasswordDto,
+    clientIp: string = '127.0.0.1',
+  ) {
+    if (userId === 2) {
+      throw new BadRequestException(
+        'Demo Sandbox does not require first-login password setup.',
+      );
+    }
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User account not found.');
+    }
+    if (dto.newPassword !== dto.confirmPassword) {
+      throw new BadRequestException('New password and confirmation do not match.');
+    }
+    const strength = validatePasswordStrength(dto.newPassword);
+    if (!strength.valid) {
+      throw new BadRequestException(
+        strength.message ||
+          'New password must be at least 10 characters with uppercase, lowercase, and numbers.',
+      );
+    }
+    if (verifyPassword(dto.newPassword, user.passwordHash)) {
+      throw new BadRequestException(
+        'Choose a new permanent password different from your temporary password.',
+      );
+    }
+
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        passwordHash: hashPassword(dto.newPassword),
+        mustChangePassword: false,
+        passwordChangedAt: new Date(),
+        tokenVersion: { increment: 1 },
+      },
+    });
+    const nextUser = updated?.id
+      ? updated
+      : {
+          ...user,
+          mustChangePassword: false,
+          tokenVersion: (user.tokenVersion ?? 0) + 1,
+        };
+
+    if (typeof (this.prisma as any)?.refreshToken?.updateMany === 'function') {
+      await (this.prisma as any).refreshToken
+        .updateMany({
+          where: { userId, revokedAt: null },
+          data: { revokedAt: new Date(), revokeReason: 'FIRST_LOGIN_PASSWORD_SET' },
+        })
+        .catch(() => {});
+    }
+
+    await this.recordSecurityAudit({
+      userId,
+      action: 'FIRST_LOGIN_PASSWORD_COMPLETED',
+      summary: 'Replaced temporary password with a permanent personal password.',
+      details: { clientIp: normalizeIp(clientIp) },
+    });
+
+    if (user.email) {
+      void this.emailService?.sendPasswordChangedAlert({
+        userId,
+        recipientEmail: user.email,
+        fullName: user.fullName || user.username,
+        clientIp: normalizeIp(clientIp),
+        reason: 'FIRST_LOGIN',
+        locale: dto.locale,
+      });
+    }
+
+    const session = await this.issueSessionBundle(nextUser, {
+      platform: 'WEB',
+      clientIp: normalizeIp(clientIp),
+    });
+
+    return {
+      success: true,
+      ...session,
+    };
+  }
+
+  async forgotPassword(dto: ForgotPasswordDto, clientIp: string = '127.0.0.1') {
+    const clean = (dto.identifier || '').trim().toLowerCase();
+    const genericMessage =
+      'If an active account matches that identifier, password reset instructions have been sent.';
+
+    if (!clean) {
+      throw new BadRequestException('Username or email is required.');
+    }
+
+    await this.checkRateLimit(`forgot_pw:${clean}`, clientIp);
+
+    const user = await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: { equals: clean, mode: 'insensitive' } },
+          { username: { equals: clean, mode: 'insensitive' } },
+        ],
+      },
+    });
+
+    if (
+      !user ||
+      user.status === 'SUSPENDED' ||
+      user.role === 'DEMO_SANDBOX' ||
+      user.id === 2 ||
+      !(this.prisma as any)?.passwordResetToken?.create
+    ) {
+      return { accepted: true, message: genericMessage };
+    }
+
+    await this.recordRateLimitFailure(`forgot_pw:${clean}`, clientIp).catch(() => {});
+
+    // Invalidate previous unredeemed reset tokens for this user
+    await (this.prisma as any).passwordResetToken
+      .updateMany({
+        where: { userId: user.id, usedAt: null },
+        data: { usedAt: new Date() },
+      })
+      .catch(() => {});
+
+    const reset = generatePasswordResetToken();
+    const expiresMinutes = 30;
+    const expiresAt = new Date(Date.now() + expiresMinutes * 60 * 1000);
+
+    await (this.prisma as any).passwordResetToken.create({
+      data: {
+        userId: user.id,
+        tokenHash: reset.hash,
+        expiresAt,
+        requestedIp: normalizeIp(clientIp),
+      },
+    });
+
+    const webBase = (
+      process.env.WEB_PUBLIC_URL || 'https://sundayfunday-erp.vercel.app'
+    ).replace(/\/$/, '');
+    const resetUrl = `${webBase}/reset-password?token=${encodeURIComponent(reset.raw)}`;
+
+    await this.recordSecurityAudit({
+      userId: user.id,
+      action: 'PASSWORD_RESET_REQUESTED',
+      summary: 'Issued single-use 30-minute password recovery link.',
+      details: { clientIp: normalizeIp(clientIp) },
+    });
+
+    if (user.email) {
+      void this.emailService?.sendPasswordResetEmail({
+        userId: user.id,
+        recipientEmail: user.email,
+        fullName: user.fullName || user.username,
+        resetUrl,
+        expiresMinutes,
+        locale: dto.locale,
+      });
+    }
+
+    return { accepted: true, message: genericMessage };
+  }
+
+  async validatePasswordResetToken(rawToken: string) {
+    const clean = (rawToken || '').trim();
+    if (!clean || !(this.prisma as any)?.passwordResetToken?.findUnique) {
+      throw new BadRequestException('Invalid or expired password reset link.');
+    }
+
+    const tokenHash = hashOpaqueToken(clean);
+    const record = await (this.prisma as any).passwordResetToken.findUnique({
+      where: { tokenHash },
+      include: { user: true },
+    });
+
+    if (
+      !record ||
+      record.usedAt !== null ||
+      new Date(record.expiresAt).getTime() <= Date.now() ||
+      !record.user ||
+      record.user.status === 'SUSPENDED'
+    ) {
+      throw new BadRequestException(
+        'This password reset link is invalid or has expired.',
+      );
+    }
+
+    return {
+      valid: true,
+      expiresAt: record.expiresAt,
+    };
+  }
+
+  async resetPasswordWithToken(
+    dto: ResetPasswordDto,
+    clientIp: string = '127.0.0.1',
+  ) {
+    const cleanToken = (dto.token || '').trim();
+    if (!cleanToken || !(this.prisma as any)?.passwordResetToken?.findUnique) {
+      throw new BadRequestException('Invalid or expired password reset link.');
+    }
+    if (dto.newPassword !== dto.confirmPassword) {
+      throw new BadRequestException('New password and confirmation do not match.');
+    }
+    const strength = validatePasswordStrength(dto.newPassword);
+    if (!strength.valid) {
+      throw new BadRequestException(
+        strength.message ||
+          'New password must be at least 10 characters with uppercase, lowercase, and numbers.',
+      );
+    }
+
+    const tokenHash = hashOpaqueToken(cleanToken);
+    const record = await (this.prisma as any).passwordResetToken.findUnique({
+      where: { tokenHash },
+      include: { user: true },
+    });
+
+    if (
+      !record ||
+      record.usedAt !== null ||
+      new Date(record.expiresAt).getTime() <= Date.now() ||
+      !record.user ||
+      record.user.status === 'SUSPENDED'
+    ) {
+      throw new BadRequestException(
+        'This password reset link is invalid or has expired.',
+      );
+    }
+
+    // Atomic single-use redemption guard
+    const claimed = await (this.prisma as any).passwordResetToken.updateMany({
+      where: { id: record.id, usedAt: null },
+      data: { usedAt: new Date() },
+    });
+    if (!claimed || claimed.count === 0) {
+      throw new BadRequestException(
+        'This password reset link has already been used.',
+      );
+    }
+
+    const updated = await this.prisma.user.update({
+      where: { id: record.user.id },
+      data: {
+        passwordHash: hashPassword(dto.newPassword),
+        mustChangePassword: false,
+        passwordChangedAt: new Date(),
+        tokenVersion: { increment: 1 },
+      },
+    });
+
+    if (typeof (this.prisma as any)?.refreshToken?.updateMany === 'function') {
+      await (this.prisma as any).refreshToken
+        .updateMany({
+          where: { userId: record.user.id, revokedAt: null },
+          data: { revokedAt: new Date(), revokeReason: 'PASSWORD_RESET' },
+        })
+        .catch(() => {});
+    }
+
+    await this.recordSecurityAudit({
+      userId: record.user.id,
+      action: 'PASSWORD_RESET_COMPLETED',
+      summary: 'Reset password via single-use recovery token and revoked all sessions.',
+      details: { clientIp: normalizeIp(clientIp) },
+    });
+
+    if (record.user.email) {
+      void this.emailService?.sendPasswordChangedAlert({
+        userId: record.user.id,
+        recipientEmail: record.user.email,
+        fullName: record.user.fullName || record.user.username,
+        clientIp: normalizeIp(clientIp),
+        reason: 'RESET_TOKEN',
+        locale: dto.locale,
+      });
+    }
+
+    return {
+      success: true,
+      message: 'Your password has been updated. Sign in with your new password.',
+      tokenVersion: updated?.tokenVersion,
+    };
   }
 
   async rotateRefreshToken(dto: RefreshTokenDto, clientIp: string = '127.0.0.1') {
@@ -1150,11 +1512,19 @@ export class AuthService implements OnModuleInit {
   }
 
   async logoutAll(userId: number) {
-    if (this.hasMobileAuthStore()) {
+    if (typeof (this.prisma as any)?.refreshToken?.updateMany === 'function') {
       await (this.prisma as any).refreshToken.updateMany({
         where: { userId, revokedAt: null },
         data: { revokedAt: new Date(), revokeReason: 'USER_LOGOUT_ALL' },
       });
+    }
+    if (typeof this.prisma?.user?.update === 'function') {
+      await this.prisma.user
+        .update({
+          where: { id: userId },
+          data: { tokenVersion: { increment: 1 } },
+        })
+        .catch(() => {});
     }
     if (typeof (this.prisma as any)?.biometricChallenge?.updateMany === 'function') {
       await (this.prisma as any).biometricChallenge
@@ -1584,6 +1954,8 @@ export class AuthService implements OnModuleInit {
         (user.id === 1 ? 'SUPERADMIN_BESPOKE' : 'CORPORATE_PROFESSIONAL')) as LifeStagePreset,
       uiDensityMode: (user.uiDensityMode || 'COMMAND_COCKPIT') as UiDensityMode,
       ipWhitelistEnforced: user.ipWhitelistEnforced,
+      mustChangePassword: Boolean(user.mustChangePassword),
+      passwordChangedAt: user.passwordChangedAt ?? null,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };

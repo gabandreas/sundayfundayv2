@@ -1,3 +1,5 @@
+import { DEFAULT_STANDARD_ROUTINE_LABELS } from '../auth/auth.types';
+
 export interface SinkingFundConfigRow {
   id: string;
   name: string;
@@ -204,6 +206,7 @@ export function buildDefaultStudioConfig(
     ccUsageLimit: number;
   }>,
 ): ModularStudioConfig {
+  const isBespokeOwner = userId === 1;
   const isSandbox = userId === 2;
 
   return {
@@ -211,16 +214,21 @@ export function buildDefaultStudioConfig(
     actualP1VaultBalanceRp: null,
     paycycleFormulaConfig: {
       defaultPeriodStrategy: 'EARLIEST_OPEN_ACTIVE',
-      paydayAnchorDay: isSandbox ? 27 : (legacyConfig?.payrollPayoutDay ?? 27),
+      paydayAnchorDay: isBespokeOwner
+        ? (legacyConfig?.payrollPayoutDay ?? 27)
+        : isSandbox
+          ? 25
+          : (legacyConfig?.payrollPayoutDay && legacyConfig.payrollPayoutDay > 0
+              ? legacyConfig.payrollPayoutDay
+              : 1),
       payslipAnchorDay: 25,
       payslipShiftRule: 'SHIFT_PREVIOUS_FRIDAY',
       reviewLagWorkingDays: 2,
       ledgerEpochMonth: 11,
       ledgerEpochYear: 2026,
       holidayDatesIso: ['2026-12-25', '2027-01-01'],
-      periodOverrides: isSandbox
-        ? {}
-        : {
+      periodOverrides: isBespokeOwner
+        ? {
             '10/2026': {
               payslipDateIso: '2026-09-24',
               paydayDateIso: '2026-09-28',
@@ -286,7 +294,8 @@ export function buildDefaultStudioConfig(
               paydayDateIso: '2027-09-28',
               note: 'Fri Sep 24 Payslip -> Tue Sep 28 Payday',
             },
-          },
+          }
+        : {},
       shiftWeekendToFriday: true,
       waterfallPriorityOrder: [
         'DEBT_OBLIGATIONS',
@@ -295,7 +304,11 @@ export function buildDefaultStudioConfig(
         'CORE_SAVINGS_P1',
         'SELF_REWARD_P2',
       ],
-      p1TargetFloorRp: isSandbox ? 1_500_000 : (legacyConfig?.baseSavings ?? 1_000_000),
+      p1TargetFloorRp: isBespokeOwner
+        ? (legacyConfig?.baseSavings ?? 1_000_000)
+        : isSandbox
+          ? 1_500_000
+          : (legacyConfig?.baseSavings ?? 0),
       defaultDailyFoodBaselineRp: isSandbox
         ? 3_000_000
         : (legacyConfig?.dailyOperational && legacyConfig.dailyOperational > 0
@@ -304,102 +317,158 @@ export function buildDefaultStudioConfig(
       weekendWeightMultiplier: 1.5,
       workdaysPerWeek: 5,
       workHoursPerDay: 8,
-      dailyCommuteHours: isSandbox ? 1 : 2,
+      dailyCommuteHours: isBespokeOwner ? 2 : 1,
       rdpuAnnualYieldPct: isSandbox ? 4.75 : 0,
-      emergencyFundTargetRp: isSandbox ? 20_000_000 : 15_000_000,
+      emergencyFundTargetRp: isBespokeOwner
+        ? 15_000_000
+        : isSandbox
+          ? 20_000_000
+          : 10_000_000,
       variableShockPercent: 15,
       forecasterFreedDebtToP1Pct: 70,
       attendanceCutoffStartDay: 16,
       attendanceCutoffEndDay: 15,
-      bpjsRatePercent: 3,
-      laptopAllowanceRp: 250_000,
-      defaultDailyAllowanceRp: 25_000,
-      thrJoinDateIso: '2026-04-06',
-      thrHolidayDateIso: '2026-12-25',
+      bpjsRatePercent: isBespokeOwner ? 3 : 0,
+      laptopAllowanceRp: isBespokeOwner ? 250_000 : 0,
+      defaultDailyAllowanceRp: isBespokeOwner ? 25_000 : 0,
+      thrJoinDateIso: isBespokeOwner ? '2026-04-06' : '',
+      thrHolidayDateIso: isBespokeOwner ? '2026-12-25' : '',
       optimalDebtRatioPercent: 20,
       maxSafeDebtRatioPercent: 35,
-      milestonePriorityOrder: [
-        'SPINJAM_ZERO',
-        'PAYLATER_INSTALLMENTS_ZERO',
-        'ALL_DEBT_FREE_P1_FOCUS',
-      ],
+      milestonePriorityOrder: isBespokeOwner
+        ? [
+            'SPINJAM_ZERO',
+            'PAYLATER_INSTALLMENTS_ZERO',
+            'ALL_DEBT_FREE_P1_FOCUS',
+          ]
+        : ['ALL_DEBT_FREE_P1_FOCUS'],
       formulas: buildDefaultFormulas(),
-      sinkingFunds: [
-        {
-          id: 'sf_device_maintenance',
-          name: 'Workstation & Device Service',
-          targetAmountRp: 1_200_000,
-          currentSavedRp: 400_000,
-          monthsRemaining: 4,
-        },
-        {
-          id: 'sf_annual_tax',
-          name: 'Annual Personal Reserve',
-          targetAmountRp: 2_400_000,
-          currentSavedRp: 600_000,
-          monthsRemaining: 6,
-        },
-      ],
+      sinkingFunds:
+        isBespokeOwner || isSandbox
+          ? [
+              {
+                id: 'sf_device_maintenance',
+                name: 'Workstation & Device Service',
+                targetAmountRp: 1_200_000,
+                currentSavedRp: 400_000,
+                monthsRemaining: 4,
+              },
+              {
+                id: 'sf_annual_tax',
+                name: 'Annual Personal Reserve',
+                targetAmountRp: 2_400_000,
+                currentSavedRp: 600_000,
+                monthsRemaining: 6,
+              },
+            ]
+          : [],
     },
-    instrumentsTable: [
-      {
-        id: 'inst_spaylater',
-        name: 'Shopee SPayLater',
-        type: 'PAYLATER',
-        cutoffDay: 15,
-        cutoffFormula: 'DAYS_IN_MONTH - 15',
-        cutoffBoundaryInclusive: true,
-        preCutoffOffsetMonths: 0,
-        postCutoffOffsetMonths: 1,
-        dueDay: 25,
-        dueRule: 'FIXED_DAY',
-        dueShiftRule: 'EXACT_DAY',
-        monthlyInterestPct: 2.95,
-        adminFeePct: 1.0,
-        creditLimitRp: isSandbox ? 5_000_000 : (legacyConfig?.paylaterUsageLimit && legacyConfig.paylaterUsageLimit > 0 ? legacyConfig.paylaterUsageLimit : 6_000_000),
-        utilizationWarnPct: 50,
-        lateFeeRule: '5% of overdue statement',
-        active: true,
-      },
-      {
-        id: 'inst_permata_cc',
-        name: isSandbox ? 'Corporate Platinum Visa' : 'Bank Permata Credit Card',
-        type: 'CREDIT_CARD',
-        cutoffDay: legacyConfig?.creditStatementDay ?? 25,
-        cutoffFormula: String(legacyConfig?.creditStatementDay ?? 25),
-        cutoffBoundaryInclusive: false,
-        preCutoffOffsetMonths: 1,
-        postCutoffOffsetMonths: 2,
-        dueDay: legacyConfig?.creditDueDay ?? 11,
-        dueRule: 'FIXED_DAY',
-        dueShiftRule: 'SHIFT_PREVIOUS_FRIDAY',
-        monthlyInterestPct: 1.75,
-        adminFeePct: 0,
-        creditLimitRp: isSandbox ? 15_000_000 : (legacyConfig?.creditLimit ?? 7_000_000),
-        utilizationWarnPct: 40,
-        lateFeeRule: '1% up to Rp 100.000 cap (0% if paid in full by 11th; H-1 working day if weekend/holiday)',
-        active: true,
-      },
-      {
-        id: 'inst_spinjam',
-        name: 'Shopee SPinjam',
-        type: 'CASH_LOAN',
-        cutoffDay: 0,
-        cutoffFormula: '',
-        cutoffBoundaryInclusive: false,
-        preCutoffOffsetMonths: 1,
-        postCutoffOffsetMonths: 1,
-        dueDay: 0,
-        dueRule: 'DISBURSEMENT_DAY',
-        dueShiftRule: 'EXACT_DAY',
-        monthlyInterestPct: 3.95,
-        adminFeePct: 1.0,
-        creditLimitRp: 5_000_000,
-        utilizationWarnPct: 30,
-        lateFeeRule: '5% of monthly installment',
-        active: true,
-      },
-    ],
+    instrumentsTable: isBespokeOwner
+      ? [
+          {
+            id: 'inst_spaylater',
+            name: 'Shopee SPayLater',
+            type: 'PAYLATER',
+            cutoffDay: 15,
+            cutoffFormula: 'DAYS_IN_MONTH - 15',
+            cutoffBoundaryInclusive: true,
+            preCutoffOffsetMonths: 0,
+            postCutoffOffsetMonths: 1,
+            dueDay: 25,
+            dueRule: 'FIXED_DAY',
+            dueShiftRule: 'EXACT_DAY',
+            monthlyInterestPct: 2.95,
+            adminFeePct: 1.0,
+            creditLimitRp:
+              legacyConfig?.paylaterUsageLimit && legacyConfig.paylaterUsageLimit > 0
+                ? legacyConfig.paylaterUsageLimit
+                : 6_000_000,
+            utilizationWarnPct: 50,
+            lateFeeRule: '5% of overdue statement',
+            active: true,
+          },
+          {
+            id: 'inst_permata_cc',
+            name: 'Bank Permata Credit Card',
+            type: 'CREDIT_CARD',
+            cutoffDay: legacyConfig?.creditStatementDay ?? 25,
+            cutoffFormula: String(legacyConfig?.creditStatementDay ?? 25),
+            cutoffBoundaryInclusive: false,
+            preCutoffOffsetMonths: 1,
+            postCutoffOffsetMonths: 2,
+            dueDay: legacyConfig?.creditDueDay ?? 11,
+            dueRule: 'FIXED_DAY',
+            dueShiftRule: 'SHIFT_PREVIOUS_FRIDAY',
+            monthlyInterestPct: 1.75,
+            adminFeePct: 0,
+            creditLimitRp: legacyConfig?.creditLimit ?? 7_000_000,
+            utilizationWarnPct: 40,
+            lateFeeRule:
+              '1% up to Rp 100.000 cap (0% if paid in full by 11th; H-1 working day if weekend/holiday)',
+            active: true,
+          },
+          {
+            id: 'inst_spinjam',
+            name: 'Shopee SPinjam',
+            type: 'CASH_LOAN',
+            cutoffDay: 0,
+            cutoffFormula: '',
+            cutoffBoundaryInclusive: false,
+            preCutoffOffsetMonths: 1,
+            postCutoffOffsetMonths: 1,
+            dueDay: 0,
+            dueRule: 'DISBURSEMENT_DAY',
+            dueShiftRule: 'EXACT_DAY',
+            monthlyInterestPct: 3.95,
+            adminFeePct: 1.0,
+            creditLimitRp: 5_000_000,
+            utilizationWarnPct: 30,
+            lateFeeRule: '5% of monthly installment',
+            active: true,
+          },
+        ]
+      : isSandbox
+        ? [
+            {
+              id: 'inst_sandbox_paylater',
+              name: 'Installment Credit Line',
+              type: 'PAYLATER',
+              cutoffDay: 15,
+              cutoffFormula: 'DAYS_IN_MONTH - 15',
+              cutoffBoundaryInclusive: true,
+              preCutoffOffsetMonths: 0,
+              postCutoffOffsetMonths: 1,
+              dueDay: 25,
+              dueRule: 'FIXED_DAY',
+              dueShiftRule: 'EXACT_DAY',
+              monthlyInterestPct: 2.95,
+              adminFeePct: 1.0,
+              creditLimitRp: 5_000_000,
+              utilizationWarnPct: 50,
+              lateFeeRule: '5% of overdue statement',
+              active: true,
+            },
+            {
+              id: 'inst_sandbox_cc',
+              name: 'Corporate Platinum Visa',
+              type: 'CREDIT_CARD',
+              cutoffDay: legacyConfig?.creditStatementDay ?? 25,
+              cutoffFormula: String(legacyConfig?.creditStatementDay ?? 25),
+              cutoffBoundaryInclusive: false,
+              preCutoffOffsetMonths: 1,
+              postCutoffOffsetMonths: 2,
+              dueDay: legacyConfig?.creditDueDay ?? 11,
+              dueRule: 'FIXED_DAY',
+              dueShiftRule: 'SHIFT_PREVIOUS_FRIDAY',
+              monthlyInterestPct: 1.75,
+              adminFeePct: 0,
+              creditLimitRp: 15_000_000,
+              utilizationWarnPct: 40,
+              lateFeeRule: '1% up to Rp 100.000 cap (0% if paid in full by due date)',
+              active: true,
+            },
+          ]
+        : [],
     assetAccountsTable: isSandbox
       ? [
           {
@@ -444,44 +513,111 @@ export function buildDefaultStudioConfig(
           },
         ]
       : [],
-    routineTemplatesTable: [
-      {
-        id: 'tpl_transport',
-        slotKey: 'transport',
-        name: 'KRL Commuter Transport',
-        monthlyQuotaRp: isSandbox ? 500_000 : (legacyConfig?.transport && legacyConfig.transport > 0 ? legacyConfig.transport : 300_000),
-        targetDueDay: 1,
-        rolloverPolicy: 'SWEEP_TO_P1',
-        active: true,
-      },
-      {
-        id: 'tpl_internet',
-        slotKey: 'internet',
-        name: 'Mobile Data Quota',
-        monthlyQuotaRp: isSandbox ? 350_000 : (legacyConfig?.internet && legacyConfig.internet > 0 ? legacyConfig.internet : 125_000),
-        targetDueDay: 25,
-        rolloverPolicy: 'SWEEP_TO_P1',
-        active: true,
-      },
-      {
-        id: 'tpl_vape',
-        slotKey: 'vape',
-        name: 'Vape Supplies',
-        monthlyQuotaRp: isSandbox ? 500_000 : (legacyConfig?.vape && legacyConfig.vape > 0 ? legacyConfig.vape : 150_000),
-        targetDueDay: 15,
-        rolloverPolicy: 'SWEEP_TO_P1',
-        active: true,
-      },
-      {
-        id: 'tpl_haircut',
-        slotKey: 'haircut',
-        name: 'Haircut & Grooming',
-        monthlyQuotaRp: isSandbox ? 150_000 : (legacyConfig?.haircut && legacyConfig.haircut > 0 ? legacyConfig.haircut : 75_000),
-        targetDueDay: 14,
-        rolloverPolicy: 'SWEEP_TO_P1',
-        active: true,
-      },
-    ],
+    routineTemplatesTable: isBespokeOwner
+      ? [
+          {
+            id: 'tpl_transport',
+            slotKey: 'transport',
+            name: 'KRL Commuter Transport',
+            monthlyQuotaRp:
+              legacyConfig?.transport && legacyConfig.transport > 0
+                ? legacyConfig.transport
+                : 300_000,
+            targetDueDay: 1,
+            rolloverPolicy: 'SWEEP_TO_P1',
+            active: true,
+          },
+          {
+            id: 'tpl_internet',
+            slotKey: 'internet',
+            name: 'Mobile Data Quota',
+            monthlyQuotaRp:
+              legacyConfig?.internet && legacyConfig.internet > 0
+                ? legacyConfig.internet
+                : 125_000,
+            targetDueDay: 25,
+            rolloverPolicy: 'SWEEP_TO_P1',
+            active: true,
+          },
+          {
+            id: 'tpl_vape',
+            slotKey: 'vape',
+            name: 'Vape Supplies',
+            monthlyQuotaRp:
+              legacyConfig?.vape && legacyConfig.vape > 0
+                ? legacyConfig.vape
+                : 150_000,
+            targetDueDay: 15,
+            rolloverPolicy: 'SWEEP_TO_P1',
+            active: true,
+          },
+          {
+            id: 'tpl_haircut',
+            slotKey: 'haircut',
+            name: 'Haircut & Grooming',
+            monthlyQuotaRp:
+              legacyConfig?.haircut && legacyConfig.haircut > 0
+                ? legacyConfig.haircut
+                : 75_000,
+            targetDueDay: 14,
+            rolloverPolicy: 'SWEEP_TO_P1',
+            active: true,
+          },
+        ]
+      : [
+          {
+            id: 'tpl_transport',
+            slotKey: 'transport',
+            name: DEFAULT_STANDARD_ROUTINE_LABELS.transport,
+            monthlyQuotaRp: isSandbox
+              ? 500_000
+              : (legacyConfig?.transport && legacyConfig.transport > 0
+                  ? legacyConfig.transport
+                  : 0),
+            targetDueDay: 1,
+            rolloverPolicy: 'SWEEP_TO_P1',
+            active: true,
+          },
+          {
+            id: 'tpl_internet',
+            slotKey: 'internet',
+            name: DEFAULT_STANDARD_ROUTINE_LABELS.internet,
+            monthlyQuotaRp: isSandbox
+              ? 350_000
+              : (legacyConfig?.internet && legacyConfig.internet > 0
+                  ? legacyConfig.internet
+                  : 0),
+            targetDueDay: 25,
+            rolloverPolicy: 'SWEEP_TO_P1',
+            active: true,
+          },
+          {
+            id: 'tpl_vape',
+            slotKey: 'vape',
+            name: DEFAULT_STANDARD_ROUTINE_LABELS.vape,
+            monthlyQuotaRp: isSandbox
+              ? 500_000
+              : (legacyConfig?.vape && legacyConfig.vape > 0
+                  ? legacyConfig.vape
+                  : 0),
+            targetDueDay: 15,
+            rolloverPolicy: 'SWEEP_TO_P1',
+            active: true,
+          },
+          {
+            id: 'tpl_haircut',
+            slotKey: 'haircut',
+            name: DEFAULT_STANDARD_ROUTINE_LABELS.haircut,
+            monthlyQuotaRp: isSandbox
+              ? 150_000
+              : (legacyConfig?.haircut && legacyConfig.haircut > 0
+                  ? legacyConfig.haircut
+                  : 0),
+            targetDueDay: 14,
+            rolloverPolicy: 'SWEEP_TO_P1',
+            active: true,
+          },
+        ],
     sidebarNavigationConfig: {
       defaultLandingRoute: '/',
       moduleOverrides: {},

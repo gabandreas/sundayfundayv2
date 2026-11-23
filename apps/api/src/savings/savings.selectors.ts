@@ -125,8 +125,7 @@ export class SavingsSelectors {
     userId: number = 1,
   ): Promise<SavingsVaultResult> {
     const [config, transactions, lockedSnapshots, overview] = await Promise.all([
-      (await this.prisma.globalConfig.findFirst({ where: { userId } })) ||
-        (await this.prisma.globalConfig.findFirst({ where: { userId: 1 } })),
+      this.prisma.globalConfig.findFirst({ where: { userId } }),
       this.prisma.savingsManualTransaction.findMany({
         where: { userId },
         orderBy: { date: 'desc' },
@@ -250,8 +249,7 @@ export class SavingsSelectors {
   ): Promise<SavingsOverviewResult> {
     const [config, snapshots, transactions, goals, wishlistItems] =
       await Promise.all([
-        (await this.prisma.globalConfig.findFirst({ where: { userId } })) ||
-          (await this.prisma.globalConfig.findFirst({ where: { userId: 1 } })),
+        this.prisma.globalConfig.findFirst({ where: { userId } }),
         this.prisma.monthlySnapshot.findMany({
           where: { userId },
           orderBy: [{ year: 'asc' }, { month: 'asc' }],

@@ -6,6 +6,7 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   Req,
   HttpCode,
   HttpStatus,
@@ -18,6 +19,9 @@ import { RegisterDto } from './dto/register.dto';
 import { VerifyPasswordDto } from './dto/verify-password.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { CompleteFirstLoginPasswordDto } from './dto/complete-first-login-password.dto';
 import {
   RefreshTokenDto,
   LogoutDto,
@@ -188,7 +192,38 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async changePassword(@Body() dto: ChangePasswordDto, @Req() req: any) {
     const userId = getUserIdOrThrow(req);
-    return this.authService.changePassword(userId, dto);
+    const clientIp = extractClientIp(req);
+    return this.authService.changePassword(userId, dto, clientIp);
+  }
+
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  async forgotPassword(@Body() dto: ForgotPasswordDto, @Req() req: Request) {
+    const clientIp = extractClientIp(req);
+    return this.authService.forgotPassword(dto, clientIp);
+  }
+
+  @Get('reset-password/validate')
+  async validateResetToken(@Query('token') token: string) {
+    return this.authService.validatePasswordResetToken(token);
+  }
+
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  async resetPassword(@Body() dto: ResetPasswordDto, @Req() req: Request) {
+    const clientIp = extractClientIp(req);
+    return this.authService.resetPasswordWithToken(dto, clientIp);
+  }
+
+  @Post('complete-first-login-password')
+  @HttpCode(HttpStatus.OK)
+  async completeFirstLoginPassword(
+    @Body() dto: CompleteFirstLoginPasswordDto,
+    @Req() req: any,
+  ) {
+    const userId = getUserIdOrThrow(req);
+    const clientIp = extractClientIp(req);
+    return this.authService.completeFirstLoginPassword(userId, dto, clientIp);
   }
 
   @Post('reset-demo')

@@ -277,6 +277,7 @@ export class MarqueeContextHydrator {
             createdAt: String(r.createdAt || ''),
           }))
       : [];
+    const isBespokeOwner = userId === 1;
     const spayCfg = studioConfig.instrumentsTable.find(
       (i) => i.active && i.type === 'PAYLATER',
     );
@@ -395,32 +396,38 @@ export class MarqueeContextHydrator {
       }),
     );
 
-    const payoffMilestones: MarqueePayoffMilestone[] = [
-      {
-        periodLabel: "JAN '27",
-        month: 1,
-        year: 2027,
-        event: 'SPinjam Oct 23 & Oct 24 loans complete final 3/3 installment (+Rp 147.960/mo freed) and Natal THR arrives.',
-      },
-      {
-        periodLabel: "FEB '27",
-        month: 2,
-        year: 2027,
-        event: '11.11 Promo Checkout (3x) and Nov 08 / Nov 17 SPinjam loans complete final 3/3 installment (+Rp 522.010/mo freed).',
-      },
-      {
-        periodLabel: "MAR '27",
-        month: 3,
-        year: 2027,
-        event: 'SPinjam personal loan obligations reach Rp 0 (full SPinjam freedom) and Anthropic Claude 6/6 finishes.',
-      },
-      {
-        periodLabel: "SEP '27",
-        month: 9,
-        year: 2027,
-        event: 'Final 12-month credit card installment matures (zero installment overhang).',
-      },
-    ];
+    const payoffMilestones: MarqueePayoffMilestone[] = isBespokeOwner
+      ? [
+          {
+            periodLabel: "JAN '27",
+            month: 1,
+            year: 2027,
+            event:
+              'SPinjam Oct 23 & Oct 24 loans complete final 3/3 installment (+Rp 147.960/mo freed) and Natal THR arrives.',
+          },
+          {
+            periodLabel: "FEB '27",
+            month: 2,
+            year: 2027,
+            event:
+              '11.11 Promo Checkout (3x) and Nov 08 / Nov 17 SPinjam loans complete final 3/3 installment (+Rp 522.010/mo freed).',
+          },
+          {
+            periodLabel: "MAR '27",
+            month: 3,
+            year: 2027,
+            event:
+              'SPinjam personal loan obligations reach Rp 0 (full SPinjam freedom) and Anthropic Claude 6/6 finishes.',
+          },
+          {
+            periodLabel: "SEP '27",
+            month: 9,
+            year: 2027,
+            event:
+              'Final 12-month credit card installment matures (zero installment overhang).',
+          },
+        ]
+      : [];
 
     const ov: any = savingsOv ?? {};
     const totalVaultBalanceRp = Math.round(Number(ov.totalBalance ?? ov.totalNetSavings ?? 0));
@@ -458,16 +465,33 @@ export class MarqueeContextHydrator {
       proactiveReminders.push({
         id: 'upcoming-due-dates',
         tone: 'default',
-        text: `${unsettledItemsCount} unpaid obligations in ${periodTag} (due 8th, 11th, 17th, 23rd-25th)`,
+        text: isBespokeOwner
+          ? `${unsettledItemsCount} unpaid obligations in ${periodTag} (due 8th, 11th, 17th, 23rd-25th)`
+          : `${unsettledItemsCount} unpaid obligations in ${periodTag}`,
         prompt: 'Upcoming bills due this cycle',
       });
     }
-    proactiveReminders.push({
-      id: 'cutoff-check',
-      tone: 'default',
-      text: `SPayLater (${spayFormulaLabel}, due ${spayCfg?.dueDay ?? 25}th) & CC (${ccCutoffLabel} -> ${ccCfg?.dueDay ?? 11}th due) active`,
-      prompt: 'Can I afford 350k on SPayLater?',
-    });
+    if (isBespokeOwner) {
+      proactiveReminders.push({
+        id: 'cutoff-check',
+        tone: 'default',
+        text: `SPayLater (${spayFormulaLabel}, due ${spayCfg?.dueDay ?? 25}th) & CC (${ccCutoffLabel} -> ${ccCfg?.dueDay ?? 11}th due) active`,
+        prompt: 'Can I afford 350k on SPayLater?',
+      });
+    } else if (spayCfg || ccCfg) {
+      const activeParts = [
+        spayCfg ? `${spayCfg.name} (${spayFormulaLabel}, due ${spayCfg.dueDay}th)` : null,
+        ccCfg ? `${ccCfg.name} (${ccCutoffLabel} -> ${ccCfg.dueDay}th due)` : null,
+      ]
+        .filter(Boolean)
+        .join(' & ');
+      proactiveReminders.push({
+        id: 'cutoff-check',
+        tone: 'default',
+        text: `${activeParts} active`,
+        prompt: 'Check upcoming statement cutoff schedule',
+      });
+    }
 
     const snapshotLines = multiCycleSnapshots
       .slice(0, 6)
@@ -527,26 +551,42 @@ export class MarqueeContextHydrator {
       `3. Never use buzzwords like Vault, Forward-Borrow, Outlook, or emojis. Use Emergency Fund, Savings Reserve, and Temporary Savings Advance.`,
       `4. Offer actionable help: when the user asks to record, shift, settle, adjust budgets, or add wishlist targets, invoke the matching tool so it stages a 1-click confirmation card.`,
       ``,
-      `ERP MODULE & ROUTE MAP:`,
-      `- Overview (/): Daily safe-to-spend, wallet reconciliation, routine bills, expense logger.`,
-      `- Payday Activation (/payday-wizard): 4-step payday checklist.`,
-      `- Cash & Bill Radar (/calendar): Day-by-day running balance and low-cash bridge dates.`,
-      `- Payroll & Cashflow (/payroll): Attendance cutoff window (${studioConfig.paycycleFormulaConfig.attendanceCutoffStartDay ?? 16}th -> ${studioConfig.paycycleFormulaConfig.attendanceCutoffEndDay ?? 15}th), BPJS (${studioConfig.paycycleFormulaConfig.bpjsRatePercent ?? 3}%), payslip rules.`,
-      `- Allocations (/allocations): Priority waterfall and quota revisions.`,
-      `- Credit & Liabilities (/credit): 12-month debt schedule (?sub=matrix), installment plans (?sub=contracts), cutoff simulator (?sub=simulator), reconciler (?sub=reconciler).`,
-      `- Savings & Emergency Fund (/savings): P1 reserve (?sub=vault), net worth (?sub=networth), 12-month forecaster (?sub=forecaster).`,
-      `- Analytics (/analytics), Reports (/reports), Preferences (/preferences?sub=instruments).`,
+      ...(isBespokeOwner
+        ? [
+            `ERP MODULE & ROUTE MAP:`,
+            `- Overview (/): Daily safe-to-spend, wallet reconciliation, routine bills, expense logger.`,
+            `- Payday Activation (/payday-wizard): 4-step payday checklist.`,
+            `- Cash & Bill Radar (/calendar): Day-by-day running balance and low-cash bridge dates.`,
+            `- Payroll & Cashflow (/payroll): Attendance cutoff window (${studioConfig.paycycleFormulaConfig.attendanceCutoffStartDay ?? 16}th -> ${studioConfig.paycycleFormulaConfig.attendanceCutoffEndDay ?? 15}th), BPJS (${studioConfig.paycycleFormulaConfig.bpjsRatePercent ?? 3}%), payslip rules.`,
+            `- Allocations (/allocations): Priority waterfall and quota revisions.`,
+            `- Credit & Liabilities (/credit): 12-month debt schedule (?sub=matrix), installment plans (?sub=contracts), cutoff simulator (?sub=simulator), reconciler (?sub=reconciler).`,
+            `- Savings & Emergency Fund (/savings): P1 reserve (?sub=vault), net worth (?sub=networth), 12-month forecaster (?sub=forecaster).`,
+            `- Analytics (/analytics), Reports (/reports), Preferences (/preferences?sub=instruments).`,
+          ]
+        : [
+            `ERP MODULE & ROUTE MAP (US Personal Finance Standard):`,
+            `- Overview (/): Safe-to-spend balance, daily pace, routine expenses, and cashflow summary.`,
+            `- Transactions (/ledger): Categorized income and expense activity.`,
+            `- Budgets & Envelopes (/allocations): Priority allocations and category targets.`,
+            `- Income & Cash Flow (/payroll): Monthly net income and payday schedule (anchor day ${studioConfig.paycycleFormulaConfig.paydayAnchorDay ?? 1}).`,
+            `- Accounts & Goals (/savings): Savings reserve, net worth, goals (?sub=vault, ?sub=networth, ?sub=forecaster).`,
+            `- Bills & Recurring (/calendar), Subscriptions (/subscriptions), Reports (/reports), Planner (/scenarios), Wishlist (/wishlist), Preferences (/preferences).`,
+          ]),
       ``,
       `ACTIVE UI CONTEXT: route=${activeRoute}${activeSubTab ? `?sub=${activeSubTab}` : ''}, locale=${locale}`,
       `CONSUMPTION & BILL-MATURITY MONTH CONVENTION: Period M is funded by Payday(M-1), runs from Payday(M-1) through Day before Payday(M), and pays all Month M bill maturities.`,
       `ACTIVE PAYCYCLE: ${periodTag} (${state}) · Day ${p.currentDayIndex ?? 0} of ${p.daysInCycle ?? 30} (${p.daysRemaining ?? 0} days remaining) · Window: ${p.cycleDateLabel ?? periodTag} · Days until start: ${p.daysUntilCycleStart ?? 0} · Weighted Safe-to-Spend Today: ${formatRp(p.weightedSafeToSpendToday ?? p.safeToSpendToday ?? 0)} (Weekday ${formatRp(p.weekdaySafeRate ?? p.safeToSpendToday ?? 0)}/day, Weekend ${formatRp(p.weekendSafeRate ?? p.safeToSpendToday ?? 0)}/day)`,
       `ACTIVE INSTRUMENTS & CUTOFF FORMULAS:\n${instrumentLines}`,
-      `CANONICAL CUTOFF LAW: SPayLater uses dynamic daysInMonth(M) - 15 (${spayFormulaLabel}, due 25th): day < cutoff bills Month M (25th M); day >= cutoff bills Month M+1 (25th M+1). Permata CC closes 25th (day <= 25th bills 11th M+1; day >= 26th bills 11th M+2, shifted H-1 business day if weekend/holiday).`,
+      ...(isBespokeOwner
+        ? [
+            `CANONICAL CUTOFF LAW: SPayLater uses dynamic daysInMonth(M) - 15 (${spayFormulaLabel}, due 25th): day < cutoff bills Month M (25th M); day >= cutoff bills Month M+1 (25th M+1). Permata CC closes 25th (day <= 25th bills 11th M+1; day >= 26th bills 11th M+2, shifted H-1 business day if weekend/holiday).`,
+          ]
+        : []),
       activeSnap
         ? `ACTIVE SNAPSHOT (${periodTag}): Income ${formatRp(activeSnap.finalTotalIncome)}, Debt ${formatRp(activeSnap.totalDeductions)}, Funded Living Pool ${formatRp(activeSnap.actualDailyOperational)}, Shortfall ${formatRp(activeSnap.deficitUncovered)}, P1 ${formatRp(activeSnap.actualSavings)}, P2 ${formatRp(activeSnap.selfReward)}.`
         : `ACTIVE SNAPSHOT (${periodTag}): Projected daily rate ${formatRp(p.baselineDailyRate ?? 0)}/day, remaining living cash ${formatRp(p.remainingBudget ?? 0)}.`,
       `MULTI-CYCLE HORIZON:\n${snapshotLines || '- No snapshots loaded'}`,
-      `ACTIVE CYCLE & UPCOMING PAYLATER/SPINJAM ITEMS:\n${allItemsList.slice(0, 15).map((i: any) => `- #${i.id} [${String(i.month).padStart(2, '0')}/${i.year}] ${i.title} (${i.category}): ${formatRp(i.monthlyAmount)} ${i.isSettled ? '[PAID]' : '[UNPAID]'}`).join('\n') || '- None'}`,
+      `${isBespokeOwner ? 'ACTIVE CYCLE & UPCOMING PAYLATER/SPINJAM ITEMS' : 'ACTIVE CYCLE & UPCOMING SCHEDULED OBLIGATIONS'}:\n${allItemsList.slice(0, 15).map((i: any) => `- #${i.id} [${String(i.month).padStart(2, '0')}/${i.year}] ${i.title} (${i.category}): ${formatRp(i.monthlyAmount)} ${i.isSettled ? '[PAID]' : '[UNPAID]'}`).join('\n') || '- None'}`,
       `CREDIT CARD CHARGES & CONTRACTS:\n${ccSummaryLines}`,
       `WISHLIST TARGETS:\n${wishlistLines}`,
       `SAVINGS RESERVE (${formatRp(totalVaultBalanceRp)} total, ${formatRp(rdpuBalanceRp)} RDPU) & GOALS:\n${savingsGoalLines || '- No goals configured'}`,
@@ -562,7 +602,11 @@ export class MarqueeContextHydrator {
           : '- No saved custom preferences yet.'
       }`,
       `DOMAIN BOUNDARY GUARDRAIL: You only execute Sunday Funday ERP financial tools. You have NO terminal, shell, OS filesystem, web downloader, or raw ExecuteSQL access. Politely refuse non-financial or system requests.`,
-      `PAYOFF MILESTONES: JAN '27 (Oct SPinjam 3/3 retires +Rp 147.960/mo), FEB '27 (11.11 3x & Nov SPinjam 3/3 retire +Rp 522.010/mo), MAR '27 (SPinjam = Rp 0), SEP '27 (final 12x card installment matures).`,
+      ...(isBespokeOwner
+        ? [
+            `PAYOFF MILESTONES: JAN '27 (Oct SPinjam 3/3 retires +Rp 147.960/mo), FEB '27 (11.11 3x & Nov SPinjam 3/3 retire +Rp 522.010/mo), MAR '27 (SPinjam = Rp 0), SEP '27 (final 12x card installment matures).`,
+          ]
+        : []),
     ].join('\n');
 
     return {
@@ -583,12 +627,23 @@ export class MarqueeContextHydrator {
         remainingLivingCash: Math.round(
           Number(p.remainingBudget ?? activeSnap?.actualDailyOperational ?? 0),
         ),
-        paydayRules: '25th attendance & payslip cutoff + H+2 working days bank transfer',
+        paydayRules: isBespokeOwner
+          ? '25th attendance & payslip cutoff + H+2 working days bank transfer'
+          : `Monthly payday anchor on day ${studioConfig.paycycleFormulaConfig.paydayAnchorDay ?? 1}`,
       },
       multiCycleSnapshots,
       dueDayCalendar: {
-        canonicalDueDays: [8, 11, 17, 23, 24, 25],
-        cutoffRules: `SPayLater ${spayFormulaLabel} (due ${spayCfg?.dueDay ?? 25}th) · Permata CC ${ccCutoffLabel} closing (due ${ccCfg?.dueDay ?? 11}th + H-1 business day shift)`,
+        canonicalDueDays: isBespokeOwner ? [8, 11, 17, 23, 24, 25] : [1, 15, 25],
+        cutoffRules: isBespokeOwner
+          ? `SPayLater ${spayFormulaLabel} (due ${spayCfg?.dueDay ?? 25}th) · Permata CC ${ccCutoffLabel} closing (due ${ccCfg?.dueDay ?? 11}th + H-1 business day shift)`
+          : spayCfg || ccCfg
+            ? [
+                spayCfg ? `${spayCfg.name} ${spayFormulaLabel} (due ${spayCfg.dueDay}th)` : null,
+                ccCfg ? `${ccCfg.name} ${ccCutoffLabel} closing (due ${ccCfg.dueDay}th)` : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')
+            : 'Standard monthly cashflow cycle (no credit instruments configured)',
         activeCycleItems,
       },
       payoffMilestones,

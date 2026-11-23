@@ -383,8 +383,7 @@ export class SavingsService {
 
   async updateSavingsPockets(dto: SaveSavingsPocketsDto, userId: number = 1) {
     const [config, transactions] = await Promise.all([
-      (await this.prisma.globalConfig.findFirst({ where: { userId } })) ||
-        (await this.prisma.globalConfig.findFirst({ where: { userId: 1 } })),
+      this.prisma.globalConfig.findFirst({ where: { userId } }),
       this.prisma.savingsManualTransaction.findMany({ where: { userId } }),
     ]);
 

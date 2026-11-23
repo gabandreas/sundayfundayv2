@@ -9,6 +9,14 @@ export interface ExtendedRequest extends Request {
   user?: any;
 }
 
+const MUST_CHANGE_PASSWORD_ALLOWLIST = new Set([
+  '/api/auth/me',
+  '/api/auth/session',
+  '/api/auth/logout',
+  '/api/auth/refresh',
+  '/api/auth/complete-first-login-password',
+]);
+
 @Injectable()
 export class AuthMiddleware implements NestMiddleware {
   constructor(private readonly prisma: PrismaService) {}
@@ -74,15 +82,10 @@ export class AuthMiddleware implements NestMiddleware {
       }
     }
 
-    (req as any).isAuthenticated = tokenValid;
-
     // 3. Fallback ONLY in automated test suite (NODE_ENV === 'test') without Bearer header
     if (!userId && !authHeader && process.env.NODE_ENV === 'test') {
       userId = 1;
     }
-
-    req.userId = userId;
-    req.sessionId = sessionId;
 
     if (userId) {
       try {
@@ -90,12 +93,55 @@ export class AuthMiddleware implements NestMiddleware {
           where: { id: userId },
         });
         if (user) {
+          // Enforce instant JWT tokenVersion revocation (OWASP CWE-613)
+          if (
+            tokenValid &&
+            tokenPayload &&
+            typeof tokenPayload.tv === 'number' &&
+            typeof user.tokenVersion === 'number' &&
+            tokenPayload.tv !== user.tokenVersion
+          ) {
+            (req as any).isAuthenticated = false;
+            req.userId = undefined;
+            req.sessionId = undefined;
+            req.user = undefined;
+            next();
+            return;
+          }
+
+          if (tokenValid && user.status === 'SUSPENDED') {
+            res.status(403).json({
+              statusCode: 403,
+              errorCode: 'ACCOUNT_SUSPENDED',
+              message: 'This account has been suspended. Contact the platform administrator.',
+            });
+            return;
+          }
+
+          const rawUrl = String((req as any).originalUrl || req.path || '').split('?')[0];
+          if (
+            tokenValid &&
+            user.mustChangePassword === true &&
+            !MUST_CHANGE_PASSWORD_ALLOWLIST.has(rawUrl)
+          ) {
+            res.status(403).json({
+              statusCode: 403,
+              errorCode: 'PASSWORD_CHANGE_REQUIRED',
+              message: 'You must set a permanent password before accessing the workspace.',
+            });
+            return;
+          }
+
           req.user = user;
         }
       } catch {
-        req.user = { id: userId, role: 'USER' };
+        // Leave req.user undefined rather than synthesizing fallback privileges
       }
     }
+
+    (req as any).isAuthenticated = tokenValid;
+    req.userId = userId;
+    req.sessionId = sessionId;
 
     next();
   }

@@ -337,11 +337,9 @@ export class CreditSelectors {
     year?: number,
     userId: number = 1,
   ): Promise<CreditCardSummary> {
-    const config =
-      (await this.prisma.globalConfig.findFirst({ where: { userId } })) ||
-      (await this.prisma.globalConfig.findFirst({ where: { userId: 1 } }));
+    const config = await this.prisma.globalConfig.findFirst({ where: { userId } });
 
-    const creditLimit = config?.creditLimit ?? 7_000_000;
+    const creditLimit = config?.creditLimit ?? (userId === 1 ? 7_000_000 : 0);
     const statementCutoffDay = config?.creditStatementDay ?? CC_CUTOFF_DAY;
     const paymentDueDay = config?.creditDueDay ?? CC_DUE_DAY;
 
@@ -1020,8 +1018,7 @@ export class CreditSelectors {
   ): Promise<CreditLimitCalculationResult> {
     const [config, snapshot, bulkBills, activeCards, activeContracts] =
       await Promise.all([
-        (await this.prisma.globalConfig.findFirst({ where: { userId } })) ||
-          (await this.prisma.globalConfig.findFirst({ where: { userId: 1 } })),
+        this.prisma.globalConfig.findFirst({ where: { userId } }),
         this.prisma.monthlySnapshot.findUnique({
           where: { userId_month_year: { userId, month, year } },
           include: {
@@ -1043,7 +1040,7 @@ export class CreditSelectors {
         }),
       ]);
 
-    const bankCreditLimit = config?.creditLimit ?? 7_000_000;
+    const bankCreditLimit = config?.creditLimit ?? (userId === 1 ? 7_000_000 : 0);
 
     const studioConfig = resolveStudioConfig(userId, config?.formulaParamsJson, config);
     const dueYM = addHybridMonths(month, year, 1);

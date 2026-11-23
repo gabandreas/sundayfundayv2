@@ -37,22 +37,22 @@ export function OnboardingWizardModal() {
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
-  // Step 1: Life-Stage Preset (Ages 20 to 70) + Income & Rhythm
+  // Step 1: Workspace Blueprint + Income & Rhythm
   const [selectedPreset, setSelectedPreset] = useState<LifeStagePreset>(
-    "CORPORATE_PROFESSIONAL"
+    "STANDARD_GENERAL"
   );
   const [selectedFormula, setSelectedFormula] = useState<FormulaEngineType>(
-    "DEBT_FIRST_WATERFALL"
+    "PERCENTAGE_SPLIT"
   );
   const [selectedDensity, setSelectedDensity] =
     useState<UiDensityMode>("COMMAND_COCKPIT");
   const [selectedModules, setSelectedModules] = useState<ModuleKey[]>(
-    LIFE_STAGE_PRESET_CATALOG[1].enabledModules
+    LIFE_STAGE_PRESET_CATALOG[0].enabledModules
   );
 
   const [incomeType, setIncomeType] = useState<PayrollMode>("SIMPLE_FIXED_SALARY");
   const [netIncomeStr, setNetIncomeStr] = useState("10000000");
-  const [paydayAnchor, setPaydayAnchor] = useState(25);
+  const [paydayAnchor, setPaydayAnchor] = useState(1);
 
   // Step 2: Routine Envelopes & Daily Living
   const [slot1Name, setSlot1Name] = useState(
@@ -61,19 +61,19 @@ export function OnboardingWizardModal() {
   const [slot1AmountStr, setSlot1AmountStr] = useState("2000000");
 
   const [slot2Name, setSlot2Name] = useState(
-    customRoutineLabels.internet || "Commute & Fuel"
+    customRoutineLabels.internet || "Groceries & Dining"
   );
-  const [slot2AmountStr, setSlot2AmountStr] = useState("600000");
+  const [slot2AmountStr, setSlot2AmountStr] = useState("1200000");
 
   const [slot3Name, setSlot3Name] = useState(
-    customRoutineLabels.vape || "Internet & Subscriptions"
+    customRoutineLabels.vape || "Transport & Mobility"
   );
-  const [slot3AmountStr, setSlot3AmountStr] = useState("400000");
+  const [slot3AmountStr, setSlot3AmountStr] = useState("500000");
 
   const [slot4Name, setSlot4Name] = useState(
-    customRoutineLabels.haircut || "Personal Care & Grooming"
+    customRoutineLabels.haircut || "Subscriptions & Lifestyle"
   );
-  const [slot4AmountStr, setSlot4AmountStr] = useState("250000");
+  const [slot4AmountStr, setSlot4AmountStr] = useState("350000");
 
   const [dailyLivingStr, setDailyLivingStr] = useState("3000000");
 
@@ -126,8 +126,6 @@ export function OnboardingWizardModal() {
 
     if (presetId === "FREELANCER_VARIABLE") {
       setIncomeType("VARIABLE_FREELANCE");
-    } else if (presetId === "RETIREE_GOLDEN_AGE") {
-      setIncomeType("PENSION_PASSIVE");
     } else {
       setIncomeType("SIMPLE_FIXED_SALARY");
     }
@@ -159,10 +157,10 @@ export function OnboardingWizardModal() {
 
     try {
       const labels = {
-        transport: slot1Name.trim() || "Transport & Fuel",
-        internet: slot2Name.trim() || "Internet & Utilities",
-        vape: slot3Name.trim() || "Subscriptions & Lifestyle",
-        haircut: slot4Name.trim() || "Personal Care & Health",
+        transport: slot1Name.trim() || "Housing & Utilities",
+        internet: slot2Name.trim() || "Groceries & Dining",
+        vape: slot3Name.trim() || "Transport & Mobility",
+        haircut: slot4Name.trim() || "Subscriptions & Lifestyle",
       };
 
       const canMutateFinancialBaseline = applyToSnapshots && !isOwnerProtected;
@@ -225,10 +223,10 @@ export function OnboardingWizardModal() {
         <div className="flex items-start justify-between pb-3 border-b border-border-subtle">
           <div>
             <h2 className="text-base font-semibold font-sans text-text-primary tracking-tight">
-              60-Second Life-Stage Financial Setup (Ages 20–70)
+              Workspace Financial Setup
             </h2>
             <p className="text-xs font-sans text-text-tertiary mt-0.5">
-              Step {step} of 3 — Select your life-stage preset, active modules, and allocation formula.
+              Step {step} of 3 — Select your workspace blueprint, active modules, and allocation formula.
             </p>
           </div>
 
@@ -244,7 +242,7 @@ export function OnboardingWizardModal() {
         {/* Step Progress Bar */}
         <div className="grid grid-cols-3 gap-2">
           {[
-            { num: 1, title: "1. Life-Stage Preset (Ages 20–70)" },
+            { num: 1, title: "1. Workspace Blueprint" },
             { num: 2, title: "2. Routine Envelopes & Living" },
             { num: 3, title: "3. Formula Engine & Summary" },
           ].map((s) => (
@@ -268,12 +266,12 @@ export function OnboardingWizardModal() {
           </div>
         )}
 
-        {/* STEP 1: 5 Life-Stage Presets (Ages 20 to 70) */}
+        {/* STEP 1: Workspace Blueprints */}
         {step === 1 && (
           <div className="space-y-4">
             <div>
               <label className="text-[11px] font-mono uppercase tracking-wider text-text-tertiary block mb-2">
-                Select Your Life-Stage Preset (Auto-Configures Modules, Formula & UI Density)
+                Select Your Workspace Blueprint (Configures Active Modules & Allocation Formula)
               </label>
               <div className="space-y-2">
                 {LIFE_STAGE_PRESET_CATALOG.map((preset) => {
@@ -293,9 +291,6 @@ export function OnboardingWizardModal() {
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-semibold text-text-primary">
                             {preset.title}
-                          </span>
-                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-border text-text-tertiary">
-                            {preset.ageRange}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">

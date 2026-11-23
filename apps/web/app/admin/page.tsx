@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import {
   AdminUserSummary,
+  AdminAuditLogItem,
   SecuritySettings,
   GlobalConfig,
   CustomFeatureRequest,
@@ -15,11 +16,16 @@ import {
   UiDensityMode,
   ModuleKey,
   ALL_MODULE_KEYS,
+  SUNDAY_FUNDAY_STANDARD_MODULES,
   LIFE_STAGE_PRESET_CATALOG,
   MODULE_REGISTRY_CATALOG,
   fetchAdminUsers,
   createAdminClient,
   updateAdminClient,
+  resetAdminClientPassword,
+  revokeAdminUserSessions,
+  deleteAdminClient,
+  fetchAdminAuditLogs,
   fetchAdminUserConfig,
   updateAdminUserConfig,
   fetchAdminFeatureRequests,
@@ -52,7 +58,36 @@ import {
   RefreshCw,
   ExternalLink,
   Terminal,
+  Copy,
+  LogOut,
+  Activity,
 } from "lucide-react";
+
+function generateClientTempPassword(length = 14): string {
+  const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const lower = "abcdefghijkmnopqrstuvwxyz";
+  const digits = "23456789";
+  const symbols = "!@#$%^&*";
+  const all = upper + lower + digits + symbols;
+  const pick = (pool: string) => {
+    const arr = new Uint32Array(1);
+    window.crypto.getRandomValues(arr);
+    return pool[arr[0] % pool.length];
+  };
+  const chars = [pick(upper), pick(lower), pick(digits), pick(symbols)];
+  while (chars.length < length) {
+    chars.push(pick(all));
+  }
+  for (let i = chars.length - 1; i > 0; i--) {
+    const arr = new Uint32Array(1);
+    window.crypto.getRandomValues(arr);
+    const j = arr[0] % (i + 1);
+    const tmp = chars[i];
+    chars[i] = chars[j];
+    chars[j] = tmp;
+  }
+  return chars.join("");
+}
 
 type AdminTab = "ACCOUNTS" | "BLUEPRINT" | "REQUESTS" | "SECURITY";
 
@@ -71,6 +106,7 @@ export default function AdminConsolePage() {
   const [selectedUserConfig, setSelectedUserConfig] = useState<GlobalConfig | null>(null);
   const [featureRequests, setFeatureRequests] = useState<CustomFeatureRequest[]>([]);
   const [securitySettings, setSecuritySettings] = useState<SecuritySettings | null>(null);
+  const [auditLogs, setAuditLogs] = useState<AdminAuditLogItem[]>([]);
 
   // Modals & form states
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -79,13 +115,32 @@ export default function AdminConsolePage() {
     username: "",
     fullName: "",
     email: "",
-    role: "BESPOKE_CLIENT" as UserRole,
+    role: "STANDARD_MEMBER" as UserRole,
     blueprintType: "STANDARD_GENERAL" as BlueprintType,
-    lifeStagePreset: "CORPORATE_PROFESSIONAL" as LifeStagePreset,
-    tempPassword: "Password#2026",
+    lifeStagePreset: "STANDARD_GENERAL" as LifeStagePreset,
+    tempPassword: "",
     initializeFirstPeriod: true,
-    initialSalary: "12000000",
+    initialSalary: "",
+    paydayAnchorDay: 1,
+    enabledModules: [...SUNDAY_FUNDAY_STANDARD_MODULES] as ModuleKey[],
+    sendWelcomeEmail: false,
   });
+
+  const [credentialsDialog, setCredentialsDialog] = useState<{
+    title: string;
+    fullName: string;
+    accountName: string;
+    username: string;
+    email: string;
+    temporaryPassword: string;
+    welcomeEmailSent: boolean;
+  } | null>(null);
+  const [credentialsCopied, setCredentialsCopied] = useState(false);
+
+  const [resetTargetUser, setResetTargetUser] = useState<AdminUserSummary | null>(null);
+  const [resetForm, setResetForm] = useState({ temporaryPassword: "", sendEmail: false });
+
+  const [deleteTargetUser, setDeleteTargetUser] = useState<AdminUserSummary | null>(null);
 
   // Request editing state
   const [editingRequest, setEditingRequest] = useState<CustomFeatureRequest | null>(null);
@@ -123,14 +178,16 @@ export default function AdminConsolePage() {
     setIsLoading(true);
     setStatusMessage(null);
     try {
-      const [usersList, requestsList, sec] = await Promise.all([
+      const [usersList, requestsList, sec, logsList] = await Promise.all([
         fetchAdminUsers(),
         fetchAdminFeatureRequests(),
         fetchAdminSecuritySettings(),
+        fetchAdminAuditLogs(60).catch(() => []),
       ]);
       setUsers(usersList);
       setFeatureRequests(requestsList);
       setSecuritySettings(sec);
+      setAuditLogs(logsList);
       if (usersList.length > 0 && !selectedUserId) {
         setSelectedUserId(usersList[0].id);
       }
@@ -162,17 +219,21 @@ export default function AdminConsolePage() {
       if (e.key === "Escape") {
         if (isCreateModalOpen) setIsCreateModalOpen(false);
         if (editingRequest) setEditingRequest(null);
+        if (credentialsDialog) setCredentialsDialog(null);
+        if (resetTargetUser) setResetTargetUser(null);
+        if (deleteTargetUser) setDeleteTargetUser(null);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isCreateModalOpen, editingRequest]);
+  }, [isCreateModalOpen, editingRequest, credentialsDialog, resetTargetUser, deleteTargetUser]);
 
   const handleCreateClient = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setStatusMessage(null);
     try {
-      await createAdminClient({
+      const created = await createAdminClient({
         accountName: createForm.accountName.trim() || undefined,
         username: createForm.username.trim() || undefined,
         fullName: createForm.fullName.trim(),
@@ -180,18 +241,122 @@ export default function AdminConsolePage() {
         role: createForm.role,
         blueprintType: createForm.blueprintType,
         lifeStagePreset: createForm.lifeStagePreset,
-        tempPassword: createForm.tempPassword,
-        initializeFirstPeriod: createForm.initializeFirstPeriod,
-        initialSalary: parseInt(createForm.initialSalary, 10) || 10_000_000,
-      } as any);
+        password: createForm.tempPassword.trim() || undefined,
+        initializeSnapshot: createForm.initializeFirstPeriod,
+        initialMonthlyIncome: Math.max(0, parseInt(createForm.initialSalary, 10) || 0),
+        paydayAnchorDay: Math.min(31, Math.max(1, Number(createForm.paydayAnchorDay) || 1)),
+        enabledModules: createForm.enabledModules,
+        sendWelcomeEmail: createForm.sendWelcomeEmail,
+        mustChangePassword: true,
+      });
       setIsCreateModalOpen(false);
+      setCredentialsCopied(false);
+      setCredentialsDialog({
+        title: "Client Account Provisioned",
+        fullName: created.fullName,
+        accountName: created.accountName || createForm.accountName || "client",
+        username: created.username || createForm.username || createForm.email.split("@")[0],
+        email: created.email,
+        temporaryPassword: created.temporaryPassword,
+        welcomeEmailSent: Boolean(created.welcomeEmailSent),
+      });
+      setCreateForm({
+        accountName: "",
+        username: "",
+        fullName: "",
+        email: "",
+        role: "STANDARD_MEMBER",
+        blueprintType: "STANDARD_GENERAL",
+        lifeStagePreset: "STANDARD_GENERAL",
+        tempPassword: "",
+        initializeFirstPeriod: true,
+        initialSalary: "",
+        paydayAnchorDay: 1,
+        enabledModules: [...SUNDAY_FUNDAY_STANDARD_MODULES],
+        sendWelcomeEmail: false,
+      });
       setStatusMessage({
         type: "success",
-        text: `Created client account for ${createForm.fullName}`,
+        text: `Provisioned workspace for ${created.fullName} with mandatory first-login password setup.`,
       });
       await loadData();
     } catch (err: any) {
       setStatusMessage({ type: "error", text: err.message || "Failed to create client" });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResetUserPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetTargetUser) return;
+    setIsLoading(true);
+    setStatusMessage(null);
+    try {
+      const res = await resetAdminClientPassword(resetTargetUser.id, {
+        temporaryPassword: resetForm.temporaryPassword.trim() || undefined,
+        sendEmail: resetForm.sendEmail,
+      });
+      const targetName = resetTargetUser.fullName;
+      setResetTargetUser(null);
+      setResetForm({ temporaryPassword: "", sendEmail: false });
+      setCredentialsCopied(false);
+      setCredentialsDialog({
+        title: "Temporary Password Issued",
+        fullName: targetName,
+        accountName: res.accountName,
+        username: res.username,
+        email: res.email,
+        temporaryPassword: res.temporaryPassword,
+        welcomeEmailSent: Boolean(res.welcomeEmailSent),
+      });
+      setStatusMessage({
+        type: "success",
+        text: `Issued one-time temporary password for ${targetName} and revoked active sessions.`,
+      });
+      await loadData();
+    } catch (err: any) {
+      setStatusMessage({ type: "error", text: err.message || "Failed to reset password" });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRevokeSessions = async (target: AdminUserSummary) => {
+    setIsLoading(true);
+    setStatusMessage(null);
+    try {
+      const res = await revokeAdminUserSessions(target.id);
+      setStatusMessage({
+        type: "success",
+        text: `Revoked ${res.revokedCount} active session(s) for ${target.fullName}.`,
+      });
+      await loadData();
+    } catch (err: any) {
+      setStatusMessage({ type: "error", text: err.message || "Failed to revoke sessions" });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleConfirmDeleteClient = async () => {
+    if (!deleteTargetUser) return;
+    setIsLoading(true);
+    setStatusMessage(null);
+    try {
+      const deletedName = deleteTargetUser.fullName;
+      await deleteAdminClient(deleteTargetUser.id);
+      setDeleteTargetUser(null);
+      if (selectedUserId === deleteTargetUser.id) {
+        setSelectedUserId(users[0]?.id ?? 1);
+      }
+      setStatusMessage({
+        type: "success",
+        text: `Removed client workspace for ${deletedName}.`,
+      });
+      await loadData();
+    } catch (err: any) {
+      setStatusMessage({ type: "error", text: err.message || "Failed to delete client" });
     } finally {
       setIsLoading(false);
     }
@@ -548,7 +713,7 @@ export default function AdminConsolePage() {
       {/* Navigation Tabs */}
       <div className="w-full">
         <nav
-          className="bg-[#0B0F19] border border-slate-800/80 p-1 rounded-lg flex items-center gap-1 overflow-x-auto no-scrollbar"
+          className="bg-[#0B0F19] border border-slate-800/80 p-1 rounded-lg flex flex-wrap items-center gap-1"
           aria-label="Admin Navigation Tabs"
         >
           <button
@@ -628,14 +793,14 @@ export default function AdminConsolePage() {
             </button>
           </div>
 
-          <div className="rounded-lg border border-border bg-surface overflow-hidden">
+          <div className="rounded-lg border border-border bg-surface overflow-x-auto">
             <table className="w-full text-xs text-left">
               <thead className="bg-surface-subtle border-b border-border text-[10px] font-mono uppercase text-text-tertiary">
                 <tr>
                   <th className="px-4 py-3">ID / User</th>
                   <th className="px-4 py-3">Role</th>
-                  <th className="px-4 py-3">Blueprint</th>
-                  <th className="px-4 py-3">Snapshots</th>
+                  <th className="px-4 py-3">Blueprint & Auth</th>
+                  <th className="px-4 py-3">Sessions / Cycles</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
@@ -657,14 +822,19 @@ export default function AdminConsolePage() {
                     </td>
                     <td className="px-4 py-3.5">
                       <div className="font-mono text-[11px] text-text-primary">
-                        {u.lifeStagePreset || u.blueprintType}
+                        {u.blueprintType} · {(u.enabledModules?.length ?? 0) || "All"} modules
                       </div>
                       <div className="font-mono text-[10px] text-text-tertiary mt-0.5">
-                        {u.blueprintType} · {u.uiDensityMode || "COMMAND_COCKPIT"}
+                        {u.mustChangePassword
+                          ? "Pending first-login password setup"
+                          : "Password verified"}
                       </div>
                     </td>
                     <td className="px-4 py-3.5 font-mono text-text-primary">
-                      {u.snapshotCount}
+                      <div>{u.snapshotCount} cycles</div>
+                      <div className="text-[10px] text-text-tertiary mt-0.5">
+                        {u.activeSessionCount ?? 0} active sessions
+                      </div>
                     </td>
                     <td className="px-4 py-3.5">
                       <span
@@ -677,30 +847,60 @@ export default function AdminConsolePage() {
                         {u.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3.5 text-right space-x-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedUserId(u.id);
-                          setActiveTab("BLUEPRINT");
-                        }}
-                        className="px-2 py-1 text-[11px] rounded border border-border hover:bg-surface-subtle text-text-secondary"
-                      >
-                        Blueprint
-                      </button>
-                      {u.id !== 1 && (
+                    <td className="px-4 py-3.5 text-right">
+                      <div className="inline-flex flex-wrap justify-end gap-1.5">
                         <button
                           type="button"
-                          onClick={async () => {
-                            const nextStatus = u.status === "ACTIVE" ? "SUSPENDED" : "ACTIVE";
-                            await updateAdminClient(u.id, { status: nextStatus });
-                            await loadData();
+                          onClick={() => {
+                            setSelectedUserId(u.id);
+                            setActiveTab("BLUEPRINT");
                           }}
-                          className="px-2 py-1 text-[11px] rounded border border-border hover:bg-surface-subtle text-text-tertiary hover:text-text-primary"
+                          className="px-2 py-1 text-[11px] rounded border border-border hover:bg-surface-subtle text-text-secondary cursor-pointer"
                         >
-                          {u.status === "ACTIVE" ? "Suspend" : "Activate"}
+                          Modules
                         </button>
-                      )}
+                        {u.id !== 1 && u.role !== "SUPERADMIN" && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setResetTargetUser(u);
+                              setResetForm({ temporaryPassword: "", sendEmail: false });
+                            }}
+                            className="px-2 py-1 text-[11px] rounded border border-border hover:bg-surface-subtle text-text-secondary cursor-pointer"
+                          >
+                            Reset Password
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleRevokeSessions(u)}
+                          className="px-2 py-1 text-[11px] rounded border border-border hover:bg-surface-subtle text-text-tertiary hover:text-text-primary cursor-pointer"
+                        >
+                          Revoke Sessions
+                        </button>
+                        {u.id !== 1 && u.role !== "SUPERADMIN" && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const nextStatus = u.status === "ACTIVE" ? "SUSPENDED" : "ACTIVE";
+                              await updateAdminClient(u.id, { status: nextStatus });
+                              await loadData();
+                            }}
+                            className="px-2 py-1 text-[11px] rounded border border-border hover:bg-surface-subtle text-text-tertiary hover:text-text-primary cursor-pointer"
+                          >
+                            {u.status === "ACTIVE" ? "Suspend" : "Activate"}
+                          </button>
+                        )}
+                        {u.id >= 3 && u.role !== "SUPERADMIN" && (
+                          <button
+                            type="button"
+                            onClick={() => setDeleteTargetUser(u)}
+                            className="px-2 py-1 text-[11px] rounded border border-negative/30 hover:bg-negative/10 text-negative cursor-pointer"
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -742,10 +942,10 @@ export default function AdminConsolePage() {
               <div className="grid grid-cols-3 gap-5">
                 <div>
                   <label className="block text-xs font-medium text-text-secondary mb-1">
-                    Life-Stage Preset (Ages 20-70)
+                    Workspace Blueprint
                   </label>
                   <select
-                    value={selectedUserConfig.lifeStagePreset || "CORPORATE_PROFESSIONAL"}
+                    value={selectedUserConfig.lifeStagePreset || "STANDARD_GENERAL"}
                     onChange={(e) => {
                       const preset = e.target.value as LifeStagePreset;
                       const found = LIFE_STAGE_PRESET_CATALOG.find((p) => p.id === preset);
@@ -766,7 +966,7 @@ export default function AdminConsolePage() {
                     <option value="SUPERADMIN_BESPOKE">SUPERADMIN_BESPOKE (Owner ERP)</option>
                     {LIFE_STAGE_PRESET_CATALOG.map((p) => (
                       <option key={p.id} value={p.id}>
-                        {p.title} ({p.ageRange})
+                        {p.title}
                       </option>
                     ))}
                   </select>
@@ -1014,7 +1214,7 @@ export default function AdminConsolePage() {
             </div>
           </div>
 
-          <div className="rounded-lg border border-border bg-surface overflow-hidden">
+          <div className="rounded-lg border border-border bg-surface overflow-x-auto">
             <table className="w-full text-xs text-left">
               <thead className="bg-surface-subtle border-b border-border text-[10px] font-mono uppercase text-text-tertiary">
                 <tr>
@@ -1476,16 +1676,87 @@ export default function AdminConsolePage() {
               </button>
             </form>
           </div>
+
+          {/* SECTION 4: SECURITY & ADMIN AUDIT LOG */}
+          <div className="p-6 rounded-lg border border-border bg-surface space-y-4">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <div className="flex items-center gap-2">
+                <Activity className="w-4 h-4 text-text-secondary" />
+                <div>
+                  <h3 className="text-sm font-medium text-text-primary">
+                    Security & Admin Audit Log
+                  </h3>
+                  <p className="text-xs text-text-secondary mt-0.5">
+                    Recent account provisioning, password resets, session revocations, and configuration changes.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={loadData}
+                className="px-2.5 py-1 text-xs rounded border border-border hover:bg-surface-subtle text-text-secondary cursor-pointer"
+              >
+                Refresh
+              </button>
+            </div>
+
+            {auditLogs.length === 0 ? (
+              <div className="text-xs text-text-tertiary font-sans py-3">
+                No security or administrative events recorded yet.
+              </div>
+            ) : (
+              <div className="rounded-md border border-border overflow-x-auto max-h-80 overflow-y-auto">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-surface-subtle text-[10px] font-mono uppercase text-text-tertiary border-b border-border">
+                    <tr>
+                      <th className="px-3 py-2">Time</th>
+                      <th className="px-3 py-2">Action</th>
+                      <th className="px-3 py-2">Actor</th>
+                      <th className="px-3 py-2">Summary</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border font-sans">
+                    {auditLogs.map((log) => (
+                      <tr key={log.id} className="hover:bg-surface-subtle/40">
+                        <td className="px-3 py-2 font-mono text-[11px] text-text-tertiary whitespace-nowrap">
+                          {new Date(log.createdAt).toLocaleString()}
+                        </td>
+                        <td className="px-3 py-2 font-mono text-[11px] text-text-primary whitespace-nowrap">
+                          {log.action}
+                        </td>
+                        <td className="px-3 py-2 font-mono text-[11px] text-text-secondary whitespace-nowrap">
+                          {log.user?.username || `#${log.userId}`}
+                        </td>
+                        <td className="px-3 py-2 text-text-secondary">
+                          <div>{log.summary}</div>
+                          {log.details && (
+                            <div className="text-[10px] font-mono text-text-tertiary mt-0.5">
+                              {log.details}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
       {/* PROVISION CLIENT ACCOUNT MODAL */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 bg-canvas/85 flex items-center justify-center z-50 p-4 animate-in fade-in duration-150">
-          <div className="w-full max-w-lg rounded-xl border border-border bg-surface p-6 shadow-2xl animate-in zoom-in-95 duration-150">
-            <h3 className="text-base font-medium text-text-primary">Provision New Client Account</h3>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Provision Client Account"
+          className="fixed inset-0 bg-canvas/85 flex items-center justify-center z-50 p-4 animate-in fade-in duration-150"
+        >
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl border border-border bg-surface p-6 shadow-2xl animate-in zoom-in-95 duration-150">
+            <h3 className="text-base font-medium text-text-primary">Provision Client Account</h3>
             <p className="text-xs text-text-secondary mt-1">
-              Create an isolated tenant workspace with tailored blueprint defaults.
+              Create an isolated workspace with temporary credentials. The user must set a new password upon first sign-in.
             </p>
 
             <form onSubmit={handleCreateClient} className="mt-5 space-y-4">
@@ -1498,7 +1769,7 @@ export default function AdminConsolePage() {
                     type="text"
                     value={createForm.accountName}
                     onChange={(e) => setCreateForm({ ...createForm, accountName: e.target.value })}
-                    placeholder="e.g. acme (defaults to client)"
+                    placeholder="e.g. keluarga (optional)"
                     className="w-full px-3 py-2 text-xs rounded border border-border bg-surface-subtle text-text-primary font-mono"
                   />
                 </div>
@@ -1510,7 +1781,7 @@ export default function AdminConsolePage() {
                     type="text"
                     value={createForm.username}
                     onChange={(e) => setCreateForm({ ...createForm, username: e.target.value })}
-                    placeholder="e.g. jdoe (defaults to email)"
+                    placeholder="e.g. mei (defaults to email prefix)"
                     className="w-full px-3 py-2 text-xs rounded border border-border bg-surface-subtle text-text-primary font-mono"
                   />
                 </div>
@@ -1526,7 +1797,7 @@ export default function AdminConsolePage() {
                     required
                     value={createForm.fullName}
                     onChange={(e) => setCreateForm({ ...createForm, fullName: e.target.value })}
-                    placeholder="e.g. John Client"
+                    placeholder="e.g. Mei Santoso"
                     className="w-full px-3 py-2 text-xs rounded border border-border bg-surface-subtle text-text-primary"
                   />
                 </div>
@@ -1555,8 +1826,8 @@ export default function AdminConsolePage() {
                     }
                     className="w-full px-3 py-2 text-xs rounded border border-border bg-surface-subtle text-text-primary font-mono"
                   >
-                    <option value="BESPOKE_CLIENT">BESPOKE_CLIENT</option>
                     <option value="STANDARD_MEMBER">STANDARD_MEMBER</option>
+                    <option value="BESPOKE_CLIENT">BESPOKE_CLIENT</option>
                   </select>
                 </div>
                 <div>
@@ -1569,64 +1840,168 @@ export default function AdminConsolePage() {
                       setCreateForm({
                         ...createForm,
                         blueprintType: e.target.value as BlueprintType,
+                        enabledModules:
+                          e.target.value === "SUPERADMIN_BESPOKE"
+                            ? [...ALL_MODULE_KEYS]
+                            : [...SUNDAY_FUNDAY_STANDARD_MODULES],
                       })
                     }
                     className="w-full px-3 py-2 text-xs rounded border border-border bg-surface-subtle text-text-primary font-mono"
                   >
-                    <option value="STANDARD_GENERAL">STANDARD_GENERAL (Commercial)</option>
-                    <option value="SUPERADMIN_BESPOKE">SUPERADMIN_BESPOKE (Bespoke)</option>
+                    <option value="STANDARD_GENERAL">STANDARD_GENERAL (Sunday Funday Standard)</option>
+                    <option value="SUPERADMIN_BESPOKE">SUPERADMIN_BESPOKE (Bespoke Full ERP)</option>
                   </select>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-text-secondary mb-1">
-                  Life-Stage Preset (Ages 20-70)
-                </label>
-                <select
-                  value={createForm.lifeStagePreset}
-                  onChange={(e) =>
-                    setCreateForm({
-                      ...createForm,
-                      lifeStagePreset: e.target.value as LifeStagePreset,
-                    })
-                  }
-                  className="w-full px-3 py-2 text-xs rounded border border-border bg-surface-subtle text-text-primary font-mono"
-                >
-                  {LIFE_STAGE_PRESET_CATALOG.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.title} ({p.ageRange})
-                    </option>
-                  ))}
-                  <option value="SUPERADMIN_BESPOKE">SUPERADMIN_BESPOKE (Bespoke)</option>
-                </select>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-text-secondary mb-1">
+                    Initial Monthly Income (IDR)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={createForm.initialSalary}
+                    onChange={(e) => setCreateForm({ ...createForm, initialSalary: e.target.value })}
+                    placeholder="e.g. 10000000"
+                    className="w-full px-3 py-2 text-xs rounded border border-border bg-surface-subtle text-text-primary font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-text-secondary mb-1">
+                    Payday Anchor Day (1–31)
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={31}
+                    value={createForm.paydayAnchorDay}
+                    onChange={(e) =>
+                      setCreateForm({
+                        ...createForm,
+                        paydayAnchorDay: Math.min(31, Math.max(1, parseInt(e.target.value, 10) || 1)),
+                      })
+                    }
+                    className="w-full px-3 py-2 text-xs rounded border border-border bg-surface-subtle text-text-primary font-mono"
+                  />
+                </div>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-text-secondary mb-1">
-                  Initial Monthly Base Salary (IDR)
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-medium text-text-secondary">
+                    Temporary Password (optional — blank auto-generates strong CSPRNG password)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCreateForm({
+                        ...createForm,
+                        tempPassword: generateClientTempPassword(14),
+                      })
+                    }
+                    className="text-[11px] font-mono text-emerald-400 hover:text-emerald-300 cursor-pointer"
+                  >
+                    Generate Password
+                  </button>
+                </div>
                 <input
-                  type="number"
-                  value={createForm.initialSalary}
-                  onChange={(e) => setCreateForm({ ...createForm, initialSalary: e.target.value })}
-                  placeholder="12000000"
+                  type="text"
+                  value={createForm.tempPassword}
+                  onChange={(e) => setCreateForm({ ...createForm, tempPassword: e.target.value })}
+                  placeholder="Leave blank to auto-generate 14-char temporary password"
                   className="w-full px-3 py-2 text-xs rounded border border-border bg-surface-subtle text-text-primary font-mono"
                 />
               </div>
 
-              <div className="flex items-center gap-2 pt-1">
-                <input
-                  type="checkbox"
-                  id="initSnapshot"
-                  checked={createForm.initializeFirstPeriod}
-                  onChange={(e) =>
-                    setCreateForm({ ...createForm, initializeFirstPeriod: e.target.checked })
-                  }
-                  className="rounded border-border text-text-primary"
-                />
-                <label htmlFor="initSnapshot" className="text-xs text-text-secondary cursor-pointer">
-                  Auto-initialize first period snapshot (10/2026) with baseline envelopes
+              <div className="border-t border-border pt-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-text-secondary">
+                    Enabled Modules ({createForm.enabledModules.length} active)
+                  </span>
+                  <div className="flex items-center gap-3 text-[11px] font-mono">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setCreateForm({
+                          ...createForm,
+                          enabledModules: [...SUNDAY_FUNDAY_STANDARD_MODULES],
+                        })
+                      }
+                      className="text-text-secondary hover:text-text-primary cursor-pointer"
+                    >
+                      Standard Defaults
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setCreateForm({
+                          ...createForm,
+                          enabledModules: [...ALL_MODULE_KEYS],
+                        })
+                      }
+                      className="text-text-secondary hover:text-text-primary cursor-pointer"
+                    >
+                      Enable All
+                    </button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-1">
+                  {MODULE_REGISTRY_CATALOG.map((mod) => {
+                    const checked = mod.isCore || createForm.enabledModules.includes(mod.key);
+                    return (
+                      <label
+                        key={mod.key}
+                        className={`flex items-start gap-2 p-2 rounded border text-[11px] cursor-pointer ${
+                          checked
+                            ? "border-border-strong bg-surface-subtle text-text-primary"
+                            : "border-border bg-surface text-text-tertiary"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          disabled={mod.isCore}
+                          checked={checked}
+                          onChange={(e) => {
+                            const next = e.target.checked
+                              ? Array.from(new Set([...createForm.enabledModules, mod.key]))
+                              : createForm.enabledModules.filter((k) => k !== mod.key);
+                            setCreateForm({ ...createForm, enabledModules: next });
+                          }}
+                          className="mt-0.5 rounded border-border"
+                        />
+                        <div className="min-w-0">
+                          <div className="font-medium truncate">{mod.label}</div>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="space-y-2 pt-1">
+                <label className="flex items-center gap-2 text-xs text-text-secondary cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={createForm.initializeFirstPeriod}
+                    onChange={(e) =>
+                      setCreateForm({ ...createForm, initializeFirstPeriod: e.target.checked })
+                    }
+                    className="rounded border-border text-text-primary"
+                  />
+                  <span>Initialize current month draft snapshot with monthly income baseline</span>
+                </label>
+                <label className="flex items-center gap-2 text-xs text-text-secondary cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={createForm.sendWelcomeEmail}
+                    onChange={(e) =>
+                      setCreateForm({ ...createForm, sendWelcomeEmail: e.target.checked })
+                    }
+                    className="rounded border-border text-text-primary"
+                  />
+                  <span>Send welcome email with temporary login credentials</span>
                 </label>
               </div>
 
@@ -1634,19 +2009,202 @@ export default function AdminConsolePage() {
                 <button
                   type="button"
                   onClick={() => setIsCreateModalOpen(false)}
-                  className="px-3.5 py-2 text-xs rounded border border-border hover:bg-surface-subtle text-text-secondary"
+                  className="px-3.5 py-2 text-xs rounded border border-border hover:bg-surface-subtle text-text-secondary cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="px-4 py-2 text-xs font-medium rounded border border-border-strong erp-btn-primary hover:opacity-95"
+                  className="px-4 py-2 text-xs font-medium rounded border border-border-strong erp-btn-primary hover:opacity-95 cursor-pointer"
                 >
                   Provision Client
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ONE-TIME CREDENTIALS HANDOFF DIALOG */}
+      {credentialsDialog && (
+        <div className="fixed inset-0 bg-canvas/85 flex items-center justify-center z-50 p-4">
+          <div className="w-full max-w-md rounded-xl border border-border bg-surface p-6 shadow-2xl space-y-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="text-base font-medium text-text-primary">
+                  {credentialsDialog.title}
+                </h3>
+                <p className="text-xs text-text-secondary mt-1">
+                  Share these credentials securely with {credentialsDialog.fullName}. This temporary password is shown only once.
+                </p>
+              </div>
+              <KeyRound className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+            </div>
+
+            <div className="p-3.5 rounded-lg bg-surface-subtle border border-border space-y-2 text-xs font-mono">
+              <div className="flex justify-between gap-2">
+                <span className="text-text-tertiary">Login URL</span>
+                <span className="text-text-primary truncate">
+                  {typeof window !== "undefined" ? `${window.location.origin}/login` : "/login"}
+                </span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className="text-text-tertiary">Account Name</span>
+                <span className="text-text-primary">{credentialsDialog.accountName}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className="text-text-tertiary">Username</span>
+                <span className="text-text-primary">{credentialsDialog.username}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className="text-text-tertiary">Email</span>
+                <span className="text-text-primary truncate">{credentialsDialog.email}</span>
+              </div>
+              <div className="flex justify-between gap-2 pt-1 border-t border-border">
+                <span className="text-text-tertiary">Temporary Password</span>
+                <span className="text-emerald-400 font-semibold select-all">
+                  {credentialsDialog.temporaryPassword}
+                </span>
+              </div>
+            </div>
+
+            <div className="text-[11px] text-text-tertiary font-sans">
+              {credentialsDialog.welcomeEmailSent
+                ? "A welcome email with these login instructions has been dispatched."
+                : "First sign-in enforces creating a new personal password twice before workspace access."}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+              <button
+                type="button"
+                onClick={async () => {
+                  const loginUrl =
+                    typeof window !== "undefined" ? `${window.location.origin}/login` : "/login";
+                  const text = [
+                    `Sunday Funday Sign-In Credentials`,
+                    `Login URL: ${loginUrl}`,
+                    `Account Name: ${credentialsDialog.accountName}`,
+                    `Username: ${credentialsDialog.username}`,
+                    `Temporary Password: ${credentialsDialog.temporaryPassword}`,
+                    `Note: You will be required to set a new password on first sign-in.`,
+                  ].join("\n");
+                  await navigator.clipboard.writeText(text).catch(() => {});
+                  setCredentialsCopied(true);
+                }}
+                className="px-3.5 py-2 text-xs rounded border border-border bg-surface-subtle hover:bg-surface text-text-primary flex items-center gap-1.5 cursor-pointer"
+              >
+                <Copy className="w-3.5 h-3.5" />
+                <span>{credentialsCopied ? "Copied" : "Copy Credentials"}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setCredentialsDialog(null)}
+                className="px-4 py-2 text-xs font-medium rounded border border-border-strong erp-btn-primary cursor-pointer"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* RESET CLIENT PASSWORD MODAL */}
+      {resetTargetUser && (
+        <div className="fixed inset-0 bg-canvas/85 flex items-center justify-center z-50 p-4">
+          <div className="w-full max-w-md rounded-xl border border-border bg-surface p-6 shadow-2xl">
+            <h3 className="text-base font-medium text-text-primary">
+              Reset Temporary Password
+            </h3>
+            <p className="text-xs text-text-secondary mt-1">
+              Issues a new temporary password for {resetTargetUser.fullName} ({resetTargetUser.username}), revokes active sessions, and requires a password update on next login.
+            </p>
+            <form onSubmit={handleResetUserPassword} className="mt-4 space-y-4">
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-medium text-text-secondary">
+                    Temporary Password (optional)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setResetForm({
+                        ...resetForm,
+                        temporaryPassword: generateClientTempPassword(14),
+                      })
+                    }
+                    className="text-[11px] font-mono text-emerald-400 hover:text-emerald-300 cursor-pointer"
+                  >
+                    Generate
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={resetForm.temporaryPassword}
+                  onChange={(e) => setResetForm({ ...resetForm, temporaryPassword: e.target.value })}
+                  placeholder="Leave blank to auto-generate strong temporary password"
+                  className="w-full px-3 py-2 text-xs rounded border border-border bg-surface-subtle text-text-primary font-mono"
+                />
+              </div>
+
+              <label className="flex items-center gap-2 text-xs text-text-secondary cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={resetForm.sendEmail}
+                  onChange={(e) => setResetForm({ ...resetForm, sendEmail: e.target.checked })}
+                  className="rounded border-border"
+                />
+                <span>Email temporary password to {resetTargetUser.email}</span>
+              </label>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-border">
+                <button
+                  type="button"
+                  onClick={() => setResetTargetUser(null)}
+                  className="px-3.5 py-2 text-xs rounded border border-border hover:bg-surface-subtle text-text-secondary cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="px-4 py-2 text-xs font-medium rounded border border-border-strong erp-btn-primary cursor-pointer"
+                >
+                  Issue Temporary Password
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE CLIENT CONFIRMATION MODAL */}
+      {deleteTargetUser && (
+        <div className="fixed inset-0 bg-canvas/85 flex items-center justify-center z-50 p-4">
+          <div className="w-full max-w-md rounded-xl border border-negative/40 bg-surface p-6 shadow-2xl space-y-4">
+            <h3 className="text-base font-medium text-text-primary">
+              Delete Client Workspace
+            </h3>
+            <p className="text-xs text-text-secondary">
+              Permanently delete <strong>{deleteTargetUser.fullName}</strong> ({deleteTargetUser.username}) and all associated snapshots, transactions, and sessions. This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-2 pt-3 border-t border-border">
+              <button
+                type="button"
+                onClick={() => setDeleteTargetUser(null)}
+                className="px-3.5 py-2 text-xs rounded border border-border hover:bg-surface-subtle text-text-secondary cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isLoading}
+                onClick={handleConfirmDeleteClient}
+                className="px-4 py-2 text-xs font-medium rounded border border-negative/50 bg-negative/15 text-negative hover:bg-negative/25 cursor-pointer"
+              >
+                Delete Workspace
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -124,8 +124,7 @@ export class SnapshotsService {
         (async () => {
           return (
             (await tx.globalConfig.findUnique({ where: { userId: snapshot.userId } })) ||
-            (await tx.globalConfig.findFirst({ where: { userId: snapshot.userId } })) ||
-            (await tx.globalConfig.findFirst({ where: { userId: 1 } }))
+            (await tx.globalConfig.findFirst({ where: { userId: snapshot.userId } }))
           );
         })(),
         tx.transaction.findMany({
@@ -359,8 +358,7 @@ export class SnapshotsService {
 
       const config =
         (await tx.globalConfig.findUnique({ where: { userId: snapshot.userId } })) ||
-        (await tx.globalConfig.findFirst({ where: { userId: snapshot.userId } })) ||
-        (await tx.globalConfig.findFirst({ where: { userId: 1 } }));
+        (await tx.globalConfig.findFirst({ where: { userId: snapshot.userId } }));
       if (!config) {
         throw new BadRequestException(
           'Global configuration has not been initialized',
@@ -841,9 +839,7 @@ export class SnapshotsService {
    */
   async resyncSnapshotRules(snapshotId: number, userId?: number) {
     const snapshot = await this.assertSnapshotUnlocked(snapshotId, undefined, userId);
-    const config =
-      (await this.prisma.globalConfig.findFirst({ where: { userId: snapshot.userId } })) ||
-      (await this.prisma.globalConfig.findFirst({ where: { userId: 1 } }));
+    const config = await this.prisma.globalConfig.findFirst({ where: { userId: snapshot.userId } });
     if (!config) {
       throw new BadRequestException('Global configuration has not been initialized');
     }
@@ -940,9 +936,7 @@ export class SnapshotsService {
     }
     const difference = dto.newValue - previousValue;
 
-    const config =
-      (await this.prisma.globalConfig.findFirst({ where: { userId: snapshot.userId } })) ||
-      (await this.prisma.globalConfig.findFirst({ where: { userId: 1 } }));
+    const config = await this.prisma.globalConfig.findFirst({ where: { userId: snapshot.userId } });
     if (!config) {
       throw new BadRequestException('Global configuration has not been initialized');
     }
@@ -1129,8 +1123,7 @@ export class SnapshotsService {
   async initializePeriod(month: number, year: number, userId: number = 1): Promise<MonthlySnapshot> {
     const config =
       (await this.prisma.globalConfig.findUnique({ where: { userId } })) ||
-      (await this.prisma.globalConfig.findFirst({ where: { userId } })) ||
-      (await this.prisma.globalConfig.findFirst({ where: { userId: 1 } }));
+      (await this.prisma.globalConfig.findFirst({ where: { userId } }));
     if (!config) {
       throw new BadRequestException('Global configuration has not been initialized');
     }

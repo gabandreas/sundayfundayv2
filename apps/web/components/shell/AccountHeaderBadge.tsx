@@ -2,10 +2,10 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { usePerspective } from "@/context/PerspectiveContext";
 import { usePrivacyMask } from "@/context/PrivacyMaskContext";
+import { useLanguage } from "@/context/LanguageContext";
 import {
   UserRole,
 } from "@/lib/api";
@@ -69,10 +69,10 @@ function getCompactRoleLabel(role?: UserRole) {
 }
 
 export function AccountHeaderBadge() {
-  const router = useRouter();
-  const { user, logout, resetDemo, openProfileModal } = useAuth();
+  const { user, logout, resetDemo, openProfileModal, isSigningOut } = useAuth();
   const { uiDensityMode, setUiDensityMode } = usePerspective();
   const { isAmountsMasked, toggleMask } = usePrivacyMask();
+  const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -101,10 +101,10 @@ export function AccountHeaderBadge() {
   }, [isOpen]);
 
   const roleMeta = getRoleBadge(user?.role);
-  const cleanName = (user?.fullName || "Gabriel").replace(/\s*\([^)]*\)$/, "");
+  const cleanName = (user?.fullName || user?.username || "Account").replace(/\s*\([^)]*\)$/, "");
 
   const getInitials = (name?: string) => {
-    if (!name) return "G";
+    if (!name) return "U";
     const parts = name.trim().split(/\s+/);
     if (parts.length === 1) return parts[0][0].toUpperCase();
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
@@ -267,30 +267,18 @@ export function AccountHeaderBadge() {
               </span>
             </button>
 
-            {/* Switch Account */}
-            <button
-              type="button"
-              onClick={() => {
-                setIsOpen(false);
-                router.push("/login");
-              }}
-              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-text-primary hover:bg-surface-subtle rounded transition-colors text-left"
-            >
-              <UserIcon className="w-3.5 h-3.5 text-text-secondary" />
-              <span>Switch Account</span>
-            </button>
-
             {/* Sign Out */}
             <button
               type="button"
+              disabled={isSigningOut}
               onClick={() => {
                 setIsOpen(false);
-                logout();
+                void logout();
               }}
-              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-negative hover:bg-negative/10 rounded transition-colors text-left"
+              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-negative hover:bg-negative/10 rounded transition-colors text-left cursor-pointer disabled:opacity-50"
             >
               <LogOut className="w-3.5 h-3.5 text-negative" />
-              <span>Sign Out</span>
+              <span>{isSigningOut ? t("auth.signingOut") : t("auth.signOutBtn")}</span>
             </button>
           </div>
         </div>

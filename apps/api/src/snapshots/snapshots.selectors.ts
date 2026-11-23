@@ -165,8 +165,7 @@ export class SnapshotsSelectors {
 
     const config =
       (await this.prisma.globalConfig.findUnique({ where: { userId } })) ||
-      (await this.prisma.globalConfig.findFirst({ where: { userId } })) ||
-      (await this.prisma.globalConfig.findFirst({ where: { userId: 1 } }));
+      (await this.prisma.globalConfig.findFirst({ where: { userId } }));
 
     if (!config) {
       throw new BadRequestException(
@@ -339,16 +338,14 @@ export class SnapshotsSelectors {
     strategy: DefaultPeriodStrategy;
     skippedLockedPeriod: boolean;
   }> {
-    const config =
-      (await this.prisma.globalConfig.findFirst({ where: { userId } })) ||
-      (await this.prisma.globalConfig.findFirst({ where: { userId: 1 } }));
+    const config = await this.prisma.globalConfig.findFirst({ where: { userId } });
     const studioConfig = resolveStudioConfig(userId, config?.formulaParamsJson, config);
     const strategy: DefaultPeriodStrategy =
       studioConfig.paycycleFormulaConfig.defaultPeriodStrategy === 'CALENDAR_WINDOW'
         ? 'CALENDAR_WINDOW'
         : 'EARLIEST_OPEN_ACTIVE';
     const cycleTransitionDay =
-      studioConfig.paycycleFormulaConfig.paydayAnchorDay || 27;
+      studioConfig.paycycleFormulaConfig.paydayAnchorDay || (userId === 1 ? 27 : 1);
 
     const snapshots = await this.prisma.monthlySnapshot.findMany({
       where: { userId },
@@ -394,8 +391,7 @@ export class SnapshotsSelectors {
     const [config, existingSnapshots, bulkBills, cardTxs, contracts] = await Promise.all([
       (async () =>
         (await this.prisma.globalConfig.findUnique({ where: { userId } })) ||
-        (await this.prisma.globalConfig.findFirst({ where: { userId } })) ||
-        (await this.prisma.globalConfig.findFirst({ where: { userId: 1 } })))(),
+        (await this.prisma.globalConfig.findFirst({ where: { userId } })))(),
       this.prisma.monthlySnapshot.findMany({
         where: { userId, OR: periodOr },
         include: {

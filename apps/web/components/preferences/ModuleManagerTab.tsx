@@ -90,7 +90,7 @@ export function ModuleManagerTab({ config }: ModuleManagerTabProps) {
             onClick={() => setIsOnboardingOpen(true)}
             className="px-3 py-1.5 text-xs font-medium rounded border border-border-strong bg-surface-subtle text-text-primary hover:bg-surface transition-colors"
           >
-            Launch 60-Second Life-Stage Wizard
+            Launch Workspace Setup Wizard
           </button>
         </div>
 
@@ -206,14 +206,14 @@ export function ModuleManagerTab({ config }: ModuleManagerTabProps) {
         </div>
       </div>
 
-      {/* Section 3: Quick Apply Life-Stage Preset (Ages 20 to 70) */}
+      {/* Section 3: Quick Apply Workspace Blueprint Presets */}
       <div className="bg-surface border border-border rounded-md p-5 space-y-4">
         <div>
           <h2 className="text-sm font-semibold text-text-primary">
-            Life-Stage Blueprint Presets (Ages 20–70)
+            Workspace Blueprint Presets
           </h2>
           <p className="text-xs text-text-tertiary mt-0.5">
-            One-click preset bundles that configure active modules, default formula engine, and UI density for your current life stage.
+            One-click preset bundles that configure active modules, default formula engine, and UI density based on your cashflow structure.
           </p>
         </div>
 
@@ -233,9 +233,6 @@ export function ModuleManagerTab({ config }: ModuleManagerTabProps) {
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-semibold text-text-primary">
                       {preset.title}
-                    </span>
-                    <span className="text-[10px] font-mono text-text-tertiary px-1.5 py-0.5 rounded border border-border">
-                      {preset.ageRange}
                     </span>
                     <span className="text-[10px] font-mono text-text-secondary">
                       {preset.formulaLabel}

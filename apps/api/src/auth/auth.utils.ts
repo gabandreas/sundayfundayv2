@@ -130,6 +130,68 @@ export function generateOpaqueRefreshToken(): { raw: string; hash: string } {
   return { raw, hash: hashOpaqueToken(raw) };
 }
 
+export function generatePasswordResetToken(): { raw: string; hash: string } {
+  const raw = `sf_pr_${crypto.randomBytes(32).toString('hex')}`;
+  return { raw, hash: hashOpaqueToken(raw) };
+}
+
+export function validatePasswordStrength(password: string): {
+  valid: boolean;
+  message?: string;
+} {
+  if (typeof password !== 'string' || password.length < 10 || password.length > 128) {
+    return {
+      valid: false,
+      message: 'Password must be between 10 and 128 characters long.',
+    };
+  }
+  if (!/[A-Z]/.test(password)) {
+    return {
+      valid: false,
+      message: 'Password must contain at least one uppercase letter.',
+    };
+  }
+  if (!/[a-z]/.test(password)) {
+    return {
+      valid: false,
+      message: 'Password must contain at least one lowercase letter.',
+    };
+  }
+  if (!/\d/.test(password)) {
+    return {
+      valid: false,
+      message: 'Password must contain at least one number.',
+    };
+  }
+  return { valid: true };
+}
+
+export function generateSecureTemporaryPassword(length: number = 14): string {
+  const targetLen = Math.max(12, Math.min(32, Math.trunc(length)));
+  const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const lower = 'abcdefghijkmnopqrstuvwxyz';
+  const digits = '23456789';
+  const symbols = '!@#$%^&*';
+  const all = upper + lower + digits + symbols;
+
+  const chars = [
+    upper[crypto.randomInt(0, upper.length)],
+    lower[crypto.randomInt(0, lower.length)],
+    digits[crypto.randomInt(0, digits.length)],
+    symbols[crypto.randomInt(0, symbols.length)],
+  ];
+  while (chars.length < targetLen) {
+    chars.push(all[crypto.randomInt(0, all.length)]);
+  }
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = crypto.randomInt(0, i + 1);
+    const tmp = chars[i];
+    chars[i] = chars[j];
+    chars[j] = tmp;
+  }
+  return chars.join('');
+}
+
 export function normalizeAndValidatePublicKeyPem(
   publicKeyPem: string,
   expectedAlgorithm: 'ED25519' | 'ECDSA_P256' = 'ECDSA_P256',
@@ -184,6 +246,8 @@ export interface JwtPayload {
   sub: number;
   jti?: string;
   sid?: string;
+  tv?: number;
+  mcp?: boolean;
   accountName?: string;
   username?: string;
   email: string;

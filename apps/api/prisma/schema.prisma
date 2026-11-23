@@ -118,12 +118,16 @@ model User {
   lifeStagePreset     String   @default("CORPORATE_PROFESSIONAL") // "SUPERADMIN_BESPOKE" | "STUDENT_FIRST_JOBBER" | "CORPORATE_PROFESSIONAL" | "FREELANCER_VARIABLE" | "FAMILY_HOUSEHOLD" | "RETIREE_GOLDEN_AGE"
   uiDensityMode       String   @default("COMMAND_COCKPIT") // "COMMAND_COCKPIT" | "SIMPLE_CLARITY"
   securityPinHash     String?
-  ipWhitelistEnforced Boolean  @default(false)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  ipWhitelistEnforced Boolean   @default(false)
+  mustChangePassword  Boolean   @default(false)
+  passwordChangedAt   DateTime?
+  tokenVersion        Int       @default(0)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   trustedIpAddresses     TrustedIpAddress[]
   refreshTokens          RefreshToken[]
+  passwordResetTokens    PasswordResetToken[]
   mobileDevices          MobileDevice[]
   biometricChallenges    BiometricChallenge[]
   userIdentities         UserIdentity[]
@@ -680,5 +684,23 @@ model IdempotencyRecord {
   createdAt    DateTime @default(now())
 
   @@unique([userId, method, path, key])
+  @@index([expiresAt])
+}
+
+// ─────────────────────────────────────────────
+// 19. PasswordResetToken — CSPRNG Hashed Single-Use Reset Tokens
+// ─────────────────────────────────────────────
+
+model PasswordResetToken {
+  id          String    @id @default(cuid())
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  usedAt      DateTime?
+  requestedIp String?
+  createdAt   DateTime  @default(now())
+
+  @@index([userId, usedAt])
   @@index([expiresAt])
 }

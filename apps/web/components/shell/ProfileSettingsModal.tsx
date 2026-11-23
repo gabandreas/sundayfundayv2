@@ -114,7 +114,7 @@ export function ProfileSettingsModal() {
               Username
             </span>
             <span className="text-text-primary mt-0.5 block">
-              {user?.username || user?.accountName || "cheeseburger"}
+              {user?.username || user?.accountName || "—"}
             </span>
           </div>
           <div>

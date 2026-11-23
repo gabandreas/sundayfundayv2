@@ -1,4 +1,14 @@
-import { IsEmail, IsNotEmpty, IsOptional, IsString, IsBoolean } from 'class-validator';
+import {
+  IsArray,
+  IsBoolean,
+  IsEmail,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+} from 'class-validator';
 
 export class CreateClientDto {
   @IsString()
@@ -18,8 +28,8 @@ export class CreateClientDto {
   email!: string;
 
   @IsString()
-  @IsNotEmpty()
-  password!: string;
+  @IsOptional()
+  password?: string;
 
   @IsString()
   @IsOptional()
@@ -40,5 +50,32 @@ export class CreateClientDto {
   @IsBoolean()
   @IsOptional()
   initializeSnapshot?: boolean;
-}
 
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  initialMonthlyIncome?: number;
+
+  @IsInt()
+  @Min(1)
+  @Max(31)
+  @IsOptional()
+  paydayAnchorDay?: number;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  enabledModules?: string[];
+
+  @IsBoolean()
+  @IsOptional()
+  sendWelcomeEmail?: boolean;
+
+  @IsString()
+  @IsOptional()
+  locale?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  mustChangePassword?: boolean;
+}

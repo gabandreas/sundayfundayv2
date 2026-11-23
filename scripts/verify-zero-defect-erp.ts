@@ -83,15 +83,15 @@ async function main() {
     assert.equal(novPacing.daysInCycle, 30, '11/2026 must be 30 days (28 Oct – 26 Nov)');
     assert.equal(novPacing.daysRemaining, 5, '11/2026 on Nov 22 must have 5 days remaining');
     assert.equal(Math.round(novPacing.totalOperationalBudget), 1720316, '11/2026 pacing totalOperationalBudget must be 1,720,316');
-    assert.equal(Math.round(novPacing.totalDailySpent), 1560316, '11/2026 pacing totalDailySpent must be 1,560,316 (with Rp 140k cash sync)');
-    assert.equal(Math.round(novPacing.remainingBudget), 160000, '11/2026 pacing remainingBudget must be Rp 160,000');
+    assert.equal(Math.round(novPacing.totalDailySpent), 1620316, '11/2026 pacing totalDailySpent must be 1,620,316 (with Nov 22 Rp 140k + Nov 23 Rp 60k cash syncs)');
+    assert.equal(Math.round(novPacing.remainingBudget), 100000, '11/2026 pacing remainingBudget must be Rp 100,000');
 
     // Upcoming period (22 Nov 2026): 12/2026 (27 Nov – 27 Dec 2026, PRE_PAYDAY Day 0, starts in 5 days) with Natal THR H-7 Dec 18
     assert.equal(Math.round(dec26?.finalTotalIncome ?? -1), 9737425, '12/2026 finalTotalIncome (Salary + Natal THR 3,833,425) must be 9,737,425');
-    assert.equal(Math.round(dec26?.totalDeductions ?? -1), 4162341, '12/2026 Total Debt (with Nov 23 Americano & Dunhill Rp 52k routed H-15 to 12/2026) must be 4,162,341');
+    assert.equal(Math.round(dec26?.totalDeductions ?? -1), 4189341, '12/2026 Total Debt (with Nov 23 Americano & Dunhill Rp 52k + Cigar Rp 27k routed to 12/2026) must be 4,189,341');
     assert.equal(Math.round(dec26?.actualDailyOperational ?? -1), 1500000, '12/2026 actualDailyOperational must be 1,500,000');
     assert.equal(Math.round(dec26?.actualSavings ?? -1), 1000000, '12/2026 P1 must be 1,000,000 funded with Natal THR');
-    assert.equal(Math.round(dec26?.selfReward ?? -1), 2775084, '12/2026 P2 must be 2,775,084');
+    assert.equal(Math.round(dec26?.selfReward ?? -1), 2748084, '12/2026 P2 must be 2,748,084');
     assert.equal(Math.round(dec26?.deficitUncovered ?? -1), 0, '12/2026 deficitUncovered must be 0 with Natal THR');
 
     const decPacing = await financeSelectors.getPacing(
@@ -429,8 +429,8 @@ async function main() {
     );
     assert.equal(
       intelDec.networth.currentCycleDebtRp,
-      4162341,
-      `12/2026 currentCycleDebtRp must be 4,162,341, got ${intelDec.networth.currentCycleDebtRp}`,
+      4189341,
+      `12/2026 currentCycleDebtRp must be 4,189,341, got ${intelDec.networth.currentCycleDebtRp}`,
     );
     const p1AccountsTotal = (intelNov.effectiveAssetAccounts ?? [])
       .filter((a: any) => a.accountType === 'SAVINGS_VAULT')
@@ -440,7 +440,7 @@ async function main() {
       `User #1 11/2026 P1 vault (${p1AccountsTotal}) must exclude pre-epoch phantom backfill`,
     );
     console.log(
-      `  PASS: Zero Hoodie P1 leak, 03/2027 contracts = ${mar27ActiveContracts.length} (CC only), 11/2026 currentCycleDebtRp = Rp 4,522,976, 12/2026 currentCycleDebtRp = Rp 4,162,341, P1 vault = Rp ${p1AccountsTotal}.`,
+      `  PASS: Zero Hoodie P1 leak, 03/2027 contracts = ${mar27ActiveContracts.length} (CC only), 11/2026 currentCycleDebtRp = Rp 4,522,976, 12/2026 currentCycleDebtRp = Rp 4,189,341, P1 vault = Rp ${p1AccountsTotal}.`,
     );
 
     // 11. Verify Two-Stage 02/2027 Payday Date (Jan 27, 2027) & Non-Double-Counted Dec 2026 Natal THR Timeline

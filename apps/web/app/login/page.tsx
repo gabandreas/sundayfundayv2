@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, Suspense } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { LanguageSwitcher } from "@/components/shell/LanguageSwitcher";
 import { BrandMark } from "@/components/primitives/BrandMark";
 import {
-  ShieldCheck,
   Lock,
   User,
   AlertCircle,
@@ -15,6 +15,7 @@ import {
   Eye,
   EyeOff,
   Clock,
+  CheckCircle2,
   Loader2,
 } from "lucide-react";
 
@@ -23,19 +24,14 @@ function LoginForm() {
   const { t } = useLanguage();
   const searchParams = useSearchParams();
   const isExpired = searchParams.get("expired") === "1";
-
-  const [lockedIdentity, setLockedIdentity] = useState<{
-    accountName: string;
-    username: string;
-    fullName: string;
-    role: string;
-  } | null>(null);
+  const isSignedOut = searchParams.get("signedOut") === "1";
+  const isPasswordReset = searchParams.get("reset") === "1";
+  const nextPath = searchParams.get("next");
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  // Security PIN states when untrusted IP is detected
   const [requiresPin, setRequiresPin] = useState(false);
   const [detectedIp, setDetectedIp] = useState<string | null>(null);
   const [securityPin, setSecurityPin] = useState("");
@@ -47,29 +43,20 @@ function LoginForm() {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem("erp_locked_identity");
-      if (stored) {
-        setLockedIdentity(JSON.parse(stored));
-      }
-    } catch {}
-  }, []);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading || isDemoLoading) return;
     setIsLoading(true);
     setErrorMessage(null);
 
-    const targetUsername = lockedIdentity ? lockedIdentity.username : username.trim();
-
     try {
       const res = await login({
-        username: targetUsername,
+        username: username.trim(),
         password,
-        securityPin: requiresPin ? securityPin : undefined,
+        securityPin: requiresPin ? securityPin.trim() : undefined,
         trustIp: requiresPin ? trustIp : undefined,
-        ipLabel: requiresPin ? ipLabel : undefined,
+        ipLabel: requiresPin ? ipLabel.trim() || undefined : undefined,
+        nextPath,
       });
 
       if (res.requiresPin) {
@@ -77,15 +64,14 @@ function LoginForm() {
         setDetectedIp(res.detectedIp || null);
         setErrorMessage(
           res.message ||
-            "Untrusted network IP detected. Enter your 6-digit Security PIN to verify this session."
+            "Unrecognized network IP. Enter your 6-digit Security PIN to continue.",
         );
       } else {
-        localStorage.removeItem("erp_locked_identity");
         setIsTransitioning(true);
       }
     } catch (err: any) {
       setErrorMessage(
-        err.message || "Authentication failed. Check your credentials."
+        err.message || "Invalid username or password.",
       );
       setIsTransitioning(false);
     } finally {
@@ -94,6 +80,7 @@ function LoginForm() {
   };
 
   const handleDemoLogin = async () => {
+    if (isLoading || isDemoLoading) return;
     setIsDemoLoading(true);
     setErrorMessage(null);
     try {
@@ -101,24 +88,14 @@ function LoginForm() {
       setIsTransitioning(true);
     } catch (err: any) {
       setIsTransitioning(false);
-      setErrorMessage(err.message || "Failed to launch General Demo Sandbox.");
+      setErrorMessage(err.message || "Failed to launch Demo Sandbox.");
     } finally {
       setIsDemoLoading(false);
     }
   };
 
-  const handleSwitchAccount = () => {
-    try {
-      localStorage.removeItem("erp_locked_identity");
-    } catch {}
-    setLockedIdentity(null);
-    setPassword("");
-    setErrorMessage(null);
-  };
-
   return (
-    <div className="w-full max-w-md rounded-xl border border-border bg-surface p-5 sm:p-8 shadow-2xl">
-      {/* Brand Header */}
+    <div className="w-full max-w-md rounded-xl border border-border bg-surface p-6 sm:p-8 shadow-2xl">
       <div className="mb-6">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-[11px] font-mono tracking-wider text-text-tertiary uppercase">
@@ -127,86 +104,115 @@ function LoginForm() {
           </div>
           <LanguageSwitcher compact />
         </div>
-        <h1 className="text-xl sm:text-2xl font-serif text-text-primary font-normal tracking-tight mt-2">
-          {requiresPin
-            ? t("auth.pinTitle")
-            : lockedIdentity
-            ? `${t("auth.lockedPrefix")} — ${lockedIdentity.fullName}`
-            : t("auth.signInTitle")}
+        <h1 className="text-2xl font-serif text-text-primary font-normal tracking-tight mt-3">
+          {requiresPin ? t("auth.pinTitle") : t("auth.signInTitle")}
         </h1>
-        <p className="text-xs text-text-secondary mt-1 font-mono">
+        <p className="text-xs text-text-secondary mt-1">
           {requiresPin
-            ? `Client IP: ${detectedIp || "Unknown"}`
-            : lockedIdentity
-            ? `User: ${lockedIdentity.fullName || lockedIdentity.username}`
+            ? `IP: ${detectedIp || "Unknown"}`
             : t("auth.signInSubtitle")}
         </p>
       </div>
 
-      {/* Session Expired Alert */}
-      {isExpired && !errorMessage && (
-        <div className="mb-5 p-3 rounded-md erp-callout-caution flex items-start gap-2.5 text-xs text-caution">
-          <Clock className="w-4 h-4 shrink-0 mt-0.5" />
-          <div className="leading-relaxed">
-            {t("auth.sessionExpired")}
-          </div>
+      {isPasswordReset && !errorMessage && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="mb-5 p-3 rounded-md erp-callout-positive flex items-start gap-2.5 text-xs text-delta-positive"
+        >
+          <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+          <div className="leading-relaxed">{t("auth.resetSuccessNotice")}</div>
         </div>
       )}
 
-      {/* Error / Alert Notice */}
+      {isSignedOut && !errorMessage && !isPasswordReset && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="mb-5 p-3 rounded-md border border-border bg-surface-subtle flex items-start gap-2.5 text-xs text-text-secondary"
+        >
+          <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-delta-positive" />
+          <div className="leading-relaxed">{t("auth.signedOutNotice")}</div>
+        </div>
+      )}
+
+      {isExpired && !errorMessage && !isSignedOut && !isPasswordReset && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="mb-5 p-3 rounded-md erp-callout-caution flex items-start gap-2.5 text-xs text-caution"
+        >
+          <Clock className="w-4 h-4 shrink-0 mt-0.5" />
+          <div className="leading-relaxed">{t("auth.sessionExpired")}</div>
+        </div>
+      )}
+
       {errorMessage && (
-        <div className="mb-5 p-3 rounded-md border border-negative/30 bg-negative/10 flex items-start gap-2.5 text-xs text-negative">
+        <div
+          role="alert"
+          aria-live="assertive"
+          className="mb-5 p-3 rounded-md border border-negative/30 bg-negative/10 flex items-start gap-2.5 text-xs text-negative"
+        >
           <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
           <div className="leading-relaxed">{errorMessage}</div>
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        {!requiresPin && (
+        {!requiresPin ? (
           <>
-            {/* Show Username ONLY if NOT locked */}
-            {!lockedIdentity && (
-              <div>
-                <label className="block text-xs font-medium text-text-secondary mb-1.5">
-                  {t("auth.username")}
-                </label>
-                <div className="relative">
-                  <User className="w-4 h-4 absolute left-3 top-2.5 text-text-tertiary" />
-                  <input
-                    type="text"
-                    name="username"
-                    autoComplete="username"
-                    autoFocus
-                    required
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    placeholder={t("auth.usernamePlaceholder")}
-                    className="w-full pl-9 pr-3 py-2 text-xs rounded border border-border bg-surface-subtle text-text-primary focus:outline-none focus:border-border-strong font-mono"
-                  />
-                </div>
+            <div>
+              <label
+                htmlFor="signin-username"
+                className="block text-xs font-medium text-text-secondary mb-1.5"
+              >
+                {t("auth.username")}
+              </label>
+              <div className="relative">
+                <User className="w-4 h-4 absolute left-3 top-2.5 text-text-tertiary pointer-events-none" />
+                <input
+                  id="signin-username"
+                  type="text"
+                  name="username"
+                  autoComplete="username"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  enterKeyHint="next"
+                  autoFocus
+                  required
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder={t("auth.usernamePlaceholder")}
+                  className="w-full pl-9 pr-3 py-2 text-xs rounded border border-border bg-surface-subtle text-text-primary focus:outline-none focus:border-border-strong font-mono"
+                />
               </div>
-            )}
+            </div>
 
-            {/* Field: Password (Always shown, autofocused in locked mode) */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-medium text-text-secondary">
+                <label
+                  htmlFor="signin-password"
+                  className="block text-xs font-medium text-text-secondary"
+                >
                   {t("auth.password")}
                 </label>
-                {lockedIdentity && (
-                  <span className="text-[11px] font-mono text-emerald-400">
-                    {t("auth.quickReAuth")}
-                  </span>
-                )}
+                <Link
+                  href="/forgot-password"
+                  className="text-[11px] text-text-tertiary hover:text-text-primary transition-colors"
+                >
+                  {t("auth.forgotPassword")}
+                </Link>
               </div>
               <div className="relative">
-                <Lock className="w-4 h-4 absolute left-3 top-2.5 text-text-tertiary" />
+                <Lock className="w-4 h-4 absolute left-3 top-2.5 text-text-tertiary pointer-events-none" />
                 <input
+                  id="signin-password"
                   type={showPassword ? "text" : "password"}
                   name="password"
                   autoComplete="current-password"
+                  enterKeyHint="done"
                   required
-                  autoFocus={Boolean(lockedIdentity)}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder={t("auth.passwordPlaceholder")}
@@ -214,9 +220,10 @@ function LoginForm() {
                 />
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-2.5 text-text-tertiary hover:text-text-primary transition-colors"
-                  tabIndex={-1}
+                  aria-pressed={showPassword}
+                  aria-label={showPassword ? t("auth.hidePassword") : t("auth.showPassword")}
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="absolute right-2.5 top-2 text-text-tertiary hover:text-text-primary transition-colors p-0.5 cursor-pointer"
                 >
                   {showPassword ? (
                     <EyeOff className="w-4 h-4" />
@@ -227,39 +234,50 @@ function LoginForm() {
               </div>
             </div>
           </>
-        )}
-
-        {/* Untrusted IP Security PIN Challenge */}
-        {requiresPin && (
+        ) : (
           <div className="p-4 rounded-lg border border-border-strong bg-surface-subtle space-y-4">
             <div>
-              <label className="block text-xs font-medium text-text-primary mb-1.5">
-                6-Digit Security PIN
+              <label
+                htmlFor="signin-security-pin"
+                className="block text-xs font-medium text-text-primary mb-1.5"
+              >
+                {t("auth.securityPin")}
               </label>
               <input
+                id="signin-security-pin"
+                name="securityPin"
                 type="password"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                enterKeyHint="done"
                 maxLength={6}
+                pattern="\d{6}"
                 autoFocus
                 required
                 value={securityPin}
-                onChange={(e) => setSecurityPin(e.target.value)}
+                onChange={(e) => setSecurityPin(e.target.value.replace(/\D/g, ""))}
                 placeholder="••••••"
                 className="w-full px-3 py-2 text-center tracking-[0.5em] text-sm font-mono rounded border border-border bg-surface text-text-primary focus:outline-none focus:border-border-strong"
               />
               <p className="text-[11px] text-text-tertiary mt-1">
-                Enter the 6-digit PIN configured for this workspace.
+                {t("auth.securityPinHint")}
               </p>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1">
-                Device / Location Label
+              <label
+                htmlFor="signin-device-label"
+                className="block text-xs font-medium text-text-secondary mb-1"
+              >
+                {t("auth.deviceLabel")}
               </label>
               <input
+                id="signin-device-label"
+                name="ipLabel"
                 type="text"
                 value={ipLabel}
                 onChange={(e) => setIpLabel(e.target.value)}
-                placeholder="e.g. Office Remote IP"
+                placeholder={t("auth.devicePlaceholder")}
                 className="w-full px-3 py-1.5 text-xs rounded border border-border bg-surface text-text-primary focus:outline-none focus:border-border-strong font-sans"
               />
             </div>
@@ -271,7 +289,7 @@ function LoginForm() {
                 onChange={(e) => setTrustIp(e.target.checked)}
                 className="rounded border-border text-text-primary focus:ring-0"
               />
-              <span>Trust and permanently whitelist this IP address</span>
+              <span>{t("auth.trustIp")}</span>
             </label>
 
             <button
@@ -281,14 +299,13 @@ function LoginForm() {
                 setSecurityPin("");
                 setErrorMessage(null);
               }}
-              className="text-[11px] text-text-tertiary hover:text-text-secondary underline"
+              className="text-[11px] text-text-tertiary hover:text-text-secondary underline cursor-pointer"
             >
-              Back to credential login
+              {t("auth.backToLogin")}
             </button>
           </div>
         )}
 
-        {/* Submit Action */}
         <button
           type="submit"
           disabled={isLoading || isDemoLoading || (isTransitioning && !isDemoLoading)}
@@ -301,8 +318,6 @@ function LoginForm() {
               ? t("auth.authenticating")
               : requiresPin
               ? t("auth.verifyPin")
-              : lockedIdentity
-              ? t("auth.unlockSession")
               : t("auth.signInBtn")}
           </span>
           {isLoading || (isTransitioning && !isDemoLoading) ? (
@@ -311,22 +326,8 @@ function LoginForm() {
             <ArrowRight className="w-3.5 h-3.5" />
           )}
         </button>
-
-        {/* Locked Session Switch Account Link */}
-        {lockedIdentity && !requiresPin && (
-          <div className="text-center pt-1">
-            <button
-              type="button"
-              onClick={handleSwitchAccount}
-              className="text-xs text-text-tertiary hover:text-text-secondary underline cursor-pointer transition-colors"
-            >
-              {t("auth.switchAccount")}
-            </button>
-          </div>
-        )}
       </form>
 
-      {/* General Sandbox Entry */}
       <div className="mt-6 pt-5 border-t border-border space-y-2">
         <div className="text-[10px] font-mono text-text-tertiary uppercase tracking-wider text-center">
           {t("auth.demoEyebrow")}
@@ -343,22 +344,13 @@ function LoginForm() {
           {isDemoLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
         </button>
       </div>
-
-      {/* Security Footer Note */}
-      <div className="mt-5 pt-4 border-t border-border flex flex-wrap items-center justify-between gap-2 text-[11px] text-text-tertiary font-mono">
-        <div className="flex items-center gap-1.5">
-          <ShieldCheck className="w-3.5 h-3.5 text-text-secondary" />
-          <span>{t("auth.securityNote")}</span>
-        </div>
-        <span>{t("auth.securityVersion")}</span>
-      </div>
     </div>
   );
 }
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen w-full bg-canvas flex flex-col justify-center items-center p-4 sm:p-6 select-none">
+    <div className="min-h-screen w-full bg-canvas flex flex-col justify-center items-center p-4 sm:p-6">
       <Suspense fallback={<div className="text-text-tertiary text-xs">Loading...</div>}>
         <LoginForm />
       </Suspense>

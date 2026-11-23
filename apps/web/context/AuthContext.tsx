@@ -9,6 +9,7 @@ import {
   UiDensityMode,
   loginUser,
   loginDemoUser,
+  logoutUserApi,
   registerMember,
   fetchMe,
   resetDemoSandbox,
@@ -22,6 +23,7 @@ interface AuthContextType {
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isSigningOut: boolean;
   remainingSeconds: number;
   isSessionExpiring: boolean;
   isProfileModalOpen: boolean;
@@ -31,7 +33,8 @@ interface AuthContextType {
     fullName?: string;
     email?: string;
   }) => Promise<{ success: boolean; error?: string }>;
-  refreshSession: () => Promise<void>;
+  applySessionBundle: (res: AuthResponse) => void;
+  refreshSession: () => Promise<boolean>;
   login: (payload: {
     accountName?: string;
     username?: string;
@@ -40,6 +43,7 @@ interface AuthContextType {
     securityPin?: string;
     trustIp?: boolean;
     ipLabel?: string;
+    nextPath?: string | null;
   }) => Promise<AuthResponse>;
   demoLogin: () => Promise<void>;
   register: (payload: {
@@ -53,19 +57,21 @@ interface AuthContextType {
     coreSavingsTarget?: number;
   }) => Promise<void>;
   resetDemo: () => Promise<void>;
-  logout: (isExpired?: boolean) => void;
-  switchAccount: () => void;
+  logout: (isExpired?: boolean) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const PUBLIC_ROUTES = new Set(["/login", "/forgot-password", "/reset-password"]);
 
 function parseJwtPayload(token: string): any | null {
   try {
     const parts = token.split(".");
     if (parts.length < 2) return null;
     const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
     const json = decodeURIComponent(
-      atob(base64)
+      atob(padded)
         .split("")
         .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
         .join("")
@@ -98,17 +104,53 @@ function readClientCookie(name: string): string | null {
   return null;
 }
 
-function syncCookies(user: AuthenticatedUser | null, token: string | null) {
+function getSafeNextRedirect(rawNext?: string | null): string {
+  if (!rawNext || !rawNext.startsWith("/") || rawNext.startsWith("//")) return "/";
+  if (PUBLIC_ROUTES.has(rawNext) || rawNext.startsWith("/change-password")) return "/";
+  return rawNext;
+}
+
+function readStoredRefreshToken(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return (
+      localStorage.getItem("erp_refresh_token") ||
+      sessionStorage.getItem("erp_refresh_token")
+    );
+  } catch {
+    return null;
+  }
+}
+
+function syncClientStorage(
+  user: AuthenticatedUser | null,
+  token: string | null,
+  refreshToken?: string | null,
+) {
   if (typeof window === "undefined") return;
+  try {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith("erp_locked_")) {
+        localStorage.removeItem(k);
+      }
+    }
+  } catch {}
   if (user && token) {
     const serialized = JSON.stringify(user);
     try {
       localStorage.setItem("erp_auth_token", token);
       localStorage.setItem("erp_auth_user", serialized);
+      if (refreshToken) {
+        localStorage.setItem("erp_refresh_token", refreshToken);
+      }
     } catch {}
     try {
       sessionStorage.setItem("erp_auth_token", token);
       sessionStorage.setItem("erp_auth_user", serialized);
+      if (refreshToken) {
+        sessionStorage.setItem("erp_refresh_token", refreshToken);
+      }
     } catch {}
     const secureFlag = window.location.protocol === "https:" ? "; Secure" : "";
     document.cookie = `erp_user_id=${user.id}; path=/; max-age=604800; SameSite=Lax${secureFlag}`;
@@ -117,10 +159,12 @@ function syncCookies(user: AuthenticatedUser | null, token: string | null) {
     try {
       localStorage.removeItem("erp_auth_token");
       localStorage.removeItem("erp_auth_user");
+      localStorage.removeItem("erp_refresh_token");
     } catch {}
     try {
       sessionStorage.removeItem("erp_auth_token");
       sessionStorage.removeItem("erp_auth_user");
+      sessionStorage.removeItem("erp_refresh_token");
     } catch {}
     document.cookie = "erp_user_id=; path=/; max-age=0; SameSite=Lax";
     document.cookie = "erp_auth_token=; path=/; max-age=0; SameSite=Lax";
@@ -147,198 +191,250 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthenticatedUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isSigningOut, setIsSigningOut] = useState<boolean>(false);
   const [expiresAt, setExpiresAt] = useState<number | null>(null);
   const [remainingSeconds, setRemainingSeconds] = useState<number>(1800);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState<boolean>(false);
 
-  const userRef = useRef<AuthenticatedUser | null>(null);
-  userRef.current = user;
+  const refreshPromiseRef = useRef<Promise<boolean> | null>(null);
+  const loggingOutRef = useRef<boolean>(false);
 
-  const logout = useCallback(
-    (isExpired = false) => {
-      const activeUser = userRef.current;
-      if (isExpired && activeUser) {
-        try {
-          localStorage.setItem(
-            "erp_locked_identity",
-            JSON.stringify({
-              accountName: activeUser.accountName,
-              username: activeUser.username,
-              fullName: activeUser.fullName,
-              role: activeUser.role,
-            })
-          );
-        } catch {}
-      } else if (!isExpired) {
-        localStorage.removeItem("erp_locked_identity");
-      }
+  const clearClientSessionState = useCallback(
+    (reason: "expired" | "signed_out" | "silent") => {
       setUser(null);
       setToken(null);
       setExpiresAt(null);
       setRemainingSeconds(0);
-      syncCookies(null, null);
+      setIsProfileModalOpen(false);
+      syncClientStorage(null, null, null);
       clearSessionPrivacyStorage();
       invalidateCache();
-      if (isExpired) {
+
+      if (reason === "expired") {
         router.replace("/login?expired=1");
-      } else {
+      } else if (reason === "signed_out") {
+        router.replace("/login?signedOut=1");
+      } else if (!PUBLIC_ROUTES.has(pathname)) {
         router.replace("/login");
       }
     },
-    [router]
+    [pathname, router],
   );
 
-  // Initialize session on mount (triple-backed: localStorage -> sessionStorage -> first-party cookie for Safari iOS)
+  const logout = useCallback(
+    async (isExpired = false) => {
+      if (loggingOutRef.current) return;
+      loggingOutRef.current = true;
+      setIsSigningOut(true);
+
+      const storedRefresh = readStoredRefreshToken();
+      await logoutUserApi(storedRefresh);
+
+      clearClientSessionState(isExpired ? "expired" : "signed_out");
+      setTimeout(() => {
+        loggingOutRef.current = false;
+        setIsSigningOut(false);
+      }, 150);
+    },
+    [clearClientSessionState],
+  );
+
+  const applySessionBundle = useCallback((res: AuthResponse) => {
+    if (!res.accessToken || !res.user) return;
+    invalidateCache();
+    setUser(res.user);
+    setToken(res.accessToken);
+    const expMs = parseJwtExp(res.accessToken) || Date.now() + 1800 * 1000;
+    setExpiresAt(expMs);
+    setRemainingSeconds(Math.max(0, Math.floor((expMs - Date.now()) / 1000)));
+    syncClientStorage(res.user, res.accessToken, res.refreshToken ?? readStoredRefreshToken());
+  }, []);
+
+  const refreshSession = useCallback(async (): Promise<boolean> => {
+    if (refreshPromiseRef.current) {
+      return refreshPromiseRef.current;
+    }
+    const runner = (async () => {
+      try {
+        const storedRefresh = readStoredRefreshToken();
+        const res = await refreshSessionToken(storedRefresh);
+        if (res.accessToken && res.user) {
+          setUser(res.user);
+          setToken(res.accessToken);
+          const expMs = parseJwtExp(res.accessToken) || Date.now() + 1800 * 1000;
+          setExpiresAt(expMs);
+          setRemainingSeconds(Math.max(0, Math.floor((expMs - Date.now()) / 1000)));
+          syncClientStorage(res.user, res.accessToken, res.refreshToken ?? storedRefresh);
+          return true;
+        }
+        return false;
+      } catch {
+        return false;
+      } finally {
+        refreshPromiseRef.current = null;
+      }
+    })();
+
+    refreshPromiseRef.current = runner;
+    return runner;
+  }, []);
+
+  // Initialize session on mount (localStorage -> sessionStorage -> cookie) + silent refresh recovery
   useEffect(() => {
     let isMounted = true;
-    let storedToken: string | null = null;
-    let storedUserJson: string | null = null;
-    if (typeof window !== "undefined") {
-      try {
-        storedToken = localStorage.getItem("erp_auth_token");
-        storedUserJson = localStorage.getItem("erp_auth_user");
-      } catch {}
-      if (!storedToken) {
+
+    const bootstrap = async () => {
+      let storedToken: string | null = null;
+      let storedUserJson: string | null = null;
+      const storedRefresh = readStoredRefreshToken();
+
+      if (typeof window !== "undefined") {
         try {
-          storedToken = sessionStorage.getItem("erp_auth_token");
-          storedUserJson = storedUserJson || sessionStorage.getItem("erp_auth_user");
+          storedToken = localStorage.getItem("erp_auth_token");
+          storedUserJson = localStorage.getItem("erp_auth_user");
         } catch {}
-      }
-      if (!storedToken) {
-        storedToken = readClientCookie("erp_auth_token");
-      }
-    }
-
-    if (!storedToken) {
-      setUser(null);
-      setToken(null);
-      setExpiresAt(null);
-      setRemainingSeconds(0);
-      syncCookies(null, null);
-      setIsLoading(false);
-      if (pathname !== "/login") {
-        router.replace("/login");
-      }
-      return;
-    }
-
-    try {
-      let parsedUser: AuthenticatedUser | null = null;
-      if (storedUserJson) {
-        parsedUser = JSON.parse(storedUserJson);
-      } else {
-        const claims = parseJwtPayload(storedToken);
-        if (claims?.sub) {
-          parsedUser = {
-            id: Number(claims.sub),
-            accountName: claims.accountName || claims.username || "member",
-            username: claims.username || claims.accountName || "member",
-            email: claims.email || "",
-            role: (claims.role as AuthenticatedUser["role"]) || "STANDARD_MEMBER",
-            blueprintType:
-              (claims.blueprintType as AuthenticatedUser["blueprintType"]) || "STANDARD_GENERAL",
-            fullName: claims.fullName || claims.username || "Member",
-            status: (claims.status as AuthenticatedUser["status"]) || "ACTIVE",
-          };
+        if (!storedToken) {
+          try {
+            storedToken = sessionStorage.getItem("erp_auth_token");
+            storedUserJson = storedUserJson || sessionStorage.getItem("erp_auth_user");
+          } catch {}
+        }
+        if (!storedToken) {
+          storedToken = readClientCookie("erp_auth_token");
         }
       }
-      if (!parsedUser) {
-        throw new Error("Missing user session payload");
-      }
-      const expMs = parseJwtExp(storedToken);
-      const now = Date.now();
 
-      if (expMs && expMs <= now) {
-        // Token is already expired
-        try {
-          localStorage.setItem(
-            "erp_locked_identity",
-            JSON.stringify({
-              accountName: parsedUser.accountName,
-              username: parsedUser.username,
-              fullName: parsedUser.fullName,
-              role: parsedUser.role,
-            })
-          );
-        } catch {}
-        logout(true);
+      if (!storedToken && storedRefresh) {
+        const refreshed = await refreshSession();
+        if (isMounted) setIsLoading(false);
+        if (refreshed) return;
+      }
+
+      if (!storedToken) {
+        if (!isMounted) return;
+        setUser(null);
+        setToken(null);
+        setExpiresAt(null);
+        setRemainingSeconds(0);
+        syncClientStorage(null, null, null);
         setIsLoading(false);
+        if (!PUBLIC_ROUTES.has(pathname)) {
+          router.replace("/login");
+        }
         return;
       }
 
-      setUser(parsedUser);
-      setToken(storedToken);
-      setExpiresAt(expMs);
-      if (expMs) {
-        setRemainingSeconds(Math.max(0, Math.floor((expMs - now) / 1000)));
-      }
-      syncCookies(parsedUser, storedToken);
-
-      // Verify token with backend in background
-      fetchMe()
-        .then((result) => {
-          if (!isMounted) return;
-          if (result?.user) {
-            setUser(result.user);
-            syncCookies(result.user, storedToken);
-          } else if (result?.isUnauthorized) {
-            // Explicit 401/403: token was revoked/invalid on backend
-            logout(false);
+      try {
+        let parsedUser: AuthenticatedUser | null = null;
+        if (storedUserJson) {
+          parsedUser = JSON.parse(storedUserJson);
+        } else {
+          const claims = parseJwtPayload(storedToken);
+          if (claims?.sub) {
+            parsedUser = {
+              id: Number(claims.sub),
+              accountName: claims.accountName || claims.username || "",
+              username: claims.username || claims.accountName || "",
+              email: claims.email || "",
+              role: (claims.role as AuthenticatedUser["role"]) || "STANDARD_MEMBER",
+              blueprintType:
+                (claims.blueprintType as AuthenticatedUser["blueprintType"]) || "STANDARD_GENERAL",
+              fullName: claims.fullName || claims.username || "Member",
+              status: (claims.status as AuthenticatedUser["status"]) || "ACTIVE",
+              mustChangePassword: Boolean(claims.mcp),
+            };
           }
-          // Network/CORS blips: preserve existing valid local JWT session
-        })
-        .catch(() => {
-          // Never log out on unexpected network/client exceptions
-        })
-        .finally(() => {
-          if (isMounted) setIsLoading(false);
-        });
+        }
+        if (!parsedUser) {
+          throw new Error("Missing user session payload");
+        }
 
-      return;
-    } catch {
-      // Corrupted session
-      logout(false);
-      setIsLoading(false);
-    }
+        const expMs = parseJwtExp(storedToken);
+        const now = Date.now();
+        if (expMs && expMs <= now) {
+          if (storedRefresh) {
+            const recovered = await refreshSession();
+            if (isMounted && recovered) {
+              setIsLoading(false);
+              return;
+            }
+          }
+          if (isMounted) {
+            clearClientSessionState("expired");
+            setIsLoading(false);
+          }
+          return;
+        }
 
+        if (!isMounted) return;
+        setUser(parsedUser);
+        setToken(storedToken);
+        setExpiresAt(expMs);
+        if (expMs) {
+          setRemainingSeconds(Math.max(0, Math.floor((expMs - now) / 1000)));
+        }
+        syncClientStorage(parsedUser, storedToken, storedRefresh);
+
+        fetchMe()
+          .then((result) => {
+            if (!isMounted) return;
+            if (result?.user) {
+              setUser(result.user);
+              syncClientStorage(result.user, storedToken!, storedRefresh);
+            } else if (result?.isUnauthorized) {
+              clearClientSessionState("expired");
+            }
+          })
+          .catch(() => {})
+          .finally(() => {
+            if (isMounted) setIsLoading(false);
+          });
+      } catch {
+        if (isMounted) {
+          clearClientSessionState("silent");
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void bootstrap();
     return () => {
       isMounted = false;
     };
-  }, [logout, pathname, router]);
+  }, [clearClientSessionState, pathname, refreshSession, router]);
 
-  // Live Session Countdown Timer (1s interval)
+  // Enforce forced first-login password change gate
+  useEffect(() => {
+    if (isLoading || !user) return;
+    if (user.mustChangePassword && pathname !== "/change-password") {
+      router.replace("/change-password");
+    } else if (!user.mustChangePassword && pathname === "/change-password") {
+      router.replace("/");
+    }
+  }, [isLoading, pathname, router, user]);
+
+  // Countdown + automatic silent refresh before expiry
   useEffect(() => {
     if (!expiresAt || !user) return;
+    let triggeredSilentRefresh = false;
 
     const interval = setInterval(() => {
       const diff = Math.floor((expiresAt - Date.now()) / 1000);
+      if (diff <= 120 && diff > 0 && !triggeredSilentRefresh && readStoredRefreshToken()) {
+        triggeredSilentRefresh = true;
+        void refreshSession();
+      }
       if (diff <= 0) {
         clearInterval(interval);
         setRemainingSeconds(0);
-        logout(true);
+        void logout(true);
       } else {
         setRemainingSeconds(diff);
       }
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [expiresAt, user, logout]);
-
-  const refreshSession = useCallback(async () => {
-    try {
-      const res = await refreshSessionToken();
-      if (res.accessToken && res.user) {
-        setUser(res.user);
-        setToken(res.accessToken);
-        const expMs = parseJwtExp(res.accessToken) || Date.now() + 1800 * 1000;
-        setExpiresAt(expMs);
-        setRemainingSeconds(Math.max(0, Math.floor((expMs - Date.now()) / 1000)));
-        syncCookies(res.user, res.accessToken);
-      }
-    } catch (err) {
-      console.error("Failed to refresh session:", err);
-    }
-  }, []);
+  }, [expiresAt, user, logout, refreshSession]);
 
   const login = useCallback(
     async (payload: {
@@ -349,46 +445,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       securityPin?: string;
       trustIp?: boolean;
       ipLabel?: string;
+      nextPath?: string | null;
     }): Promise<AuthResponse> => {
-      const res = await loginUser(payload);
+      const { nextPath, ...credentials } = payload;
+      const res = await loginUser(credentials);
       if (res.accessToken && res.user) {
-        invalidateCache();
-        setUser(res.user);
-        setToken(res.accessToken);
-        const expMs = parseJwtExp(res.accessToken) || Date.now() + 1800 * 1000;
-        setExpiresAt(expMs);
-        setRemainingSeconds(Math.max(0, Math.floor((expMs - Date.now()) / 1000)));
-        try {
-          localStorage.removeItem("erp_locked_identity");
-        } catch {}
         clearSessionPrivacyStorage();
-        syncCookies(res.user, res.accessToken);
-        router.replace("/");
+        applySessionBundle(res);
+        const mustChange = Boolean(res.mustChangePassword || res.user.mustChangePassword);
+        router.replace(mustChange ? "/change-password" : getSafeNextRedirect(nextPath));
         router.refresh();
       }
       return res;
     },
-    [router]
+    [applySessionBundle, router],
   );
 
   const demoLogin = useCallback(async () => {
     const res = await loginDemoUser();
     if (res.accessToken && res.user) {
-      invalidateCache();
-      setUser(res.user);
-      setToken(res.accessToken);
-      const expMs = parseJwtExp(res.accessToken) || Date.now() + 1800 * 1000;
-      setExpiresAt(expMs);
-      setRemainingSeconds(Math.max(0, Math.floor((expMs - Date.now()) / 1000)));
-      try {
-        localStorage.removeItem("erp_locked_identity");
-      } catch {}
       clearSessionPrivacyStorage();
-      syncCookies(res.user, res.accessToken);
+      applySessionBundle(res);
       router.replace("/");
       router.refresh();
     }
-  }, [router]);
+  }, [applySessionBundle, router]);
 
   const register = useCallback(
     async (payload: {
@@ -403,28 +484,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }) => {
       const res = await registerMember(payload);
       if (res.accessToken && res.user) {
-        invalidateCache();
-        setUser(res.user);
-        setToken(res.accessToken);
-        const expMs = parseJwtExp(res.accessToken) || Date.now() + 1800 * 1000;
-        setExpiresAt(expMs);
-        setRemainingSeconds(Math.max(0, Math.floor((expMs - Date.now()) / 1000)));
-        syncCookies(res.user, res.accessToken);
+        applySessionBundle(res);
         router.replace("/");
         router.refresh();
       }
     },
-    [router]
+    [applySessionBundle, router],
   );
 
   const resetDemo = useCallback(async () => {
     await resetDemoSandbox();
     invalidateCache();
     router.refresh();
-  }, [router]);
-
-  const switchAccount = useCallback(() => {
-    router.push("/login");
   }, [router]);
 
   const openProfileModal = useCallback(() => {
@@ -449,11 +520,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const expMs = parseJwtExp(nextToken) || Date.now() + 1800 * 1000;
         setExpiresAt(expMs);
         setRemainingSeconds(Math.max(0, Math.floor((expMs - Date.now()) / 1000)));
-        syncCookies(res.data.user, nextToken);
+        syncClientStorage(res.data.user, nextToken, readStoredRefreshToken());
       }
       return { success: true };
     },
-    [token]
+    [token],
   );
 
   const isSessionExpiring = remainingSeconds <= 300 && remainingSeconds > 0;
@@ -465,19 +536,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         token,
         isAuthenticated: !!user,
         isLoading,
+        isSigningOut,
         remainingSeconds,
         isSessionExpiring,
         isProfileModalOpen,
         openProfileModal,
         closeProfileModal,
         updateUserProfile,
+        applySessionBundle,
         refreshSession,
         login,
         demoLogin,
         register,
         resetDemo,
         logout,
-        switchAccount,
       }}
     >
       {children}
@@ -492,5 +564,3 @@ export function useAuth() {
   }
   return context;
 }
-
-

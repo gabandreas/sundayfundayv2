@@ -448,13 +448,13 @@ export function formatFixedEssentialCategoryLabel(
   if (profileMode === "STANDARD_GENERAL") {
     switch (category.toUpperCase()) {
       case "TRANSPORT":
-        return "Transport & Fuel";
+        return "Housing & Utilities";
       case "INTERNET":
-        return "Internet & Utilities";
+        return "Groceries & Dining";
       case "VAPE":
-        return "Subscriptions & Lifestyle";
+        return "Transport & Mobility";
       case "HAIRCUT":
-        return "Personal Care & Health";
+        return "Subscriptions & Lifestyle";
       default:
         return category;
     }
@@ -499,13 +499,13 @@ export function getRoutineEnvelopeLabel(
   if (profileMode === "STANDARD_GENERAL") {
     switch (normalizedKey) {
       case "transport":
-        return "Transport & Fuel";
+        return "Housing & Utilities";
       case "internet":
-        return "Internet & Utilities";
+        return "Groceries & Dining";
       case "vape":
-        return "Subscriptions & Lifestyle";
+        return "Transport & Mobility";
       case "haircut":
-        return "Personal Care & Health";
+        return "Subscriptions & Lifestyle";
       default:
         return key.charAt(0).toUpperCase() + key.slice(1);
     }
