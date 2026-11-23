@@ -46,3 +46,26 @@ func TestSafeFunctionsAndComparisons(t *testing.T) {
 		t.Fatalf("expected syntax/validation error for unknown token, got %+v", bad)
 	}
 }
+
+func TestCalendarCutoffFormulaTokensAndFebruary(t *testing.T) {
+	novRes := EvaluateFormula("DAYS_IN_MONTH - 15", map[string]float64{
+		"DAYS_IN_MONTH": 30, "TX_DAY": 23, "TX_MONTH": 11, "TX_YEAR": 2026, "IS_LEAP_YEAR": 0, "DUE_DAY": 25,
+	})
+	if !novRes.Valid || novRes.ValueRp != 15 {
+		t.Fatalf("expected 15 for 30-day Nov cutoff, got %+v", novRes)
+	}
+
+	feb27 := EvaluateFormula("{DAYS_IN_MONTH} - 15", map[string]float64{
+		"DAYS_IN_MONTH": 28, "TX_DAY": 13, "TX_MONTH": 2, "TX_YEAR": 2027, "IS_LEAP_YEAR": 0, "DUE_DAY": 25,
+	})
+	if !feb27.Valid || feb27.ValueRp != 13 {
+		t.Fatalf("expected 13 for non-leap Feb 2027, got %+v", feb27)
+	}
+
+	feb28Leap := EvaluateFormula("MIN(20, {DAYS_IN_MONTH} - 15)", map[string]float64{
+		"DAYS_IN_MONTH": 29, "TX_DAY": 14, "TX_MONTH": 2, "TX_YEAR": 2028, "IS_LEAP_YEAR": 1, "DUE_DAY": 25,
+	})
+	if !feb28Leap.Valid || feb28Leap.ValueRp != 14 {
+		t.Fatalf("expected 14 for leap Feb 2028, got %+v", feb28Leap)
+	}
+}

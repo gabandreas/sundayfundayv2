@@ -1,10 +1,14 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { SnapshotsSelectors } from '../snapshots/snapshots.selectors';
+import { SnapshotsService } from '../snapshots/snapshots.service';
 import { FinanceService } from '../finance/finance.service';
 import { FinanceSelectors } from '../finance/finance.selectors';
 import { CreditService } from '../credit/credit.service';
 import { CreditSelectors } from '../credit/credit.selectors';
 import { SavingsSelectors } from '../savings/savings.selectors';
+import { SavingsService } from '../savings/savings.service';
+import { WishlistService } from '../wishlist/wishlist.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { MarqueeInstrument, MarqueeToolName } from './marquee-nlu';
 
 export interface MarqueeCardItem {
@@ -13,16 +17,19 @@ export interface MarqueeCardItem {
   tone?: 'default' | 'positive' | 'caution' | 'urgency';
 }
 
+export type MarqueePendingActionType =
+  | 'CONFIRM_EXPENSE'
+  | 'CONFIRM_SHIFT_LIABILITY'
+  | 'CONFIRM_SETTLE_LIABILITY'
+  | 'CONFIRM_BUDGET_REVISION'
+  | 'CONFIRM_SAVINGS_ACTION'
+  | 'CONFIRM_WISHLIST_ADD'
+  | 'CONFIRM_SUBSCRIPTION_ACTION';
+
 export interface MarqueePendingAction {
-  type: 'CONFIRM_EXPENSE';
-  payload: {
-    title: string;
-    amountRp: number;
-    instrument: MarqueeInstrument;
-    tenorMonths: number;
-    month: number;
-    year: number;
-  };
+  type: MarqueePendingActionType;
+  title?: string;
+  payload: Record<string, any>;
 }
 
 export interface MarqueeToolResult {
@@ -94,6 +101,10 @@ export class MarqueeToolsService {
     private readonly creditService: CreditService,
     private readonly creditSelectors: CreditSelectors,
     private readonly savingsSelectors: SavingsSelectors,
+    @Optional() private readonly snapshotsService?: SnapshotsService,
+    @Optional() private readonly wishlistService?: WishlistService,
+    @Optional() private readonly savingsService?: SavingsService,
+    @Optional() private readonly prisma?: PrismaService,
   ) {}
 
   private async resolvePeriod(
@@ -177,6 +188,19 @@ export class MarqueeToolsService {
         const amountRp = Math.max(0, Math.round(Number(args.amountRp ?? args.amount ?? 0)));
         const instrument = (args.instrument || 'CASH') as MarqueeInstrument;
         const tenorMonths = Math.max(1, Math.min(36, Math.round(Number(args.tenorMonths ?? 1))));
+        const requestedDate =
+          typeof args.purchaseDate === 'string' &&
+          /^\d{4}-\d{2}-\d{2}$/.test(args.purchaseDate.trim())
+            ? args.purchaseDate.trim()
+            : todayIso;
+        const explicitMonth =
+          Number.isInteger(Number(args.billingStartMonth)) && Number(args.billingStartMonth) >= 1 && Number(args.billingStartMonth) <= 12
+            ? Number(args.billingStartMonth)
+            : undefined;
+        const explicitYear =
+          Number.isInteger(Number(args.billingStartYear)) && Number(args.billingStartYear) >= 2000
+            ? Number(args.billingStartYear)
+            : undefined;
 
         if (amountRp <= 0) {
           return {
@@ -201,7 +225,10 @@ export class MarqueeToolsService {
               amountMode: 'PRINCIPAL_SPLIT',
               principalAmount: amountRp,
               tenorMonths,
-              purchaseDate: todayIso,
+              purchaseDate: requestedDate,
+              ...(explicitMonth && explicitYear
+                ? { startMonthOverride: explicitMonth, startYearOverride: explicitYear }
+                : {}),
             },
             ctx.userId,
           );
@@ -221,7 +248,18 @@ export class MarqueeToolsService {
             ],
             pendingAction: {
               type: 'CONFIRM_EXPENSE',
-              payload: { title, amountRp, instrument, tenorMonths, month, year },
+              payload: {
+                title,
+                amountRp,
+                instrument,
+                tenorMonths,
+                month,
+                year,
+                purchaseDate: requestedDate,
+                ...(explicitMonth && explicitYear
+                  ? { billingStartMonth: explicitMonth, billingStartYear: explicitYear }
+                  : {}),
+              },
             },
             data: { preview },
           };
@@ -235,7 +273,7 @@ export class MarqueeToolsService {
               type: 'DEDUCTION',
               label: title,
               amount: amountRp,
-              date: todayIso,
+              date: requestedDate,
               paymentMethod: 'CASH',
             } as any,
             ctx.userId,
@@ -253,6 +291,7 @@ export class MarqueeToolsService {
           };
         }
 
+        const hasExplicit = Boolean(explicitMonth && explicitYear);
         const createdSchedule = await this.creditService.createLineItemSchedule(
           {
             title,
@@ -260,8 +299,9 @@ export class MarqueeToolsService {
             merchantOrPlatform: instrument === 'CREDIT_CARD' ? 'Credit Card' : 'SPayLater',
             totalAmount: amountRp,
             tenorMonths,
-            purchaseDate: todayIso,
-            autoRouteByCutoff: true,
+            ...(hasExplicit ? { startMonth: explicitMonth, startYear: explicitYear } : {}),
+            purchaseDate: requestedDate,
+            autoRouteByCutoff: !hasExplicit,
           } as any,
           ctx.userId,
         );
@@ -351,11 +391,11 @@ export class MarqueeToolsService {
         return {
           ok: true,
           tool,
-          summary: `For a ${formatRp(bonusRp)} THR or bonus in ${periodTag}: clear ${formatRp(coverShortfall)} in living shortfall first, lock ${formatRp(p1Allocation)} into your P1 Core Vault, direct ${formatRp(debtPrepay)} toward high-cost SPinjam/PayLater debt, and keep ${formatRp(livingAndReward)} for holiday living and P2 self-reward.`,
+          summary: `For a ${formatRp(bonusRp)} THR or bonus in ${periodTag}: clear ${formatRp(coverShortfall)} in living shortfall first, lock ${formatRp(p1Allocation)} into your Emergency Fund / P1 Savings Reserve, direct ${formatRp(debtPrepay)} toward high-cost SPinjam/PayLater debt, and keep ${formatRp(livingAndReward)} for holiday living and P2 flexibility.`,
           cards: [
             { label: 'Bonus / THR Pool', value: formatRp(bonusRp), tone: 'positive' },
             { label: '1. Shortfall Cover', value: formatRp(coverShortfall) },
-            { label: '2. P1 Core Vault', value: formatRp(p1Allocation), tone: 'positive' },
+            { label: '2. P1 Savings Reserve', value: formatRp(p1Allocation), tone: 'positive' },
             {
               label: '3. Debt + Holiday Buffer',
               value: `${formatRp(debtPrepay)} debt · ${formatRp(livingAndReward)} buffer`,
@@ -542,9 +582,9 @@ export class MarqueeToolsService {
         return {
           ok: true,
           tool,
-          summary: `P1 Savings Vault holds ${formatRp(totalBal)} (${formatRp(rdpuBal)} in RDPU) across ${goalList.length} tracked goal(s).`,
+          summary: `P1 Savings Reserve holds ${formatRp(totalBal)} (${formatRp(rdpuBal)} in RDPU) across ${goalList.length} tracked goal(s).`,
           cards: [
-            { label: 'Total P1 Vault', value: formatRp(totalBal), tone: 'positive' },
+            { label: 'Total Savings Reserve', value: formatRp(totalBal), tone: 'positive' },
             { label: 'Money Market (RDPU)', value: formatRp(rdpuBal) },
             { label: 'Active Goals', value: `${goalList.length}` },
           ],
@@ -578,6 +618,409 @@ export class MarqueeToolsService {
             { label: 'Estimated Interest Saved', value: formatRp(top?.estimatedInterestSavedRp ?? 0), tone: 'positive' },
           ],
           data: { debtopt: intel?.debtopt },
+        };
+      }
+
+      case 'manage_liability_item': {
+        const rawAction = String(args.action || 'SHIFT_EARLIER').toUpperCase();
+        const isSettle = rawAction === 'SETTLE' || rawAction === 'UNSETTLE';
+        const direction: 'EARLIER' | 'LATER' =
+          rawAction === 'SHIFT_LATER' ? 'LATER' : 'EARLIER';
+        const splitAmount =
+          args.splitAmount && Number(args.splitAmount) > 0
+            ? Math.round(Number(args.splitAmount))
+            : undefined;
+
+        let targetItem: any = null;
+        if (args.itemId) {
+          if (typeof (this.prisma as any)?.liabilityLineItem?.findUnique === 'function') {
+            targetItem = await (this.prisma as any).liabilityLineItem.findUnique({
+              where: { id: Number(args.itemId) },
+            });
+          } else if (typeof (this.prisma as any)?.liabilityLineItem?.findMany === 'function') {
+            const list = await (this.prisma as any).liabilityLineItem.findMany({
+              where: { userId: ctx.userId },
+            });
+            targetItem = (list ?? []).find((x: any) => Number(x.id) === Number(args.itemId)) ?? null;
+          }
+          if (!targetItem) {
+            targetItem = {
+              id: Number(args.itemId),
+              title: String(args.title || `Item #${args.itemId}`),
+              month,
+              year,
+            };
+          }
+        } else if (typeof (this.prisma as any)?.liabilityLineItem?.findMany === 'function') {
+          const items: any[] = await (this.prisma as any).liabilityLineItem.findMany({
+            where: { userId: ctx.userId },
+            orderBy: [{ year: 'asc' }, { month: 'asc' }],
+            take: 60,
+          });
+          const q = String(args.itemQuery || args.title || '').toLowerCase().trim();
+          targetItem =
+            items.find((i) => !q || String(i.title || '').toLowerCase().includes(q)) ??
+            items[0] ??
+            null;
+        }
+
+        if (!targetItem) {
+          return {
+            ok: false,
+            tool,
+            summary: 'No matching PayLater or installment item was found in your schedule.',
+            cards: [],
+          };
+        }
+
+        const itemId = Number(targetItem.id);
+        const itemTitle = String(targetItem.title || `Item #${itemId}`);
+        const itemAmt = Math.round(Number(targetItem.monthlyAmount ?? 0));
+
+        if (!ctx.confirm) {
+          if (isSettle) {
+            const nextPaid = rawAction === 'SETTLE';
+            return {
+              ok: true,
+              tool,
+              summary: `Staged ${nextPaid ? 'settlement' : 'reopen'} for "${itemTitle}" (${formatRp(itemAmt)}). Confirm below to update the ledger.`,
+              cards: [
+                { label: 'Target Item', value: itemTitle },
+                { label: 'Amount', value: formatRp(itemAmt) },
+                { label: 'Action', value: nextPaid ? 'Mark Paid' : 'Mark Unpaid', tone: 'caution' },
+              ],
+              pendingAction: {
+                type: 'CONFIRM_SETTLE_LIABILITY',
+                title: itemTitle,
+                payload: {
+                  itemId,
+                  title: itemTitle,
+                  action: rawAction,
+                  isSettled: nextPaid,
+                  month: Number(targetItem.month ?? month),
+                  year: Number(targetItem.year ?? year),
+                },
+              },
+              data: { targetItem },
+            };
+          }
+
+          return {
+            ok: true,
+            tool,
+            summary: `Staged shift ${direction.toLowerCase()} for "${itemTitle}" (${formatRp(itemAmt)}). Confirm below to move its billing period.`,
+            cards: [
+              { label: 'Target Item', value: itemTitle },
+              { label: 'Amount', value: formatRp(itemAmt) },
+              { label: 'Move Direction', value: direction, tone: 'caution' },
+            ],
+            pendingAction: {
+              type: 'CONFIRM_SHIFT_LIABILITY',
+              title: itemTitle,
+              payload: {
+                itemId,
+                title: itemTitle,
+                action: rawAction,
+                direction,
+                ...(splitAmount ? { splitAmount } : {}),
+                month: Number(targetItem.month ?? month),
+                year: Number(targetItem.year ?? year),
+              },
+            },
+            data: { targetItem },
+          };
+        }
+
+        if (isSettle) {
+          const updated = await this.creditService.toggleLineItemSettled(
+            itemId,
+            rawAction === 'SETTLE',
+            ctx.userId,
+          );
+          return {
+            ok: true,
+            tool,
+            summary: `Updated "${itemTitle}" settlement state cleanly.`,
+            cards: [
+              { label: 'Updated Item', value: itemTitle, tone: 'positive' },
+              { label: 'Status', value: rawAction === 'SETTLE' ? 'Paid' : 'Unpaid' },
+            ],
+            data: { updated },
+          };
+        }
+
+        const shiftDto: any = { direction };
+        if (splitAmount) shiftDto.splitAmount = splitAmount;
+        const shifted = await this.creditService.shiftLineItem(
+          itemId,
+          shiftDto,
+          ctx.userId,
+        );
+        return {
+          ok: true,
+          tool,
+          summary: `Moved "${itemTitle}" ${direction.toLowerCase()} across paycycles and recalculated totals.`,
+          cards: [
+            { label: 'Moved Item', value: itemTitle, tone: 'positive' },
+            { label: 'Direction', value: direction },
+            {
+              label: 'Periods Updated',
+              value: Array.isArray((shifted as any)?.affectedPeriods)
+                ? (shifted as any).affectedPeriods
+                    .map((p: any) => `${String(p.month).padStart(2, '0')}/${p.year}`)
+                    .join(' -> ')
+                : periodTag,
+            },
+          ],
+          data: { shifted },
+        };
+      }
+
+      case 'revise_budget_or_quota': {
+        const category = String(args.category || 'DAILY_OPERATIONAL').toUpperCase();
+        const newValueRp = Math.max(
+          0,
+          Math.round(Number(args.newValueRp ?? args.amountRp ?? 0)),
+        );
+        const reason = String(args.reason || `Updated via Marquee for ${periodTag}`).trim();
+
+        if (!ctx.confirm) {
+          return {
+            ok: true,
+            tool,
+            summary: `Staged ${category} budget revision to ${formatRp(newValueRp)} for ${periodTag}. Confirm below to apply.`,
+            cards: [
+              { label: 'Target Bucket', value: category },
+              { label: 'New Quota', value: formatRp(newValueRp), tone: 'caution' },
+              { label: 'Period', value: periodTag },
+            ],
+            pendingAction: {
+              type: 'CONFIRM_BUDGET_REVISION',
+              title: `${category} -> ${formatRp(newValueRp)}`,
+              payload: { category, newValueRp, month, year, reason },
+            },
+          };
+        }
+
+        let snapId = 0;
+        if (typeof (this.snapshotsSelectors as any)?.getOrCreateDraftSnapshot === 'function') {
+          const snap = await this.snapshotsSelectors.getOrCreateDraftSnapshot(
+            month,
+            year,
+            ctx.userId,
+          );
+          snapId = Number((snap as any)?.id ?? 0);
+        }
+
+        let revision: any = null;
+        if (typeof (this.snapshotsService as any)?.createBudgetRevision === 'function') {
+          revision = await this.snapshotsService!.createBudgetRevision(
+            snapId,
+            { category: category as any, newValue: newValueRp, reason },
+            ctx.userId,
+          );
+        } else if (typeof (this.snapshotsService as any)?.createRevision === 'function') {
+          revision = await (this.snapshotsService as any).createRevision(
+            month,
+            year,
+            { category, newValue: newValueRp, reason },
+            ctx.userId,
+          );
+        }
+
+        return {
+          ok: true,
+          tool,
+          summary: `Revised ${category} in ${periodTag} to ${formatRp(newValueRp)} and recalculated allocations.`,
+          cards: [
+            { label: 'Updated Bucket', value: category, tone: 'positive' },
+            { label: 'New Target', value: formatRp(newValueRp), tone: 'positive' },
+            { label: 'Period', value: periodTag },
+          ],
+          data: { revision },
+        };
+      }
+
+      case 'manage_savings_pocket_or_goal': {
+        const action = String(args.action || 'TOPUP').toUpperCase();
+        const amountRp = Math.max(0, Math.round(Number(args.amountRp ?? args.amount ?? 0)));
+        const label = String(args.label || args.title || 'Savings Contribution').trim();
+        const instrumentType = String(args.instrumentType || 'LIQUID_CASH').toUpperCase();
+
+        if (!ctx.confirm) {
+          return {
+            ok: true,
+            tool,
+            summary: `Staged ${action.toLowerCase()} "${label}" (${formatRp(amountRp)}) in Savings Reserve. Confirm below to commit.`,
+            cards: [
+              { label: 'Action', value: action },
+              { label: 'Label', value: label },
+              { label: 'Amount', value: formatRp(amountRp), tone: 'positive' },
+            ],
+            pendingAction: {
+              type: 'CONFIRM_SAVINGS_ACTION',
+              title: label,
+              payload: { action, label, amountRp, instrumentType, month, year },
+            },
+          };
+        }
+
+        let saved: any = null;
+        if (action === 'CREATE_GOAL' && this.savingsService) {
+          saved = await this.savingsService.createGoal(
+            {
+              title: label,
+              targetAmount: amountRp,
+              currentAllocatedAmount: 0,
+            } as any,
+            ctx.userId,
+          );
+        } else if (this.savingsService) {
+          saved = await this.savingsService.createTransaction(
+            {
+              type: action === 'WITHDRAWAL' ? 'WITHDRAWAL' : 'TOPUP',
+              label,
+              amount: amountRp,
+              instrumentType,
+              date: todayIso,
+              periodMonth: month,
+              periodYear: year,
+            } as any,
+            ctx.userId,
+          );
+        }
+
+        return {
+          ok: true,
+          tool,
+          summary: `Saved ${action.toLowerCase()} "${label}" (${formatRp(amountRp)}) into your Savings Reserve.`,
+          cards: [
+            { label: 'Saved Action', value: label, tone: 'positive' },
+            { label: 'Amount', value: formatRp(amountRp), tone: 'positive' },
+          ],
+          data: { saved },
+        };
+      }
+
+      case 'manage_wishlist_or_subscription': {
+        const action = String(args.action || 'ADD_WISHLIST').toUpperCase();
+        const title = String(args.title || args.label || 'New Item').trim();
+        const amountRp = Math.max(0, Math.round(Number(args.amountRp ?? args.price ?? 0)));
+
+        if (action === 'TOGGLE_KILL_SWITCH') {
+          const itemId = Number(args.itemId ?? 0);
+          if (!ctx.confirm) {
+            return {
+              ok: true,
+              tool,
+              summary: `Staged subscription kill-switch update for "${title}". Confirm below to apply.`,
+              cards: [
+                { label: 'Subscription', value: title },
+                { label: 'Action', value: 'Confirm Cancel / Auto-Stop', tone: 'caution' },
+              ],
+              pendingAction: {
+                type: 'CONFIRM_SUBSCRIPTION_ACTION',
+                title,
+                payload: { action, itemId, title, confirmCancel: Boolean(args.confirmCancel ?? true), month, year },
+              },
+            };
+          }
+          const updated =
+            itemId > 0
+              ? await this.creditService.updateKillSwitch(
+                  itemId,
+                  {
+                    providerCancelConfirmed: Boolean(args.confirmCancel ?? true),
+                    autoStopAfterPromo: true,
+                  } as any,
+                  ctx.userId,
+                )
+              : null;
+          return {
+            ok: true,
+            tool,
+            summary: `Updated kill-switch for "${title}".`,
+            cards: [{ label: 'Updated', value: title, tone: 'positive' }],
+            data: { updated },
+          };
+        }
+
+        if (!ctx.confirm) {
+          return {
+            ok: true,
+            tool,
+            summary: `Staged wishlist item "${title}" (${formatRp(amountRp)}). Confirm below to save it.`,
+            cards: [
+              { label: 'Wishlist Target', value: title },
+              { label: 'Estimated Price', value: formatRp(amountRp), tone: 'positive' },
+            ],
+            pendingAction: {
+              type: 'CONFIRM_WISHLIST_ADD',
+              title,
+              payload: { action, title, amountRp, month, year },
+            },
+          };
+        }
+
+        const createdWish =
+          this.wishlistService &&
+          (typeof (this.wishlistService as any).createWishlist === 'function'
+            ? await (this.wishlistService as any).createWishlist(
+                { name: title, price: amountRp, targetMonth: month, targetYear: year },
+                ctx.userId,
+              )
+            : await this.wishlistService.createItem(
+                { name: title, price: amountRp, targetMonth: month, targetYear: year } as any,
+                ctx.userId,
+              ));
+
+        return {
+          ok: true,
+          tool,
+          summary: `Added "${title}" (${formatRp(amountRp)}) to your Wishlist.`,
+          cards: [
+            { label: 'Saved Target', value: title, tone: 'positive' },
+            { label: 'Target Price', value: formatRp(amountRp) },
+          ],
+          data: { createdWish },
+        };
+      }
+
+      case 'run_what_if_scenario': {
+        const extraMonthlySavingsRp = Math.max(
+          0,
+          Math.round(Number(args.extraMonthlySavingsRp ?? args.amountRp ?? 500_000)),
+        );
+        const oneTimeBonusRp = Math.max(
+          0,
+          Math.round(Number(args.oneTimeBonusRp ?? 0)),
+        );
+        const extraDebtPrepaymentRp = Math.max(
+          0,
+          Math.round(Number(args.extraDebtPrepaymentRp ?? args.reduceMonthlyDebtRp ?? 0)),
+        );
+        const scenario: any = await this.financeSelectors.simulateScenarioForUser(
+          {
+            month,
+            year,
+            extraMonthlySavingsRp,
+            oneTimeBonusRp,
+            extraDebtPrepaymentRp,
+          },
+          ctx.userId,
+        );
+        const delta = Math.round(Number(scenario?.net12MDeltaRp ?? 0));
+        const runwayDelta = Math.round(Number(scenario?.runwayDeltaDays ?? 0));
+        return {
+          ok: true,
+          tool,
+          summary: `Running 12-month simulation (+${formatRp(extraMonthlySavingsRp)}/mo savings): projected wealth shifts by +${formatRp(delta)} with ${runwayDelta >= 0 ? '+' : ''}${runwayDelta} runway days.`,
+          cards: [
+            { label: 'Extra Monthly Savings', value: `${formatRp(extraMonthlySavingsRp)}/mo` },
+            { label: '12M Wealth Impact', value: `+${formatRp(delta)}`, tone: 'positive' },
+            { label: 'Runway Gain', value: `+${runwayDelta}d`, tone: 'positive' },
+          ],
+          data: { scenario },
         };
       }
     }

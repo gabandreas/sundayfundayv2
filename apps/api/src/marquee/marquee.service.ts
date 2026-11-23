@@ -21,6 +21,33 @@ import {
   MarqueeProactiveReminder,
 } from './marquee-context.service';
 
+const HUMAN_TOOL_LABELS: Record<string, string> = {
+  get_paycycle_pulse: 'Checked active paycycle balance and daily safe-to-spend',
+  get_due_schedule: 'Checked scheduled bill maturities and due dates',
+  explain_period_variance: 'Compared income, bills, and savings across periods',
+  simulate_cutoff: 'Simulated statement cutoff and monthly billing period',
+  prepare_quick_transaction: 'Prepared expense entry with statement cutoff routing',
+  manage_liability_item: 'Prepared liability schedule adjustment',
+  revise_budget_or_quota: 'Prepared monthly budget allocation revision',
+  manage_savings_pocket_or_goal: 'Prepared savings allocation adjustment',
+  manage_wishlist_or_subscription: 'Prepared wishlist or recurring item update',
+  run_what_if_scenario: 'Ran debt payoff and cashflow projection',
+  evaluate_formula: 'Evaluated custom formula expression',
+  calculate_life_energy: 'Calculated real hourly wage and work-hours cost',
+};
+
+const HUMAN_ACTION_LABELS: Record<string, string> = {
+  RECORD_TRANSACTION: 'Ready to record expense entry',
+  MUTATE_LIABILITY_ITEM: 'Ready to update liability schedule',
+  REVISE_BUDGET: 'Ready to update monthly allocation',
+  MUTATE_SAVINGS: 'Ready to update savings allocation',
+  MUTATE_WISHLIST: 'Ready to update wishlist or subscription',
+};
+
+function describeToolAction(toolName: string): string {
+  return HUMAN_TOOL_LABELS[toolName] ?? 'Verified financial ledger calculation';
+}
+
 export interface StoredMarqueeConfig {
   provider?: MarqueeAiProvider;
   geminiApiKeyEnc?: string;
@@ -71,6 +98,22 @@ export interface MarqueeChatRequestDto {
   activeSubTab?: string | null;
 }
 
+export interface MarqueeAgentStep {
+  id: string;
+  label: string;
+  detail: string;
+  status: 'done' | 'active';
+  durationMs?: number;
+}
+
+export interface MarqueeStreamStatusEvent {
+  type: 'status';
+  phase: 'THINKING' | 'HYDRATING' | 'ANALYZING' | 'STAGING';
+  label: string;
+  detail: string;
+  timestamp: string;
+}
+
 export interface MarqueeChatResponse extends MarqueeToolResult {
   tierUsed:
     | 'TIER1_NLU'
@@ -83,6 +126,7 @@ export interface MarqueeChatResponse extends MarqueeToolResult {
   locale: 'en' | 'id' | 'zh';
   assistantPrefix?: string;
   reasoning?: string;
+  agentSteps?: MarqueeAgentStep[];
   proactiveReminders?: MarqueeProactiveReminder[];
   hydratedContext?: {
     periodTag: string;
@@ -298,11 +342,45 @@ export class MarqueeService {
   }
 
   async chat(userId: number, dto: MarqueeChatRequestDto): Promise<MarqueeChatResponse> {
-    const message = String(dto.message ?? '').trim();
+    return this.chatWithProgress(userId, dto);
+  }
 
-    if (dto.confirm && dto.pendingAction?.type === 'CONFIRM_EXPENSE') {
-      const p = dto.pendingAction.payload;
-      const result = await this.toolsService.executeTool('prepare_quick_transaction', p, {
+  async chatWithProgress(
+    userId: number,
+    dto: MarqueeChatRequestDto,
+    onProgress?: (event: MarqueeStreamStatusEvent) => void,
+  ): Promise<MarqueeChatResponse> {
+    const message = String(dto.message ?? '').trim();
+    const t0 = Date.now();
+    const emit = (
+      phase: MarqueeStreamStatusEvent['phase'],
+      label: string,
+      detail: string,
+    ) => {
+      onProgress?.({
+        type: 'status',
+        phase,
+        label,
+        detail,
+        timestamp: new Date().toISOString(),
+      });
+    };
+
+    const actionToolMap: Record<string, any> = {
+      CONFIRM_EXPENSE: 'prepare_quick_transaction',
+      CONFIRM_SHIFT_LIABILITY: 'manage_liability_item',
+      CONFIRM_SETTLE_LIABILITY: 'manage_liability_item',
+      CONFIRM_BUDGET_REVISION: 'revise_budget_or_quota',
+      CONFIRM_SAVINGS_ACTION: 'manage_savings_pocket_or_goal',
+      CONFIRM_WISHLIST_ADD: 'manage_wishlist_or_subscription',
+      CONFIRM_SUBSCRIPTION_ACTION: 'manage_wishlist_or_subscription',
+    };
+
+    if (dto.confirm && dto.pendingAction && actionToolMap[dto.pendingAction.type]) {
+      emit('ANALYZING', 'Executing confirmed action...', dto.pendingAction.type);
+      const p = dto.pendingAction.payload ?? {};
+      const toolName = actionToolMap[dto.pendingAction.type];
+      const result = await this.toolsService.executeTool(toolName, p, {
         userId,
         confirm: true,
         month: dto.month ?? p.month,
@@ -313,12 +391,31 @@ export class MarqueeService {
         tierUsed: 'CONFIRMED_EXECUTION',
         model: 'deterministic-commit',
         locale: dto.locale ?? 'en',
+        agentSteps: [
+          {
+            id: 'step_confirm',
+            label: 'Executed confirmed action',
+            detail: `${toolName} persisted cleanly`,
+            status: 'done',
+            durationMs: Math.max(1, Date.now() - t0),
+          },
+        ],
       };
     }
 
+    emit('THINKING', 'Thinking...', 'Reading prompt intent & period context');
     const parsedTier1 = parseMarqueeIntent(message || 'financial pulse');
     const locale = dto.locale ?? parsedTier1.locale;
+    const steps: MarqueeAgentStep[] = [
+      {
+        id: 'step_intent',
+        label: 'Parsed intent',
+        detail: `${parsedTier1.tool}${parsedTier1.amountRp ? ` · Rp ${parsedTier1.amountRp.toLocaleString('id-ID')}` : ''}`,
+        status: 'done',
+      },
+    ];
 
+    emit('HYDRATING', 'Reading ERP ledger...', 'Checking cards, cutoffs, wishlist & balances');
     let hydrated: MarqueeFinancialContext | undefined;
     if (this.contextHydrator && typeof this.contextHydrator.hydrateForUser === 'function') {
       try {
@@ -332,6 +429,14 @@ export class MarqueeService {
       } catch {
         hydrated = undefined;
       }
+    }
+    if (hydrated) {
+      steps.push({
+        id: 'step_hydrate',
+        label: `Loaded ${hydrated.activePeriod?.periodTag ?? 'active'} live ledger`,
+        detail: `${hydrated.dueDayCalendar?.activeCycleItems?.length ?? 0} cycle items · ${hydrated.creditCardsAndContracts?.length ?? 0} card plans · ${hydrated.wishlistItems?.length ?? 0} wishlist`,
+        status: 'done',
+      });
     }
 
     const cfg = await this.prisma.globalConfig.findFirst({ where: { userId } });
@@ -390,6 +495,10 @@ export class MarqueeService {
       instrument: parsedTier1.instrument,
       tenorMonths: parsedTier1.tenorMonths,
       expression: parsedTier1.expression,
+      action: parsedTier1.action,
+      itemQuery: parsedTier1.itemQuery,
+      category: parsedTier1.category,
+      purchaseDate: parsedTier1.purchaseDateIso,
     };
     let tierUsed: MarqueeChatResponse['tierUsed'] = 'TIER1_NLU';
     let model = 'tier1-deterministic-nlu';
@@ -414,6 +523,7 @@ export class MarqueeService {
         : undefined;
 
     if (provider !== 'TIER1_ONLY' && hasAnyKey) {
+      emit('ANALYZING', 'Reasoning with co-pilot...', `Provider: ${provider}`);
       const resolved = await this.llmService.resolveWithProvider({
         provider,
         geminiApiKey,
@@ -449,6 +559,13 @@ export class MarqueeService {
 
         // Direct conversational LLM answer (e.g. greetings or ledger Q&A) — do NOT force Tier 1 tool boilerplate
         if (!resolved.didCallTool && resolved.tool === null && resolved.assistantPrefix) {
+          steps.push({
+            id: 'step_llm_reply',
+            label: `Verified ledger via ${model}`,
+            detail: 'Answered directly from hydrated ERP state',
+            status: 'done',
+            durationMs: Math.max(1, Date.now() - t0),
+          });
           return {
             ok: true,
             tool: 'conversational' as any,
@@ -459,6 +576,7 @@ export class MarqueeService {
             locale,
             assistantPrefix: resolved.assistantPrefix,
             ...(reasoning ? { reasoning } : {}),
+            agentSteps: steps,
             ...(hydrated?.proactiveReminders
               ? { proactiveReminders: hydrated.proactiveReminders }
               : {}),
@@ -473,12 +591,30 @@ export class MarqueeService {
       }
     }
 
+    const actionSummary = describeToolAction(selectedTool);
+    emit('ANALYZING', 'Running ledger check...', actionSummary);
     const result = await this.toolsService.executeTool(selectedTool, selectedArgs, {
       userId,
       confirm: Boolean(dto.confirm),
       month: dto.month,
       year: dto.year,
     });
+    steps.push({
+      id: 'step_tool',
+      label: actionSummary,
+      detail: result.pendingAction
+        ? `${HUMAN_ACTION_LABELS[result.pendingAction.type] ?? 'Staged ledger update'} awaiting confirmation`
+        : `${result.cards?.length ?? 0} summary metrics verified`,
+      status: 'done',
+      durationMs: Math.max(1, Date.now() - t0),
+    });
+    if (result.pendingAction) {
+      emit(
+        'STAGING',
+        'Preparing confirmation...',
+        HUMAN_ACTION_LABELS[result.pendingAction.type] ?? 'Confirmation card ready',
+      );
+    }
 
     if (
       llmResolution?.didCallTool &&
@@ -535,6 +671,7 @@ export class MarqueeService {
       locale,
       ...(assistantPrefix ? { assistantPrefix } : {}),
       ...(reasoning ? { reasoning } : {}),
+      agentSteps: steps,
       ...(hydrated?.proactiveReminders ? { proactiveReminders: hydrated.proactiveReminders } : {}),
       hydratedContext: buildHydratedMeta(),
     };

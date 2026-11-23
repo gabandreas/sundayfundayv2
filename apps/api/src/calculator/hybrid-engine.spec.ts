@@ -28,42 +28,80 @@ describe('Hybrid Engine (Go <-> TypeScript Parity & Financial Precision)', () =>
     expect(slices.reduce((a, b) => a + b, 0)).toBe(92000);
   });
 
-  it('routes SPayLater dynamic daysInMonth(M)-15 cutoff (due 25th) and Bank Permata Credit Card 25th cutoff (due 11th + H-1 weekend advisory) identically to domain rules', () => {
-    // 1. SPayLater in 30-day Nov (30 - 15 = 15th cutoff): Nov 15 -> 12/2026 (due 2026-12-25); Nov 16 -> 01/2027 (due 2027-01-25)
-    const spNov15 = simulateCutoffTs({
+  it('routes SPayLater dynamic H-15 formula (DAYS_IN_MONTH - 15, >= cutoff) and Bank Permata Credit Card 25th cutoff identically to domain rules', () => {
+    // 1. SPayLater in 30-day Nov (30 - 15 = 15th cutoff): Nov 14 (<15) -> 11/2026; Nov 15 & Nov 23 (>=15) -> 12/2026
+    const spNov14 = simulateCutoffTs({
       instrument: 'SPAYLATER',
       principalAmount: 75000,
       tenorMonths: 1,
-      purchaseDate: '2026-11-15',
+      purchaseDate: '2026-11-14',
     });
-    expect(spNov15.crossedCutoff).toBe(false);
-    expect(spNov15.cutoffDay).toBe(15);
-    expect(spNov15.startPeriodMonth).toBe(12);
-    expect(spNov15.firstDueDateIso).toBe('2026-12-25');
+    expect(spNov14.crossedCutoff).toBe(false);
+    expect(spNov14.cutoffDay).toBe(15);
+    expect(spNov14.startPeriodMonth).toBe(11);
+    expect(spNov14.firstDueDateIso).toBe('2026-11-25');
 
-    const spNov16 = simulateCutoffTs({
+    const spNov23 = simulateCutoffTs({
       instrument: 'SPAYLATER',
-      principalAmount: 34200,
+      principalAmount: 52000,
       tenorMonths: 1,
-      purchaseDate: '2026-11-16',
+      purchaseDate: '2026-11-23',
     });
-    expect(spNov16.crossedCutoff).toBe(true);
-    expect(spNov16.cutoffDay).toBe(15);
-    expect(spNov16.startPeriodMonth).toBe(1);
-    expect(spNov16.startPeriodYear).toBe(2027);
-    expect(spNov16.firstDueDateIso).toBe('2027-01-25');
+    expect(spNov23.crossedCutoff).toBe(true);
+    expect(spNov23.cutoffDay).toBe(15);
+    expect(spNov23.startPeriodMonth).toBe(12);
+    expect(spNov23.startPeriodYear).toBe(2026);
+    expect(spNov23.firstDueDateIso).toBe('2026-12-25');
 
-    // 2. SPayLater in 31-day Oct (31 - 15 = 16th cutoff): Oct 16 -> 11/2026; Oct 17 -> 12/2026
-    const spOct16 = simulateCutoffTs({
+    // 2. SPayLater in 31-day Dec (31 - 15 = 16th cutoff): Dec 15 (<16) -> 12/2026; Dec 16 (>=16) -> 01/2027
+    const spDec15 = simulateCutoffTs({
       instrument: 'SPAYLATER',
       principalAmount: 100000,
       tenorMonths: 1,
-      purchaseDate: '2026-10-16',
+      purchaseDate: '2026-12-15',
     });
-    expect(spOct16.crossedCutoff).toBe(false);
-    expect(spOct16.cutoffDay).toBe(16);
-    expect(spOct16.startPeriodMonth).toBe(11);
-    expect(spOct16.firstDueDateIso).toBe('2026-11-25');
+    expect(spDec15.crossedCutoff).toBe(false);
+    expect(spDec15.cutoffDay).toBe(16);
+    expect(spDec15.startPeriodMonth).toBe(12);
+    expect(spDec15.firstDueDateIso).toBe('2026-12-25');
+
+    const spDec16 = simulateCutoffTs({
+      instrument: 'SPAYLATER',
+      principalAmount: 100000,
+      tenorMonths: 1,
+      purchaseDate: '2026-12-16',
+    });
+    expect(spDec16.crossedCutoff).toBe(true);
+    expect(spDec16.cutoffDay).toBe(16);
+    expect(spDec16.startPeriodMonth).toBe(1);
+    expect(spDec16.startPeriodYear).toBe(2027);
+    expect(spDec16.firstDueDateIso).toBe('2027-01-25');
+
+    // 2b. February non-leap (2027 -> 28 - 15 = 13th) & leap (2028 -> 29 - 15 = 14th) + custom cutoffFormula
+    const spFeb27 = simulateCutoffTs({
+      instrument: 'SPAYLATER',
+      principalAmount: 100000,
+      tenorMonths: 1,
+      purchaseDate: '2027-02-13',
+    });
+    expect(spFeb27.crossedCutoff).toBe(true);
+    expect(spFeb27.cutoffDay).toBe(13);
+    expect(spFeb27.startPeriodMonth).toBe(3);
+
+    const customFeb = simulateCutoffTs({
+      instrument: 'SPAYLATER',
+      principalAmount: 150000,
+      tenorMonths: 1,
+      purchaseDate: '2027-02-15',
+      cutoffFormula: 'MIN(20, DAYS_IN_MONTH - 8)',
+      cutoffBoundaryInclusive: false,
+      preCutoffOffsetMonths: 0,
+      postCutoffOffsetMonths: 1,
+      dueDayOverride: 31,
+    } as any);
+    expect(customFeb.cutoffDay).toBe(20);
+    expect(customFeb.crossedCutoff).toBe(false);
+    expect(customFeb.firstDueDateIso).toBe('2027-02-28');
 
     // 3. Bank Permata CC (25th cutoff -> 11th due): Nov 25 -> 12/2026 (due 2026-12-11); Nov 26 -> 01/2027 (due 2027-01-11)
     const ccNov25 = simulateCutoffTs({

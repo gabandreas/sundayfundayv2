@@ -82,20 +82,53 @@ export interface WorkingDaysCutoffResult {
   workingDays: number;
 }
 
+function daysInMonthUtc(month: number, year: number): number {
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+export function mergeStudioHolidayMap(
+  holidayDatesIso?: string[],
+): Record<string, string> {
+  if (!Array.isArray(holidayDatesIso) || holidayDatesIso.length === 0) {
+    return INDONESIAN_PUBLIC_HOLIDAYS_2026_2027;
+  }
+  const merged: Record<string, string> = {
+    ...INDONESIAN_PUBLIC_HOLIDAYS_2026_2027,
+  };
+  for (const iso of holidayDatesIso) {
+    const trimmed = String(iso ?? '').trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed) && !merged[trimmed]) {
+      merged[trimmed] = 'Custom Configured Holiday';
+    }
+  }
+  return merged;
+}
+
+export interface AttendanceCutoffWindowOptions {
+  startDay?: number;
+  endDay?: number;
+}
+
 /**
- * Computes the attendance cutoff window (16th of month M-1 through 15th of month M)
- * and counts Monday–Friday working days excluding Indonesian public holidays.
+ * Computes the attendance cutoff window (default 16th of month M-1 through 15th of month M,
+ * configurable and Feb-clamped) and counts Monday–Friday working days excluding holidays.
  */
 export function getWorkingDaysCutoffWindow(
   month: number,
   year: number,
   customHolidays: Record<string, string> = INDONESIAN_PUBLIC_HOLIDAYS_2026_2027,
+  windowOptions?: AttendanceCutoffWindowOptions,
 ): WorkingDaysCutoffResult {
   const prevMonth = month === 1 ? 12 : month - 1;
   const prevYear = month === 1 ? year - 1 : year;
 
-  const startUtc = Date.UTC(prevYear, prevMonth - 1, 16);
-  const endUtc = Date.UTC(year, month - 1, 15);
+  const rawStartDay = Math.max(1, Math.round(windowOptions?.startDay ?? 16));
+  const rawEndDay = Math.max(1, Math.round(windowOptions?.endDay ?? 15));
+  const startDay = Math.min(rawStartDay, daysInMonthUtc(prevMonth, prevYear));
+  const endDay = Math.min(rawEndDay, daysInMonthUtc(month, year));
+
+  const startUtc = Date.UTC(prevYear, prevMonth - 1, startDay);
+  const endUtc = Date.UTC(year, month - 1, endDay);
 
   let totalWeekdays = 0;
   const holidaysInWindow: Array<{ date: string; name: string }> = [];
@@ -119,14 +152,14 @@ export function getWorkingDaysCutoffWindow(
   }
 
   const workingDays = Math.max(0, totalWeekdays - holidaysInWindow.length);
-  const prevLabel = `${16} ${SHORT_MONTH_LABELS[prevMonth - 1]} ${prevYear}`;
-  const currLabel = `${15} ${SHORT_MONTH_LABELS[month - 1]} ${year}`;
+  const prevLabel = `${startDay} ${SHORT_MONTH_LABELS[prevMonth - 1]} ${prevYear}`;
+  const currLabel = `${endDay} ${SHORT_MONTH_LABELS[month - 1]} ${year}`;
 
   return {
     month,
     year,
-    startDateIso: `${prevYear}-${String(prevMonth).padStart(2, '0')}-16`,
-    endDateIso: `${year}-${String(month).padStart(2, '0')}-15`,
+    startDateIso: `${prevYear}-${String(prevMonth).padStart(2, '0')}-${String(startDay).padStart(2, '0')}`,
+    endDateIso: `${year}-${String(month).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`,
     windowLabel: `${prevLabel} – ${currLabel}`,
     totalWeekdays,
     holidaysInWindow,
@@ -137,22 +170,30 @@ export function getWorkingDaysCutoffWindow(
 export function calculateWorkingDaysForPeriod(
   month: number,
   year: number,
+  customHolidays?: Record<string, string>,
+  windowOptions?: AttendanceCutoffWindowOptions,
 ): number {
-  return getWorkingDaysCutoffWindow(month, year).workingDays;
+  return getWorkingDaysCutoffWindow(
+    month,
+    year,
+    customHolidays ?? INDONESIAN_PUBLIC_HOLIDAYS_2026_2027,
+    windowOptions,
+  ).workingDays;
 }
 
 /**
  * Under the Consumption & Bill-Maturity Month convention (Period M is funded
- * by Payday(M-1)), payroll attendance follows the 16th of (M-2) through 15th
- * of (M-1) cutoff window.
+ * by Payday(M-1)), payroll attendance follows the cutoff window of Month M-1.
  */
 export function calculateWorkingDaysForConsumptionPeriod(
   consumptionMonth: number,
   consumptionYear: number,
+  customHolidays?: Record<string, string>,
+  windowOptions?: AttendanceCutoffWindowOptions,
 ): number {
   const prevMonth = consumptionMonth === 1 ? 12 : consumptionMonth - 1;
   const prevYear = consumptionMonth === 1 ? consumptionYear - 1 : consumptionYear;
-  return calculateWorkingDaysForPeriod(prevMonth, prevYear);
+  return calculateWorkingDaysForPeriod(prevMonth, prevYear, customHolidays, windowOptions);
 }
 
 export interface PayrollInput {
@@ -165,6 +206,7 @@ export interface PayrollInput {
   bonusAmount?: number;
   extraIncome?: number;
   laptopAllowance?: number;
+  bpjsRate?: number;
 }
 
 export interface PayrollResult {
@@ -256,12 +298,13 @@ export function calculatePayroll(input: PayrollInput): PayrollResult {
   const bonusAmount = input.bonusAmount ?? 0;
   const extraIncome = input.extraIncome ?? 0;
   const laptopAllowance = input.laptopAllowance ?? DEFAULT_LAPTOP_ALLOWANCE;
+  const bpjsRate = input.bpjsRate ?? DEFAULT_BPJS_RATE;
 
   const adjustedBaseSalary = calculateAdjustedBaseSalary(
     input.baseSalary,
     salaryAdjustment,
   );
-  const bpjsDeduction = calculateBpjsDeduction(adjustedBaseSalary);
+  const bpjsDeduction = calculateBpjsDeduction(adjustedBaseSalary, bpjsRate);
   const netBasePayroll = calculateNetBasePayroll(
     adjustedBaseSalary,
     bpjsDeduction,

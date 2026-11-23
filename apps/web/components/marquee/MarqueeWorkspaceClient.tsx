@@ -3,11 +3,16 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { Send, Settings2 } from "lucide-react";
-import { MarqueeMark } from "@/components/primitives/MarqueeMark";
-import { MarqueeChatResponse, sendMarqueeChat } from "@/lib/api";
+import { MarqueeRobotAvatar } from "@/components/primitives/MarqueeRobotAvatar";
+import {
+  MarqueeChatResponse,
+  MarqueeStreamStatusEvent,
+  sendMarqueeChat,
+  sendMarqueeChatStream,
+} from "@/lib/api";
 import { usePeriod } from "@/context/PeriodContext";
 import { useLanguage } from "@/context/LanguageContext";
-import { MarqueeResponseCards } from "./MarqueeResponseCards";
+import { MarqueeResponseCards, MarqueeTypingBubble } from "./MarqueeResponseCards";
 
 interface WorkspaceTurn {
   id: string;
@@ -49,6 +54,7 @@ export function MarqueeWorkspaceClient() {
 
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [liveStatus, setLiveStatus] = useState<MarqueeStreamStatusEvent | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [turns, setTurns] = useState<WorkspaceTurn[]>([]);
 
@@ -61,15 +67,25 @@ export function MarqueeWorkspaceClient() {
     setTurns((prev) => [...prev, { id: `u-${Date.now()}`, role: "user", text: msg }]);
     if (!customText) setInput("");
     setSending(true);
+    setLiveStatus({
+      type: "status",
+      phase: "THINKING",
+      label: locale === "id" ? "Sedang berpikir..." : locale === "zh" ? "正在思考..." : "Thinking...",
+      detail: locale === "id" ? "Membaca permintaan & konteks siklus" : locale === "zh" ? "正在解析指令与当前账期" : "Reading prompt & active cycle",
+      timestamp: new Date().toISOString(),
+    });
 
     try {
-      const res = await sendMarqueeChat({
-        message: msg,
-        month,
-        year,
-        locale,
-        activeRoute: "/marquee",
-      });
+      const res = await sendMarqueeChatStream(
+        {
+          message: msg,
+          month,
+          year,
+          locale,
+          activeRoute: "/marquee",
+        },
+        (ev) => setLiveStatus(ev),
+      );
       setTurns((prev) => [
         ...prev,
         {
@@ -81,6 +97,7 @@ export function MarqueeWorkspaceClient() {
       ]);
     } finally {
       setSending(false);
+      setLiveStatus(null);
     }
   };
 
@@ -108,26 +125,40 @@ export function MarqueeWorkspaceClient() {
           },
         ]);
         refreshPeriod();
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("erp:data-mutated"));
+        }
       }
     } finally {
       setConfirmingId(null);
     }
   };
 
+  const robotState = confirmingId || liveStatus?.phase === "ANALYZING"
+    ? "analyzing"
+    : sending
+      ? "thinking"
+      : "idle";
+
   return (
     <div className="space-y-6 w-full max-w-full pb-16">
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
-        <div>
-          <div className="flex items-center gap-2 text-[11px] font-mono uppercase tracking-wider text-text-tertiary">
-            <MarqueeMark className="w-3.5 h-3.5 text-delta-positive" />
-            <span>Context-Hydrated Financial Co-Pilot · {periodTag}</span>
+        <div className="flex items-start gap-3">
+          <MarqueeRobotAvatar state={robotState} size={36} className="mt-0.5" />
+          <div>
+            <div className="flex items-center gap-2 text-[11px] font-mono uppercase tracking-wider text-text-tertiary">
+              <span>Context-Hydrated Financial Co-Pilot · {periodTag}</span>
+              {sending && (
+                <span className="text-caution">· {liveStatus?.label || "Thinking..."}</span>
+              )}
+            </div>
+            <h1 className="text-xl font-semibold tracking-tight text-text-primary mt-0.5">
+              Marquee Financial Co-Pilot
+            </h1>
+            <p className="text-xs text-text-secondary mt-1">
+              Ask questions about your active paycycle, shift or record bills, revise quotas, or check cutoff formulas in English, Bahasa Indonesia, or Chinese.
+            </p>
           </div>
-          <h1 className="text-xl font-semibold tracking-tight text-text-primary mt-0.5">
-            Marquee Financial Co-Pilot
-          </h1>
-          <p className="text-xs text-text-secondary mt-1">
-            Ask questions about your active paycycle, test purchase cutoffs, compare monthly shifts, or log spending in plain English, Bahasa Indonesia, or ä¸­æ–‡.
-          </p>
         </div>
 
         <Link
@@ -175,34 +206,44 @@ export function MarqueeWorkspaceClient() {
                   </div>
                 </div>
               ) : (
-                turns.map((turn) => (
-                  <div
-                    key={turn.id}
-                    className={`rounded-md px-4 py-3 space-y-2 ${
-                      turn.role === "user"
-                        ? "border border-border bg-surface ml-10"
-                        : "border border-border-subtle/80 bg-surface-subtle/40 mr-6"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between text-[10px] font-medium text-text-tertiary">
-                      <span>{turn.role === "user" ? "You" : "Marquee"}</span>
-                      {turn.response?.hydratedContext?.periodTag && (
-                        <span className="font-mono text-[10px] text-text-tertiary/80">
-                          {turn.response.hydratedContext.periodTag}
+                <>
+                  {turns.map((turn) => (
+                    <div
+                      key={turn.id}
+                      className={`rounded-md px-4 py-3 space-y-2 ${
+                        turn.role === "user"
+                          ? "border border-border bg-surface ml-10"
+                          : "border border-border-subtle/80 bg-surface-subtle/40 mr-6"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between text-[10px] font-medium text-text-tertiary">
+                        <span className="inline-flex items-center gap-1.5">
+                          {turn.role === "assistant" && (
+                            <MarqueeRobotAvatar state="idle" size={16} />
+                          )}
+                          <span>{turn.role === "user" ? "You" : "Marquee"}</span>
                         </span>
+                        {turn.response?.hydratedContext?.periodTag && (
+                          <span className="font-mono text-[10px] text-text-tertiary/80">
+                            {turn.response.hydratedContext.periodTag}
+                          </span>
+                        )}
+                      </div>
+                      {turn.response ? (
+                        <MarqueeResponseCards
+                          response={turn.response}
+                          busyConfirm={confirmingId === turn.id}
+                          onConfirm={(r) => void handleConfirm(turn.id, r)}
+                        />
+                      ) : (
+                        <div className="text-xs text-text-primary">{turn.text}</div>
                       )}
                     </div>
-                    {turn.response ? (
-                      <MarqueeResponseCards
-                        response={turn.response}
-                        busyConfirm={confirmingId === turn.id}
-                        onConfirm={(r) => void handleConfirm(turn.id, r)}
-                      />
-                    ) : (
-                      <div className="text-xs text-text-primary">{turn.text}</div>
-                    )}
-                  </div>
-                ))
+                  ))}
+                  {sending && (
+                    <MarqueeTypingBubble status={liveStatus} robotState={robotState} />
+                  )}
+                </>
               )}
             </div>
 
@@ -261,7 +302,7 @@ export function MarqueeWorkspaceClient() {
                 Due Days: 8th · 11th (Card) · 17th · 23rd · 24th · 25th (PayLater)
               </div>
               <div className="text-[11px] text-text-tertiary">
-                Cutoffs: SPayLater M-15d (15th/16th) · Permata CC 25th
+                Cutoffs: SPayLater dynamic H-15 closing (15th/16th, Feb 13th/14th) · Permata CC 25th
               </div>
             </div>
 

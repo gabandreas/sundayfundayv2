@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { SnapshotsSelectors } from '../snapshots/snapshots.selectors';
 import { FinanceSelectors } from '../finance/finance.selectors';
 import { SavingsSelectors } from '../savings/savings.selectors';
+import { resolveStudioConfig } from '../config/studio.defaults';
 
 export interface MarqueePayoffMilestone {
   periodLabel: string;
@@ -71,6 +72,43 @@ export interface MarqueeFinancialContext {
     amount: number;
     paymentMethod: string;
   }>;
+  creditCardsAndContracts?: Array<{
+    id: number;
+    label: string;
+    monthlyAmount: number;
+    tenor: number;
+    chargeType: string;
+    billingPeriod: string;
+  }>;
+  wishlistItems?: Array<{
+    id: number;
+    name: string;
+    targetPriceRp: number;
+    status: string;
+  }>;
+  savingsGoals?: Array<{
+    id: number;
+    title: string;
+    targetAmountRp: number;
+    allocatedRp: number;
+  }>;
+  activeSubscriptions?: Array<{
+    id: number;
+    label: string;
+    amountRp: number;
+    promoEndDateIso: string | null;
+    killSwitchEnabled: boolean;
+  }>;
+  instrumentsConfig?: Array<{
+    id: string;
+    name: string;
+    type: string;
+    cutoffFormula: string;
+    cutoffBoundaryInclusive: boolean;
+    preCutoffOffsetMonths: number;
+    postCutoffOffsetMonths: number;
+    dueDay: number;
+  }>;
   uiContext: {
     activeRoute: string;
     activeSubTab: string | null;
@@ -115,7 +153,18 @@ export class MarqueeContextHydrator {
     }
 
     const periodTag = `${String(month).padStart(2, '0')}/${year}`;
-    const [pacing, snapshotsRaw, lineItemsRaw, recentTxsRaw, savingsOv] = await Promise.all([
+    const [
+      pacing,
+      snapshotsRaw,
+      lineItemsRaw,
+      recentTxsRaw,
+      savingsOv,
+      cardTxsRaw,
+      contractsRaw,
+      wishlistRaw,
+      goalsRaw,
+      globalConfigRaw,
+    ] = await Promise.all([
       this.financeSelectors
         .getPacing(month, year, undefined, undefined, userId)
         .catch(() => ({
@@ -140,9 +189,9 @@ export class MarqueeContextHydrator {
       this.prisma.liabilityLineItem
         ? this.prisma.liabilityLineItem
             .findMany({
-              where: { userId, month, year },
-              orderBy: { monthlyAmount: 'desc' },
-              take: 20,
+              where: { userId },
+              orderBy: [{ year: 'asc' }, { month: 'asc' }, { monthlyAmount: 'desc' }],
+              take: 40,
             })
             .catch(() => [])
         : Promise.resolve([]),
@@ -151,7 +200,7 @@ export class MarqueeContextHydrator {
             .findMany({
               where: { snapshot: { userId, month, year } },
               orderBy: { id: 'desc' },
-              take: 8,
+              take: 10,
             })
             .catch(() => [])
         : Promise.resolve([]),
@@ -159,7 +208,65 @@ export class MarqueeContextHydrator {
         totalBalance: 0,
         rdpuBalance: 0,
       })),
+      (this.prisma as any).creditCardTransaction
+        ? (this.prisma as any).creditCardTransaction
+            .findMany({
+              where: { userId, isActive: true },
+              orderBy: { id: 'desc' },
+              take: 25,
+            })
+            .catch(() => [])
+        : Promise.resolve([]),
+      (this.prisma as any).creditContract
+        ? (this.prisma as any).creditContract
+            .findMany({ where: { isActive: true }, take: 15 })
+            .catch(() => [])
+        : Promise.resolve([]),
+      (this.prisma as any).wishlistItem
+        ? (this.prisma as any).wishlistItem
+            .findMany({
+              where: { userId },
+              orderBy: { priority: 'asc' },
+              take: 15,
+            })
+            .catch(() => [])
+        : Promise.resolve([]),
+      (this.prisma as any).savingsGoal
+        ? (this.prisma as any).savingsGoal
+            .findMany({
+              where: { userId },
+              orderBy: { id: 'asc' },
+              take: 15,
+            })
+            .catch(() => [])
+        : Promise.resolve([]),
+      (this.prisma as any).globalConfig
+        ? (this.prisma as any).globalConfig
+            .findFirst({ where: { userId } })
+            .catch(() => null)
+        : Promise.resolve(null),
     ]);
+
+    const studioConfig = resolveStudioConfig(
+      userId,
+      globalConfigRaw?.formulaParamsJson,
+      globalConfigRaw,
+    );
+    const spayCfg = studioConfig.instrumentsTable.find(
+      (i) => i.active && i.type === 'PAYLATER',
+    );
+    const ccCfg = studioConfig.instrumentsTable.find(
+      (i) => i.active && i.type === 'CREDIT_CARD',
+    );
+    const spayFormulaLabel = spayCfg?.cutoffFormula || 'DAYS_IN_MONTH - 15';
+    const ccCutoffLabel = ccCfg?.cutoffFormula || `${ccCfg?.cutoffDay ?? 25}th`;
+
+    const allItemsList = Array.isArray(lineItemsRaw) ? lineItemsRaw : [];
+    const activePeriodItemsRaw = allItemsList.filter(
+      (i: any) => Number(i.month) === month && Number(i.year) === year,
+    );
+    const currentCycleRaw =
+      activePeriodItemsRaw.length > 0 ? activePeriodItemsRaw : allItemsList.slice(0, 15);
 
     const p: any = pacing ?? {};
     const state = (p.cycleTemporalState ?? 'ACTIVE') as 'PRE_PAYDAY' | 'ACTIVE' | 'COMPLETED';
@@ -186,7 +293,7 @@ export class MarqueeContextHydrator {
       (s) => s.month === month && s.year === year,
     );
 
-    const activeCycleItems = (Array.isArray(lineItemsRaw) ? lineItemsRaw : []).map(
+    const activeCycleItems = currentCycleRaw.map(
       (item: any) => ({
         id: Number(item.id),
         category: String(item.category ?? 'PAYLATER'),
@@ -195,6 +302,64 @@ export class MarqueeContextHydrator {
         isSettled: Boolean(item.isSettled),
       }),
     );
+
+    const creditCardsAndContracts = [
+      ...(Array.isArray(cardTxsRaw) ? cardTxsRaw : []).map((c: any) => ({
+        id: Number(c.id),
+        label: String(c.label ?? 'Card Charge'),
+        monthlyAmount: Math.round(Number(c.monthlyAmount ?? c.amount ?? 0)),
+        tenor: Number(c.totalTenor ?? c.tenor ?? 1),
+        chargeType: String(c.chargeType ?? 'FULL'),
+        billingPeriod: `${String(c.billingMonth ?? c.startMonth ?? month).padStart(2, '0')}/${c.billingYear ?? c.startYear ?? year}`,
+      })),
+      ...(Array.isArray(contractsRaw) ? contractsRaw : []).map((ct: any) => ({
+        id: Number(ct.id),
+        label: String(ct.label ?? 'Contract'),
+        monthlyAmount: Math.round(Number(ct.monthlyInstallment ?? 0)),
+        tenor: Number(ct.totalTenor ?? 1),
+        chargeType: 'CONTRACT',
+        billingPeriod: `${String(ct.startMonth ?? month).padStart(2, '0')}/${ct.startYear ?? year}`,
+      })),
+    ];
+
+    const wishlistItems = (Array.isArray(wishlistRaw) ? wishlistRaw : []).map((w: any) => ({
+      id: Number(w.id),
+      name: String(w.name ?? w.title ?? 'Wishlist Target'),
+      targetPriceRp: Math.round(Number(w.targetPrice ?? w.price ?? 0)),
+      status: String(w.status ?? (w.isPurchased ? 'PURCHASED' : 'PLANNING')),
+    }));
+
+    const savingsGoals = (Array.isArray(goalsRaw) ? goalsRaw : []).map((g: any) => ({
+      id: Number(g.id),
+      title: String(g.title ?? 'Savings Goal'),
+      targetAmountRp: Math.round(Number(g.targetAmount ?? 0)),
+      allocatedRp: Math.round(Number(g.currentAllocatedAmount ?? 0)),
+    }));
+
+    const activeSubscriptions = (Array.isArray(cardTxsRaw) ? cardTxsRaw : [])
+      .filter((c: any) => Boolean(c.isRecurring || c.killSwitchEnabled))
+      .map((c: any) => ({
+        id: Number(c.id),
+        label: String(c.label ?? 'Subscription'),
+        amountRp: Math.round(Number(c.amount ?? 0)),
+        promoEndDateIso: c.promoEndDate
+          ? new Date(c.promoEndDate).toISOString().slice(0, 10)
+          : null,
+        killSwitchEnabled: Boolean(c.killSwitchEnabled),
+      }));
+
+    const instrumentsConfig = studioConfig.instrumentsTable
+      .filter((inst) => inst.active)
+      .map((inst) => ({
+        id: inst.id,
+        name: inst.name,
+        type: inst.type,
+        cutoffFormula: inst.cutoffFormula ?? String(inst.cutoffDay || 15),
+        cutoffBoundaryInclusive: Boolean(inst.cutoffBoundaryInclusive),
+        preCutoffOffsetMonths: inst.preCutoffOffsetMonths ?? 0,
+        postCutoffOffsetMonths: inst.postCutoffOffsetMonths ?? 1,
+        dueDay: inst.dueDay,
+      }));
 
     const recentTransactions = (Array.isArray(recentTxsRaw) ? recentTxsRaw : []).map(
       (tx: any) => ({
@@ -275,7 +440,7 @@ export class MarqueeContextHydrator {
     proactiveReminders.push({
       id: 'cutoff-check',
       tone: 'default',
-      text: 'SPayLater (daysInMonth - 15) & Permata CC (25th closing -> 11th due) cutoffs active',
+      text: `SPayLater (${spayFormulaLabel}, due ${spayCfg?.dueDay ?? 25}th) & CC (${ccCutoffLabel} -> ${ccCfg?.dueDay ?? 11}th due) active`,
       prompt: 'Can I afford 350k on SPayLater?',
     });
 
@@ -283,41 +448,84 @@ export class MarqueeContextHydrator {
       .slice(0, 6)
       .map(
         (s) =>
-          `- ${s.periodTag} (${s.status}): Income ${formatRp(s.finalTotalIncome)}, Debt ${formatRp(s.totalDeductions)}, Living Pool ${formatRp(s.actualDailyOperational)}, Shortfall ${formatRp(s.deficitUncovered)}, P1 Vault ${formatRp(s.actualSavings)}, P2 Buffer ${formatRp(s.selfReward)}`,
+          `- ${s.periodTag} (${s.status}): Income ${formatRp(s.finalTotalIncome)}, Debt ${formatRp(s.totalDeductions)}, Living Pool ${formatRp(s.actualDailyOperational)}, Shortfall ${formatRp(s.deficitUncovered)}, P1 Savings ${formatRp(s.actualSavings)}, P2 Buffer ${formatRp(s.selfReward)}`,
       )
       .join('\n');
 
+    const ccSummaryLines =
+      creditCardsAndContracts.length > 0
+        ? creditCardsAndContracts
+            .slice(0, 10)
+            .map(
+              (c) =>
+                `- ${c.label} (${c.chargeType} ${c.tenor}x, billing ${c.billingPeriod}): ${formatRp(c.monthlyAmount)}/mo`,
+            )
+            .join('\n')
+        : '- No active card installments';
+
+    const wishlistLines =
+      wishlistItems.length > 0
+        ? wishlistItems
+            .slice(0, 8)
+            .map((w) => `- ${w.name} (${w.status}): target ${formatRp(w.targetPriceRp)}`)
+            .join('\n')
+        : '- No wishlist items';
+
+    const savingsGoalLines = [
+      ...savingsGoals.map(
+        (g) =>
+          `- Goal "${g.title}": ${formatRp(g.allocatedRp)} / ${formatRp(g.targetAmountRp)}`,
+      ),
+      ...studioConfig.savingsPockets.map(
+        (pk) =>
+          `- Pocket "${pk.name}" (${pk.category}): allocated ${formatRp(pk.allocatedRp)} / target ${formatRp(pk.targetRp ?? 0)}`,
+      ),
+    ].join('\n');
+
+    const instrumentLines = instrumentsConfig
+      .map(
+        (i) =>
+          `- ${i.name} (${i.type}): cutoff formula "${i.cutoffFormula}" (${i.cutoffBoundaryInclusive ? '>= cutoff' : '> cutoff'}), pre-offset +${i.preCutoffOffsetMonths}m, post-offset +${i.postCutoffOffsetMonths}m, due day ${i.dueDay || 'disbursement-day'}`,
+      )
+      .join('\n');
+
+    const routineLines = studioConfig.routineTemplatesTable
+      .filter((r) => r.active)
+      .map((r) => `- ${r.name}: ${formatRp(r.monthlyQuotaRp)}/mo (due ${r.targetDueDay}th)`)
+      .join('\n');
+
     const systemPrompt = [
-      `You are Marquee, the financial co-pilot inside Sunday Funday ERP for user #${userId}.`,
-      `Write like a sharp human financial advisor obeying 6 strict rules:`,
-      `1. Eliminate AI writing patterns (no repetitive sentence templates, filler, or predictable transitions).`,
-      `2. Natural conversational flow (speak like a smart friend looking at the same ledger; vary sentence length).`,
-      `3. First-hand practitioner perspective (cite exact Rupiah figures, due dates, and cutoffs from the ledger below).`,
-      `4. Convincing & practical detail (concrete numbers and realistic trade-offs, never promotional fluff).`,
-      `5. Strong personality & clear conviction (direct point of view, zero corporate or flat robot tone).`,
-      `6. Human thinking process (weigh real trade-offs, dilemmas, and observations naturally).`,
+      `You are Marquee, the financial co-pilot and execution assistant inside Sunday Funday ERP for user #${userId}.`,
+      `Write like a crisp human financial engineer obeying 5 communication rules:`,
+      `1. Eliminate AI filler, repetitive intros, or generic cheerleading.`,
+      `2. Speak naturally and directly, citing exact Rupiah numbers, dates, and cutoff formulas from the ERP context.`,
+      `3. Never use buzzwords like Vault, Forward-Borrow, Outlook, or emojis. Use Emergency Fund, Savings Reserve, and Temporary Savings Advance.`,
+      `4. Offer actionable help: when the user asks to record, shift, settle, adjust budgets, or add wishlist targets, invoke the matching tool so it stages a 1-click confirmation card.`,
       ``,
-      `ERP MODULE & ROUTE MAP (for guiding the user across the app):`,
-      `- Overview (/): Daily safe-to-spend, 10-second wallet reconciliation, routine bills pool, quick expense logger.`,
-      `- Payday Activation (/payday-wizard): 4-step payday checklist (confirm income, lock bill holds, fund living pool, sweep P1).`,
-      `- Cash & Bill Radar (/calendar): Day-by-day running cash timeline and lowest-cash bridge point before THR or payday.`,
-      `- Payroll & Cashflow (/payroll): Corporate payslip rules (25th cutoff + H+2 transfer), workday calculator, life-energy hourly wage.`,
-      `- Budget & Envelopes (/allocations): Priority waterfall (Debt -> Routine -> Proportional Living Cash -> P1 -> P2) & mid-month revisions.`,
-      `- Credit & Debt Matrix (/credit): 12-month debt matrix (?sub=matrix), active installment plans & Snowball/Avalanche optimizer (?sub=contracts), purchase cutoff simulator (?sub=simulator), statement reconciler (?sub=reconciler).`,
-      `- Savings & Vaults (/savings): P1 Core Vault (?sub=vault), net worth breakdown (?sub=networth), 12-month wealth forecaster (?sub=forecaster).`,
-      `- Spending & Trend Review (/analytics): Multi-period cashflow trends, category allocation breakdown, daily burn pace & anomaly check.`,
-      `- Reports & Statements (/reports): Executive horizon (?sub=executive), variance diff (?sub=variance), discipline scorecard (?sub=audit), XLSX/PDF export (?sub=export).`,
-      `- Subscriptions (/subscriptions) & Preferences (/preferences): Recurring kill-switches, formula studio, instruments, and AI settings.`,
+      `ERP MODULE & ROUTE MAP:`,
+      `- Overview (/): Daily safe-to-spend, wallet reconciliation, routine bills, expense logger.`,
+      `- Payday Activation (/payday-wizard): 4-step payday checklist.`,
+      `- Cash & Bill Radar (/calendar): Day-by-day running balance and low-cash bridge dates.`,
+      `- Payroll & Cashflow (/payroll): Attendance cutoff window (${studioConfig.paycycleFormulaConfig.attendanceCutoffStartDay ?? 16}th -> ${studioConfig.paycycleFormulaConfig.attendanceCutoffEndDay ?? 15}th), BPJS (${studioConfig.paycycleFormulaConfig.bpjsRatePercent ?? 3}%), payslip rules.`,
+      `- Allocations (/allocations): Priority waterfall and quota revisions.`,
+      `- Credit & Liabilities (/credit): 12-month debt schedule (?sub=matrix), installment plans (?sub=contracts), cutoff simulator (?sub=simulator), reconciler (?sub=reconciler).`,
+      `- Savings & Emergency Fund (/savings): P1 reserve (?sub=vault), net worth (?sub=networth), 12-month forecaster (?sub=forecaster).`,
+      `- Analytics (/analytics), Reports (/reports), Preferences (/preferences?sub=instruments).`,
       ``,
       `ACTIVE UI CONTEXT: route=${activeRoute}${activeSubTab ? `?sub=${activeSubTab}` : ''}, locale=${locale}`,
       `CONSUMPTION & BILL-MATURITY MONTH CONVENTION: Period M is funded by Payday(M-1), runs from Payday(M-1) through Day before Payday(M), and pays all Month M bill maturities.`,
       `ACTIVE PAYCYCLE: ${periodTag} (${state}) · Day ${p.currentDayIndex ?? 0} of ${p.daysInCycle ?? 30} (${p.daysRemaining ?? 0} days remaining) · Window: ${p.cycleDateLabel ?? periodTag} · Days until start: ${p.daysUntilCycleStart ?? 0} · Weighted Safe-to-Spend Today: ${formatRp(p.weightedSafeToSpendToday ?? p.safeToSpendToday ?? 0)} (Weekday ${formatRp(p.weekdaySafeRate ?? p.safeToSpendToday ?? 0)}/day, Weekend ${formatRp(p.weekendSafeRate ?? p.safeToSpendToday ?? 0)}/day)`,
-      `PAYDAY RULE: 25th attendance & payslip cutoff + H+2 working days bank transfer (same-month clamped).`,
-      `DUE-DAY & CUTOFF LAW: Canonical due days are 8th, 11th (Bank Permata CC), 17th, 23rd, 24th, and 25th (SPayLater). SPayLater cutoff = daysInMonth(M) - 15 (15th in 30d months, 16th in 31d months; day <= cutoff due 25th M+1, day > cutoff due 25th M+2). Bank Permata Credit Card closes every 25th -> due every 11th of following month (day <= 25th M due 11th M+1, day >= 26th M due 11th M+2), with H-1 business-day early-payment advisory if the 11th falls on a weekend or holiday.`,
+      `ACTIVE INSTRUMENTS & CUTOFF FORMULAS:\n${instrumentLines}`,
+      `CANONICAL CUTOFF LAW: SPayLater uses dynamic daysInMonth(M) - 15 (${spayFormulaLabel}, due 25th): day < cutoff bills Month M (25th M); day >= cutoff bills Month M+1 (25th M+1). Permata CC closes 25th (day <= 25th bills 11th M+1; day >= 26th bills 11th M+2, shifted H-1 business day if weekend/holiday).`,
       activeSnap
         ? `ACTIVE SNAPSHOT (${periodTag}): Income ${formatRp(activeSnap.finalTotalIncome)}, Debt ${formatRp(activeSnap.totalDeductions)}, Funded Living Pool ${formatRp(activeSnap.actualDailyOperational)}, Shortfall ${formatRp(activeSnap.deficitUncovered)}, P1 ${formatRp(activeSnap.actualSavings)}, P2 ${formatRp(activeSnap.selfReward)}.`
         : `ACTIVE SNAPSHOT (${periodTag}): Projected daily rate ${formatRp(p.baselineDailyRate ?? 0)}/day, remaining living cash ${formatRp(p.remainingBudget ?? 0)}.`,
       `MULTI-CYCLE HORIZON:\n${snapshotLines || '- No snapshots loaded'}`,
+      `ACTIVE CYCLE & UPCOMING PAYLATER/SPINJAM ITEMS:\n${allItemsList.slice(0, 15).map((i: any) => `- #${i.id} [${String(i.month).padStart(2, '0')}/${i.year}] ${i.title} (${i.category}): ${formatRp(i.monthlyAmount)} ${i.isSettled ? '[PAID]' : '[UNPAID]'}`).join('\n') || '- None'}`,
+      `CREDIT CARD CHARGES & CONTRACTS:\n${ccSummaryLines}`,
+      `WISHLIST TARGETS:\n${wishlistLines}`,
+      `SAVINGS RESERVE (${formatRp(totalVaultBalanceRp)} total, ${formatRp(rdpuBalanceRp)} RDPU) & GOALS:\n${savingsGoalLines || '- No goals configured'}`,
+      `ROUTINE QUOTA TEMPLATES:\n${routineLines || '- None'}`,
       `PAYOFF MILESTONES: JAN '27 (Oct SPinjam 3/3 retires +Rp 147.960/mo), FEB '27 (11.11 3x & Nov SPinjam 3/3 retire +Rp 522.010/mo), MAR '27 (SPinjam = Rp 0), SEP '27 (final 12x card installment matures).`,
     ].join('\n');
 
@@ -344,8 +552,7 @@ export class MarqueeContextHydrator {
       multiCycleSnapshots,
       dueDayCalendar: {
         canonicalDueDays: [8, 11, 17, 23, 24, 25],
-        cutoffRules:
-          'SPayLater daysInMonth - 15 cutoff (due 25th) · Bank Permata CC 25th closing cutoff (due 11th next month + H-1 business day advisory)',
+        cutoffRules: `SPayLater ${spayFormulaLabel} (due ${spayCfg?.dueDay ?? 25}th) · Permata CC ${ccCutoffLabel} closing (due ${ccCfg?.dueDay ?? 11}th + H-1 business day shift)`,
         activeCycleItems,
       },
       payoffMilestones,
@@ -354,6 +561,11 @@ export class MarqueeContextHydrator {
         rdpuBalanceRp,
       },
       recentTransactions,
+      creditCardsAndContracts,
+      wishlistItems,
+      savingsGoals,
+      activeSubscriptions,
+      instrumentsConfig,
       uiContext: {
         activeRoute,
         activeSubTab,

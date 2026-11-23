@@ -49,31 +49,31 @@ func TestComputePaycycleHorizonWeighted(t *testing.T) {
 }
 
 func TestRouteTransactionToPaycycleCutoffs(t *testing.T) {
-	// SPayLater Nov 15 (30-day Nov -> cutoff = 15th, day <= 15) -> matures Dec 25 -> Period 12/2026 (Dec 2026)
+	// SPayLater Nov 14 (30-day Nov -> cutoff = 15th, 14 < 15) -> matures Nov 25 -> Period 11/2026
 	plBefore := RouteTransactionToPaycycle(RouteTxRequest{
-		TxDateIso:      "2026-11-15",
+		TxDateIso:      "2026-11-14",
 		InstrumentType: "PAYLATER",
 	})
-	if plBefore.TargetPeriodCode != "12/2026" || plBefore.CrossedCutoff || plBefore.CutoffDay != 15 || plBefore.DueDay != 25 || plBefore.MaturityMonth != 12 {
-		t.Fatalf("expected 12/2026 pre-cutoff for Nov 15 SPayLater, got %+v", plBefore)
+	if plBefore.TargetPeriodCode != "11/2026" || plBefore.CrossedCutoff || plBefore.CutoffDay != 15 || plBefore.DueDay != 25 || plBefore.MaturityMonth != 11 {
+		t.Fatalf("expected 11/2026 pre-cutoff for Nov 14 SPayLater, got %+v", plBefore)
 	}
 
-	// SPayLater Nov 16 (day > 15th cutoff) -> matures Jan 25 -> Period 01/2027 (Jan 2027)
+	// SPayLater Nov 23 (23 >= 15th cutoff) -> matures Dec 25 -> Period 12/2026 (Dec 2026)
 	plAfter := RouteTransactionToPaycycle(RouteTxRequest{
-		TxDateIso:      "2026-11-16",
+		TxDateIso:      "2026-11-23",
 		InstrumentType: "PAYLATER",
 	})
-	if plAfter.TargetPeriodCode != "01/2027" || !plAfter.CrossedCutoff || plAfter.CutoffDay != 15 || plAfter.MaturityMonth != 1 || plAfter.MaturityYear != 2027 {
-		t.Fatalf("expected 01/2027 post-cutoff for Nov 16 SPayLater, got %+v", plAfter)
+	if plAfter.TargetPeriodCode != "12/2026" || !plAfter.CrossedCutoff || plAfter.CutoffDay != 15 || plAfter.MaturityMonth != 12 || plAfter.MaturityYear != 2026 {
+		t.Fatalf("expected 12/2026 post-cutoff for Nov 23 SPayLater, got %+v", plAfter)
 	}
 
-	// SPayLater Dec 16 (31-day Dec -> cutoff = 16th, day <= 16) -> matures Jan 25 -> Period 01/2027
+	// SPayLater Dec 16 (31-day Dec -> cutoff = 16th, 16 >= 16) -> matures Jan 25 -> Period 01/2027
 	plDec16 := RouteTransactionToPaycycle(RouteTxRequest{
 		TxDateIso:      "2026-12-16",
 		InstrumentType: "PAYLATER",
 	})
-	if plDec16.TargetPeriodCode != "01/2027" || plDec16.CrossedCutoff || plDec16.CutoffDay != 16 {
-		t.Fatalf("expected 01/2027 pre-cutoff (16th) for Dec 16 SPayLater, got %+v", plDec16)
+	if plDec16.TargetPeriodCode != "01/2027" || !plDec16.CrossedCutoff || plDec16.CutoffDay != 16 {
+		t.Fatalf("expected 01/2027 post-cutoff (16th) for Dec 16 SPayLater, got %+v", plDec16)
 	}
 
 	// Bank Permata CC Nov 25 (cutoff = 25th, day <= 25) -> matures Dec 11 -> Period 12/2026

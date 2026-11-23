@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsEnum,
   IsInt,
+  Max,
   IsDateString,
   IsBoolean,
 } from 'class-validator';
@@ -64,4 +65,16 @@ export class CreateCreditCardTransactionDto {
   @IsString()
   @IsOptional()
   notes?: string;
+
+  @IsInt()
+  @Min(1)
+  @Max(12)
+  @IsOptional()
+  billingMonth?: number;
+
+  @IsInt()
+  @Min(2000)
+  @Max(2100)
+  @IsOptional()
+  billingYear?: number;
 }

@@ -45,6 +45,15 @@ export interface PaycycleFormulaConfig {
   emergencyFundTargetRp: number;
   variableShockPercent: number;
   forecasterFreedDebtToP1Pct: number;
+  attendanceCutoffStartDay?: number;
+  attendanceCutoffEndDay?: number;
+  bpjsRatePercent?: number;
+  laptopAllowanceRp?: number;
+  defaultDailyAllowanceRp?: number;
+  thrJoinDateIso?: string;
+  thrHolidayDateIso?: string;
+  optimalDebtRatioPercent?: number;
+  maxSafeDebtRatioPercent?: number;
   milestonePriorityOrder: string[];
   formulas: FormulaDefinitions;
   sinkingFunds: SinkingFundConfigRow[];
@@ -55,8 +64,13 @@ export interface InstrumentConfigRow {
   name: string;
   type: 'PAYLATER' | 'CREDIT_CARD' | 'CASH_LOAN' | string;
   cutoffDay: number;
+  cutoffFormula?: string;
+  cutoffBoundaryInclusive?: boolean;
+  preCutoffOffsetMonths?: number;
+  postCutoffOffsetMonths?: number;
   dueDay: number;
   dueRule: 'FIXED_DAY' | 'DISBURSEMENT_DAY';
+  dueShiftRule?: 'EXACT_DAY' | 'SHIFT_PREVIOUS_FRIDAY' | string;
   monthlyInterestPct: number;
   adminFeePct: number;
   creditLimitRp: number;
@@ -295,6 +309,15 @@ export function buildDefaultStudioConfig(
       emergencyFundTargetRp: isSandbox ? 20_000_000 : 15_000_000,
       variableShockPercent: 15,
       forecasterFreedDebtToP1Pct: 70,
+      attendanceCutoffStartDay: 16,
+      attendanceCutoffEndDay: 15,
+      bpjsRatePercent: 3,
+      laptopAllowanceRp: 250_000,
+      defaultDailyAllowanceRp: 25_000,
+      thrJoinDateIso: '2026-04-06',
+      thrHolidayDateIso: '2026-12-25',
+      optimalDebtRatioPercent: 20,
+      maxSafeDebtRatioPercent: 35,
       milestonePriorityOrder: [
         'SPINJAM_ZERO',
         'PAYLATER_INSTALLMENTS_ZERO',
@@ -324,8 +347,13 @@ export function buildDefaultStudioConfig(
         name: 'Shopee SPayLater',
         type: 'PAYLATER',
         cutoffDay: 15,
+        cutoffFormula: 'DAYS_IN_MONTH - 15',
+        cutoffBoundaryInclusive: true,
+        preCutoffOffsetMonths: 0,
+        postCutoffOffsetMonths: 1,
         dueDay: 25,
         dueRule: 'FIXED_DAY',
+        dueShiftRule: 'EXACT_DAY',
         monthlyInterestPct: 2.95,
         adminFeePct: 1.0,
         creditLimitRp: isSandbox ? 5_000_000 : (legacyConfig?.paylaterUsageLimit && legacyConfig.paylaterUsageLimit > 0 ? legacyConfig.paylaterUsageLimit : 6_000_000),
@@ -338,8 +366,13 @@ export function buildDefaultStudioConfig(
         name: isSandbox ? 'Corporate Platinum Visa' : 'Bank Permata Credit Card',
         type: 'CREDIT_CARD',
         cutoffDay: legacyConfig?.creditStatementDay ?? 25,
+        cutoffFormula: String(legacyConfig?.creditStatementDay ?? 25),
+        cutoffBoundaryInclusive: false,
+        preCutoffOffsetMonths: 1,
+        postCutoffOffsetMonths: 2,
         dueDay: legacyConfig?.creditDueDay ?? 11,
         dueRule: 'FIXED_DAY',
+        dueShiftRule: 'SHIFT_PREVIOUS_FRIDAY',
         monthlyInterestPct: 1.75,
         adminFeePct: 0,
         creditLimitRp: isSandbox ? 15_000_000 : (legacyConfig?.creditLimit ?? 7_000_000),
@@ -352,8 +385,13 @@ export function buildDefaultStudioConfig(
         name: 'Shopee SPinjam',
         type: 'CASH_LOAN',
         cutoffDay: 0,
+        cutoffFormula: '',
+        cutoffBoundaryInclusive: false,
+        preCutoffOffsetMonths: 1,
+        postCutoffOffsetMonths: 1,
         dueDay: 0,
         dueRule: 'DISBURSEMENT_DAY',
+        dueShiftRule: 'EXACT_DAY',
         monthlyInterestPct: 3.95,
         adminFeePct: 1.0,
         creditLimitRp: 5_000_000,
@@ -569,11 +607,69 @@ export function resolveStudioConfig(
         : defaults.paycycleFormulaConfig.sinkingFunds,
     },
     instrumentsTable: Array.isArray(raw?.instrumentsTable) && raw.instrumentsTable.length > 0
-      ? raw.instrumentsTable.map((row: InstrumentConfigRow) =>
-          row && row.type === 'CREDIT_CARD' && row.cutoffDay === 20
-            ? { ...row, cutoffDay: 25 }
-            : row,
-        )
+      ? raw.instrumentsTable.map((row: InstrumentConfigRow) => {
+          if (!row) return row;
+          const isLegacyCc20 = row.type === 'CREDIT_CARD' && row.cutoffDay === 20;
+          const nextCutoffDay = isLegacyCc20 ? 25 : row.cutoffDay;
+          if (row.type === 'PAYLATER' || row.id === 'inst_spaylater') {
+            return {
+              ...row,
+              cutoffFormula: row.cutoffFormula ?? 'DAYS_IN_MONTH - 15',
+              cutoffBoundaryInclusive:
+                typeof row.cutoffBoundaryInclusive === 'boolean'
+                  ? row.cutoffBoundaryInclusive
+                  : true,
+              preCutoffOffsetMonths:
+                typeof row.preCutoffOffsetMonths === 'number'
+                  ? row.preCutoffOffsetMonths
+                  : 0,
+              postCutoffOffsetMonths:
+                typeof row.postCutoffOffsetMonths === 'number'
+                  ? row.postCutoffOffsetMonths
+                  : 1,
+              dueShiftRule: row.dueShiftRule ?? 'EXACT_DAY',
+            };
+          }
+          if (row.type === 'CREDIT_CARD') {
+            return {
+              ...row,
+              cutoffDay: nextCutoffDay,
+              cutoffFormula:
+                row.cutoffFormula ??
+                String(nextCutoffDay > 0 ? nextCutoffDay : 25),
+              cutoffBoundaryInclusive:
+                typeof row.cutoffBoundaryInclusive === 'boolean'
+                  ? row.cutoffBoundaryInclusive
+                  : false,
+              preCutoffOffsetMonths:
+                typeof row.preCutoffOffsetMonths === 'number'
+                  ? row.preCutoffOffsetMonths
+                  : 1,
+              postCutoffOffsetMonths:
+                typeof row.postCutoffOffsetMonths === 'number'
+                  ? row.postCutoffOffsetMonths
+                  : 2,
+              dueShiftRule: row.dueShiftRule ?? 'SHIFT_PREVIOUS_FRIDAY',
+            };
+          }
+          return {
+            ...row,
+            cutoffFormula: row.cutoffFormula ?? '',
+            cutoffBoundaryInclusive:
+              typeof row.cutoffBoundaryInclusive === 'boolean'
+                ? row.cutoffBoundaryInclusive
+                : false,
+            preCutoffOffsetMonths:
+              typeof row.preCutoffOffsetMonths === 'number'
+                ? row.preCutoffOffsetMonths
+                : 1,
+            postCutoffOffsetMonths:
+              typeof row.postCutoffOffsetMonths === 'number'
+                ? row.postCutoffOffsetMonths
+                : 1,
+            dueShiftRule: row.dueShiftRule ?? 'EXACT_DAY',
+          };
+        })
       : defaults.instrumentsTable,
     assetAccountsTable: cleanedAccounts,
     routineTemplatesTable:

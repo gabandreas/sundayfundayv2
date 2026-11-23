@@ -68,6 +68,143 @@ export function getSpaylaterCutoffDay(month: number, year: number): number {
   return Math.max(1, daysInM - 15);
 }
 
+export interface ClientInstrumentRuleLike {
+  type?: string;
+  cutoffDay?: number;
+  cutoffFormula?: string;
+  cutoffBoundaryInclusive?: boolean;
+  preCutoffOffsetMonths?: number;
+  postCutoffOffsetMonths?: number;
+  dueDay?: number;
+  active?: boolean;
+}
+
+function addMonthsClient(month: number, year: number, offset: number): { month: number; year: number } {
+  const total = year * 12 + (month - 1) + offset;
+  return {
+    month: (total % 12) + 1,
+    year: Math.floor(total / 12),
+  };
+}
+
+/**
+ * Evaluates a modular instrument cutoff expression client-side (supporting DAYS_IN_MONTH,
+ * TX_DAY, TX_MONTH, TX_YEAR, IS_LEAP_YEAR, DUE_DAY, PAYDAY_DAY, MIN, MAX, CLAMP, FLOOR, CEIL, ROUND, IF)
+ * and clamps the resulting cutoff day cleanly into [1, daysInMonth(month, year)] for Feb 28/29 safety.
+ */
+export function resolveInstrumentCutoffDayClient(
+  inst: ClientInstrumentRuleLike | undefined,
+  month: number,
+  year: number,
+  txDay: number = 1,
+  paydayDay: number = 27,
+): number {
+  const dim = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const isLeap = new Date(Date.UTC(year, 2, 0)).getUTCDate() === 29 ? 1 : 0;
+  const fallbackRaw =
+    inst?.cutoffDay && inst.cutoffDay > 0
+      ? inst.cutoffDay
+      : inst?.type === "CREDIT_CARD"
+        ? 25
+        : Math.max(1, dim - 15);
+  const formula = (inst?.cutoffFormula ?? "").trim();
+  if (!formula) {
+    if ((inst?.type === "PAYLATER" || !inst) && fallbackRaw === 15) {
+      return Math.max(1, dim - 15);
+    }
+    return Math.max(1, Math.min(dim, fallbackRaw));
+  }
+  const normalized = formula
+    .replace(/\{([A-Z0-9_]+)\}/gi, "$1")
+    .replace(/\bDAYS_IN_MONTH\b/gi, String(dim))
+    .replace(/\bTX_DAY\b/gi, String(txDay))
+    .replace(/\bTX_MONTH\b/gi, String(month))
+    .replace(/\bTX_YEAR\b/gi, String(year))
+    .replace(/\bIS_LEAP_YEAR\b/gi, String(isLeap))
+    .replace(/\bDUE_DAY\b/gi, String(inst?.dueDay ?? 25))
+    .replace(/\bPAYDAY_DAY\b/gi, String(paydayDay || 27));
+  if (!/^[0-9+\-*/().,<>=!\sMINMAXCLAMPFLOORCEILROUNDIF]+$/i.test(normalized)) {
+    return Math.max(1, Math.min(dim, fallbackRaw));
+  }
+  try {
+    const MIN = (...a: number[]) => Math.min(...a);
+    const MAX = (...a: number[]) => Math.max(...a);
+    const CLAMP = (x: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, x));
+    const FLOOR = (x: number) => Math.floor(x);
+    const CEIL = (x: number) => Math.ceil(x);
+    const ROUND = (x: number, d = 0) => {
+      const s = Math.pow(10, d);
+      return Math.round(x * s) / s;
+    };
+    const IF = (c: number, t: number, e: number) => (c ? t : e);
+    const fn = new Function(
+      "MIN",
+      "MAX",
+      "CLAMP",
+      "FLOOR",
+      "CEIL",
+      "ROUND",
+      "IF",
+      `return (${normalized});`,
+    );
+    const res = Number(fn(MIN, MAX, CLAMP, FLOOR, CEIL, ROUND, IF));
+    if (!Number.isFinite(res)) return Math.max(1, Math.min(dim, fallbackRaw));
+    return Math.max(1, Math.min(dim, Math.round(res)));
+  } catch {
+    return Math.max(1, Math.min(dim, fallbackRaw));
+  }
+}
+
+export function resolveInstrumentLandingPeriodClient(
+  inst: ClientInstrumentRuleLike | undefined,
+  dateIso: string,
+  holdPastCutoff: boolean = false,
+): {
+  cutoffDay: number;
+  crossedCutoff: boolean;
+  dueDay: number;
+  month: number;
+  year: number;
+  label: string;
+} {
+  const parts = String(dateIso || "").slice(0, 10).split("-").map(Number);
+  const y = parts[0] || 2026;
+  const m = parts[1] || 11;
+  const d = parts[2] || 15;
+  const isCc = inst?.type === "CREDIT_CARD";
+  const cutoffDay = resolveInstrumentCutoffDayClient(inst, m, y, d);
+  const inclusive =
+    typeof inst?.cutoffBoundaryInclusive === "boolean"
+      ? inst.cutoffBoundaryInclusive
+      : !isCc;
+  const crossedCutoff = inclusive ? d >= cutoffDay : d > cutoffDay;
+  const preOffset =
+    typeof inst?.preCutoffOffsetMonths === "number"
+      ? inst.preCutoffOffsetMonths
+      : isCc
+        ? 1
+        : 0;
+  const postOffset =
+    typeof inst?.postCutoffOffsetMonths === "number"
+      ? inst.postCutoffOffsetMonths
+      : isCc
+        ? 2
+        : 1;
+  const base = addMonthsClient(m, y, crossedCutoff ? postOffset : preOffset);
+  const finalPeriod = holdPastCutoff ? addMonthsClient(base.month, base.year, 1) : base;
+  const dueDim = new Date(Date.UTC(finalPeriod.year, finalPeriod.month, 0)).getUTCDate();
+  const dueDay = Math.min(dueDim, inst?.dueDay && inst.dueDay > 0 ? inst.dueDay : isCc ? 11 : 25);
+  const SHORT = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+  return {
+    cutoffDay,
+    crossedCutoff: crossedCutoff || holdPastCutoff,
+    dueDay,
+    month: finalPeriod.month,
+    year: finalPeriod.year,
+    label: `${SHORT[finalPeriod.month - 1] ?? finalPeriod.month} '${String(finalPeriod.year).slice(-2)}`,
+  };
+}
+
 const JAKARTA_DATE_FORMATTER = new Intl.DateTimeFormat("en-CA", {
   timeZone: DOMAIN_CONSTANTS.ASIA_JAKARTA_TZ,
   year: "numeric",

@@ -26,72 +26,121 @@ func TestLosslessSplit92kOver3(t *testing.T) {
 }
 
 func TestSPayLaterCutoffRouting(t *testing.T) {
-	// 1. 30-day Nov (30 - 15 = 15th cutoff): Nov 15 -> day <= 15 -> due Dec 25 -> Period DEC '26 (12/2026)
+	// User-confirmed Shopee SPayLater H-15 convention:
+	// cutoffFormula = DAYS_IN_MONTH - 15 (15th in 30d, 16th in 31d, 13th in non-leap Feb, 14th in leap Feb)
+	// >= cutoff rolls +1 month; < cutoff stays in current maturity month (0 offset)
+
+	// 1. 30-day Nov (cutoff = 15): Nov 14 (< 15) -> 11/2026 (due Nov 25); Nov 15 & Nov 23 (>= 15) -> 12/2026 (due Dec 25)
+	resNov14 := SimulateCutoff(CutoffRequest{
+		Instrument:      InstrumentSPayLater,
+		PrincipalAmount: 75000,
+		TenorMonths:     1,
+		PurchaseDate:    "2026-11-14",
+	})
+	if resNov14.CrossedCutoff || resNov14.CutoffDay != 15 || resNov14.StartPeriodMonth != 11 || resNov14.StartPeriodYear != 2026 || resNov14.FirstDueDateIso != "2026-11-25" {
+		t.Fatalf("Nov 14 (< 15) should stay in 11/2026 (due 2026-11-25), got %+v", resNov14)
+	}
+
 	resNov15 := SimulateCutoff(CutoffRequest{
 		Instrument:      InstrumentSPayLater,
 		PrincipalAmount: 75000,
 		TenorMonths:     1,
 		PurchaseDate:    "2026-11-15",
 	})
-	if resNov15.CrossedCutoff || resNov15.CutoffDay != 15 {
-		t.Fatalf("Nov 15 should be on/before 15th cutoff (got crossed=%v cutoff=%d)", resNov15.CrossedCutoff, resNov15.CutoffDay)
-	}
-	if resNov15.StartPeriodMonth != 12 || resNov15.StartPeriodYear != 2026 || resNov15.FirstDueDateIso != "2026-12-25" {
-		t.Fatalf("unexpected routing for Nov 15: period %d/%d due %s", resNov15.StartPeriodMonth, resNov15.StartPeriodYear, resNov15.FirstDueDateIso)
+	if !resNov15.CrossedCutoff || resNov15.CutoffDay != 15 || resNov15.StartPeriodMonth != 12 || resNov15.FirstDueDateIso != "2026-12-25" {
+		t.Fatalf("Nov 15 (>= 15) should cross cutoff into 12/2026 (due 2026-12-25), got %+v", resNov15)
 	}
 
-	// 2. 30-day Nov: Nov 16 -> day > 15 -> crosses cutoff -> due Jan 25 -> Period JAN '27 (01/2027)
-	resNov16 := SimulateCutoff(CutoffRequest{
+	resNov23 := SimulateCutoff(CutoffRequest{
 		Instrument:      InstrumentSPayLater,
-		PrincipalAmount: 34200,
+		PrincipalAmount: 52000,
 		TenorMonths:     1,
-		PurchaseDate:    "2026-11-16",
+		PurchaseDate:    "2026-11-23",
 	})
-	if !resNov16.CrossedCutoff || resNov16.CutoffDay != 15 {
-		t.Fatalf("Nov 16 should cross 15th cutoff")
-	}
-	if resNov16.StartPeriodMonth != 1 || resNov16.StartPeriodYear != 2027 || resNov16.FirstDueDateIso != "2027-01-25" {
-		t.Fatalf("unexpected routing after Nov 15 cutoff: period %d/%d due %s", resNov16.StartPeriodMonth, resNov16.StartPeriodYear, resNov16.FirstDueDateIso)
+	if !resNov23.CrossedCutoff || resNov23.CutoffDay != 15 || resNov23.StartPeriodMonth != 12 || resNov23.StartPeriodYear != 2026 || resNov23.FirstDueDateIso != "2026-12-25" {
+		t.Fatalf("Nov 23 (>= 15) must route to 12/2026 (due 2026-12-25), got %+v", resNov23)
 	}
 
-	// 3. 31-day Oct (31 - 15 = 16th cutoff): Oct 16 -> day <= 16 -> due Nov 25 (11/2026); Oct 17 -> due Dec 25 (12/2026)
-	resOct16 := SimulateCutoff(CutoffRequest{
+	// 2. 31-day Dec (31 - 15 = 16th cutoff): Dec 15 (< 16) -> 12/2026; Dec 16 (>= 16) -> 01/2027
+	resDec15 := SimulateCutoff(CutoffRequest{
 		Instrument:      InstrumentSPayLater,
 		PrincipalAmount: 100000,
 		TenorMonths:     1,
-		PurchaseDate:    "2026-10-16",
+		PurchaseDate:    "2026-12-15",
 	})
-	if resOct16.CrossedCutoff || resOct16.CutoffDay != 16 || resOct16.StartPeriodMonth != 11 || resOct16.FirstDueDateIso != "2026-11-25" {
-		t.Fatalf("Oct 16 should respect 16th cutoff and bill 2026-11-25, got %+v", resOct16)
+	if resDec15.CrossedCutoff || resDec15.CutoffDay != 16 || resDec15.StartPeriodMonth != 12 || resDec15.FirstDueDateIso != "2026-12-25" {
+		t.Fatalf("Dec 15 (< 16) should stay in 12/2026 (due 2026-12-25), got %+v", resDec15)
 	}
-	resOct17 := SimulateCutoff(CutoffRequest{
+	resDec16 := SimulateCutoff(CutoffRequest{
 		Instrument:      InstrumentSPayLater,
 		PrincipalAmount: 100000,
 		TenorMonths:     1,
-		PurchaseDate:    "2026-10-17",
+		PurchaseDate:    "2026-12-16",
 	})
-	if !resOct17.CrossedCutoff || resOct17.CutoffDay != 16 || resOct17.StartPeriodMonth != 12 || resOct17.FirstDueDateIso != "2026-12-25" {
-		t.Fatalf("Oct 17 should cross 16th cutoff and bill 2026-12-25, got %+v", resOct17)
+	if !resDec16.CrossedCutoff || resDec16.CutoffDay != 16 || resDec16.StartPeriodMonth != 1 || resDec16.StartPeriodYear != 2027 || resDec16.FirstDueDateIso != "2027-01-25" {
+		t.Fatalf("Dec 16 (>= 16) should cross into 01/2027 (due 2027-01-25), got %+v", resDec16)
 	}
 
-	// 4. 28-day Feb 2027 (28 - 15 = 13th cutoff) & 29-day leap Feb 2028 (29 - 15 = 14th cutoff)
-	resFeb27 := SimulateCutoff(CutoffRequest{
+	// 3. 28-day Feb 2027 (28 - 15 = 13th cutoff) & 29-day leap Feb 2028 (29 - 15 = 14th cutoff)
+	resFeb27Pre := SimulateCutoff(CutoffRequest{
 		Instrument:      InstrumentSPayLater,
 		PrincipalAmount: 100000,
 		TenorMonths:     1,
-		PurchaseDate:    "2027-02-14",
+		PurchaseDate:    "2027-02-12",
 	})
-	if !resFeb27.CrossedCutoff || resFeb27.CutoffDay != 13 || resFeb27.StartPeriodMonth != 4 {
-		t.Fatalf("Feb 14 2027 should cross 13th cutoff into 04/2027, got %+v", resFeb27)
+	if resFeb27Pre.CrossedCutoff || resFeb27Pre.CutoffDay != 13 || resFeb27Pre.StartPeriodMonth != 2 || resFeb27Pre.FirstDueDateIso != "2027-02-25" {
+		t.Fatalf("Feb 12 2027 (< 13) should stay 02/2027 (due 2027-02-25), got %+v", resFeb27Pre)
 	}
-	resFeb28 := SimulateCutoff(CutoffRequest{
+	resFeb27Post := SimulateCutoff(CutoffRequest{
 		Instrument:      InstrumentSPayLater,
 		PrincipalAmount: 100000,
 		TenorMonths:     1,
-		PurchaseDate:    "2028-02-14",
+		PurchaseDate:    "2027-02-13",
 	})
-	if resFeb28.CrossedCutoff || resFeb28.CutoffDay != 14 || resFeb28.StartPeriodMonth != 3 {
-		t.Fatalf("Feb 14 2028 (leap year) should NOT cross 14th cutoff, got %+v", resFeb28)
+	if !resFeb27Post.CrossedCutoff || resFeb27Post.CutoffDay != 13 || resFeb27Post.StartPeriodMonth != 3 || resFeb27Post.FirstDueDateIso != "2027-03-25" {
+		t.Fatalf("Feb 13 2027 (>= 13) should cross 13th cutoff into 03/2027, got %+v", resFeb27Post)
+	}
+	resFeb28Leap := SimulateCutoff(CutoffRequest{
+		Instrument:      InstrumentSPayLater,
+		PrincipalAmount: 100000,
+		TenorMonths:     1,
+		PurchaseDate:    "2028-02-13",
+	})
+	if resFeb28Leap.CrossedCutoff || resFeb28Leap.CutoffDay != 14 || resFeb28Leap.StartPeriodMonth != 2 {
+		t.Fatalf("Feb 13 2028 (leap year, < 14) should stay in 02/2028, got %+v", resFeb28Leap)
+	}
+
+	// 4. Modular UI CutoffFormula + DueDay 31 clamping in Feb 2027 (28) & Leap Feb 2028 (29)
+	preOff := 0
+	postOff := 1
+	incFalse := false
+	customRes := SimulateCutoff(CutoffRequest{
+		Instrument:              InstrumentSPayLater,
+		PrincipalAmount:         200000,
+		TenorMonths:             1,
+		PurchaseDate:            "2027-01-20",
+		CutoffFormula:           "MIN(20, DAYS_IN_MONTH - 8)",
+		CutoffBoundaryInclusive: &incFalse,
+		PreCutoffOffsetMonths:   &preOff,
+		PostCutoffOffsetMonths:  &postOff,
+		DueDayOverride:          31,
+	})
+	if customRes.CutoffDay != 20 || customRes.CrossedCutoff || customRes.StartPeriodMonth != 1 || customRes.FirstDueDateIso != "2027-01-31" {
+		t.Fatalf("custom formula non-inclusive day 20 <= 20 should stay 01/2027, got %+v", customRes)
+	}
+	customFeb := SimulateCutoff(CutoffRequest{
+		Instrument:              InstrumentSPayLater,
+		PrincipalAmount:         200000,
+		TenorMonths:             1,
+		PurchaseDate:            "2027-02-15",
+		CutoffFormula:           "MIN(20, DAYS_IN_MONTH - 8)",
+		CutoffBoundaryInclusive: &incFalse,
+		PreCutoffOffsetMonths:   &preOff,
+		PostCutoffOffsetMonths:  &postOff,
+		DueDayOverride:          31,
+	})
+	if customFeb.CutoffDay != 20 || customFeb.FirstDueDateIso != "2027-02-28" {
+		t.Fatalf("Feb 2027 should compute cutoff=20 and clamp dueDay 31 -> 2027-02-28, got %+v", customFeb)
 	}
 }
 

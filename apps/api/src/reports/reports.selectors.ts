@@ -20,6 +20,7 @@ import {
   calculateDecemberProratedThr,
   getWorkingDaysCutoffWindow,
   calculateWorkingDaysForConsumptionPeriod,
+  mergeStudioHolidayMap,
 } from '../calculator/payroll';
 import {
   calculateFixedEssentialsRealization,
@@ -226,8 +227,19 @@ export class ReportsSelectors {
       : 'UNINITIALIZED';
 
     const studioConfig = resolveStudioConfig(userId, config.formulaParamsJson, config);
+    const pcCfg = studioConfig.paycycleFormulaConfig;
+    const mergedHolidays = mergeStudioHolidayMap(pcCfg.holidayDatesIso);
+    const attWindow = {
+      startDay: pcCfg.attendanceCutoffStartDay,
+      endDay: pcCfg.attendanceCutoffEndDay,
+    };
     const isStandardMode = config.profileMode === 'STANDARD_GENERAL';
-    const cutoffWindow = getWorkingDaysCutoffWindow(month, year);
+    const cutoffWindow = getWorkingDaysCutoffWindow(
+      month,
+      year,
+      mergedHolidays,
+      attWindow,
+    );
     const workingDaysWindowLabel = isStandardMode
       ? `Standard Monthly Cycle (${cutoffWindow.workingDays} working days)`
       : cutoffWindow.windowLabel;
@@ -256,8 +268,8 @@ export class ReportsSelectors {
     const resolvedWorkingDays = selectedSnapshot
       ? selectedSnapshot.totalWorkingDays > 0
         ? selectedSnapshot.totalWorkingDays
-        : calculateWorkingDaysForConsumptionPeriod(month, year)
-      : calculateWorkingDaysForConsumptionPeriod(month, year);
+        : calculateWorkingDaysForConsumptionPeriod(month, year, mergedHolidays, attWindow)
+      : calculateWorkingDaysForConsumptionPeriod(month, year, mergedHolidays, attWindow);
 
     const payroll = calculatePayroll({
       baseSalary: config.baseSalary,
@@ -268,7 +280,8 @@ export class ReportsSelectors {
       thrAmount: selectedSnapshot ? selectedSnapshot.thrAmount : defaultThr,
       bonusAmount: selectedSnapshot?.bonusAmount ?? 0,
       extraIncome,
-      laptopAllowance: config.laptopAllowance,
+      laptopAllowance: pcCfg.laptopAllowanceRp ?? config.laptopAllowance,
+      bpjsRate: (pcCfg.bpjsRatePercent ?? 3) / 100,
     });
 
     const incomeTransactions = transactions

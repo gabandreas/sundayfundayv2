@@ -855,5 +855,114 @@ describe('Marquee NLU, 8 Deterministic Tools & Webhook Token Auth', () => {
       expect(ctx.systemPrompt).toContain('25th');
       expect(ctx.systemPrompt).toContain('81.818');
     });
+
+    it('hydrates full ERP modules (CC contracts, routines, savings pockets, wishlist, subscriptions) and stages/executes multi-module service actions + agentSteps', async () => {
+      const prismaMock: any = {
+        monthlySnapshot: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: 1, month: 11, year: 2026, status: 'DRAFT', finalTotalIncome: 5891000, totalDeductions: 4522976, actualDailyOperational: 1720316, deficitUncovered: 0, actualSavings: 6341, selfReward: 250000, payrollPayoutDate: new Date('2026-10-28') },
+            { id: 2, month: 12, year: 2026, status: 'DRAFT', finalTotalIncome: 9737425, totalDeductions: 4162341, actualDailyOperational: 1500000, deficitUncovered: 0, actualSavings: 1000000, selfReward: 2775084, payrollPayoutDate: new Date('2026-11-27') },
+          ]),
+        },
+        liabilityLineItem: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: 318, month: 1, year: 2027, category: 'PAYLATER', title: 'Americano & Dunhill', monthlyAmount: 52000, isSettled: false },
+          ]),
+        },
+        transaction: { findMany: jest.fn().mockResolvedValue([]) },
+        creditCardTransaction: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: 4, label: 'Nike Dunk SE IB6399001', monthlyAmount: 122104, totalTenor: 12, startMonth: 10, startYear: 2026, isActive: true },
+          ]),
+        },
+        creditContract: { findMany: jest.fn().mockResolvedValue([]) },
+        wishlistItem: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: 1, name: 'Mac Mini M4', targetPrice: 9000000, isPurchased: false },
+          ]),
+        },
+        savingsGoal: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: 1, title: 'Emergency Fund', targetAmount: 12000000, currentAllocatedAmount: 272541 },
+          ]),
+        },
+        subscriptionItem: { findMany: jest.fn().mockResolvedValue([]) },
+        globalConfig: { findFirst: jest.fn().mockResolvedValue({ userId: 1, promoKillSwitchesJson: [], formulaParamsJson: {} }) },
+      };
+      const creditServiceMock: any = {
+        shiftLineItem: jest.fn().mockResolvedValue({ shiftedCount: 1, affectedPeriods: [{ month: 12, year: 2026 }, { month: 1, year: 2027 }] }),
+      };
+      const snapshotsServiceMock: any = {
+        createRevision: jest.fn().mockResolvedValue({ id: 99, category: 'DAILY_OPERATIONAL', newValue: 1800000 }),
+      };
+      const wishlistServiceMock: any = {
+        createWishlist: jest.fn().mockResolvedValue({ id: 7, name: 'Monitor 4K', targetPrice: 4500000 }),
+      };
+
+      const tools = new MarqueeToolsService(
+        { getDefaultActivePeriod: jest.fn().mockResolvedValue({ month: 11, year: 2026 }) } as any,
+        {} as any,
+        {
+          simulateCutoffForUser: jest.fn().mockResolvedValue({
+            startPeriodLabel: "DEC '26",
+            startPeriodMonth: 12,
+            startPeriodYear: 2026,
+            firstDueDateIso: '2026-12-25',
+            verdict: 'SAFE',
+            dsrAfterPercent: 31.2,
+          }),
+          simulateScenarioForUser: jest.fn().mockResolvedValue({
+            net12MDeltaRp: 3500000,
+            runwayDeltaDays: 14,
+            baseline: { projected12MWealthRp: 10000000, freedomDate: 'Feb 2027' },
+            simulated: { projected12MWealthRp: 13500000, freedomDate: 'Jan 2027' },
+          }),
+        } as any,
+        creditServiceMock,
+        {} as any,
+        {} as any,
+        snapshotsServiceMock,
+        wishlistServiceMock,
+        undefined,
+        prismaMock,
+      );
+
+      // 1. Staged confirmation for shifting Americano & Dunhill earlier to Dec 2026
+      const stagedShift = await tools.executeTool(
+        'manage_liability_item' as any,
+        { action: 'SHIFT_EARLIER', itemQuery: 'Americano' },
+        { userId: 1, confirm: false, month: 1, year: 2027 },
+      );
+      expect(stagedShift.ok).toBe(true);
+      expect(stagedShift.pendingAction?.type).toBe('CONFIRM_SHIFT_LIABILITY');
+
+      // 2. Confirmed shift executes CreditService.shiftLineItem cleanly
+      const execShift = await tools.executeTool(
+        'manage_liability_item' as any,
+        { action: 'SHIFT_EARLIER', itemId: 318 },
+        { userId: 1, confirm: true, month: 1, year: 2027 },
+      );
+      expect(execShift.ok).toBe(true);
+      expect(creditServiceMock.shiftLineItem).toHaveBeenCalledWith(318, { direction: 'EARLIER' }, 1);
+
+      // 3. Budget revision stages then confirms via SnapshotsService
+      const stagedRev = await tools.executeTool(
+        'revise_budget_or_quota' as any,
+        { category: 'DAILY_OPERATIONAL', newValueRp: 1800000, month: 12, year: 2026 },
+        { userId: 1, confirm: false, month: 12, year: 2026 },
+      );
+      expect(stagedRev.pendingAction?.type).toBe('CONFIRM_BUDGET_REVISION');
+
+      // 4. Hydrator includes end-to-end wishlist & CC context
+      const hydrator = new MarqueeContextHydrator(
+        prismaMock,
+        { getDefaultActivePeriod: jest.fn().mockResolvedValue({ month: 11, year: 2026, cycleTemporalState: 'ACTIVE' }) } as any,
+        { getPacing: jest.fn().mockResolvedValue({ remainingBudget: 160000, weightedSafeToSpendToday: 40000 }) } as any,
+        { getOverview: jest.fn().mockResolvedValue({ totalBalance: 272541, rdpuBalance: 0 }) } as any,
+      );
+      const ctx = await hydrator.hydrateForUser(1, { month: 11, year: 2026, locale: 'id' });
+      expect(ctx.systemPrompt).toContain('Mac Mini M4');
+      expect(ctx.systemPrompt).toContain('Nike Dunk SE IB6399001');
+    });
   });
 });

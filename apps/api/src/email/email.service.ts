@@ -15,11 +15,13 @@ import {
   CC_DUE_DAY,
   ERP_NOTIFICATION_EMAIL,
   PERSONAL_DEBT_DUE_DAY,
-  SPAYLATER_CUTOFF_DAY,
   SPAYLATER_DUE_DAY,
   getJakartaDateParts,
   getPayrollPeriodForDate,
+  getSpaylaterCutoffDay,
 } from '../calculator/pacing';
+import { resolveCutoffDayForMonthTs } from '../calculator/formula-dsl';
+import { resolveStudioConfig } from '../config/studio.defaults';
 import { generateExecutiveWorkbookBuffer } from './email.workbook';
 import {
   buildKillSwitchEmailHtml,
@@ -628,10 +630,11 @@ export class EmailService {
     const locale: EmailLocale = params.locale ?? 'EN';
     const jkt = getJakartaDateParts();
 
-    const [transport, matrix, killSwitches] = await Promise.all([
+    const [transport, matrix, killSwitches, cfgRow] = await Promise.all([
       this.resolveTransportConfig(params.userId, params.recipientEmail),
       this.creditSelectors.getLiabilityMatrix(targetMonth, targetYear, 3, params.userId),
       this.creditSelectors.getKillSwitches(params.userId),
+      this.prisma.globalConfig.findFirst({ where: { userId: params.userId } }),
     ]);
 
     const key = `${targetYear}-${targetMonth}`;
@@ -639,10 +642,46 @@ export class EmailService {
     const unsettled = lineItems.filter((i) => !i.isSettled);
     const activePromos = killSwitches.items.filter((k) => !k.providerCancelConfirmed && k.isActive);
 
-    const spayCutoffDays = daysUntilJakartaDay(SPAYLATER_CUTOFF_DAY);
-    const ccCutoffDays = daysUntilJakartaDay(CC_CUTOFF_DAY);
-    const spayDueDays = daysUntilJakartaDay(SPAYLATER_DUE_DAY);
-    const ccDueDays = daysUntilJakartaDay(CC_DUE_DAY);
+    const studioConfig = resolveStudioConfig(
+      params.userId,
+      cfgRow?.formulaParamsJson,
+      cfgRow,
+    );
+    const spayInst = studioConfig.instrumentsTable.find(
+      (i) => i.active && i.type === 'PAYLATER',
+    );
+    const ccInst = studioConfig.instrumentsTable.find(
+      (i) => i.active && i.type === 'CREDIT_CARD',
+    );
+    const spayCutoffDay = spayInst
+      ? resolveCutoffDayForMonthTs(
+          spayInst.cutoffFormula,
+          spayInst.cutoffDay || getSpaylaterCutoffDay(jkt.month, jkt.year),
+          jkt.day,
+          jkt.month,
+          jkt.year,
+          spayInst.dueDay || SPAYLATER_DUE_DAY,
+          studioConfig.paycycleFormulaConfig.paydayAnchorDay,
+        ).cutoffDay
+      : getSpaylaterCutoffDay(jkt.month, jkt.year);
+    const ccCutoffDay = ccInst
+      ? resolveCutoffDayForMonthTs(
+          ccInst.cutoffFormula,
+          ccInst.cutoffDay || CC_CUTOFF_DAY,
+          jkt.day,
+          jkt.month,
+          jkt.year,
+          ccInst.dueDay || CC_DUE_DAY,
+          studioConfig.paycycleFormulaConfig.paydayAnchorDay,
+        ).cutoffDay
+      : CC_CUTOFF_DAY;
+    const spayDueDayResolved = spayInst?.dueDay || SPAYLATER_DUE_DAY;
+    const ccDueDayResolved = ccInst?.dueDay || CC_DUE_DAY;
+
+    const spayCutoffDays = daysUntilJakartaDay(spayCutoffDay);
+    const ccCutoffDays = daysUntilJakartaDay(ccCutoffDay);
+    const spayDueDays = daysUntilJakartaDay(spayDueDayResolved);
+    const ccDueDays = daysUntilJakartaDay(ccDueDayResolved);
     const pDebtDueDays = daysUntilJakartaDay(PERSONAL_DEBT_DUE_DAY);
 
     const titles: Record<EmailLocale, { kicker: string; title: string; dueHeader: string; emptyUnsettled: string }> = {
@@ -670,10 +709,10 @@ export class EmailService {
 
     const scheduleRowsHtml = `
       <tr><td style="padding:10px 14px;border-bottom:1px solid #E2E8F0;font-size:13px;color:#475569;">Personal Debt Due (${PERSONAL_DEBT_DUE_DAY}th M+1)</td><td style="padding:10px 14px;border-bottom:1px solid #E2E8F0;text-align:right;font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;font-size:13px;font-weight:600;color:#0F172A;">${pDebtDueDays}d</td></tr>
-      <tr><td style="padding:10px 14px;border-bottom:1px solid #E2E8F0;font-size:13px;color:#475569;">Credit Card Due (${CC_DUE_DAY}th M+1)</td><td style="padding:10px 14px;border-bottom:1px solid #E2E8F0;text-align:right;font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;font-size:13px;font-weight:600;color:#0F172A;">${ccDueDays}d</td></tr>
-      <tr><td style="padding:10px 14px;border-bottom:1px solid #E2E8F0;font-size:13px;color:#475569;">SPayLater Cutoff (${SPAYLATER_CUTOFF_DAY}th)</td><td style="padding:10px 14px;border-bottom:1px solid #E2E8F0;text-align:right;font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;font-size:13px;font-weight:600;color:#0F172A;">${spayCutoffDays}d</td></tr>
-      <tr><td style="padding:10px 14px;border-bottom:1px solid #E2E8F0;font-size:13px;color:#475569;">Credit Card Statement Cutoff (${CC_CUTOFF_DAY}th)</td><td style="padding:10px 14px;border-bottom:1px solid #E2E8F0;text-align:right;font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;font-size:13px;font-weight:600;color:#0F172A;">${ccCutoffDays}d</td></tr>
-      <tr><td style="padding:10px 14px;font-size:13px;color:#475569;">SPayLater / SPinjam Due (${SPAYLATER_DUE_DAY}th M+1)</td><td style="padding:10px 14px;text-align:right;font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;font-size:13px;font-weight:600;color:#0F172A;">${spayDueDays}d</td></tr>
+      <tr><td style="padding:10px 14px;border-bottom:1px solid #E2E8F0;font-size:13px;color:#475569;">Credit Card Due (${ccDueDayResolved}th M+1)</td><td style="padding:10px 14px;border-bottom:1px solid #E2E8F0;text-align:right;font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;font-size:13px;font-weight:600;color:#0F172A;">${ccDueDays}d</td></tr>
+      <tr><td style="padding:10px 14px;border-bottom:1px solid #E2E8F0;font-size:13px;color:#475569;">SPayLater Cutoff (${spayCutoffDay}th)</td><td style="padding:10px 14px;border-bottom:1px solid #E2E8F0;text-align:right;font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;font-size:13px;font-weight:600;color:#0F172A;">${spayCutoffDays}d</td></tr>
+      <tr><td style="padding:10px 14px;border-bottom:1px solid #E2E8F0;font-size:13px;color:#475569;">Credit Card Statement Cutoff (${ccCutoffDay}th)</td><td style="padding:10px 14px;border-bottom:1px solid #E2E8F0;text-align:right;font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;font-size:13px;font-weight:600;color:#0F172A;">${ccCutoffDays}d</td></tr>
+      <tr><td style="padding:10px 14px;font-size:13px;color:#475569;">SPayLater / SPinjam Due (${spayDueDayResolved}th)</td><td style="padding:10px 14px;text-align:right;font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;font-size:13px;font-weight:600;color:#0F172A;">${spayDueDays}d</td></tr>
     `;
 
     const unsettledHtml =

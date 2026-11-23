@@ -1,3 +1,10 @@
+import {
+  addHybridMonths,
+  daysInMonthCalendarUtc,
+  resolveCutoffDayForMonthTs,
+} from './formula-dsl';
+export { addHybridMonths, daysInMonthCalendarUtc, resolveCutoffDayForMonthTs };
+
 export type HybridInstrument =
   | 'SPAYLATER'
   | 'CREDIT_CARD'
@@ -16,6 +23,12 @@ export interface CutoffSimulateRequest {
   tenorMonths: number;
   purchaseDate?: string; // YYYY-MM-DD
   dueDayOverride?: number;
+  cutoffFormula?: string;
+  cutoffBoundaryInclusive?: boolean;
+  preCutoffOffsetMonths?: number;
+  postCutoffOffsetMonths?: number;
+  dueShiftRule?: string;
+  anchorDay?: number;
   holdPastCutoff?: boolean;
   startMonthOverride?: number;
   startYearOverride?: number;
@@ -329,13 +342,6 @@ export function formatHybridPeriodLabel(m: number, y: number): string {
   return `${MONTH_SHORT[m - 1]} '${String(y % 100).padStart(2, '0')}`;
 }
 
-export function addHybridMonths(m: number, y: number, offset: number): { month: number; year: number } {
-  const total = y * 12 + (m - 1) + offset;
-  const newY = Math.floor(total / 12);
-  const newM = ((total % 12) + 12) % 12;
-  return { month: newM + 1, year: newY };
-}
-
 function daysInMonthUtc(m: number, y: number): number {
   return new Date(Date.UTC(y, m, 0)).getUTCDate();
 }
@@ -439,67 +445,100 @@ export function simulateCutoffTs(req: CutoffSimulateRequest): CutoffSimulateResu
   const pM = parsed.ok ? parsed.month : 11;
   const pD = parsed.ok ? parsed.day : 18;
 
-  let cutoffDay = daysInMonthUtc(pM, pY) - 15;
+  let cutoffFormula = '';
+  let fallbackCutoff = daysInMonthUtc(pM, pY) - 15;
   let dueDay = 25;
+  let inclusive = false;
+  let preOffset = 0;
+  let postOffset = 1;
+
+  if (inst === 'CREDIT_CARD') {
+    cutoffFormula = '25';
+    fallbackCutoff = 25;
+    inclusive = false;
+    preOffset = 1;
+    postOffset = 2;
+    dueDay = 11;
+  } else if (inst === 'SPINJAM' || inst === 'PERSONAL_DEBT') {
+    cutoffFormula = '';
+    fallbackCutoff = pD;
+    inclusive = false;
+    preOffset = 1;
+    postOffset = 1;
+    dueDay = pD;
+  } else if (inst === 'CASH') {
+    cutoffFormula = '';
+    fallbackCutoff = 0;
+    inclusive = false;
+    preOffset = 0;
+    postOffset = 0;
+    dueDay = pD;
+  } else {
+    cutoffFormula = 'DAYS_IN_MONTH - 15';
+    fallbackCutoff = daysInMonthUtc(pM, pY) - 15;
+    inclusive = true;
+    preOffset = 0;
+    postOffset = 1;
+    dueDay = 25;
+  }
+
+  if (req.dueDayOverride && req.dueDayOverride >= 1 && req.dueDayOverride <= 31) {
+    dueDay = req.dueDayOverride;
+  }
+  if (typeof req.cutoffFormula === 'string' && req.cutoffFormula.trim() !== '') {
+    cutoffFormula = req.cutoffFormula.trim();
+  }
+  if (typeof req.cutoffBoundaryInclusive === 'boolean') {
+    inclusive = req.cutoffBoundaryInclusive;
+  }
+  if (typeof req.preCutoffOffsetMonths === 'number') {
+    preOffset = req.preCutoffOffsetMonths;
+  }
+  if (typeof req.postCutoffOffsetMonths === 'number') {
+    postOffset = req.postCutoffOffsetMonths;
+  }
+
+  const paydayAnchor = req.anchorDay && req.anchorDay > 0 ? req.anchorDay : 27;
+
+  let cutoffDay = fallbackCutoff;
   let crossedCutoff = false;
   let startPeriodM = pM;
   let startPeriodY = pY;
   let daysUntilCutoff = 0;
 
-  if (inst === 'CREDIT_CARD') {
-    cutoffDay = 25;
-    dueDay =
-      req.dueDayOverride && req.dueDayOverride >= 1 && req.dueDayOverride <= 31
-        ? req.dueDayOverride
-        : 11;
-    if (pD > cutoffDay) {
-      crossedCutoff = true;
-      const shifted = addHybridMonths(pM, pY, 2);
-      startPeriodM = shifted.month;
-      startPeriodY = shifted.year;
-      daysUntilCutoff = daysInMonthUtc(pM, pY) - pD + cutoffDay;
-    } else {
-      crossedCutoff = false;
-      const shifted = addHybridMonths(pM, pY, 1);
-      startPeriodM = shifted.month;
-      startPeriodY = shifted.year;
-      daysUntilCutoff = cutoffDay - pD;
-    }
-  } else if (inst === 'SPINJAM' || inst === 'PERSONAL_DEBT') {
-    cutoffDay = pD;
-    dueDay =
-      req.dueDayOverride && req.dueDayOverride >= 1 && req.dueDayOverride <= 31
-        ? req.dueDayOverride
-        : pD;
-    crossedCutoff = false;
-    const shifted = addHybridMonths(pM, pY, 1);
+  if (inst === 'SPINJAM' || inst === 'PERSONAL_DEBT' || inst === 'CASH') {
+    const shifted = addHybridMonths(pM, pY, preOffset);
     startPeriodM = shifted.month;
     startPeriodY = shifted.year;
     daysUntilCutoff = 0;
-  } else if (inst === 'CASH') {
-    cutoffDay = 0;
-    dueDay = pD;
-    crossedCutoff = false;
-    startPeriodM = pM;
-    startPeriodY = pY;
-    daysUntilCutoff = 0;
   } else {
-    cutoffDay = daysInMonthUtc(pM, pY) - 15;
-    dueDay =
-      req.dueDayOverride && req.dueDayOverride >= 1 && req.dueDayOverride <= 31
-        ? req.dueDayOverride
-        : 25;
-    if (pD > cutoffDay) {
-      crossedCutoff = true;
-      const shifted = addHybridMonths(pM, pY, 2);
+    cutoffDay = resolveCutoffDayForMonthTs(
+      cutoffFormula,
+      fallbackCutoff,
+      pD,
+      pM,
+      pY,
+      dueDay,
+      paydayAnchor,
+    ).cutoffDay;
+    crossedCutoff = inclusive ? pD >= cutoffDay : pD > cutoffDay;
+    if (crossedCutoff) {
+      const shifted = addHybridMonths(pM, pY, postOffset);
       startPeriodM = shifted.month;
       startPeriodY = shifted.year;
       const nextM = addHybridMonths(pM, pY, 1);
-      const nextCutoff = daysInMonthUtc(nextM.month, nextM.year) - 15;
+      const nextCutoff = resolveCutoffDayForMonthTs(
+        cutoffFormula,
+        fallbackCutoff,
+        1,
+        nextM.month,
+        nextM.year,
+        dueDay,
+        paydayAnchor,
+      ).cutoffDay;
       daysUntilCutoff = daysInMonthUtc(pM, pY) - pD + nextCutoff;
     } else {
-      crossedCutoff = false;
-      const shifted = addHybridMonths(pM, pY, 1);
+      const shifted = addHybridMonths(pM, pY, preOffset);
       startPeriodM = shifted.month;
       startPeriodY = shifted.year;
       daysUntilCutoff = cutoffDay - pD;
@@ -568,7 +607,9 @@ export function simulateCutoffTs(req: CutoffSimulateRequest): CutoffSimulateResu
   let advice = 'Fits within current period safe debt envelope.';
 
   if (inst !== 'CASH' && firstSlice > 0) {
-    const waitAvailable = !crossedCutoff && daysUntilCutoff > 0 && daysUntilCutoff <= 5;
+    const waitDays =
+      inclusive && daysUntilCutoff > 0 ? daysUntilCutoff : daysUntilCutoff + 1;
+    const waitAvailable = !crossedCutoff && waitDays > 0 && waitDays <= 5;
     if (safeHeadroom > 0 && firstSlice > safeHeadroom) {
       if (waitAvailable && nextObl + firstSlice < curObl) {
         const nextP = addHybridMonths(
@@ -577,7 +618,7 @@ export function simulateCutoffTs(req: CutoffSimulateRequest): CutoffSimulateResu
           1,
         );
         verdict = 'WAIT_PAST_CUTOFF';
-        advice = `Wait ${daysUntilCutoff + 1} day(s) past the ${cutoffDay}th cutoff to defer billing into ${formatHybridPeriodLabel(nextP.month, nextP.year)}.`;
+        advice = `Wait ${waitDays} day(s) past the ${cutoffDay}th cutoff to defer billing into ${formatHybridPeriodLabel(nextP.month, nextP.year)}.`;
       } else {
         verdict = 'OVER_LIMIT';
         advice = `Exceeds safe headroom by Rp ${(firstSlice - safeHeadroom).toLocaleString('id-ID')}. Defer or extend tenor.`;
@@ -590,7 +631,7 @@ export function simulateCutoffTs(req: CutoffSimulateRequest): CutoffSimulateResu
           1,
         );
         verdict = 'WAIT_PAST_CUTOFF';
-        advice = `DSR reaches ${dsrAfterPercent.toFixed(1)}%. Waiting ${daysUntilCutoff + 1} day(s) past the ${cutoffDay}th cutoff shifts 1st charge to ${formatHybridPeriodLabel(nextP.month, nextP.year)}.`;
+        advice = `DSR reaches ${dsrAfterPercent.toFixed(1)}%. Waiting ${waitDays} day(s) past the ${cutoffDay}th cutoff shifts 1st charge to ${formatHybridPeriodLabel(nextP.month, nextP.year)}.`;
       } else {
         verdict = 'CAUTION';
         advice = `First slice lifts DSR to ${dsrAfterPercent.toFixed(1)}% in ${firstSliceInfo.periodLabel}.`;
@@ -602,7 +643,10 @@ export function simulateCutoffTs(req: CutoffSimulateRequest): CutoffSimulateResu
       verdict = 'SAFE';
       advice = `Post-${cutoffDay}th cutoff purchase: bills in ${firstSliceInfo.periodLabel} (due ${firstSliceInfo.dueDateIso}).`;
     }
-    if (inst === 'CREDIT_CARD') {
+    const shouldShiftWeekend =
+      req.dueShiftRule === 'SHIFT_PREVIOUS_FRIDAY' ||
+      (!req.dueShiftRule && inst === 'CREDIT_CARD');
+    if (shouldShiftWeekend) {
       const early = resolvePreviousBusinessDayIsoTs(
         firstSliceInfo.dueYear,
         firstSliceInfo.dueMonth,

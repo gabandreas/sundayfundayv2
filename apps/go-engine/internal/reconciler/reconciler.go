@@ -138,8 +138,19 @@ func ParseStatementBatch(req ParseRequest) ParseResult {
 	}
 
 	lockedMap := make(map[string]bool, len(req.LockedPeriodCodes))
+	maxLockedSerial := 0
 	for _, code := range req.LockedPeriodCodes {
-		lockedMap[strings.TrimSpace(code)] = true
+		trimmed := strings.TrimSpace(code)
+		lockedMap[trimmed] = true
+		if parts := strings.Split(trimmed, "/"); len(parts) == 2 {
+			lm, errM := strconv.Atoi(parts[0])
+			ly, errY := strconv.Atoi(parts[1])
+			if errM == nil && errY == nil && lm >= 1 && lm <= 12 {
+				if ser := ly*12 + lm; ser > maxLockedSerial {
+					maxLockedSerial = ser
+				}
+			}
+		}
 	}
 
 	lines := strings.Split(req.RawText, "\n")
@@ -222,14 +233,15 @@ func ParseStatementBatch(req ParseRequest) ParseResult {
 
 		isBeforeEarliest := req.EarliestOpenYear > 0 && req.EarliestOpenMonth > 0 &&
 			(targetY*12+targetM < req.EarliestOpenYear*12+req.EarliestOpenMonth)
-		if lockedMap[targetCode] || isBeforeEarliest {
+		isBeforeOrAtMaxLocked := maxLockedSerial > 0 && (targetY*12+targetM <= maxLockedSerial)
+		if lockedMap[targetCode] || isBeforeEarliest || isBeforeOrAtMaxLocked {
 			origPeriodCode = targetCode
 			advFromLocked = true
-			if isBeforeEarliest {
+			if isBeforeEarliest && !(maxLockedSerial > 0 && (req.EarliestOpenYear*12+req.EarliestOpenMonth <= maxLockedSerial)) {
 				targetM = req.EarliestOpenMonth
 				targetY = req.EarliestOpenYear
 			}
-			for steps := 0; steps < 24 && lockedMap[fmt.Sprintf("%02d/%d", targetM, targetY)]; steps++ {
+			for steps := 0; steps < 24 && (lockedMap[fmt.Sprintf("%02d/%d", targetM, targetY)] || (maxLockedSerial > 0 && (targetY*12+targetM <= maxLockedSerial))); steps++ {
 				targetM++
 				if targetM > 12 {
 					targetM = 1

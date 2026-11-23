@@ -42,10 +42,11 @@ Division by zero, unknown `{TOKEN}` names, or unknown function identifiers rejec
 
 ---
 
-## 4. 31 Reserved Word Tokens
+## 4. 38 Reserved Word Tokens
 
-Tokens are case-normalized uppercase and wrapped in braces `{TOKEN}` (assembled live per snapshot in `FinanceSelectors.buildFormulaVariablesForSnapshot`):
+Tokens are case-normalized uppercase and work either inside braces `{TOKEN}` or as bare uppercase/snake_case identifiers in instrument cutoff formulas (`DAYS_IN_MONTH - 15`, assembled live per snapshot in `FinanceSelectors.buildFormulaVariablesForSnapshot`):
 
 - **Payroll & Income (12):** `BASE_SALARY`, `WORK_DAYS`, `DAILY_ALLOWANCE`, `TRANSPORT_ALLOWANCE`, `FIXED_ADDITIONS`, `GROSS_PAY`, `TAX_AND_BPJS`, `NET_SALARY`, `TENURE_MONTHS`, `THR_MULTIPLIER`, `THR_AMOUNT`, `NET_INCOME`
 - **Liabilities & Allocations (10):** `PAYLATER_DEBT`, `CC_DEBT`, `SPINJAM_DEBT`, `OTHER_DEBT`, `TOTAL_DEBT`, `ROUTINE_BILLS`, `LIVING_BUDGET`, `P1_FLOOR`, `P1_SAVINGS`, `P2_REWARD`
 - **Paycycle Timing & Work-Cost (9):** `ELAPSED_DAYS`, `CYCLE_DAYS`, `REMAINING_DAYS`, `WEEKEND_WEIGHT`, `WORK_DAYS_PER_WEEK`, `WORK_HOURS_PER_DAY`, `COMMUTE_HOURS_PER_DAY`, `OPTIMAL_DSR_PCT`, `MAX_SAFE_DSR_PCT`
+- **Calendar & Cutoff Tokens (7):** `DAYS_IN_MONTH`, `TX_DAY`, `TX_MONTH`, `TX_YEAR`, `IS_LEAP_YEAR`, `DUE_DAY`, `PAYDAY_DAY` (with February 28/29 day clamping `[1, DAYS_IN_MONTH]`)

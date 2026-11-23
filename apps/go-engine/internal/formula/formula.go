@@ -39,8 +39,15 @@ var ReservedWordsCatalog = map[string]bool{
 	"WORK_DAYS_PER_WEEK":   true,
 	"WORK_HOURS_PER_DAY":   true,
 	"COMMUTE_HOURS_PER_DAY": true,
-	"OPTIMAL_DSR_PCT":      true,
-	"MAX_SAFE_DSR_PCT":     true,
+	"OPTIMAL_DSR_PCT":       true,
+	"MAX_SAFE_DSR_PCT":      true,
+	"DAYS_IN_MONTH":         true,
+	"TX_DAY":                true,
+	"TX_MONTH":              true,
+	"TX_YEAR":               true,
+	"IS_LEAP_YEAR":          true,
+	"DUE_DAY":               true,
+	"PAYDAY_DAY":            true,
 }
 
 type FormulaEvalResult struct {
@@ -341,6 +348,10 @@ func (p *parser) parsePrimary() (float64, error) {
 		return p.vars[t.text], nil
 	case tokIdent:
 		if p.peek().kind != tokLParen {
+			if ReservedWordsCatalog[t.text] {
+				p.usedTokens[t.text] = true
+				return p.vars[t.text], nil
+			}
 			return 0, fmt.Errorf("unexpected identifier '%s' (wrap reserved words in {...})", t.text)
 		}
 		p.next() // '('
@@ -533,4 +544,63 @@ func EvaluateFormulaSuite(req FormulaSuiteRequest) FormulaSuiteResult {
 		AllValid: allValid,
 		Results:  results,
 	}
+}
+
+func DaysInMonth(month, year int) int {
+	switch month {
+	case 1, 3, 5, 7, 8, 10, 12:
+		return 31
+	case 4, 6, 9, 11:
+		return 30
+	case 2:
+		if (year%4 == 0 && year%100 != 0) || (year%400 == 0) {
+			return 29
+		}
+		return 28
+	default:
+		return 30
+	}
+}
+
+// ResolveCutoffDayForMonth evaluates a modular cutoff formula (e.g. "DAYS_IN_MONTH - 15")
+// and clamps the resulting closing day into [1, daysInMonth(month, year)] so Feb 28/29 never overflows.
+func ResolveCutoffDayForMonth(formulaExpr string, fallbackDay, txDay, month, year, dueDay, paydayDay int) (int, error) {
+	dim := DaysInMonth(month, year)
+	if fallbackDay < 1 {
+		fallbackDay = 1
+	}
+	if fallbackDay > dim {
+		fallbackDay = dim
+	}
+	trimmed := strings.TrimSpace(formulaExpr)
+	if trimmed == "" {
+		return fallbackDay, nil
+	}
+	isLeap := 0.0
+	if DaysInMonth(2, year) == 29 {
+		isLeap = 1.0
+	}
+	if paydayDay <= 0 {
+		paydayDay = 27
+	}
+	res := EvaluateFormula(trimmed, map[string]float64{
+		"DAYS_IN_MONTH": float64(dim),
+		"TX_DAY":        float64(txDay),
+		"TX_MONTH":      float64(month),
+		"TX_YEAR":       float64(year),
+		"IS_LEAP_YEAR":  isLeap,
+		"DUE_DAY":       float64(dueDay),
+		"PAYDAY_DAY":    float64(paydayDay),
+	})
+	if !res.Valid {
+		return fallbackDay, fmt.Errorf("%s", res.Error)
+	}
+	day := int(res.ValueRp)
+	if day < 1 {
+		day = 1
+	}
+	if day > dim {
+		day = dim
+	}
+	return day, nil
 }

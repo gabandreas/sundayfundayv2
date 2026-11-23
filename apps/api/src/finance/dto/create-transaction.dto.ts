@@ -62,4 +62,16 @@ export class CreateTransactionDto {
   @IsOptional()
   @IsBoolean()
   holdPastCutoff?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(12)
+  billingStartMonth?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(2000)
+  @Max(2100)
+  billingStartYear?: number;
 }

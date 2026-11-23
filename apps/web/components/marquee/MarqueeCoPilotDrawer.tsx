@@ -4,11 +4,16 @@ import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Send, X, ArrowUpRight } from "lucide-react";
-import { MarqueeMark } from "@/components/primitives/MarqueeMark";
-import { MarqueeChatResponse, sendMarqueeChat } from "@/lib/api";
+import { MarqueeRobotAvatar } from "@/components/primitives/MarqueeRobotAvatar";
+import {
+  MarqueeChatResponse,
+  MarqueeStreamStatusEvent,
+  sendMarqueeChat,
+  sendMarqueeChatStream,
+} from "@/lib/api";
 import { usePeriod } from "@/context/PeriodContext";
 import { useLanguage } from "@/context/LanguageContext";
-import { MarqueeResponseCards } from "./MarqueeResponseCards";
+import { MarqueeResponseCards, MarqueeTypingBubble } from "./MarqueeResponseCards";
 
 interface MarqueeCoPilotDrawerProps {
   isOpen: boolean;
@@ -50,6 +55,7 @@ export function MarqueeCoPilotDrawer({ isOpen, onClose }: MarqueeCoPilotDrawerPr
 
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [liveStatus, setLiveStatus] = useState<MarqueeStreamStatusEvent | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessageItem[]>([]);
 
@@ -66,7 +72,7 @@ export function MarqueeCoPilotDrawer({ isOpen, onClose }: MarqueeCoPilotDrawerPr
 
   useEffect(() => {
     scrollEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length]);
+  }, [messages.length, sending]);
 
   const handleSubmit = async (promptText?: string) => {
     const msg = (promptText ?? input).trim();
@@ -80,16 +86,28 @@ export function MarqueeCoPilotDrawer({ isOpen, onClose }: MarqueeCoPilotDrawerPr
     setMessages((prev) => [...prev, userItem]);
     if (!promptText) setInput("");
     setSending(true);
+    setLiveStatus({
+      type: "status",
+      phase: "THINKING",
+      label: locale === "id" ? "Sedang berpikir..." : locale === "zh" ? "正在思考..." : "Thinking...",
+      detail: locale === "id" ? "Membaca permintaan & konteks siklus" : locale === "zh" ? "正在解析指令与当前账期" : "Reading prompt & active cycle",
+      timestamp: new Date().toISOString(),
+    });
 
     try {
-      const res = await sendMarqueeChat({
-        message: msg,
-        month,
-        year,
-        locale,
-        activeRoute: pathname || "/",
-        activeSubTab,
-      });
+      const res = await sendMarqueeChatStream(
+        {
+          message: msg,
+          month,
+          year,
+          locale,
+          activeRoute: pathname || "/",
+          activeSubTab,
+        },
+        (statusEv) => {
+          setLiveStatus(statusEv);
+        },
+      );
       setMessages((prev) => [
         ...prev,
         {
@@ -101,6 +119,7 @@ export function MarqueeCoPilotDrawer({ isOpen, onClose }: MarqueeCoPilotDrawerPr
       ]);
     } finally {
       setSending(false);
+      setLiveStatus(null);
     }
   };
 
@@ -129,11 +148,37 @@ export function MarqueeCoPilotDrawer({ isOpen, onClose }: MarqueeCoPilotDrawerPr
           },
         ]);
         refreshPeriod();
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("erp:data-mutated"));
+        }
       }
     } finally {
       setConfirmingId(null);
     }
   };
+
+  const handleCancelPending = (msgId: string) => {
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === msgId && m.response
+          ? {
+              ...m,
+              response: {
+                ...m.response,
+                pendingAction: undefined,
+                summary: `${m.response.summary} (Cancelled before write)`,
+              },
+            }
+          : m,
+      ),
+    );
+  };
+
+  const robotState = confirmingId || liveStatus?.phase === "ANALYZING"
+    ? "analyzing"
+    : sending
+      ? "thinking"
+      : "idle";
 
   const periodTag = `${String(month).padStart(2, "0")}/${year}`;
 
@@ -163,13 +208,18 @@ export function MarqueeCoPilotDrawer({ isOpen, onClose }: MarqueeCoPilotDrawerPr
       {/* Header */}
       <div className="px-4 py-3.5 border-b border-border flex items-center justify-between gap-2 shrink-0 bg-canvas">
         <div className="flex items-center gap-2.5 min-w-0">
-          <MarqueeMark className="w-4 h-4 text-delta-positive shrink-0" />
+          <MarqueeRobotAvatar state={robotState} size={26} />
           <div className="min-w-0">
             <h2
               id="marquee-drawer-title"
-              className="text-xs font-semibold text-text-primary truncate"
+              className="text-xs font-semibold text-text-primary truncate flex items-center gap-2"
             >
-              Marquee Financial Co-Pilot
+              <span>Marquee Financial Co-Pilot</span>
+              {sending && (
+                <span className="text-[10px] font-mono font-normal text-caution">
+                  {liveStatus?.label || "Thinking..."}
+                </span>
+              )}
             </h2>
             <p className="text-[10px] font-mono text-text-tertiary truncate">
               Context: {periodTag} · {pathname || "/"}
@@ -254,7 +304,7 @@ export function MarqueeCoPilotDrawer({ isOpen, onClose }: MarqueeCoPilotDrawerPr
                 Live ledger assistant for {periodTag} (EN / ID / ZH)
               </div>
               <p className="text-[11px] text-text-tertiary leading-relaxed">
-                Check today&apos;s safe-to-spend, test SPayLater (daysInMonth-15) or Permata CC (25th) cutoffs, plan THR splits, compare periods, or stage expenses in Rupiah shorthand (&quot;log kopi 35k&quot;, &quot;catat spaylater 900rb 3x&quot;).
+                Check today&apos;s safe-to-spend, test dynamic SPayLater (H-15 closing) or Bank Permata CC (25th) cutoffs, move or settle bills, revise budgets, or stage expenses (&quot;log kopi 35k&quot;, &quot;pindahin Americano ke Des&quot;).
               </p>
             </div>
 
@@ -277,34 +327,45 @@ export function MarqueeCoPilotDrawer({ isOpen, onClose }: MarqueeCoPilotDrawerPr
             </div>
           </div>
         ) : (
-          messages.map((item) => (
-            <div
-              key={item.id}
-              className={`rounded-md px-3.5 py-2.5 space-y-2 ${
-                item.role === "user"
-                  ? "border border-border bg-surface ml-8"
-                  : "border border-border-subtle/80 bg-surface-subtle/40 mr-2"
-              }`}
-            >
-              <div className="flex items-center justify-between text-[10px] font-medium text-text-tertiary">
-                <span>{item.role === "user" ? "You" : "Marquee"}</span>
-                {item.response?.hydratedContext?.periodTag && (
-                  <span className="font-mono text-[10px] text-text-tertiary/80">
-                    {item.response.hydratedContext.periodTag}
+          <>
+            {messages.map((item) => (
+              <div
+                key={item.id}
+                className={`rounded-md px-3.5 py-2.5 space-y-2 ${
+                  item.role === "user"
+                    ? "border border-border bg-surface ml-8"
+                    : "border border-border-subtle/80 bg-surface-subtle/40 mr-2"
+                }`}
+              >
+                <div className="flex items-center justify-between text-[10px] font-medium text-text-tertiary">
+                  <span className="inline-flex items-center gap-1.5">
+                    {item.role === "assistant" && (
+                      <MarqueeRobotAvatar state="idle" size={16} />
+                    )}
+                    <span>{item.role === "user" ? "You" : "Marquee"}</span>
                   </span>
+                  {item.response?.hydratedContext?.periodTag && (
+                    <span className="font-mono text-[10px] text-text-tertiary/80">
+                      {item.response.hydratedContext.periodTag}
+                    </span>
+                  )}
+                </div>
+                {item.response ? (
+                  <MarqueeResponseCards
+                    response={item.response}
+                    busyConfirm={confirmingId === item.id}
+                    onConfirm={(r) => void handleConfirmPending(item.id, r)}
+                    onCancelPending={() => handleCancelPending(item.id)}
+                  />
+                ) : (
+                  <div className="text-xs text-text-primary">{item.text}</div>
                 )}
               </div>
-              {item.response ? (
-                <MarqueeResponseCards
-                  response={item.response}
-                  busyConfirm={confirmingId === item.id}
-                  onConfirm={(r) => void handleConfirmPending(item.id, r)}
-                />
-              ) : (
-                <div className="text-xs text-text-primary">{item.text}</div>
-              )}
-            </div>
-          ))
+            ))}
+            {sending && (
+              <MarqueeTypingBubble status={liveStatus} robotState={robotState} />
+            )}
+          </>
         )}
         <div ref={scrollEndRef} />
       </div>

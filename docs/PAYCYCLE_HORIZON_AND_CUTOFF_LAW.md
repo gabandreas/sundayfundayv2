@@ -13,7 +13,7 @@ Period `M/YYYY` in Sunday Funday ERP is named after the **consumption and bill-m
   2. Debt and bill maturities falling due directly in calendar month **`M`**:
      - `OCT '26` (`10/2026`, `28 Sep – 27 Oct 2026`): Pays October maturities (`11, 25 Oct`, Total Debt `Rp 4.082.655`).
      - `NOV '26` (`11/2026`, `28 Oct – 26 Nov 2026`, `ACTIVE` on 22 Nov 2026 at Day 26 of 30): Pays November maturities (`11, 25 Nov`, Total Debt `Rp 4.522.976`).
-     - `DEC '26` (`12/2026`, `27 Nov – 27 Dec 2026`, `PRE_PAYDAY` on 22 Nov 2026 at Day 0 of 31, funded by Nov 27 payday + Dec 18 Natal THR `Rp 3.833.425`, Total Net Income `Rp 9.737.425`): Pays December maturities (`11, 17, 23, 24, 25 Dec`, Total Debt `Rp 4.110.341`).
+     - `DEC '26` (`12/2026`, `27 Nov – 27 Dec 2026`, `PRE_PAYDAY` on 22 Nov 2026 at Day 0 of 31, funded by Nov 27 payday + Dec 18 Natal THR `Rp 3.833.425`, Total Net Income `Rp 9.737.425`): Pays December maturities (`11, 17, 23, 24, 25 Dec`, Total Debt `Rp 4.162.341`).
      - `JAN '27` (`01/2027`, `28 Dec 2026 – 26 Jan 2027`, funded by Dec 28 payday `Rp 5.941.000`, THR `Rp 0`): Pays January maturities (`11, 17, 23, 24, 25 Jan`, Total Debt `Rp 3.171.115`).
      - `FEB '27` (`02/2027`, `27 Jan – 25 Feb 2027`, funded by Jan 27 payday): Pays February maturities (Total Debt `Rp 1.967.159`; `11.11` 3x plans and `SPinjam #2/#3` complete `3/3` final slices here).
      - `MAR '27` (`03/2027`, `26 Feb – 28 Mar 2027`, funded by Feb 26 clamped payday): Pays March maturities (Total Debt `Rp 835.996`; SPinjam = `Rp 0`).
@@ -38,7 +38,7 @@ Period `M/YYYY` in Sunday Funday ERP is named after the **consumption and bill-m
 
 | Instrument | Type | Cutoff Rule | Due Rule | Routing Behavior |
 | --- | --- | --- | --- | --- |
-| **Shopee SPayLater** | `PAYLATER` | `daysInMonth - 15` (`15th` in 30-day months, `16th` in 31-day months) | `FIXED_DAY` (`25th`) | Day `<= cutoff` bills in period `M + 1` (due `25th` of `M + 1`); Day `> cutoff` or `holdPastCutoff` defers to `M + 2` (due `25th` of `M + 2`) |
+| **Shopee SPayLater** | `PAYLATER` | `DAYS_IN_MONTH - 15` (`15th` in 30-day months, `16th` in 31-day months, `13th`/`14th` in Feb) | `FIXED_DAY` (`25th`) | Day `< cutoff` stays in period `M` (due `25th` of `M`); Day `>= cutoff` or `holdPastCutoff` rolls to `M + 1` (due `25th` of `M + 1`) |
 | **Permata Credit Card** | `CREDIT_CARD` | `25th` of purchase month (statement closing day) | `FIXED_DAY` (`11th`, shifted `H-1` business day earlier if Sat/Sun) | Day `<= 25` lands in period `M + 1` (due `11th` H-1 of `M + 1`); Day `> 25` (`26th`–month end) lands in `M + 2` (due `11th` H-1 of `M + 2`) |
 | **Shopee SPinjam / KSM** | `CASH_LOAN` | Schedule maturity anchor (`11th` / `17th` / `23rd` / `24th` / `25th`) | `DISBURSEMENT_DAY` | Scheduled per explicit installment maturity period (`M`) without cutoff deferral; KSM completes `48/48` in `09/2027` (`Rp 293.044`, final cycle before debt-free `10/2027`) |
 

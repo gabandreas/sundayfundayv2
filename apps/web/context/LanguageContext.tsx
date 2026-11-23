@@ -157,6 +157,9 @@ const EN_DICT = {
   "overview.dailySpend": "Daily Spend",
   "overview.routineBill": "Routine Bill",
   "overview.refundSplit": "Refund / Split",
+  "overview.purchaseDate": "Purchase Date",
+  "overview.billingCycle": "Billing Cycle",
+  "overview.autoCutoff": "Auto by cutoff",
   "overview.recentTransactions": "RECENT TRANSACTIONS",
 
   // Matrix Cell Drawer
@@ -397,6 +400,9 @@ const ID_DICT: Record<TranslationKey, string> = {
   "overview.dailySpend": "Belanja Harian",
   "overview.routineBill": "Tagihan Rutin",
   "overview.refundSplit": "Refund / Patungan",
+  "overview.purchaseDate": "Tanggal Beli",
+  "overview.billingCycle": "Siklus Tagihan",
+  "overview.autoCutoff": "Otomatis cutoff",
   "overview.recentTransactions": "TRANSAKSI TERBARU",
 
   "drawer.totalScheduled": "Total Terjadwal",
@@ -630,6 +636,9 @@ const ZH_DICT: Record<TranslationKey, string> = {
   "overview.dailySpend": "日常消费",
   "overview.routineBill": "固定账单",
   "overview.refundSplit": "退款 / AA分摊",
+  "overview.purchaseDate": "消费日期",
+  "overview.billingCycle": "入账周期",
+  "overview.autoCutoff": "按截数日自动",
   "overview.recentTransactions": "近期交易明细",
 
   "drawer.totalScheduled": "本期应还总额",

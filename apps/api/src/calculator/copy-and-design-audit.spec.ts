@@ -458,4 +458,23 @@ describe('System-Wide Anti-AI-Slop Visual Design, Temporal Chart Axis & Human Co
       });
     }
   });
+
+  it('mounts animated SVG robot avatar + typing/thinking trace in Marquee UI, manual billing cycle selector in RecordExpenseCard, and modular cutoffFormula editor in Preferences', () => {
+    const robotPath = path.join(WEB_DIR, 'components', 'primitives', 'MarqueeRobotAvatar.tsx');
+    expect(fs.existsSync(robotPath)).toBe(true);
+    const robotSrc = fs.readFileSync(robotPath, 'utf8');
+    expect(robotSrc).toMatch(/thinking|analyzing|scanning/i);
+    expect(robotSrc).not.toMatch(/\bBot\b|\bSparkles\b|\bWand2\b/);
+
+    const drawerSrc = fs.readFileSync(path.join(WEB_DIR, 'components', 'marquee', 'MarqueeCoPilotDrawer.tsx'), 'utf8');
+    expect(drawerSrc).toContain('MarqueeRobotAvatar');
+    expect(drawerSrc).toMatch(/Thinking|agentSteps/);
+
+    const recordExpenseSrc = fs.readFileSync(path.join(WEB_DIR, 'components', 'overview', 'RecordExpenseCard.tsx'), 'utf8');
+    expect(recordExpenseSrc).toContain('billingStartMonth');
+
+    const studioTablesSrc = fs.readFileSync(path.join(WEB_DIR, 'components', 'preferences', 'StudioTables.tsx'), 'utf8');
+    expect(studioTablesSrc).toContain('cutoffFormula');
+    expect(studioTablesSrc).toContain('preCutoffOffsetMonths');
+  });
 });

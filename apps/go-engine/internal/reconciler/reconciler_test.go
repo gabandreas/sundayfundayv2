@@ -20,11 +20,11 @@ func TestParseStatementBatchAutoRoutingAndDedup(t *testing.T) {
 	if res.ParsedCount != 3 {
 		t.Fatalf("expected 3 parsed rows, got %d", res.ParsedCount)
 	}
-	if res.Rows[0].DuplicateStatus != "AMOUNT_DATE_MATCH" {
-		t.Fatalf("expected row 0 duplicate match, got %s", res.Rows[0].DuplicateStatus)
+	if res.Rows[0].DuplicateStatus != "AMOUNT_DATE_MATCH" || res.Rows[0].TargetPeriodCode != "12/2026" {
+		t.Fatalf("expected row 0 duplicate match in 12/2026, got %+v", res.Rows[0])
 	}
-	if res.Rows[1].TargetPeriodCode != "12/2026" {
-		t.Fatalf("expected Nov 14 SPayLater (<=15th cutoff -> due Dec 25) routed to 12/2026, got %s", res.Rows[1].TargetPeriodCode)
+	if res.Rows[1].TargetPeriodCode != "11/2026" {
+		t.Fatalf("expected Nov 14 SPayLater (< 15th cutoff -> due Nov 25) routed to 11/2026, got %s", res.Rows[1].TargetPeriodCode)
 	}
 	if res.Rows[2].Instrument != "CREDIT_CARD" || res.Rows[2].TargetPeriodCode != "01/2027" {
 		t.Fatalf("expected Nov 26 Permata CC (>25th cutoff -> due Jan 11) routed to 01/2027, got %+v", res.Rows[2])

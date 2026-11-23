@@ -18,7 +18,13 @@ import {
   TransactionType,
   TransactionSourceType,
 } from '@prisma/client';
-import { calculatePayroll, calculateWorkingDaysForConsumptionPeriod, sumExtraIncome, PayrollResult } from '../calculator/payroll';
+import {
+  calculatePayroll,
+  calculateWorkingDaysForConsumptionPeriod,
+  mergeStudioHolidayMap,
+  sumExtraIncome,
+  PayrollResult,
+} from '../calculator/payroll';
 import {
   calculateDailyPacing,
   PacingResult,
@@ -136,6 +142,13 @@ export class FinanceSelectors {
       };
     }
 
+    const studioCfg = resolveStudioConfig(
+      config?.userId ?? 1,
+      config?.formulaParamsJson,
+      config,
+    );
+    const pcCfg = studioCfg.paycycleFormulaConfig;
+
     return calculatePayroll({
       baseSalary: config.baseSalary,
       salaryAdjustment: snapshot?.salaryAdjustment ?? 0,
@@ -145,7 +158,8 @@ export class FinanceSelectors {
       thrAmount: snapshot?.thrAmount ?? 0,
       bonusAmount: snapshot?.bonusAmount ?? 0,
       extraIncome,
-      laptopAllowance: config.laptopAllowance,
+      laptopAllowance: pcCfg.laptopAllowanceRp ?? config.laptopAllowance,
+      bpjsRate: (pcCfg.bpjsRatePercent ?? 3) / 100,
     });
   }
 
@@ -227,6 +241,17 @@ export class FinanceSelectors {
       throw new NotFoundException('Global configuration not found');
     }
 
+    const studioCfg = resolveStudioConfig(
+      userId,
+      config.formulaParamsJson,
+      config,
+    );
+    const pcCfg = studioCfg.paycycleFormulaConfig;
+    const holidays = mergeStudioHolidayMap(pcCfg.holidayDatesIso);
+    const attWindow = {
+      startDay: pcCfg.attendanceCutoffStartDay,
+      endDay: pcCfg.attendanceCutoffEndDay,
+    };
     const snapMap = new Map(snapshots.map((s) => [`${s.year}-${s.month}`, s]));
     const items = periods.map(({ month, year }) => {
       const snap = snapMap.get(`${year}-${month}`);
@@ -234,7 +259,9 @@ export class FinanceSelectors {
         config,
         snapshot: snap,
         month,
-        totalWorkingDays: snap?.totalWorkingDays ?? calculateWorkingDaysForConsumptionPeriod(month, year),
+        totalWorkingDays:
+          snap?.totalWorkingDays ??
+          calculateWorkingDaysForConsumptionPeriod(month, year, holidays, attWindow),
         extraIncome: snap ? sumExtraIncome(snap.transactions) : 0,
       });
       return { month, year, payroll };
@@ -617,9 +644,48 @@ export class FinanceSelectors {
       holdPastCutoff?: boolean;
       startMonthOverride?: number;
       startYearOverride?: number;
+      cutoffFormula?: string;
+      cutoffBoundaryInclusive?: boolean;
+      preCutoffOffsetMonths?: number;
+      postCutoffOffsetMonths?: number;
+      dueShiftRule?: string;
+      anchorDay?: number;
     },
     userId: number = 1,
   ): Promise<WithEngineMeta<CutoffSimulateResult>> {
+    const cfgRow =
+      (await this.prisma.globalConfig.findFirst({ where: { userId } })) ||
+      (await this.prisma.globalConfig.findFirst({ where: { userId: 1 } }));
+    const studioConfig = resolveStudioConfig(userId, cfgRow?.formulaParamsJson, cfgRow);
+    const targetInstType =
+      dto.instrument === 'SPAYLATER'
+        ? 'PAYLATER'
+        : dto.instrument === 'SPINJAM' || dto.instrument === 'PERSONAL_DEBT'
+          ? 'CASH_LOAN'
+          : dto.instrument;
+    const matchedInst = studioConfig.instrumentsTable.find(
+      (r) => r.active && r.type.toUpperCase() === targetInstType,
+    );
+
+    const modularCutoffParams = {
+      cutoffFormula: dto.cutoffFormula ?? matchedInst?.cutoffFormula,
+      cutoffBoundaryInclusive:
+        typeof dto.cutoffBoundaryInclusive === 'boolean'
+          ? dto.cutoffBoundaryInclusive
+          : matchedInst?.cutoffBoundaryInclusive,
+      preCutoffOffsetMonths:
+        typeof dto.preCutoffOffsetMonths === 'number'
+          ? dto.preCutoffOffsetMonths
+          : matchedInst?.preCutoffOffsetMonths,
+      postCutoffOffsetMonths:
+        typeof dto.postCutoffOffsetMonths === 'number'
+          ? dto.postCutoffOffsetMonths
+          : matchedInst?.postCutoffOffsetMonths,
+      dueShiftRule: dto.dueShiftRule ?? matchedInst?.dueShiftRule,
+      dueDayOverride: dto.dueDayOverride ?? (matchedInst?.dueDay && matchedInst.dueDay > 0 ? matchedInst.dueDay : undefined),
+      anchorDay: dto.anchorDay ?? studioConfig.paycycleFormulaConfig.paydayAnchorDay,
+    };
+
     const initial = await this.goBridge.simulateCutoff({
       title: dto.title,
       instrument: dto.instrument,
@@ -628,10 +694,10 @@ export class FinanceSelectors {
       monthlyAmount: dto.monthlyAmount,
       tenorMonths: dto.tenorMonths ?? 1,
       purchaseDate: dto.purchaseDate,
-      dueDayOverride: dto.dueDayOverride,
       holdPastCutoff: dto.holdPastCutoff,
       startMonthOverride: dto.startMonthOverride,
       startYearOverride: dto.startYearOverride,
+      ...modularCutoffParams,
     });
 
     const startM = initial.startPeriodMonth;
@@ -671,10 +737,10 @@ export class FinanceSelectors {
       monthlyAmount: dto.monthlyAmount,
       tenorMonths: dto.tenorMonths ?? 1,
       purchaseDate: dto.purchaseDate,
-      dueDayOverride: dto.dueDayOverride,
       holdPastCutoff: dto.holdPastCutoff,
       startMonthOverride: dto.startMonthOverride,
       startYearOverride: dto.startYearOverride,
+      ...modularCutoffParams,
       periodNetIncome: netInc,
       currentPeriodObligations: curObl,
       nextPeriodObligations: nextObl,
@@ -1810,8 +1876,14 @@ export class FinanceSelectors {
       WORK_DAYS_PER_WEEK: pcCfg.workdaysPerWeek ?? 5,
       WORK_HOURS_PER_DAY: pcCfg.workHoursPerDay ?? 8,
       COMMUTE_HOURS_PER_DAY: pcCfg.dailyCommuteHours ?? 2,
-      OPTIMAL_DSR_PCT: (config?.financialPolicyJson as any)?.optimalDebtRatioPercent ?? 20,
-      MAX_SAFE_DSR_PCT: (config?.financialPolicyJson as any)?.maxSafeDebtRatioPercent ?? 35,
+      OPTIMAL_DSR_PCT:
+        pcCfg.optimalDebtRatioPercent ??
+        (config?.financialPolicyJson as any)?.optimalDebtRatioPercent ??
+        20,
+      MAX_SAFE_DSR_PCT:
+        pcCfg.maxSafeDebtRatioPercent ??
+        (config?.financialPolicyJson as any)?.maxSafeDebtRatioPercent ??
+        35,
     };
   }
 
@@ -1915,8 +1987,13 @@ export class FinanceSelectors {
         name: i.name,
         type: i.type,
         cutoffDay: i.cutoffDay,
+        cutoffFormula: i.cutoffFormula,
+        cutoffBoundaryInclusive: i.cutoffBoundaryInclusive,
+        preCutoffOffsetMonths: i.preCutoffOffsetMonths,
+        postCutoffOffsetMonths: i.postCutoffOffsetMonths,
         dueDay: i.dueDay,
         dueRule: i.dueRule,
+        dueShiftRule: i.dueShiftRule,
         monthlyInterestPct: i.monthlyInterestPct,
         adminFeePct: i.adminFeePct,
         active: i.active,

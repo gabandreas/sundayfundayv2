@@ -1,5 +1,5 @@
 export type MarqueeToolName =
-  // 8 Canonical Tool Names
+  // Canonical & V3 Service Tool Names
   | 'get_paycycle_pulse'
   | 'simulate_purchase_cutoff'
   | 'optimize_payday_thr_split'
@@ -8,6 +8,11 @@ export type MarqueeToolName =
   | 'prepare_quick_transaction'
   | 'prepare_wallet_checkin'
   | 'explain_period_variance'
+  | 'manage_liability_item'
+  | 'revise_budget_or_quota'
+  | 'manage_savings_pocket_or_goal'
+  | 'manage_wishlist_or_subscription'
+  | 'run_what_if_scenario'
   // Legacy Aliases (preserved 1:1 for backward compatibility)
   | 'get_financial_pulse'
   | 'log_quick_expense'
@@ -29,6 +34,10 @@ export interface MarqueeParsedIntent {
   instrument: MarqueeInstrument;
   tenorMonths: number;
   expression?: string;
+  action?: string;
+  itemQuery?: string;
+  category?: string;
+  purchaseDateIso?: string;
   confidence: number;
 }
 
@@ -145,7 +154,95 @@ export function parseMarqueeIntent(message: string): MarqueeParsedIntent {
   const instrument = detectInstrument(message);
   const title = extractTitleFromMessage(message);
 
-  // 0A. THR / Bonus / Payday Split optimization
+  // 0A. Shift / Settle liability item (e.g. "pindahkan Americano ke desember", "shift Americano earlier", "lunasi")
+  if (
+    /(shift|move|geser|pindah|undurkan|majukan|split|settle|lunasi|mark\s*paid)/.test(
+      lower,
+    ) &&
+    !/(tax|pajak|payroll|thr)/.test(lower)
+  ) {
+    const isSettle = /(settle|lunasi|mark\s*paid)/.test(lower);
+    const isEarlier = /(earlier|majukan|sebelum|des|dec|nov|mundur\s*maju|maju)/.test(lower);
+    const cleanedQuery = message
+      .replace(
+        /\b(tolong|bisa|ga|gak|pindahin|pindahkan|geser|shift|move|earlier|later|majukan|undurkan|ke|bulan|periode|settle|lunasi|mark|paid|tagihan|bill|item|spaylater|paylater|desember|december|januari|january|november)\b/gi,
+        ' ',
+      )
+      .replace(/\b20\d{2}\b/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    return {
+      tool: 'manage_liability_item',
+      locale,
+      amountRp,
+      action: isSettle ? 'SETTLE' : isEarlier ? 'SHIFT_EARLIER' : 'SHIFT_LATER',
+      itemQuery: cleanedQuery || title,
+      instrument,
+      tenorMonths,
+      confidence: 0.93,
+    };
+  }
+
+  // 0B. Budget / Routine Quota Revision
+  if (
+    /(ubah|ganti|revisi|naikkan|turunkan|set|update|revise|adjust)\s+.*?(budget|anggaran|kuota|quota|harian|daily|living|transport|internet|vape|haircut|grooming|p1|tabungan)/.test(
+      lower,
+    ) &&
+    amountRp !== undefined
+  ) {
+    let category = 'DAILY_OPERATIONAL';
+    if (/(transport)/.test(lower)) category = 'TRANSPORT';
+    else if (/(internet|kuota|data)/.test(lower)) category = 'INTERNET';
+    else if (/(vape|liquid|rokok|supplies)/.test(lower)) category = 'VAPE';
+    else if (/(haircut|cukur|grooming)/.test(lower)) category = 'HAIRCUT';
+    else if (/(p1|tabungan|savings)/.test(lower)) category = 'SAVINGS';
+    return {
+      tool: 'revise_budget_or_quota',
+      locale,
+      amountRp,
+      category,
+      instrument,
+      tenorMonths,
+      confidence: 0.93,
+    };
+  }
+
+  // 0C. Wishlist Add or Subscription / Promo Kill-Switch Toggle
+  if (
+    /(wishlist|pingin|pengen\s*beli|matikan|batalkan|cancel\s*sub|kill\s*switch|langganan|subscription|promo)/.test(
+      lower,
+    )
+  ) {
+    const isSub = /(matikan|batalkan|cancel|kill\s*switch|langganan|subscription|promo)/.test(lower);
+    return {
+      tool: 'manage_wishlist_or_subscription',
+      locale,
+      amountRp,
+      title,
+      action: isSub ? 'TOGGLE_KILL_SWITCH' : 'ADD_WISHLIST',
+      instrument,
+      tenorMonths,
+      confidence: 0.92,
+    };
+  }
+
+  // 0D. What-If 12M Scenario
+  if (
+    /(what\s*if|kalau\s*misal|andai|jika\s*nabung|simulasi\s*12\s*bulan|runway\s*kalau)/.test(
+      lower,
+    )
+  ) {
+    return {
+      tool: 'run_what_if_scenario',
+      locale,
+      amountRp: amountRp ?? 500_000,
+      instrument,
+      tenorMonths,
+      confidence: 0.92,
+    };
+  }
+
+  // 0E. THR / Bonus / Payday Split optimization
   if (/\b(thr|bonus|natal|lebaran|split\s*bonus|alokasi\s*thr|年终奖|奖金)\b/.test(lower)) {
     return {
       tool: 'optimize_payday_thr_split',

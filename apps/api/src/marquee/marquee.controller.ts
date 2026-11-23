@@ -7,7 +7,9 @@ import {
   Post,
   Put,
   Req,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { getUserIdOrThrow } from '../auth/auth.utils';
 import { MarqueeService } from './marquee.service';
 import type { MarqueeChatRequestDto } from './marquee.service';
@@ -24,6 +26,45 @@ export class MarqueeController {
       throw new BadRequestException('Message or pendingAction is required.');
     }
     return this.marqueeService.chat(userId, dto);
+  }
+
+  @Post('chat/stream')
+  async chatStream(
+    @Body() dto: MarqueeChatRequestDto,
+    @Req() req: any,
+    @Res() res: Response,
+  ) {
+    const userId = getUserIdOrThrow(req);
+    if (!dto?.message && !dto?.pendingAction) {
+      throw new BadRequestException('Message or pendingAction is required.');
+    }
+
+    res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('X-Accel-Buffering', 'no');
+    if (typeof (res as any).flushHeaders === 'function') {
+      (res as any).flushHeaders();
+    }
+
+    try {
+      const result = await this.marqueeService.chatWithProgress(
+        userId,
+        dto,
+        (event) => {
+          res.write(`${JSON.stringify(event)}\n`);
+        },
+      );
+      res.write(`${JSON.stringify({ type: 'final', data: result })}\n`);
+    } catch (err: any) {
+      res.write(
+        `${JSON.stringify({
+          type: 'error',
+          message: err?.message || 'Marquee request failed.',
+        })}\n`,
+      );
+    } finally {
+      res.end();
+    }
   }
 
   @Get('config')

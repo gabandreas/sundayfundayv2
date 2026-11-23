@@ -1,13 +1,19 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { Plus, Lock, Check } from "lucide-react";
 import {
   createExpenseTransaction,
   FixedEssentialCategory,
 } from "@/lib/api";
-import { formatCurrencyInput, parseCurrencyInput } from "@/lib/utils";
+import {
+  formatCurrencyInput,
+  getJakartaDateParts,
+  parseCurrencyInput,
+  resolveInstrumentLandingPeriodClient,
+} from "@/lib/utils";
 import { useLanguage } from "@/context/LanguageContext";
+import { usePerspective } from "@/context/PerspectiveContext";
 
 interface RecordExpenseCardProps {
   month: number;
@@ -42,6 +48,7 @@ export function RecordExpenseCard({
   trueHourlyWageRp,
 }: RecordExpenseCardProps) {
   const { t } = useLanguage();
+  const { studioConfig } = usePerspective();
   const descInputRef = useRef<HTMLInputElement>(null);
   const [label, setLabel] = useState("");
   const [amount, setAmount] = useState<string>("");
@@ -51,8 +58,43 @@ export function RecordExpenseCard({
   const [paymentMethod, setPaymentMethod] = useState<"CASH" | "PAYLATER" | "CC">("CASH");
   const [paylaterTenor, setPaylaterTenor] = useState<number>(1);
   const [holdPastCutoff, setHoldPastCutoff] = useState<boolean>(false);
+  const [purchaseDate, setPurchaseDate] = useState<string>(() => getJakartaDateParts().isoDate);
+  const [billingCycleOverride, setBillingCycleOverride] = useState<string>("auto");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submitLockRef = useRef(false);
+
+  const cycleOptions = useMemo(() => {
+    const SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const baseTotal = year * 12 + (month - 1);
+    return [-1, 0, 1, 2, 3].map((delta) => {
+      const tot = baseTotal + delta;
+      const m = (tot % 12) + 1;
+      const y = Math.floor(tot / 12);
+      return {
+        key: `${y}-${m}`,
+        month: m,
+        year: y,
+        label: `${SHORT[m - 1]} ${y}`,
+      };
+    });
+  }, [month, year]);
+
+  const activeInstrumentRule = useMemo(() => {
+    const targetType = paymentMethod === "CC" ? "CREDIT_CARD" : "PAYLATER";
+    return (studioConfig?.instrumentsTable ?? []).find(
+      (i) => i.active && i.type === targetType,
+    );
+  }, [studioConfig, paymentMethod]);
+
+  const autoLandingPreview = useMemo(
+    () =>
+      resolveInstrumentLandingPeriodClient(
+        activeInstrumentRule,
+        purchaseDate,
+        holdPastCutoff,
+      ),
+    [activeInstrumentRule, purchaseDate, holdPastCutoff],
+  );
   const [fieldErrors, setFieldErrors] = useState<{
     label?: string;
     amount?: string;
@@ -114,12 +156,19 @@ export function RecordExpenseCard({
 
     try {
       const isRefund = expenseMode === "OPERATIONAL_REFUND";
+      const [overrideY, overrideM] =
+        !isRefund && paymentMethod !== "CASH" && billingCycleOverride !== "auto"
+          ? billingCycleOverride.split("-").map(Number)
+          : [undefined, undefined];
       const res = await createExpenseTransaction({
         month,
         year,
         label: label.trim(),
         amount: numAmount,
-        date: new Date().toISOString(),
+        date:
+          !isRefund && paymentMethod !== "CASH" && purchaseDate
+            ? `${purchaseDate}T12:00:00.000Z`
+            : new Date().toISOString(),
         fixedEssentialCategory:
           expenseMode === "FIXED_ESSENTIAL"
             ? fixedEssentialCategory
@@ -127,7 +176,13 @@ export function RecordExpenseCard({
         isOperationalRefund: isRefund,
         paymentMethod: isRefund ? "CASH" : paymentMethod,
         paylaterTenor: !isRefund && paymentMethod !== "CASH" ? paylaterTenor : undefined,
-        holdPastCutoff: !isRefund && paymentMethod !== "CASH" ? holdPastCutoff : undefined,
+        holdPastCutoff:
+          !isRefund && paymentMethod !== "CASH" && billingCycleOverride === "auto"
+            ? holdPastCutoff
+            : false,
+        ...(overrideM && overrideY
+          ? { billingStartMonth: overrideM, billingStartYear: overrideY }
+          : {}),
       });
 
       if (!res.success) {
@@ -139,6 +194,7 @@ export function RecordExpenseCard({
       setPaymentMethod("CASH");
       setPaylaterTenor(1);
       setHoldPastCutoff(false);
+      setBillingCycleOverride("auto");
       setIsSuccess(true);
       setTimeout(() => setIsSuccess(false), 2000);
     } catch (err: unknown) {
@@ -269,7 +325,7 @@ export function RecordExpenseCard({
               </div>
 
               {paymentMethod !== "CASH" && (
-                <div className="p-2 rounded bg-surface-subtle border border-border-subtle space-y-1.5 text-[10px]">
+                <div className="p-2 rounded bg-surface-subtle border border-border-subtle space-y-2 text-[10px]">
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-mono text-text-tertiary">Tenor:</span>
                     <div className="flex items-center gap-1">
@@ -289,16 +345,55 @@ export function RecordExpenseCard({
                       ))}
                     </div>
                   </div>
-                  <label className="flex items-center gap-1.5 font-sans text-text-secondary cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={holdPastCutoff}
-                      onChange={(e) => setHoldPastCutoff(e.target.checked)}
-                    />
-                    {paymentMethod === "PAYLATER"
-                      ? "Post-(M-15d) cutoff (bill M+2)"
-                      : "Post-25th Permata cutoff (bill M+2)"}
-                  </label>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <label className="space-y-0.5">
+                      <span className="font-mono text-[9px] uppercase text-text-tertiary block">
+                        {t("overview.purchaseDate", "Purchase Date")}
+                      </span>
+                      <input
+                        type="date"
+                        value={purchaseDate}
+                        onChange={(e) => setPurchaseDate(e.target.value)}
+                        className="w-full px-1.5 py-0.5 rounded bg-canvas border border-border font-mono text-[10px] text-text-primary focus:outline-none focus:border-border-strong"
+                      />
+                    </label>
+                    <label className="space-y-0.5">
+                      <span className="font-mono text-[9px] uppercase text-text-tertiary block">
+                        {t("overview.billingCycle", "Billing Cycle")}
+                      </span>
+                      <select
+                        value={billingCycleOverride}
+                        onChange={(e) => setBillingCycleOverride(e.target.value)}
+                        className="w-full px-1.5 py-0.5 rounded bg-canvas border border-border font-mono text-[10px] text-text-primary focus:outline-none focus:border-border-strong"
+                      >
+                        <option value="auto">
+                          {t("overview.autoCutoff", "Auto")} ({autoLandingPreview.label})
+                        </option>
+                        {cycleOptions.map((c) => (
+                          <option key={c.key} value={c.key}>
+                            {c.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 text-[9px] font-mono text-text-tertiary">
+                    <span>
+                      {billingCycleOverride === "auto"
+                        ? `Cutoff ${autoLandingPreview.cutoffDay}th -> Bills ${autoLandingPreview.label} (Due ${autoLandingPreview.dueDay}th)`
+                        : `Manual target -> Starts ${cycleOptions.find((c) => c.key === billingCycleOverride)?.label ?? billingCycleOverride}`}
+                    </span>
+                    {billingCycleOverride === "auto" && (
+                      <label className="inline-flex items-center gap-1 font-sans text-text-secondary cursor-pointer shrink-0">
+                        <input
+                          type="checkbox"
+                          checked={holdPastCutoff}
+                          onChange={(e) => setHoldPastCutoff(e.target.checked)}
+                        />
+                        <span>+1 cycle</span>
+                      </label>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

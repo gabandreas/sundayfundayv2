@@ -10,7 +10,10 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { SnapshotStatus } from '@prisma/client';
 import { CreditService } from '../credit/credit.service';
-import { calculateWorkingDaysForConsumptionPeriod } from '../calculator/payroll';
+import {
+  calculateWorkingDaysForConsumptionPeriod,
+  mergeStudioHolidayMap,
+} from '../calculator/payroll';
 import { computePaycycleHorizonTs } from '../calculator/erp-engines';
 import {
   DEFAULT_PAYOUT_DAY,
@@ -227,7 +230,15 @@ export class SnapshotsSelectors {
           savings: config.baseSavings,
           ccUsageLimit: config.ccUsageLimit ?? 0,
           paylaterUsageLimit: config.paylaterUsageLimit ?? 0,
-          totalWorkingDays: calculateWorkingDaysForConsumptionPeriod(month, year),
+          totalWorkingDays: calculateWorkingDaysForConsumptionPeriod(
+            month,
+            year,
+            mergeStudioHolidayMap(pcCfg.holidayDatesIso),
+            {
+              startDay: pcCfg.attendanceCutoffStartDay,
+              endDay: pcCfg.attendanceCutoffEndDay,
+            },
+          ),
           salaryAdjustment: 0,
           cafeteriaDeduction: 0,
           thrAmount: 0,
@@ -476,7 +487,15 @@ export class SnapshotsSelectors {
         remainingBudgetRp: 0,
       });
 
-      const totalWorkingDays = calculateWorkingDaysForConsumptionPeriod(month, year);
+      const totalWorkingDays = calculateWorkingDaysForConsumptionPeriod(
+        month,
+        year,
+        mergeStudioHolidayMap(pcCfg.holidayDatesIso),
+        {
+          startDay: pcCfg.attendanceCutoffStartDay,
+          endDay: pcCfg.attendanceCutoffEndDay,
+        },
+      );
       const bulk = bulkMap.get(`${year}-${month}`);
       const paylaterBills = Math.round(bulk?.paylaterAmount ?? 0);
       const personalDebtBills = Math.round(bulk?.personalDebtAmount ?? 0);

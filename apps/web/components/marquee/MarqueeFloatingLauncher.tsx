@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { MarqueeMark } from "@/components/primitives/MarqueeMark";
+import { MarqueeRobotAvatar } from "@/components/primitives/MarqueeRobotAvatar";
 
 interface MarqueeFloatingLauncherProps {
   isOpen: boolean;
@@ -11,8 +11,7 @@ interface MarqueeFloatingLauncherProps {
 
 /**
  * Icon-only floating bottom-right launcher for the Marquee Financial Co-Pilot drawer.
- * Features the bespoke geometric <MarqueeMark /> vector emblem, clean dark-slate border contrast,
- * native hover tooltip ("Marquee Financial Co-Pilot (Alt+M)"), and a subtle static indicator dot.
+ * Features the custom animated <MarqueeRobotAvatar /> vector emblem and clean dark-slate styling.
  */
 export function MarqueeFloatingLauncher({
   isOpen,
@@ -28,15 +27,11 @@ export function MarqueeFloatingLauncher({
       title="Marquee Financial Co-Pilot (Alt+M)"
       className={`fixed bottom-5 right-5 z-40 print-hidden inline-flex items-center justify-center w-11 h-11 rounded-full border shadow-xl transition-colors cursor-pointer ${
         isOpen
-          ? "erp-btn-primary border-accent/60"
+          ? "bg-surface-active border-accent/60"
           : "bg-surface hover:bg-surface-hover text-text-primary border-border-strong"
       }`}
     >
-      <MarqueeMark
-        className={`w-5 h-5 shrink-0 ${
-          isOpen ? "text-emerald-200" : "text-delta-positive"
-        }`}
-      />
+      <MarqueeRobotAvatar state={isOpen ? "thinking" : "idle"} size={24} />
       {!isOpen && hasReminder && (
         <span
           aria-hidden="true"

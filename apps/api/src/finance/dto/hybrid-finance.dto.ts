@@ -62,6 +62,36 @@ export class SimulateCutoffDto {
   @Min(2000)
   @Max(2100)
   startYearOverride?: number;
+
+  @IsOptional()
+  @IsString()
+  cutoffFormula?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  cutoffBoundaryInclusive?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(6)
+  preCutoffOffsetMonths?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(6)
+  postCutoffOffsetMonths?: number;
+
+  @IsOptional()
+  @IsString()
+  dueShiftRule?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(31)
+  anchorDay?: number;
 }
 
 export class SimulateTimelineDto {

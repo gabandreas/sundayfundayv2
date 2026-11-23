@@ -1175,8 +1175,20 @@ export class CreditSelectors {
       }
     }
 
-    const optPct = (config?.financialPolicyJson as any)?.optimalDebtRatioPercent ?? 20;
-    const safePct = (config?.financialPolicyJson as any)?.maxSafeDebtRatioPercent ?? 35;
+    const optPct =
+      studioConfig.paycycleFormulaConfig.optimalDebtRatioPercent ??
+      (config?.financialPolicyJson as any)?.optimalDebtRatioPercent ??
+      20;
+    const safePct =
+      studioConfig.paycycleFormulaConfig.maxSafeDebtRatioPercent ??
+      (config?.financialPolicyJson as any)?.maxSafeDebtRatioPercent ??
+      35;
+    const ccInst = studioConfig.instrumentsTable.find(
+      (i) => i.active && i.type === 'CREDIT_CARD',
+    );
+    const spayInst = studioConfig.instrumentsTable.find(
+      (i) => i.active && i.type === 'PAYLATER',
+    );
 
     const formulaVars: Record<string, number> = {
       NET_INCOME: totalIncome,
@@ -1218,8 +1230,8 @@ export class CreditSelectors {
       year,
       maturityMonth: month,
       maturityYear: year,
-      ccDueDay: config?.creditDueDay ?? CC_DUE_DAY,
-      paylaterDueDay: SPAYLATER_DUE_DAY,
+      ccDueDay: (ccInst?.dueDay && ccInst.dueDay > 0 ? ccInst.dueDay : config?.creditDueDay) ?? CC_DUE_DAY,
+      paylaterDueDay: (spayInst?.dueDay && spayInst.dueDay > 0 ? spayInst.dueDay : SPAYLATER_DUE_DAY),
       isSnapshotPersisted,
       snapshotStatus,
       totalIncome,

@@ -6,18 +6,25 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"sundayfunday.erp/go-engine/internal/formula"
 )
 
 type InstrumentCutoffRule struct {
-	ID                 string  `json:"id"`
-	Name               string  `json:"name"`
-	Type               string  `json:"type"` // PAYLATER | CREDIT_CARD | CASH_LOAN
-	CutoffDay          int     `json:"cutoffDay"`
-	DueDay             int     `json:"dueDay"`
-	DueRule            string  `json:"dueRule"` // FIXED_DAY | DISBURSEMENT_DAY
-	MonthlyInterestPct float64 `json:"monthlyInterestPct"`
-	AdminFeePct        float64 `json:"adminFeePct"`
-	Active             bool    `json:"active"`
+	ID                      string  `json:"id"`
+	Name                    string  `json:"name"`
+	Type                    string  `json:"type"` // PAYLATER | CREDIT_CARD | CASH_LOAN
+	CutoffDay               int     `json:"cutoffDay"`
+	CutoffFormula           string  `json:"cutoffFormula,omitempty"`
+	CutoffBoundaryInclusive *bool   `json:"cutoffBoundaryInclusive,omitempty"`
+	PreCutoffOffsetMonths   *int    `json:"preCutoffOffsetMonths,omitempty"`
+	PostCutoffOffsetMonths  *int    `json:"postCutoffOffsetMonths,omitempty"`
+	DueDay                  int     `json:"dueDay"`
+	DueRule                 string  `json:"dueRule"`      // FIXED_DAY | DISBURSEMENT_DAY
+	DueShiftRule            string  `json:"dueShiftRule,omitempty"` // EXACT_DAY | SHIFT_PREVIOUS_FRIDAY
+	MonthlyInterestPct      float64 `json:"monthlyInterestPct"`
+	AdminFeePct             float64 `json:"adminFeePct"`
+	Active                  bool    `json:"active"`
 }
 
 type HorizonRequest struct {
@@ -508,43 +515,99 @@ func RouteTransactionToPaycycle(req RouteTxRequest) RouteTxResult {
 	y := txDate.Year()
 	instUpper := strings.ToUpper(strings.TrimSpace(req.InstrumentType))
 
-	cutoffDay := 0
-	dueDay := 0
-	dueRule := "FIXED_DAY"
-	for _, r := range req.Rules {
+	var matched *InstrumentCutoffRule
+	for i := range req.Rules {
+		r := &req.Rules[i]
 		if !r.Active {
 			continue
 		}
-		if strings.EqualFold(r.Type, instUpper) || (req.InstrumentName != "" && strings.EqualFold(r.Name, req.InstrumentName)) {
-			cutoffDay = r.CutoffDay
-			dueDay = r.DueDay
-			if r.DueRule != "" {
-				dueRule = r.DueRule
-			}
+		if req.InstrumentName != "" && strings.EqualFold(r.Name, req.InstrumentName) {
+			matched = r
 			break
 		}
 	}
-	if cutoffDay == 0 && dueDay == 0 {
-		switch instUpper {
-		case "PAYLATER", "SPAYLATER":
-			cutoffDay = daysInMonth(m, y) - 15
-			dueDay = 25
-		case "CREDIT_CARD", "CC":
-			cutoffDay = 25
-			dueDay = 11
-		case "CASH_LOAN", "SPINJAM":
-			dueRule = "DISBURSEMENT_DAY"
-			dueDay = day
+	if matched == nil {
+		for i := range req.Rules {
+			r := &req.Rules[i]
+			if !r.Active {
+				continue
+			}
+			if strings.EqualFold(r.Type, instUpper) ||
+				((instUpper == "SPAYLATER" || instUpper == "PAYLATER") && strings.EqualFold(r.Type, "PAYLATER")) ||
+				((instUpper == "CC" || instUpper == "CREDIT_CARD") && strings.EqualFold(r.Type, "CREDIT_CARD")) ||
+				((instUpper == "SPINJAM" || instUpper == "CASH_LOAN") && strings.EqualFold(r.Type, "CASH_LOAN")) {
+				matched = r
+				break
+			}
 		}
-	} else if (instUpper == "PAYLATER" || instUpper == "SPAYLATER") && cutoffDay == 15 {
-		cutoffDay = daysInMonth(m, y) - 15
+	}
+
+	dueRule := "FIXED_DAY"
+	cutoffFormula := ""
+	fallbackCutoff := 0
+	inclusive := false
+	preOffset := 1
+	postOffset := 2
+	dueDay := 0
+
+	switch instUpper {
+	case "CREDIT_CARD", "CC":
+		cutoffFormula = "25"
+		fallbackCutoff = 25
+		inclusive = false
+		preOffset = 1
+		postOffset = 2
+		dueDay = 11
+	case "CASH_LOAN", "SPINJAM":
+		dueRule = "DISBURSEMENT_DAY"
+		dueDay = day
+		preOffset = 1
+		postOffset = 1
+	default: // PAYLATER / SPAYLATER
+		cutoffFormula = "DAYS_IN_MONTH - 15"
+		fallbackCutoff = formula.DaysInMonth(m, y) - 15
+		inclusive = true
+		preOffset = 0
+		postOffset = 1
+		dueDay = 25
+	}
+
+	if matched != nil {
+		if matched.DueRule != "" {
+			dueRule = matched.DueRule
+		}
+		if matched.DueDay > 0 {
+			dueDay = matched.DueDay
+		}
+		if strings.TrimSpace(matched.CutoffFormula) != "" {
+			cutoffFormula = strings.TrimSpace(matched.CutoffFormula)
+		} else if matched.CutoffDay > 0 {
+			// Legacy rules stored CutoffDay=15 without a formula string for dynamic H-15 PayLater.
+			if (instUpper == "PAYLATER" || instUpper == "SPAYLATER") && matched.CutoffDay == 15 {
+				cutoffFormula = "DAYS_IN_MONTH - 15"
+				fallbackCutoff = formula.DaysInMonth(m, y) - 15
+			} else {
+				cutoffFormula = ""
+				fallbackCutoff = matched.CutoffDay
+			}
+		}
+		if matched.CutoffBoundaryInclusive != nil {
+			inclusive = *matched.CutoffBoundaryInclusive
+		}
+		if matched.PreCutoffOffsetMonths != nil {
+			preOffset = *matched.PreCutoffOffsetMonths
+		}
+		if matched.PostCutoffOffsetMonths != nil {
+			postOffset = *matched.PostCutoffOffsetMonths
+		}
+	}
+
+	anchor := req.AnchorDay
+	if anchor <= 0 {
+		anchor = 27
 	}
 
 	if instUpper == "CASH" {
-		anchor := req.AnchorDay
-		if anchor <= 0 {
-			anchor = 27
-		}
 		// Under Consumption & Bill-Maturity Month = Period M:
 		// If txDate >= anchor, it belongs to Cycle(m+1,y); if < anchor, Cycle(m,y)
 		targetM, targetY := m, y
@@ -566,60 +629,56 @@ func RouteTransactionToPaycycle(req RouteTxRequest) RouteTxResult {
 
 	if dueRule == "DISBURSEMENT_DAY" || instUpper == "CASH_LOAN" || instUpper == "SPINJAM" {
 		// First installment matures in M+1 on disbursement day -> Period M+1
-		firstDueM, firstDueY := addMonths(m, y, 1)
+		firstDueM, firstDueY := addMonths(m, y, preOffset)
+		dim := formula.DaysInMonth(firstDueM, firstDueY)
+		clampedDue := dueDay
+		if clampedDue > dim {
+			clampedDue = dim
+		}
 		return RouteTxResult{
 			TargetPeriodMonth: firstDueM,
 			TargetPeriodYear:  firstDueY,
 			TargetPeriodCode:  fmt.Sprintf("%02d/%d", firstDueM, firstDueY),
 			MaturityMonth:     firstDueM,
 			MaturityYear:      firstDueY,
-			DueDay:            dueDay,
+			DueDay:            clampedDue,
 			CutoffDay:         0,
 			CrossedCutoff:     false,
-			Explanation:       fmt.Sprintf("Disbursement-day loan on day %d matures %02d/%d on day %d -> Period %02d/%d.", day, firstDueM, firstDueY, dueDay, firstDueM, firstDueY),
+			Explanation:       fmt.Sprintf("Disbursement-day loan on day %d matures %02d/%d on day %d -> Period %02d/%d.", day, firstDueM, firstDueY, clampedDue, firstDueM, firstDueY),
 		}
 	}
 
-	if instUpper == "CREDIT_CARD" || instUpper == "CC" {
-		// Bank Permata CC: <= cutoff (25th) -> due 11th of M+1 (Period M+1); > cutoff (26th+) -> due 11th of M+2 (Period M+2)
-		crossed := day > cutoffDay
-		offset := 1
-		if crossed {
-			offset = 2
-		}
-		targetM, targetY := addMonths(m, y, offset)
-		return RouteTxResult{
-			TargetPeriodMonth: targetM,
-			TargetPeriodYear:  targetY,
-			TargetPeriodCode:  fmt.Sprintf("%02d/%d", targetM, targetY),
-			MaturityMonth:     targetM,
-			MaturityYear:      targetY,
-			DueDay:            dueDay,
-			CutoffDay:         cutoffDay,
-			CrossedCutoff:     crossed,
-			Explanation:       fmt.Sprintf("Credit Card tx on day %d (cutoff %d) matures %d/%02d/%d -> Period %02d/%d.", day, cutoffDay, dueDay, targetM, targetY, targetM, targetY),
-		}
+	cutoffDay, _ := formula.ResolveCutoffDayForMonth(cutoffFormula, fallbackCutoff, day, m, y, dueDay, anchor)
+	var crossed bool
+	if inclusive {
+		crossed = day >= cutoffDay
+	} else {
+		crossed = day > cutoffDay
 	}
-
-	// Default PAYLATER (dynamic daysInMonth(M)-15 cutoff, 25th due):
-	// day <= cutoffDay -> due 25th of M+1 -> Period M+1
-	// day > cutoffDay -> due 25th of M+2 -> Period M+2
-	crossed := day > cutoffDay
-	offset := 1
+	offset := preOffset
 	if crossed {
-		offset = 2
+		offset = postOffset
 	}
 	targetM, targetY := addMonths(m, y, offset)
+	dim := formula.DaysInMonth(targetM, targetY)
+	clampedDue := dueDay
+	if clampedDue > dim {
+		clampedDue = dim
+	}
 	_ = strconv.Itoa(targetM)
+	label := "PayLater"
+	if instUpper == "CREDIT_CARD" || instUpper == "CC" {
+		label = "Credit Card"
+	}
 	return RouteTxResult{
 		TargetPeriodMonth: targetM,
 		TargetPeriodYear:  targetY,
 		TargetPeriodCode:  fmt.Sprintf("%02d/%d", targetM, targetY),
 		MaturityMonth:     targetM,
 		MaturityYear:      targetY,
-		DueDay:            dueDay,
+		DueDay:            clampedDue,
 		CutoffDay:         cutoffDay,
 		CrossedCutoff:     crossed,
-		Explanation:       fmt.Sprintf("PayLater tx on day %d (cutoff %d) matures %d/%02d/%d -> Period %02d/%d.", day, cutoffDay, dueDay, targetM, targetY, targetM, targetY),
+		Explanation:       fmt.Sprintf("%s tx on day %d (cutoff %d) matures %d/%02d/%d -> Period %02d/%d.", label, day, cutoffDay, clampedDue, targetM, targetY, targetM, targetY),
 	}
 }

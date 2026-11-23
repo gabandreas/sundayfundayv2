@@ -265,4 +265,32 @@ describe('payroll calculator', () => {
       expect(natalThr.completedMonthsFloorAmountRp).toBe(3533333);
     });
   });
+
+  describe('Modular Attendance Window, Feb Clamping & Configurable BPJS/Laptop Rates', () => {
+    it('clamps attendanceCutoffStartDay/EndDay cleanly in February (non-leap 2027 -> 28, leap 2028 -> 29) and respects configurable bpjsRate', () => {
+      const feb27Window = (getWorkingDaysCutoffWindow as any)(2, 2027, undefined, {
+        startDay: 30,
+        endDay: 31,
+      });
+      expect(feb27Window.startDateIso).toBe('2027-01-30');
+      expect(feb27Window.endDateIso).toBe('2027-02-28');
+
+      const feb28Leap = (getWorkingDaysCutoffWindow as any)(2, 2028, undefined, {
+        startDay: 16,
+        endDay: 31,
+      });
+      expect(feb28Leap.startDateIso).toBe('2028-01-16');
+      expect(feb28Leap.endDateIso).toBe('2028-02-29');
+
+      const customPayroll = calculatePayroll({
+        baseSalary: 5300000,
+        totalWorkingDays: 20,
+        dailyAllowance: 25000,
+        laptopAllowance: 300000,
+        bpjsRate: 0.04,
+      } as any);
+      expect(customPayroll.bpjsDeduction).toBe(212000);
+      expect(customPayroll.netBasePayroll).toBe(5388000);
+    });
+  });
 });

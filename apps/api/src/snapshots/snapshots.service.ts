@@ -30,6 +30,7 @@ import {
   calculateDecemberProratedThr,
   calculateDecemberProratedThrByDates,
 } from '../calculator/payroll';
+import { resolveStudioConfig } from '../config/studio.defaults';
 import {
   calculateOperationalDailySpent,
   calculateTotalDeductions,
@@ -212,6 +213,13 @@ export class SnapshotsService {
 
       const extraIncome = sumExtraIncome(transactions);
 
+      const studioCfg = resolveStudioConfig(
+        snapshot.userId,
+        config.formulaParamsJson,
+        config,
+      );
+      const pcCfg = studioCfg.paycycleFormulaConfig;
+
       const payroll = calculatePayroll({
         baseSalary: config.baseSalary,
         salaryAdjustment: snapshot.salaryAdjustment,
@@ -221,7 +229,8 @@ export class SnapshotsService {
         thrAmount: snapshot.thrAmount,
         bonusAmount: snapshot.bonusAmount,
         extraIncome,
-        laptopAllowance: config.laptopAllowance,
+        laptopAllowance: pcCfg.laptopAllowanceRp ?? config.laptopAllowance,
+        bpjsRate: (pcCfg.bpjsRatePercent ?? 3) / 100,
       });
 
       const fixedTargets = {
@@ -946,6 +955,13 @@ export class SnapshotsService {
 
     const extraIncome = sumExtraIncome(transactions);
 
+    const studioCfg = resolveStudioConfig(
+      snapshot.userId,
+      config.formulaParamsJson,
+      config,
+    );
+    const pcCfg = studioCfg.paycycleFormulaConfig;
+
     const payroll = calculatePayroll({
       baseSalary: config.baseSalary,
       salaryAdjustment: snapshot.salaryAdjustment,
@@ -955,7 +971,8 @@ export class SnapshotsService {
       thrAmount: snapshot.thrAmount,
       bonusAmount: snapshot.bonusAmount,
       extraIncome,
-      laptopAllowance: config.laptopAllowance,
+      laptopAllowance: pcCfg.laptopAllowanceRp ?? config.laptopAllowance,
+      bpjsRate: (pcCfg.bpjsRatePercent ?? 3) / 100,
     });
 
     const hypotheticalDailyOperational =

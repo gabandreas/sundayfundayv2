@@ -792,7 +792,7 @@ async function runLayer3User1ReadOnlyParity(baseUrl: string): Promise<void> {
     }
     if (m === 12 && y === 2026) {
       assert.equal(Math.round(s.finalTotalIncome), 9737425);
-      assert.equal(Math.round(s.totalDeductions), 4110341);
+      assert.equal(Math.round(s.totalDeductions), 4162341);
       assert.equal(Math.round(s.actualDailyOperational), 1500000);
       assert.equal(Math.round(s.deficitUncovered), 0);
       assert.equal(Math.round(s.actualSavings), 1000000);
@@ -851,6 +851,35 @@ async function runLayer3User1ReadOnlyParity(baseUrl: string): Promise<void> {
   const mrqConfigRes = await apiReq(baseUrl, u1Session, 'GET', '/api/marquee/config');
   assert.equal(mrqConfigRes.status, 200);
   assert.ok('hasDeepseekKey' in mrqConfigRes.data && 'hasOpencodeKey' in mrqConfigRes.data);
+
+  // Verify NDJSON /api/marquee/chat/stream emits status phases + final result with human agentSteps
+  const streamRes = await fetch(`${baseUrl}/api/marquee/chat/stream`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(u1Session.cookieHeader ? { Cookie: u1Session.cookieHeader } : {}),
+      ...(u1Session.bearerToken ? { Authorization: `Bearer ${u1Session.bearerToken}` } : {}),
+    },
+    body: JSON.stringify({
+      message: 'Safe to spend today?',
+      month: 11,
+      year: 2026,
+      activeRoute: '/',
+    }),
+  });
+  assert.equal(streamRes.status, 201, `POST /api/marquee/chat/stream returned ${streamRes.status}`);
+  const streamLines = (await streamRes.text())
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .map((l) => JSON.parse(l));
+  assert.ok(streamLines.some((e) => e.type === 'status'), 'Stream must emit at least one status event');
+  const finalEv = streamLines.find((e) => e.type === 'final');
+  assert.ok(finalEv?.data?.ok === true, 'Stream must end with final response payload');
+  assert.ok(
+    Array.isArray(finalEv.data.agentSteps) && finalEv.data.agentSteps.length >= 2,
+    'Final streamed response must attach human-readable agentSteps trace',
+  );
 
   const badWebhookRes = await fetch(`${baseUrl}/api/marquee/webhook`, {
     method: 'POST',

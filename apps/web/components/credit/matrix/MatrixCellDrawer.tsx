@@ -33,9 +33,11 @@ import {
   formatCurrencyInput,
   parseCurrencyInput,
   getJakartaDateParts,
+  resolveInstrumentCutoffDayClient,
 } from "@/lib/utils";
 import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { usePerspective } from "@/context/PerspectiveContext";
 import { evaluateMathExpression } from "./InlineBulkBillCell";
 
 interface MatrixCellDrawerProps {
@@ -63,6 +65,11 @@ export function MatrixCellDrawer({
 }: MatrixCellDrawerProps) {
   const { isAmountsMasked } = usePrivacyMask();
   const { t } = useLanguage();
+  const { studioConfig } = usePerspective();
+  const activePaylaterInst = useMemo(
+    () => (studioConfig?.instrumentsTable ?? []).find((i) => i.active && i.type === "PAYLATER"),
+    [studioConfig],
+  );
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -363,7 +370,14 @@ export function MatrixCellDrawer({
       purchaseDate: autoRouteByCutoff ? new Date(purchaseDate).toISOString() : undefined,
       autoRouteByCutoff,
       holdPastCutoff,
-      cutoffDay: category === "PAYLATER" ? 15 : customDueDay,
+      cutoffDay:
+        category === "PAYLATER"
+          ? resolveInstrumentCutoffDayClient(
+              activePaylaterInst,
+              column.month,
+              column.year,
+            )
+          : customDueDay,
       dueDay: customDueDay,
       notes: notes.trim() || undefined,
     });

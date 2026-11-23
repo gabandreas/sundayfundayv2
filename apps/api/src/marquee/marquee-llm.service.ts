@@ -117,7 +117,7 @@ export const MARQUEE_TOOL_DEFS = [
   {
     name: 'prepare_quick_transaction',
     description:
-      'Preview or stage an expense or credit charge (CASH, PAYLATER, CREDIT_CARD) behind a confirmation gate with Rupiah amount and optional installment tenor.',
+      'Preview or stage an expense or credit charge (CASH, PAYLATER, CREDIT_CARD) behind a confirmation gate with Rupiah amount, optional purchaseDate (YYYY-MM-DD), optional billingStartMonth/billingStartYear, and installment tenor.',
     parameters: {
       type: 'object',
       properties: {
@@ -125,6 +125,9 @@ export const MARQUEE_TOOL_DEFS = [
         amountRp: { type: 'number', description: 'Total Rupiah amount (integer)' },
         instrument: { type: 'string', enum: ['CASH', 'PAYLATER', 'CREDIT_CARD'] },
         tenorMonths: { type: 'number', description: 'Installment months (default 1)' },
+        purchaseDate: { type: 'string', description: 'Optional purchase date YYYY-MM-DD' },
+        billingStartMonth: { type: 'number', description: 'Optional explicit billing cycle month 1-12' },
+        billingStartYear: { type: 'number', description: 'Optional explicit billing cycle year' },
       },
       required: ['title', 'amountRp'],
     },
@@ -215,6 +218,84 @@ export const MARQUEE_TOOL_DEFS = [
     name: 'simulate_debt_payoff',
     description: 'Simulate Snowball vs Avalanche early prepayment impact for a Rupiah lump sum.',
     parameters: { type: 'object', properties: { lumpSumRp: { type: 'number' } } },
+  },
+  {
+    name: 'manage_liability_item',
+    description:
+      'Shift a PayLater or SPinjam liability item to an earlier/later cycle, split, or mark settled behind a 1-click confirmation gate.',
+    parameters: {
+      type: 'object',
+      properties: {
+        action: { type: 'string', enum: ['SHIFT_EARLIER', 'SHIFT_LATER', 'SETTLE', 'UNSETTLE'] },
+        itemId: { type: 'number', description: 'Optional exact LiabilityLineItem ID if known' },
+        itemQuery: { type: 'string', description: 'Search substring e.g. Americano or SPinjam' },
+        splitAmount: { type: 'number' },
+      },
+      required: ['action'],
+    },
+  },
+  {
+    name: 'revise_budget_or_quota',
+    description:
+      'Update a cycle budget or routine quota (DAILY_OPERATIONAL, SAVINGS, TRANSPORT, INTERNET, VAPE, HAIRCUT) behind a confirmation gate.',
+    parameters: {
+      type: 'object',
+      properties: {
+        category: {
+          type: 'string',
+          enum: ['DAILY_OPERATIONAL', 'SAVINGS', 'SELF_REWARD', 'BUFFER', 'TRANSPORT', 'INTERNET', 'VAPE', 'HAIRCUT'],
+        },
+        newValueRp: { type: 'number' },
+        month: { type: 'number' },
+        year: { type: 'number' },
+        reason: { type: 'string' },
+      },
+      required: ['category', 'newValueRp'],
+    },
+  },
+  {
+    name: 'manage_savings_pocket_or_goal',
+    description:
+      'Record a savings top-up/withdrawal or update savings goals/allocations behind a confirmation gate.',
+    parameters: {
+      type: 'object',
+      properties: {
+        action: { type: 'string', enum: ['TOPUP', 'WITHDRAWAL', 'CREATE_GOAL'] },
+        label: { type: 'string' },
+        amountRp: { type: 'number' },
+        instrumentType: { type: 'string', enum: ['LIQUID_CASH', 'RDPU', 'BANK_SAVINGS'] },
+      },
+      required: ['action', 'amountRp'],
+    },
+  },
+  {
+    name: 'manage_wishlist_or_subscription',
+    description:
+      'Add a wishlist target or toggle a subscription/promo kill-switch behind a confirmation gate.',
+    parameters: {
+      type: 'object',
+      properties: {
+        action: { type: 'string', enum: ['ADD_WISHLIST', 'TOGGLE_KILL_SWITCH'] },
+        title: { type: 'string' },
+        amountRp: { type: 'number' },
+        itemId: { type: 'number' },
+        confirmCancel: { type: 'boolean' },
+      },
+      required: ['action'],
+    },
+  },
+  {
+    name: 'run_what_if_scenario',
+    description:
+      'Simulate a 12-month what-if scenario (extra monthly savings, bonus, or debt reduction) and return net worth delta.',
+    parameters: {
+      type: 'object',
+      properties: {
+        extraMonthlySavingsRp: { type: 'number' },
+        oneTimeBonusRp: { type: 'number' },
+        reduceMonthlyDebtRp: { type: 'number' },
+      },
+    },
   },
 ];
 
@@ -402,10 +483,11 @@ export class MarqueeLlmService {
     } = params;
     const toolPolicy = [
       'TOOL USAGE POLICY:',
-      '- For casual greetings (hi, halo, thanks) or general conceptual questions you can answer accurately from the ledger above, answer directly in warm natural prose WITHOUT invoking any tool.',
-      '- Invoke `simulate_purchase_cutoff` whenever the user asks when a purchase will bill/fall due (e.g. "gesek permata cc tanggal 26 nov masuk tagihan kapan?"), passing `instrument` (`CREDIT_CARD` or `PAYLATER`), `purchaseDate` in `YYYY-MM-DD` (resolve month/day against the active ledger year), and `amountRp: 0` if no nominal is stated.',
+      '- For casual greetings (hi, halo, thanks) or analytical questions you can answer accurately from the hydrated ERP ledger below (credit cards, contracts, wishlist, savings pockets, subscriptions, routine quotas, snapshots), answer directly in crisp human prose WITHOUT forcing a tool call.',
+      '- Invoke `simulate_purchase_cutoff` whenever the user asks when a purchase will bill/fall due (e.g. "gesek permata cc tanggal 26 nov masuk tagihan kapan?", "spaylater 23 nov masuk desember atau januari?"), passing `instrument` (`CREDIT_CARD` or `PAYLATER`), `purchaseDate` in `YYYY-MM-DD`, and `amountRp: 0` if no nominal is stated.',
       '- Invoke `get_paycycle_pulse` when checking today’s safe-to-spend, remaining cash, or cycle countdown.',
-      '- STRICT COPY RULE: Never output emojis (no checkmarks, rockets, sparks, or faces) anywhere in your response.',
+      '- You CAN also perform write service actions for the user behind a 1-click confirmation gate: `prepare_quick_transaction` (log cash/paylater/cc expense with optional purchaseDate or explicit billingStartMonth/billingStartYear), `manage_liability_item` (shift bill earlier/later or settle), `revise_budget_or_quota` (update cycle budgets), `manage_savings_pocket_or_goal` (savings deposits/goals), `manage_wishlist_or_subscription` (wishlist add or subscription kill-switch), and `run_what_if_scenario` (12-month simulation).',
+      '- STRICT COPY RULE: Never output emojis, generic buzzwords, or artificial terms like Vault, Forward-Borrow, or Outlook. Use Emergency Fund, Savings Reserve, and Temporary Savings Advance.',
     ].join('\n');
     const sys = systemContextPrompt
       ? `${systemContextPrompt}\n\n${toolPolicy}`

@@ -257,6 +257,54 @@ export class ConfigService {
         Math.round(Number(patch.paycycleFormulaConfig.p1TargetFloorRp) || 0),
       );
     }
+    if (patch?.paycycleFormulaConfig?.laptopAllowanceRp !== undefined) {
+      syncTopFields.laptopAllowance = Math.max(
+        0,
+        Math.round(Number(patch.paycycleFormulaConfig.laptopAllowanceRp) || 0),
+      );
+    }
+    if (patch?.paycycleFormulaConfig?.defaultDailyAllowanceRp !== undefined) {
+      syncTopFields.dailyAllowance = Math.max(
+        0,
+        Math.round(Number(patch.paycycleFormulaConfig.defaultDailyAllowanceRp) || 0),
+      );
+    }
+    if (
+      patch?.paycycleFormulaConfig?.optimalDebtRatioPercent !== undefined ||
+      patch?.paycycleFormulaConfig?.maxSafeDebtRatioPercent !== undefined
+    ) {
+      const prevPolicy =
+        existing.financialPolicyJson && typeof existing.financialPolicyJson === 'object'
+          ? (existing.financialPolicyJson as any)
+          : buildDefaultFinancialPolicy();
+      syncTopFields.financialPolicyJson = {
+        ...prevPolicy,
+        optimalDebtRatioPercent:
+          nextStudio.paycycleFormulaConfig.optimalDebtRatioPercent ??
+          prevPolicy.optimalDebtRatioPercent ??
+          20,
+        maxSafeDebtRatioPercent:
+          nextStudio.paycycleFormulaConfig.maxSafeDebtRatioPercent ??
+          prevPolicy.maxSafeDebtRatioPercent ??
+          35,
+      };
+    }
+    if (Array.isArray(patch?.instrumentsTable)) {
+      const ccInst = nextStudio.instrumentsTable.find(
+        (i) => i.type === 'CREDIT_CARD',
+      );
+      const spInst = nextStudio.instrumentsTable.find(
+        (i) => i.type === 'PAYLATER',
+      );
+      if (ccInst) {
+        if (ccInst.cutoffDay > 0) syncTopFields.creditStatementDay = ccInst.cutoffDay;
+        if (ccInst.dueDay > 0) syncTopFields.creditDueDay = ccInst.dueDay;
+        if (ccInst.creditLimitRp > 0) syncTopFields.creditLimit = ccInst.creditLimitRp;
+      }
+      if (spInst && spInst.creditLimitRp > 0) {
+        syncTopFields.paylaterUsageLimit = spInst.creditLimitRp;
+      }
+    }
 
     const updated = await this.prisma.globalConfig.update({
       where: { id: existing.id },

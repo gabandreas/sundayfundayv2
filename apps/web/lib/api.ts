@@ -1241,6 +1241,8 @@ export async function createExpenseTransaction(data: {
   paymentMethod?: "CASH" | "PAYLATER" | "CC";
   paylaterTenor?: number;
   holdPastCutoff?: boolean;
+  billingStartMonth?: number;
+  billingStartYear?: number;
 }): Promise<{ success: boolean; data?: Transaction; error?: string }> {
   try {
     const res = await fetch(`${API_URL}/api/finance/transactions`, {
@@ -5640,6 +5642,12 @@ export async function simulateCutoffApi(payload: {
   holdPastCutoff?: boolean;
   startMonthOverride?: number;
   startYearOverride?: number;
+  cutoffFormula?: string;
+  cutoffBoundaryInclusive?: boolean;
+  preCutoffOffsetMonths?: number;
+  postCutoffOffsetMonths?: number;
+  dueShiftRule?: string;
+  anchorDay?: number;
 }): Promise<CutoffSimulateResponse | null> {
   try {
     const res = await fetch(`${API_URL}/api/finance/cutoff-simulate`, {
@@ -5787,6 +5795,15 @@ export interface PaycycleFormulaConfig {
   rdpuAnnualYieldPct: number;
   emergencyFundTargetRp: number;
   variableShockPercent: number;
+  attendanceCutoffStartDay?: number;
+  attendanceCutoffEndDay?: number;
+  bpjsRatePercent?: number;
+  laptopAllowanceRp?: number;
+  defaultDailyAllowanceRp?: number;
+  thrJoinDateIso?: string;
+  thrHolidayDateIso?: string;
+  optimalDebtRatioPercent?: number;
+  maxSafeDebtRatioPercent?: number;
   milestonePriorityOrder?: string[];
   formulas?: FormulaDefinitions;
   sinkingFunds: SinkingFundConfigRow[];
@@ -5797,8 +5814,13 @@ export interface InstrumentConfigRow {
   name: string;
   type: "PAYLATER" | "CREDIT_CARD" | "CASH_LOAN" | string;
   cutoffDay: number;
+  cutoffFormula?: string;
+  cutoffBoundaryInclusive?: boolean;
+  preCutoffOffsetMonths?: number;
+  postCutoffOffsetMonths?: number;
   dueDay: number;
   dueRule: "FIXED_DAY" | "DISBURSEMENT_DAY";
+  dueShiftRule?: "EXACT_DAY" | "SHIFT_PREVIOUS_FRIDAY" | string;
   monthlyInterestPct: number;
   adminFeePct: number;
   creditLimitRp: number;
@@ -6230,6 +6252,13 @@ export const RESERVED_WORDS_CATALOG_LIST = [
   "COMMUTE_HOURS_PER_DAY",
   "OPTIMAL_DSR_PCT",
   "MAX_SAFE_DSR_PCT",
+  "DAYS_IN_MONTH",
+  "TX_DAY",
+  "TX_MONTH",
+  "TX_YEAR",
+  "IS_LEAP_YEAR",
+  "DUE_DAY",
+  "PAYDAY_DAY",
 ] as const;
 
 export function buildDefaultFormulasClient(): FormulaDefinitions {
@@ -6471,16 +6500,35 @@ export interface MarqueeCardItem {
   tone?: "default" | "positive" | "caution" | "urgency";
 }
 
+export type MarqueePendingActionType =
+  | "CONFIRM_EXPENSE"
+  | "CONFIRM_SHIFT_LIABILITY"
+  | "CONFIRM_SETTLE_LIABILITY"
+  | "CONFIRM_BUDGET_REVISION"
+  | "CONFIRM_SAVINGS_ACTION"
+  | "CONFIRM_WISHLIST_ADD"
+  | "CONFIRM_SUBSCRIPTION_ACTION";
+
 export interface MarqueePendingAction {
-  type: "CONFIRM_EXPENSE";
-  payload: {
-    title: string;
-    amountRp: number;
-    instrument: "CASH" | "PAYLATER" | "CREDIT_CARD";
-    tenorMonths: number;
-    month: number;
-    year: number;
-  };
+  type: MarqueePendingActionType;
+  title?: string;
+  payload: Record<string, any>;
+}
+
+export interface MarqueeAgentStep {
+  id: string;
+  label: string;
+  detail: string;
+  status: "done" | "active";
+  durationMs?: number;
+}
+
+export interface MarqueeStreamStatusEvent {
+  type: "status";
+  phase: "THINKING" | "HYDRATING" | "ANALYZING" | "STAGING";
+  label: string;
+  detail: string;
+  timestamp: string;
 }
 
 export interface MarqueeProactiveReminder {
@@ -6507,6 +6555,7 @@ export interface MarqueeChatResponse {
   locale: "en" | "id" | "zh";
   assistantPrefix?: string;
   reasoning?: string;
+  agentSteps?: MarqueeAgentStep[];
   proactiveReminders?: MarqueeProactiveReminder[];
   hydratedContext?: {
     periodTag: string;
@@ -6558,10 +6607,87 @@ export async function sendMarqueeChat(payload: {
     const data = await handleResponse<MarqueeChatResponse | null>(res, null);
     if (data?.tierUsed === "CONFIRMED_EXECUTION" || (payload.confirm && data?.ok)) {
       invalidateCache();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("erp:data-mutated"));
+      }
     }
     return data;
   } catch {
     return null;
+  }
+}
+
+export async function sendMarqueeChatStream(
+  payload: {
+    message: string;
+    confirm?: boolean;
+    pendingAction?: MarqueePendingAction;
+    month?: number;
+    year?: number;
+    locale?: "en" | "id" | "zh";
+    activeRoute?: string;
+    activeSubTab?: string | null;
+  },
+  onStatus?: (event: MarqueeStreamStatusEvent) => void,
+): Promise<MarqueeChatResponse | null> {
+  try {
+    const res = await fetch(`${API_URL}/api/marquee/chat/stream`, {
+      method: "POST",
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok || !res.body) {
+      return sendMarqueeChat(payload);
+    }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let finalResponse: MarqueeChatResponse | null = null;
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let nlIdx = buffer.indexOf("\n");
+      while (nlIdx !== -1) {
+        const rawLine = buffer.slice(0, nlIdx).trim();
+        buffer = buffer.slice(nlIdx + 1);
+        if (rawLine) {
+          try {
+            const parsed = JSON.parse(rawLine);
+            if (parsed?.type === "status") {
+              onStatus?.(parsed as MarqueeStreamStatusEvent);
+            } else if (parsed?.type === "final" && parsed?.data) {
+              finalResponse = parsed.data as MarqueeChatResponse;
+            }
+          } catch {
+            // ignore partial/malformed frame
+          }
+        }
+        nlIdx = buffer.indexOf("\n");
+      }
+    }
+
+    if (buffer.trim()) {
+      try {
+        const parsed = JSON.parse(buffer.trim());
+        if (parsed?.type === "final" && parsed?.data) {
+          finalResponse = parsed.data as MarqueeChatResponse;
+        }
+      } catch {
+        // ignore trailing fragment
+      }
+    }
+
+    if (finalResponse?.tierUsed === "CONFIRMED_EXECUTION" || (payload.confirm && finalResponse?.ok)) {
+      invalidateCache();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("erp:data-mutated"));
+      }
+    }
+    return finalResponse ?? (await sendMarqueeChat(payload));
+  } catch {
+    return sendMarqueeChat(payload);
   }
 }
 

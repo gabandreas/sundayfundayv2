@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"sundayfunday.erp/go-engine/internal/format"
+	"sundayfunday.erp/go-engine/internal/formula"
 )
 
 type Instrument string
@@ -36,6 +37,12 @@ type CutoffRequest struct {
 	TenorMonths              int        `json:"tenorMonths"`
 	PurchaseDate             string     `json:"purchaseDate"` // YYYY-MM-DD
 	DueDayOverride           int        `json:"dueDayOverride"`
+	CutoffFormula            string     `json:"cutoffFormula,omitempty"`
+	CutoffBoundaryInclusive  *bool      `json:"cutoffBoundaryInclusive,omitempty"`
+	PreCutoffOffsetMonths    *int       `json:"preCutoffOffsetMonths,omitempty"`
+	PostCutoffOffsetMonths   *int       `json:"postCutoffOffsetMonths,omitempty"`
+	DueShiftRule             string     `json:"dueShiftRule,omitempty"`
+	AnchorDay                int        `json:"anchorDay,omitempty"`
 	HoldPastCutoff           bool       `json:"holdPastCutoff"`
 	StartMonthOverride       int        `json:"startMonthOverride"`
 	StartYearOverride        int        `json:"startYearOverride"`
@@ -242,59 +249,82 @@ func SimulateCutoff(req CutoffRequest) CutoffResult {
 	var startPeriodM, startPeriodY int
 	var daysUntilCutoff int
 
+	var cutoffFormula string
+	var fallbackCutoff int
+	var inclusive bool
+	var preOffset, postOffset int
 	switch inst {
 	case InstrumentCreditCard:
-		// Bank Permata Credit Card: statement closes every 25th, due 11th of following month
-		cutoffDay = 25
+		cutoffFormula = "25"
+		fallbackCutoff = 25
+		inclusive = false
+		preOffset = 1
+		postOffset = 2
 		dueDay = 11
-		if req.DueDayOverride >= 1 && req.DueDayOverride <= 31 {
-			dueDay = req.DueDayOverride
-		}
-		// 26th of M-1 through 25th of M -> due 11th of Month M+1 (Period M+1).
-		// Day >= 26 of Month M crosses cutoff and bills 11th of Month M+2 (Period M+2).
-		if pD > cutoffDay {
-			crossedCutoff = true
-			startPeriodM, startPeriodY = AddMonths(pM, pY, 2)
-			daysUntilCutoff = (daysInMonth(pM, pY) - pD) + cutoffDay
-		} else {
-			crossedCutoff = false
-			startPeriodM, startPeriodY = AddMonths(pM, pY, 1)
-			daysUntilCutoff = cutoffDay - pD
-		}
 	case InstrumentSPinjam, InstrumentPersonalDebt:
-		cutoffDay = pD
-		if req.DueDayOverride >= 1 && req.DueDayOverride <= 31 {
-			dueDay = req.DueDayOverride
-		} else {
-			dueDay = pD
-		}
-		crossedCutoff = false
-		startPeriodM, startPeriodY = AddMonths(pM, pY, 1)
-		daysUntilCutoff = 0
-	case InstrumentCash:
-		cutoffDay = 0
+		cutoffFormula = ""
+		fallbackCutoff = pD
+		inclusive = false
+		preOffset = 1
+		postOffset = 1
 		dueDay = pD
-		crossedCutoff = false
-		startPeriodM, startPeriodY = pM, pY
-		daysUntilCutoff = 0
+	case InstrumentCash:
+		cutoffFormula = ""
+		fallbackCutoff = 0
+		inclusive = false
+		preOffset = 0
+		postOffset = 0
+		dueDay = pD
 	default: // SPAYLATER
-		// Dynamic book-closing cutoff: daysInMonth(M) - 15 (15th on 30d, 16th on 31d, 13th/14th on Feb)
-		cutoffDay = daysInMonth(pM, pY) - 15
+		// Dynamic book-closing cutoff: DAYS_IN_MONTH - 15 (15th on 30d, 16th on 31d, 13th/14th on Feb)
+		cutoffFormula = "DAYS_IN_MONTH - 15"
+		fallbackCutoff = daysInMonth(pM, pY) - 15
+		inclusive = true
+		preOffset = 0
+		postOffset = 1
 		dueDay = 25
-		if req.DueDayOverride >= 1 && req.DueDayOverride <= 31 {
-			dueDay = req.DueDayOverride
+	}
+
+	if req.DueDayOverride >= 1 && req.DueDayOverride <= 31 {
+		dueDay = req.DueDayOverride
+	}
+	if strings.TrimSpace(req.CutoffFormula) != "" {
+		cutoffFormula = strings.TrimSpace(req.CutoffFormula)
+	}
+	if req.CutoffBoundaryInclusive != nil {
+		inclusive = *req.CutoffBoundaryInclusive
+	}
+	if req.PreCutoffOffsetMonths != nil {
+		preOffset = *req.PreCutoffOffsetMonths
+	}
+	if req.PostCutoffOffsetMonths != nil {
+		postOffset = *req.PostCutoffOffsetMonths
+	}
+
+	paydayAnchor := req.AnchorDay
+	if paydayAnchor <= 0 {
+		paydayAnchor = 27
+	}
+
+	if inst == InstrumentSPinjam || inst == InstrumentPersonalDebt || inst == InstrumentCash {
+		cutoffDay = fallbackCutoff
+		crossedCutoff = false
+		startPeriodM, startPeriodY = AddMonths(pM, pY, preOffset)
+		daysUntilCutoff = 0
+	} else {
+		cutoffDay, _ = formula.ResolveCutoffDayForMonth(cutoffFormula, fallbackCutoff, pD, pM, pY, dueDay, paydayAnchor)
+		if inclusive {
+			crossedCutoff = pD >= cutoffDay
+		} else {
+			crossedCutoff = pD > cutoffDay
 		}
-		// Day <= cutoffDay -> due 25th of Month M+1 (Period M+1).
-		// Day > cutoffDay crosses cutoff and bills 25th of Month M+2 (Period M+2).
-		if pD > cutoffDay {
-			crossedCutoff = true
-			startPeriodM, startPeriodY = AddMonths(pM, pY, 2)
+		if crossedCutoff {
+			startPeriodM, startPeriodY = AddMonths(pM, pY, postOffset)
 			nextM, nextY := AddMonths(pM, pY, 1)
-			nextCutoff := daysInMonth(nextM, nextY) - 15
+			nextCutoff, _ := formula.ResolveCutoffDayForMonth(cutoffFormula, fallbackCutoff, 1, nextM, nextY, dueDay, paydayAnchor)
 			daysUntilCutoff = (daysInMonth(pM, pY) - pD) + nextCutoff
 		} else {
-			crossedCutoff = false
-			startPeriodM, startPeriodY = AddMonths(pM, pY, 1)
+			startPeriodM, startPeriodY = AddMonths(pM, pY, preOffset)
 			daysUntilCutoff = cutoffDay - pD
 		}
 	}
@@ -357,14 +387,16 @@ func SimulateCutoff(req CutoffRequest) CutoffResult {
 	advice := "Fits within current period safe debt envelope."
 
 	if inst != InstrumentCash && firstSlice > 0 {
-		waitAvailable := !crossedCutoff && daysUntilCutoff > 0 && daysUntilCutoff <= 5
+		waitDays := daysUntilCutoff + 1
+		if inclusive && daysUntilCutoff > 0 {
+			waitDays = daysUntilCutoff
+		}
+		waitAvailable := !crossedCutoff && waitDays > 0 && waitDays <= 5
 		if req.SafeHeadroom > 0 && firstSlice > req.SafeHeadroom {
 			if waitAvailable && (req.NextPeriodObligations+firstSlice) < req.CurrentPeriodObligations {
-				verdict = "WAIT_PAST_CUTOFF"
-				advice = fmt.Sprintf("Wait %d day(s) until %dth cutoff so the first slice bills into the lighter %s cycle.", daysUntilCutoff+1, cutoffDay, FormatPeriodLabel(firstSliceInfo.PeriodMonth, firstSliceInfo.PeriodYear))
-				// Preview shifted period name
 				nm, ny := AddMonths(firstSliceInfo.PeriodMonth, firstSliceInfo.PeriodYear, 1)
-				advice = fmt.Sprintf("Wait %d day(s) past the %dth cutoff to defer billing into %s.", daysUntilCutoff+1, cutoffDay, FormatPeriodLabel(nm, ny))
+				verdict = "WAIT_PAST_CUTOFF"
+				advice = fmt.Sprintf("Wait %d day(s) past the %dth cutoff to defer billing into %s.", waitDays, cutoffDay, FormatPeriodLabel(nm, ny))
 			} else {
 				verdict = "OVER_LIMIT"
 				advice = fmt.Sprintf("Exceeds safe headroom by Rp %s. Defer or extend tenor.", format.Rp(firstSlice-req.SafeHeadroom))
@@ -373,7 +405,7 @@ func SimulateCutoff(req CutoffRequest) CutoffResult {
 			if waitAvailable {
 				verdict = "WAIT_PAST_CUTOFF"
 				nm, ny := AddMonths(firstSliceInfo.PeriodMonth, firstSliceInfo.PeriodYear, 1)
-				advice = fmt.Sprintf("DSR reaches %.1f%%. Waiting %d day(s) past the %dth cutoff shifts 1st charge to %s.", dsrAfter, daysUntilCutoff+1, cutoffDay, FormatPeriodLabel(nm, ny))
+				advice = fmt.Sprintf("DSR reaches %.1f%%. Waiting %d day(s) past the %dth cutoff shifts 1st charge to %s.", dsrAfter, waitDays, cutoffDay, FormatPeriodLabel(nm, ny))
 			} else {
 				verdict = "CAUTION"
 				advice = fmt.Sprintf("First slice lifts DSR to %.1f%% in %s.", dsrAfter, firstSliceInfo.PeriodLabel)
@@ -385,7 +417,8 @@ func SimulateCutoff(req CutoffRequest) CutoffResult {
 			verdict = "SAFE"
 			advice = fmt.Sprintf("Post-%dth cutoff purchase: bills in %s (due %s).", cutoffDay, firstSliceInfo.PeriodLabel, firstSliceInfo.DueDateIso)
 		}
-		if inst == InstrumentCreditCard {
+		shouldShiftWeekend := req.DueShiftRule == "SHIFT_PREVIOUS_FRIDAY" || (req.DueShiftRule == "" && inst == InstrumentCreditCard)
+		if shouldShiftWeekend {
 			if earlyIso, shiftedEarly := resolvePreviousBusinessDayIso(firstSliceInfo.DueYear, firstSliceInfo.DueMonth, firstSliceInfo.DueDay); shiftedEarly {
 				advice = fmt.Sprintf("%s Pay H-1 business day earlier by %s (due %s falls on a weekend/holiday) to keep 0%% interest.", advice, earlyIso, firstSliceInfo.DueDateIso)
 			}

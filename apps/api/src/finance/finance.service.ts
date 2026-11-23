@@ -71,6 +71,9 @@ export class FinanceService {
       if (!this.creditService) {
         throw new BadRequestException('CreditService is unavailable');
       }
+      const hasExplicitCycle =
+        Number.isInteger(dto.billingStartMonth) &&
+        Number.isInteger(dto.billingStartYear);
       const schedule = await this.creditService.createLineItemSchedule(
         {
           title: dto.fixedEssentialCategory
@@ -80,12 +83,11 @@ export class FinanceService {
           merchantOrPlatform: 'SPayLater',
           totalAmount: Math.round(dto.amount),
           tenorMonths: dto.paylaterTenor ?? 1,
-          startMonth: dto.month,
-          startYear: dto.year,
+          startMonth: hasExplicitCycle ? dto.billingStartMonth! : dto.month,
+          startYear: hasExplicitCycle ? dto.billingStartYear! : dto.year,
           purchaseDate: dto.date,
           holdPastCutoff: Boolean(dto.holdPastCutoff),
-          autoRouteByCutoff: true,
-          dueDay: 25,
+          autoRouteByCutoff: !hasExplicitCycle,
           notes: dto.fixedEssentialCategory
             ? `Routine category (${dto.fixedEssentialCategory}) paid via PayLater`
             : `Cross-bucket expense rolled from ${dto.month}/${dto.year} cash log`,
@@ -134,6 +136,8 @@ export class FinanceService {
           tenor,
           category: dto.fixedEssentialCategory || 'General',
           transactionDate: dto.date,
+          billingMonth: dto.billingStartMonth,
+          billingYear: dto.billingStartYear,
           notes: 'Logged via cross-bucket Credit Card selector',
         },
         userId,

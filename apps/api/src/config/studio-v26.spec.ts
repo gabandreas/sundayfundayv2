@@ -222,4 +222,27 @@ describe('V2.6 Configurable Priorities, Savings Pockets, Account Password, Go Sc
       ]),
     ).toBe(75);
   });
+
+  it('resolves modular UI-editable instrument cutoffFormula (DAYS_IN_MONTH - 15) and modular payroll attendance/BPJS/DSR config without hardcodes', () => {
+    const resolved: any = resolveStudioConfig(1, { studioConfig: {} });
+    const spay = resolved.instrumentsTable.find((i: any) => i.type === 'PAYLATER');
+    const cc = resolved.instrumentsTable.find((i: any) => i.type === 'CREDIT_CARD');
+
+    expect(spay.cutoffFormula).toBe('DAYS_IN_MONTH - 15');
+    expect(spay.cutoffBoundaryInclusive).toBe(true);
+    expect(spay.preCutoffOffsetMonths).toBe(0);
+    expect(spay.postCutoffOffsetMonths).toBe(1);
+
+    expect(cc.cutoffFormula).toBe('25');
+    expect(cc.cutoffBoundaryInclusive).toBe(false);
+    expect(cc.preCutoffOffsetMonths).toBe(1);
+    expect(cc.postCutoffOffsetMonths).toBe(2);
+
+    const pc: any = resolved.paycycleFormulaConfig;
+    expect(pc.attendanceCutoffStartDay).toBe(16);
+    expect(pc.attendanceCutoffEndDay).toBe(15);
+    expect(pc.bpjsRatePercent).toBe(3);
+    expect(pc.optimalDebtRatioPercent).toBe(20);
+    expect(pc.maxSafeDebtRatioPercent).toBe(35);
+  });
 });

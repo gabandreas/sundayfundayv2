@@ -2,7 +2,40 @@
 
 import React from "react";
 import { CheckCircle2, XCircle } from "lucide-react";
-import { MarqueeChatResponse } from "@/lib/api";
+import { MarqueeChatResponse, MarqueeStreamStatusEvent } from "@/lib/api";
+import { MarqueeRobotAvatar, MarqueeRobotState } from "@/components/primitives/MarqueeRobotAvatar";
+
+export function MarqueeTypingBubble({
+  status,
+  robotState = "thinking",
+}: {
+  status: MarqueeStreamStatusEvent | null;
+  robotState?: MarqueeRobotState;
+}) {
+  return (
+    <div
+      data-testid="marquee-typing-bubble"
+      className="rounded-md px-3.5 py-2.5 border border-border-subtle/80 bg-surface-subtle/50 mr-2 space-y-1.5"
+    >
+      <div className="flex items-center gap-2.5">
+        <MarqueeRobotAvatar state={robotState} size={22} />
+        <span className="inline-flex items-center gap-1" aria-label="Marquee is thinking">
+          <span className="w-1.5 h-1.5 rounded-full bg-delta-positive marquee-typing-dot" />
+          <span className="w-1.5 h-1.5 rounded-full bg-delta-positive marquee-typing-dot marquee-typing-dot-2" />
+          <span className="w-1.5 h-1.5 rounded-full bg-delta-positive marquee-typing-dot marquee-typing-dot-3" />
+        </span>
+        <span className="text-[11px] font-mono text-text-primary">
+          {status?.label || "Thinking..."}
+        </span>
+      </div>
+      {status?.detail && (
+        <div className="text-[10px] font-mono text-text-tertiary pl-7">
+          {status.detail}
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface MarqueeResponseCardsProps {
   response: MarqueeChatResponse;
@@ -156,12 +189,32 @@ export function MarqueeResponseCards({
 
       <FormattedProse text={response.summary} />
 
-      {response.reasoning && (
-        <details className="rounded border border-border-subtle bg-canvas/50 px-2.5 py-1.5 text-[11px] text-text-tertiary">
+      {(response.agentSteps?.length || response.reasoning) && (
+        <details className="rounded border border-border-subtle bg-canvas/60 px-2.5 py-1.5 text-[11px] text-text-tertiary">
           <summary className="cursor-pointer font-mono text-[10px] text-text-secondary select-none">
-            Reasoning notes
+            Thinking · {response.agentSteps?.length ?? 1} {response.agentSteps?.length === 1 ? "step" : "steps"}
           </summary>
-          <p className="mt-1.5 whitespace-pre-line leading-relaxed">{response.reasoning}</p>
+          {response.agentSteps && response.agentSteps.length > 0 && (
+            <ul className="mt-1.5 space-y-1 font-mono text-[10px]">
+              {response.agentSteps.map((s) => (
+                <li key={s.id} className="flex items-start justify-between gap-2 text-text-secondary">
+                  <span>
+                    <span className="text-delta-positive mr-1.5">·</span>
+                    <strong className="text-text-primary font-medium">{s.label}</strong>
+                    {s.detail ? ` — ${s.detail}` : ""}
+                  </span>
+                  {s.durationMs !== undefined && (
+                    <span className="text-text-tertiary shrink-0">{s.durationMs}ms</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          {response.reasoning && (
+            <p className="mt-1.5 pt-1.5 border-t border-border-subtle/60 whitespace-pre-line leading-relaxed text-[11px]">
+              {response.reasoning}
+            </p>
+          )}
         </details>
       )}
 
@@ -219,7 +272,23 @@ export function MarqueeResponseCards({
                 className="inline-flex items-center gap-1 px-2.5 py-1 rounded erp-btn-primary hover:opacity-90 text-[11px] font-mono font-semibold cursor-pointer disabled:opacity-50"
               >
                 <CheckCircle2 className="w-3 h-3" />
-                <span>{busyConfirm ? "Saving..." : "Confirm & Save"}</span>
+                <span>
+                  {busyConfirm
+                    ? "Saving..."
+                    : response.pendingAction.type === "CONFIRM_SHIFT_LIABILITY"
+                      ? "Confirm Shift"
+                      : response.pendingAction.type === "CONFIRM_SETTLE_LIABILITY"
+                        ? "Confirm Settlement"
+                        : response.pendingAction.type === "CONFIRM_BUDGET_REVISION"
+                          ? "Confirm Quota"
+                          : response.pendingAction.type === "CONFIRM_SAVINGS_ACTION"
+                            ? "Confirm Savings"
+                            : response.pendingAction.type === "CONFIRM_WISHLIST_ADD"
+                              ? "Save Wishlist"
+                              : response.pendingAction.type === "CONFIRM_SUBSCRIPTION_ACTION"
+                                ? "Update Subscription"
+                                : "Confirm & Save"}
+                </span>
               </button>
             )}
           </div>

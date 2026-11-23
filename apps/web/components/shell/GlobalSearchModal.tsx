@@ -6,6 +6,7 @@ import { Search, X, ArrowUpRight, Terminal, Zap, CheckCircle2 } from "lucide-rea
 import { BrandMark } from "@/components/primitives/BrandMark";
 import { useAuth } from "@/context/AuthContext";
 import { usePeriod } from "@/context/PeriodContext";
+import { usePerspective } from "@/context/PerspectiveContext";
 import {
   CutoffSimulateResponse,
   GlobalSearchResponse,
@@ -24,6 +25,7 @@ import {
   formatSourceTypeLabel,
   formatFixedEssentialCategoryLabel,
   getJakartaDateParts,
+  resolveInstrumentCutoffDayClient,
 } from "@/lib/utils";
 
 type FilterPreset =
@@ -38,6 +40,7 @@ export function GlobalSearchModal() {
   const router = useRouter();
   const { user } = useAuth();
   const { month: activeMonth, year: activeYear, refreshPeriod } = usePeriod();
+  const { studioConfig } = usePerspective();
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [preset, setPreset] = useState<FilterPreset>("ALL");
@@ -132,6 +135,17 @@ export function GlobalSearchModal() {
       return;
     }
 
+    const [spY, spM, spD] = (parsedSmart.purchaseDateIso || "").split("-").map(Number);
+    const activePaylater = (studioConfig?.instrumentsTable ?? []).find(
+      (i) => i.active && i.type === "PAYLATER",
+    );
+    const dynamicSpCutoff =
+      spY && spM
+        ? resolveInstrumentCutoffDayClient(activePaylater, spM, spY, spD || 1)
+        : (activePaylater?.cutoffDay ?? 15);
+    const dynamicSpDue =
+      activePaylater?.dueDay && activePaylater.dueDay > 0 ? activePaylater.dueDay : 25;
+
     const res = await createLineItem({
       title: parsedSmart.title,
       category: parsedSmart.instrument === "SPINJAM" ? "PERSONAL_DEBT" : "PAYLATER",
@@ -141,8 +155,8 @@ export function GlobalSearchModal() {
       tenorMonths: parsedSmart.tenorMonths,
       purchaseDate: `${parsedSmart.purchaseDateIso}T12:00:00.000Z`,
       autoRouteByCutoff: true,
-      cutoffDay: parsedSmart.instrument === "SPAYLATER" ? 15 : 8,
-      dueDay: parsedSmart.instrument === "SPAYLATER" ? 25 : 8,
+      cutoffDay: parsedSmart.instrument === "SPAYLATER" ? dynamicSpCutoff : 8,
+      dueDay: parsedSmart.instrument === "SPAYLATER" ? dynamicSpDue : 8,
       notes: "Quick-entry via Ctrl+K",
     });
     setSmartExecuting(false);

@@ -15,8 +15,10 @@ import {
   formatCurrencyInput,
   parseCurrencyInput,
   getJakartaDateParts,
+  resolveInstrumentCutoffDayClient,
 } from "@/lib/utils";
 import { usePrivacyMask } from "@/context/PrivacyMaskContext";
+import { usePerspective } from "@/context/PerspectiveContext";
 
 interface SafeSpendSimulatorPanelProps {
   isOpen: boolean;
@@ -36,6 +38,7 @@ export function SafeSpendSimulatorPanel({
   limitData = null,
 }: SafeSpendSimulatorPanelProps) {
   const { isAmountsMasked } = usePrivacyMask();
+  const { studioConfig } = usePerspective();
 
   const currentColIdx = Math.max(
     0,
@@ -173,11 +176,22 @@ export function SafeSpendSimulatorPanel({
         holdPastCutoff,
         cutoffDay: (() => {
           if (instrument !== "PAYLATER") return 8;
-          const [py, pm] = (purchaseDate || "").split("-").map(Number);
-          const dim = py && pm ? new Date(Date.UTC(py, pm, 0)).getUTCDate() : 30;
-          return Math.max(1, dim - 15);
+          const [py, pm, pd] = (purchaseDate || "").split("-").map(Number);
+          const paylaterInst = (studioConfig?.instrumentsTable ?? []).find(
+            (i) => i.active && i.type === "PAYLATER",
+          );
+          if (py && pm) {
+            return resolveInstrumentCutoffDayClient(paylaterInst, pm, py, pd || 1);
+          }
+          return paylaterInst?.cutoffDay || 15;
         })(),
-        dueDay: instrument === "PAYLATER" ? 25 : 8,
+        dueDay: (() => {
+          if (instrument !== "PAYLATER") return 8;
+          const paylaterInst = (studioConfig?.instrumentsTable ?? []).find(
+            (i) => i.active && i.type === "PAYLATER",
+          );
+          return paylaterInst?.dueDay && paylaterInst.dueDay > 0 ? paylaterInst.dueDay : 25;
+        })(),
       });
       setIsCommitting(false);
       if (!res.success) {

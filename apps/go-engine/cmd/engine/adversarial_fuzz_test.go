@@ -154,9 +154,10 @@ func TestAdversarialFuzz600VectorsAll13Packages(t *testing.T) {
 
 	// 2. Cutoff + Lossless Integer Split Fuzz (100 vectors)
 	boundaryDates := []string{
-		"2026-11-14", "2026-11-15", "2026-11-16",
-		"2026-11-19", "2026-11-20", "2026-11-21",
-		"2026-02-28", "2028-02-29", "2026-12-31", "2027-01-01",
+		"2026-11-14", "2026-11-15", "2026-11-23",
+		"2026-11-25", "2026-11-26", "2026-12-15",
+		"2026-12-16", "2027-02-12", "2027-02-13",
+		"2028-02-14", "2026-12-31",
 	}
 	for i := 0; i < 100; i++ {
 		tenor := (i % 24) + 1
@@ -187,18 +188,17 @@ func TestAdversarialFuzz600VectorsAll13Packages(t *testing.T) {
 		if sumSlices != principal {
 			t.Fatalf("cutoff vector %d: lossless split violated: sum=%d != principal=%d (tenor=%d)", i, sumSlices, principal, tenor)
 		}
-		// Check Nov 14 vs 15 vs 16 SPayLater rule and Nov 20 vs 21 CC rule when HoldPastCutoff=false
 		if !((i % 5) == 0) && inst == cutoff.InstrumentSPayLater && dateIso == "2026-11-14" && res.CrossedCutoff {
-			t.Fatalf("Nov 14 SPayLater must not cross cutoff")
+			t.Fatalf("Nov 14 SPayLater (< 15) must not cross cutoff")
 		}
-		if inst == cutoff.InstrumentSPayLater && dateIso == "2026-11-15" && !res.CrossedCutoff {
-			t.Fatalf("Nov 15 SPayLater must cross cutoff")
+		if inst == cutoff.InstrumentSPayLater && (dateIso == "2026-11-15" || dateIso == "2026-11-23") && !res.CrossedCutoff {
+			t.Fatalf("%s SPayLater (>= 15) must cross cutoff", dateIso)
 		}
-		if !((i % 5) == 0) && inst == cutoff.InstrumentCreditCard && dateIso == "2026-11-20" && res.CrossedCutoff {
-			t.Fatalf("Nov 20 CC must not cross cutoff")
+		if !((i % 5) == 0) && inst == cutoff.InstrumentCreditCard && dateIso == "2026-11-25" && res.CrossedCutoff {
+			t.Fatalf("Nov 25 CC (<= 25) must not cross cutoff")
 		}
-		if inst == cutoff.InstrumentCreditCard && dateIso == "2026-11-21" && !res.CrossedCutoff {
-			t.Fatalf("Nov 21 CC must cross cutoff")
+		if inst == cutoff.InstrumentCreditCard && dateIso == "2026-11-26" && !res.CrossedCutoff {
+			t.Fatalf("Nov 26 CC (> 25) must cross cutoff")
 		}
 		vectorCount++
 	}

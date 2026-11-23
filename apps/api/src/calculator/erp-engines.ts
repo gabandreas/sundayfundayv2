@@ -1,4 +1,8 @@
-import { addHybridMonths } from './hybrid-engine';
+﻿import {
+  addHybridMonths,
+  daysInMonthCalendarUtc,
+  resolveCutoffDayForMonthTs,
+} from './formula-dsl';
 
 function goRound(v: number): number {
   return v < 0 ? -Math.round(-v) : Math.round(v);
@@ -19,21 +23,24 @@ function formatRpId(n: number): string {
   return neg ? `-${withDots}` : withDots;
 }
 
-function daysInMonthUtc(m: number, y: number): number {
-  return new Date(Date.UTC(y, m, 0)).getUTCDate();
-}
+const daysInMonthUtc = daysInMonthCalendarUtc;
 
-// ───────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Engine 1: Paycycle Horizon & Waterfall Formula Engine
-// ───────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface InstrumentCutoffRule {
   id: string;
   name: string;
   type: 'PAYLATER' | 'CREDIT_CARD' | 'CASH_LOAN' | string;
   cutoffDay: number;
+  cutoffFormula?: string;
+  cutoffBoundaryInclusive?: boolean;
+  preCutoffOffsetMonths?: number;
+  postCutoffOffsetMonths?: number;
   dueDay: number;
   dueRule?: 'FIXED_DAY' | 'DISBURSEMENT_DAY' | string;
+  dueShiftRule?: 'EXACT_DAY' | 'SHIFT_PREVIOUS_FRIDAY' | string;
   monthlyInterestPct: number;
   adminFeePct: number;
   active: boolean;
@@ -455,38 +462,81 @@ export function routeTransactionToPaycycleTs(req: RouteTxRequest): RouteTxResult
   const y = txDate.getUTCFullYear();
   const instUpper = (req.instrumentType || '').trim().toUpperCase();
 
-  let cutoffDay = 0;
-  let dueDay = 0;
-  let dueRule = 'FIXED_DAY';
-  for (const r of req.rules ?? []) {
-    if (!r.active) continue;
-    if (
-      r.type.toUpperCase() === instUpper ||
-      (req.instrumentName && r.name.toLowerCase() === req.instrumentName.toLowerCase())
-    ) {
-      cutoffDay = r.cutoffDay;
-      dueDay = r.dueDay;
-      if (r.dueRule) dueRule = r.dueRule;
-      break;
-    }
+  let matched: InstrumentCutoffRule | undefined;
+  const activeRules = (req.rules ?? []).filter((r) => r.active);
+  if (req.instrumentName) {
+    const nameLower = req.instrumentName.toLowerCase();
+    matched = activeRules.find((r) => r.name.toLowerCase() === nameLower);
   }
-  if (cutoffDay === 0 && dueDay === 0) {
-    if (instUpper === 'PAYLATER' || instUpper === 'SPAYLATER') {
-      cutoffDay = daysInMonthUtc(m, y) - 15;
-      dueDay = 25;
-    } else if (instUpper === 'CREDIT_CARD' || instUpper === 'CC') {
-      cutoffDay = 25;
-      dueDay = 11;
-    } else if (instUpper === 'CASH_LOAN' || instUpper === 'SPINJAM') {
-      dueRule = 'DISBURSEMENT_DAY';
-      dueDay = day;
-    }
-  } else if ((instUpper === 'PAYLATER' || instUpper === 'SPAYLATER') && cutoffDay === 15) {
-    cutoffDay = daysInMonthUtc(m, y) - 15;
+  if (!matched) {
+    matched = activeRules.find((r) => {
+      const rt = r.type.toUpperCase();
+      return (
+        rt === instUpper ||
+        ((instUpper === 'SPAYLATER' || instUpper === 'PAYLATER') && rt === 'PAYLATER') ||
+        ((instUpper === 'CC' || instUpper === 'CREDIT_CARD') && rt === 'CREDIT_CARD') ||
+        ((instUpper === 'SPINJAM' || instUpper === 'CASH_LOAN') && rt === 'CASH_LOAN')
+      );
+    });
   }
 
+  let dueRule = 'FIXED_DAY';
+  let cutoffFormula = '';
+  let fallbackCutoff = 0;
+  let inclusive = false;
+  let preOffset = 1;
+  let postOffset = 2;
+  let dueDay = 0;
+
+  if (instUpper === 'CREDIT_CARD' || instUpper === 'CC') {
+    cutoffFormula = '25';
+    fallbackCutoff = 25;
+    inclusive = false;
+    preOffset = 1;
+    postOffset = 2;
+    dueDay = 11;
+  } else if (instUpper === 'CASH_LOAN' || instUpper === 'SPINJAM') {
+    dueRule = 'DISBURSEMENT_DAY';
+    dueDay = day;
+    preOffset = 1;
+    postOffset = 1;
+  } else {
+    cutoffFormula = 'DAYS_IN_MONTH - 15';
+    fallbackCutoff = daysInMonthUtc(m, y) - 15;
+    inclusive = true;
+    preOffset = 0;
+    postOffset = 1;
+    dueDay = 25;
+  }
+
+  if (matched) {
+    if (matched.dueRule) dueRule = matched.dueRule;
+    if (matched.dueDay > 0) dueDay = matched.dueDay;
+    if ((matched.cutoffFormula ?? '').trim() !== '') {
+      cutoffFormula = matched.cutoffFormula!.trim();
+    } else if (matched.cutoffDay > 0) {
+      if ((instUpper === 'PAYLATER' || instUpper === 'SPAYLATER') && matched.cutoffDay === 15) {
+        cutoffFormula = 'DAYS_IN_MONTH - 15';
+        fallbackCutoff = daysInMonthUtc(m, y) - 15;
+      } else {
+        cutoffFormula = '';
+        fallbackCutoff = matched.cutoffDay;
+      }
+    }
+    if (typeof matched.cutoffBoundaryInclusive === 'boolean') {
+      inclusive = matched.cutoffBoundaryInclusive;
+    }
+    if (typeof matched.preCutoffOffsetMonths === 'number') {
+      preOffset = matched.preCutoffOffsetMonths;
+    }
+    if (typeof matched.postCutoffOffsetMonths === 'number') {
+      postOffset = matched.postCutoffOffsetMonths;
+    }
+  }
+
+  const anchor = !req.anchorDay || req.anchorDay <= 0 ? 27 : req.anchorDay;
+
   if (instUpper === 'CASH') {
-    const anchor = !req.anchorDay || req.anchorDay <= 0 ? 27 : req.anchorDay;
     const target = day >= anchor ? addHybridMonths(m, y, 1) : { month: m, year: y };
     return {
       targetPeriodMonth: target.month,
@@ -502,54 +552,53 @@ export function routeTransactionToPaycycleTs(req: RouteTxRequest): RouteTxResult
   }
 
   if (dueRule === 'DISBURSEMENT_DAY' || instUpper === 'CASH_LOAN' || instUpper === 'SPINJAM') {
-    const firstDue = addHybridMonths(m, y, 1);
+    const firstDue = addHybridMonths(m, y, preOffset);
+    const dim = daysInMonthUtc(firstDue.month, firstDue.year);
+    const clampedDue = Math.min(dueDay, dim);
     return {
       targetPeriodMonth: firstDue.month,
       targetPeriodYear: firstDue.year,
       targetPeriodCode: `${String(firstDue.month).padStart(2, '0')}/${firstDue.year}`,
       maturityMonth: firstDue.month,
       maturityYear: firstDue.year,
-      dueDay,
+      dueDay: clampedDue,
       cutoffDay: 0,
       crossedCutoff: false,
-      explanation: `Disbursement-day loan on day ${day} matures ${String(firstDue.month).padStart(2, '0')}/${firstDue.year} on day ${dueDay} -> Period ${String(firstDue.month).padStart(2, '0')}/${firstDue.year}.`,
+      explanation: `Disbursement-day loan on day ${day} matures ${String(firstDue.month).padStart(2, '0')}/${firstDue.year} on day ${clampedDue} -> Period ${String(firstDue.month).padStart(2, '0')}/${firstDue.year}.`,
     };
   }
 
-  if (instUpper === 'CREDIT_CARD' || instUpper === 'CC') {
-    const crossed = day > cutoffDay;
-    const target = addHybridMonths(m, y, crossed ? 2 : 1);
-    return {
-      targetPeriodMonth: target.month,
-      targetPeriodYear: target.year,
-      targetPeriodCode: `${String(target.month).padStart(2, '0')}/${target.year}`,
-      maturityMonth: target.month,
-      maturityYear: target.year,
-      dueDay,
-      cutoffDay,
-      crossedCutoff: crossed,
-      explanation: `Credit Card tx on day ${day} (cutoff ${cutoffDay}) matures ${dueDay}/${String(target.month).padStart(2, '0')}/${target.year} -> Period ${String(target.month).padStart(2, '0')}/${target.year}.`,
-    };
-  }
-
-  const crossed = day > cutoffDay;
-  const target = addHybridMonths(m, y, crossed ? 2 : 1);
+  const { cutoffDay } = resolveCutoffDayForMonthTs(
+    cutoffFormula,
+    fallbackCutoff,
+    day,
+    m,
+    y,
+    dueDay,
+    anchor,
+  );
+  const crossed = inclusive ? day >= cutoffDay : day > cutoffDay;
+  const offset = crossed ? postOffset : preOffset;
+  const target = addHybridMonths(m, y, offset);
+  const dim = daysInMonthUtc(target.month, target.year);
+  const clampedDue = Math.min(dueDay, dim);
+  const label = instUpper === 'CREDIT_CARD' || instUpper === 'CC' ? 'Credit Card' : 'PayLater';
   return {
     targetPeriodMonth: target.month,
     targetPeriodYear: target.year,
     targetPeriodCode: `${String(target.month).padStart(2, '0')}/${target.year}`,
     maturityMonth: target.month,
     maturityYear: target.year,
-    dueDay,
+    dueDay: clampedDue,
     cutoffDay,
     crossedCutoff: crossed,
-    explanation: `PayLater tx on day ${day} (cutoff ${cutoffDay}) matures ${dueDay}/${String(target.month).padStart(2, '0')}/${target.year} -> Period ${String(target.month).padStart(2, '0')}/${target.year}.`,
+    explanation: `${label} tx on day ${day} (cutoff ${cutoffDay}) matures ${clampedDue}/${String(target.month).padStart(2, '0')}/${target.year} -> Period ${String(target.month).padStart(2, '0')}/${target.year}.`,
   };
 }
 
-// ───────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Engine 2: Double-Entry Net Worth & Asset Reservoirs Engine
-// ───────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface AssetAccountInput {
   id: string;
@@ -709,9 +758,9 @@ export function computeNetWorthTs(req: NetWorthRequest): NetWorthResult {
   };
 }
 
-// ───────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Engine 3: 12-Month Deterministic & Stress-Test Wealth Forecaster
-// ───────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface ForecastPeriodInput {
   month: number;
@@ -890,9 +939,9 @@ export function runForecastTs(req: ForecasterRequest): ForecasterResult {
   };
 }
 
-// ───────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Engine 4: Spending Velocity, Anomaly & Post-Cutoff Creep Detector
-// ───────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface CashTxSample {
   id: number;
@@ -1061,9 +1110,9 @@ export function evaluateAnomaliesTs(req: AnomalyRequest): AnomalyResult {
   };
 }
 
-// ───────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Engine 5: Zero-Based Envelope Rollover, Sinking Funds & Age of Money
-// ───────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface EnvelopeQuotaInput {
   id: string;
@@ -1192,9 +1241,9 @@ export function evaluateEnvelopesTs(req: EnvelopesRequest): EnvelopesResult {
   };
 }
 
-// ───────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Engine 6: Debt Payoff Strategy Optimizer
-// ───────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface DebtContractOptInput {
   id: string;
@@ -1386,9 +1435,9 @@ export function optimizeDebtPayoffTs(req: DebtOptRequest): DebtOptResult {
   };
 }
 
-// ───────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Engine 7: True Hourly Wage & Life-Energy Work-Hours Translator
-// ───────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface LifeEnergyRequest {
   netMonthlyIncomeRp: number;
@@ -1463,9 +1512,9 @@ export function computeLifeEnergyTs(req: LifeEnergyRequest): LifeEnergyResult {
   };
 }
 
-// ───────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Engine 8: Statement / Mutation Bulk Parser & Auto-Reconciler
-// ───────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface ExistingLedgerItemInput {
   id: number;
@@ -1604,6 +1653,18 @@ export function parseStatementBatchTs(req: ReconcilerParseRequest): ReconcilerPa
   const lockedSet = new Set<string>(
     (req.lockedPeriodCodes ?? []).map((c) => c.trim()).filter(Boolean),
   );
+  let maxLockedSerial = 0;
+  for (const code of lockedSet) {
+    const parts = code.split('/');
+    if (parts.length === 2) {
+      const lm = parseInt(parts[0], 10);
+      const ly = parseInt(parts[1], 10);
+      if (Number.isFinite(lm) && Number.isFinite(ly) && lm >= 1 && lm <= 12) {
+        const ser = ly * 12 + lm;
+        if (ser > maxLockedSerial) maxLockedSerial = ser;
+      }
+    }
+  }
 
   const lines = (req.rawText || '').split(/\r?\n/);
   const rows: ReconcilerParsedRow[] = [];
@@ -1680,15 +1741,25 @@ export function parseStatementBatchTs(req: ReconcilerParseRequest): ReconcilerPa
     const earliestY = req.earliestOpenYear ?? 0;
     const isBeforeEarliest =
       earliestY > 0 && earliestM > 0 && targetY * 12 + targetM < earliestY * 12 + earliestM;
+    const isBeforeOrAtMaxLocked = maxLockedSerial > 0 && targetY * 12 + targetM <= maxLockedSerial;
 
-    if (lockedSet.has(targetCode) || isBeforeEarliest) {
+    if (lockedSet.has(targetCode) || isBeforeEarliest || isBeforeOrAtMaxLocked) {
       originalPeriodCode = targetCode;
       advancedFromLocked = true;
-      if (isBeforeEarliest) {
+      if (
+        isBeforeEarliest &&
+        !(maxLockedSerial > 0 && earliestY * 12 + earliestM <= maxLockedSerial)
+      ) {
         targetM = earliestM;
         targetY = earliestY;
       }
-      for (let steps = 0; steps < 24 && lockedSet.has(`${String(targetM).padStart(2, '0')}/${targetY}`); steps++) {
+      for (
+        let steps = 0;
+        steps < 24 &&
+        (lockedSet.has(`${String(targetM).padStart(2, '0')}/${targetY}`) ||
+          (maxLockedSerial > 0 && targetY * 12 + targetM <= maxLockedSerial));
+        steps++
+      ) {
         targetM++;
         if (targetM > 12) {
           targetM = 1;
@@ -1752,388 +1823,5 @@ export function parseStatementBatchTs(req: ReconcilerParseRequest): ReconcilerPa
   };
 }
 
-// ───────────────────────────────────────────────────────────────────────────
-// Engine 9: Safe Formula DSL & Reserved Words Evaluator
-// ───────────────────────────────────────────────────────────────────────────
 
-export const RESERVED_WORDS_CATALOG = new Set<string>([
-  'BASE_SALARY',
-  'WORK_DAYS',
-  'DAILY_ALLOWANCE',
-  'TRANSPORT_ALLOWANCE',
-  'FIXED_ADDITIONS',
-  'GROSS_PAY',
-  'TAX_AND_BPJS',
-  'NET_SALARY',
-  'TENURE_MONTHS',
-  'THR_MULTIPLIER',
-  'THR_AMOUNT',
-  'NET_INCOME',
-  'PAYLATER_DEBT',
-  'CC_DEBT',
-  'SPINJAM_DEBT',
-  'OTHER_DEBT',
-  'TOTAL_DEBT',
-  'ROUTINE_BILLS',
-  'LIVING_BUDGET',
-  'P1_FLOOR',
-  'P1_SAVINGS',
-  'P2_REWARD',
-  'ELAPSED_DAYS',
-  'CYCLE_DAYS',
-  'REMAINING_DAYS',
-  'WEEKEND_WEIGHT',
-  'WORK_DAYS_PER_WEEK',
-  'WORK_HOURS_PER_DAY',
-  'COMMUTE_HOURS_PER_DAY',
-  'OPTIMAL_DSR_PCT',
-  'MAX_SAFE_DSR_PCT',
-]);
-
-export interface FormulaEvalResult {
-  expression: string;
-  valid: boolean;
-  valueRp: number;
-  valueFloat: number;
-  usedTokens: string[];
-  error?: string;
-}
-
-export interface FormulaSuiteRequest {
-  variables: Record<string, number>;
-  formulas: Record<string, string>;
-}
-
-export interface FormulaSuiteResult {
-  allValid: boolean;
-  results: Record<string, FormulaEvalResult>;
-}
-
-interface DslToken {
-  kind:
-    | 'EOF'
-    | 'NUM'
-    | 'VAR'
-    | 'IDENT'
-    | 'PLUS'
-    | 'MINUS'
-    | 'MUL'
-    | 'DIV'
-    | 'LPAREN'
-    | 'RPAREN'
-    | 'COMMA'
-    | 'GT'
-    | 'LT'
-    | 'GTE'
-    | 'LTE'
-    | 'EQ'
-    | 'NEQ';
-  text: string;
-  num?: number;
-}
-
-function tokenizeDsl(expr: string): DslToken[] {
-  const out: DslToken[] = [];
-  let i = 0;
-  const n = expr.length;
-  while (i < n) {
-    const ch = expr[i];
-    if (/\s/.test(ch)) {
-      i++;
-      continue;
-    }
-    if (ch === '+') {
-      out.push({ kind: 'PLUS', text: '+' });
-      i++;
-    } else if (ch === '-') {
-      out.push({ kind: 'MINUS', text: '-' });
-      i++;
-    } else if (ch === '*') {
-      out.push({ kind: 'MUL', text: '*' });
-      i++;
-    } else if (ch === '/') {
-      out.push({ kind: 'DIV', text: '/' });
-      i++;
-    } else if (ch === '(') {
-      out.push({ kind: 'LPAREN', text: '(' });
-      i++;
-    } else if (ch === ')') {
-      out.push({ kind: 'RPAREN', text: ')' });
-      i++;
-    } else if (ch === ',') {
-      out.push({ kind: 'COMMA', text: ',' });
-      i++;
-    } else if (ch === '>') {
-      if (i + 1 < n && expr[i + 1] === '=') {
-        out.push({ kind: 'GTE', text: '>=' });
-        i += 2;
-      } else {
-        out.push({ kind: 'GT', text: '>' });
-        i++;
-      }
-    } else if (ch === '<') {
-      if (i + 1 < n && expr[i + 1] === '=') {
-        out.push({ kind: 'LTE', text: '<=' });
-        i += 2;
-      } else {
-        out.push({ kind: 'LT', text: '<' });
-        i++;
-      }
-    } else if (ch === '=') {
-      if (i + 1 < n && expr[i + 1] === '=') {
-        out.push({ kind: 'EQ', text: '==' });
-        i += 2;
-      } else {
-        throw new Error(`unexpected '=' at position ${i} (use '==')`);
-      }
-    } else if (ch === '!') {
-      if (i + 1 < n && expr[i + 1] === '=') {
-        out.push({ kind: 'NEQ', text: '!=' });
-        i += 2;
-      } else {
-        throw new Error(`unexpected '!' at position ${i}`);
-      }
-    } else if (ch === '{') {
-      const end = expr.indexOf('}', i);
-      if (end <= i + 1) {
-        throw new Error(`unterminated or empty token at position ${i}`);
-      }
-      const varName = expr.slice(i + 1, end).trim().toUpperCase();
-      out.push({ kind: 'VAR', text: varName });
-      i = end + 1;
-    } else if (/[0-9.]/.test(ch)) {
-      const start = i;
-      let seenDot = false;
-      while (i < n && /[0-9.]/.test(expr[i])) {
-        if (expr[i] === '.') {
-          if (seenDot) throw new Error(`invalid number literal near position ${start}`);
-          seenDot = true;
-        }
-        i++;
-      }
-      const val = Number(expr.slice(start, i));
-      if (!Number.isFinite(val)) throw new Error(`invalid number '${expr.slice(start, i)}'`);
-      out.push({ kind: 'NUM', text: expr.slice(start, i), num: val });
-    } else if (/[a-zA-Z_]/.test(ch)) {
-      const start = i;
-      while (i < n && /[a-zA-Z0-9_]/.test(expr[i])) i++;
-      out.push({ kind: 'IDENT', text: expr.slice(start, i).toUpperCase() });
-    } else {
-      throw new Error(`unexpected character '${ch}' at position ${i}`);
-    }
-  }
-  out.push({ kind: 'EOF', text: '' });
-  return out;
-}
-
-function evalDslFunc(name: string, args: number[]): number {
-  switch (name) {
-    case 'ROUND':
-      if (args.length === 1) return goRound(args[0]);
-      if (args.length === 2) {
-        const scale = Math.pow(10, args[1]);
-        return goRound(args[0] * scale) / scale;
-      }
-      throw new Error('ROUND expects 1 or 2 arguments');
-    case 'FLOOR':
-      if (args.length !== 1) throw new Error('FLOOR expects 1 argument');
-      return Math.floor(args[0]);
-    case 'CEIL':
-      if (args.length !== 1) throw new Error('CEIL expects 1 argument');
-      return Math.ceil(args[0]);
-    case 'MIN':
-      if (args.length < 1) throw new Error('MIN expects at least 1 argument');
-      return Math.min(...args);
-    case 'MAX':
-      if (args.length < 1) throw new Error('MAX expects at least 1 argument');
-      return Math.max(...args);
-    case 'CLAMP':
-      if (args.length !== 3) throw new Error('CLAMP(x, min, max) expects 3 arguments');
-      return Math.max(args[1], Math.min(args[2], args[0]));
-    case 'IF':
-      if (args.length !== 3) throw new Error('IF(cond, thenVal, elseVal) expects 3 arguments');
-      return args[0] !== 0 ? args[1] : args[2];
-    case 'PCT':
-      if (args.length !== 2) throw new Error('PCT(base, pct) expects 2 arguments');
-      return args[0] * (args[1] / 100.0);
-    default:
-      throw new Error(`unsupported function '${name}'`);
-  }
-}
-
-export function evaluateFormulaDslTs(
-  expr: string,
-  vars: Record<string, number>,
-): FormulaEvalResult {
-  const trimmed = (expr || '').trim();
-  if (!trimmed) {
-    return {
-      expression: expr,
-      valid: false,
-      valueRp: 0,
-      valueFloat: 0,
-      usedTokens: [],
-      error: 'formula expression cannot be empty',
-    };
-  }
-  try {
-    const tokens = tokenizeDsl(trimmed);
-    const normVars: Record<string, number> = {};
-    for (const [k, v] of Object.entries(vars ?? {})) {
-      normVars[k.trim().toUpperCase()] = Number(v) || 0;
-    }
-    const used = new Set<string>();
-    let pos = 0;
-    const peek = (): DslToken => tokens[pos] ?? { kind: 'EOF', text: '' };
-    const next = (): DslToken => tokens[pos++] ?? { kind: 'EOF', text: '' };
-
-    const parsePrimary = (): number => {
-      const t = next();
-      if (t.kind === 'NUM') return t.num ?? 0;
-      if (t.kind === 'VAR') {
-        if (!RESERVED_WORDS_CATALOG.has(t.text) && !(t.text in normVars)) {
-          throw new Error(`unknown reserved word {${t.text}}`);
-        }
-        used.add(t.text);
-        return normVars[t.text] ?? 0;
-      }
-      if (t.kind === 'IDENT') {
-        if (peek().kind !== 'LPAREN') {
-          throw new Error(`unexpected identifier '${t.text}' (wrap reserved words in {...})`);
-        }
-        next();
-        const args: number[] = [];
-        if (peek().kind !== 'RPAREN') {
-          while (true) {
-            args.push(parseComparison());
-            if (peek().kind === 'COMMA') {
-              next();
-              continue;
-            }
-            break;
-          }
-        }
-        if (next().kind !== 'RPAREN') {
-          throw new Error(`missing closing ')' after ${t.text}(`);
-        }
-        return evalDslFunc(t.text, args);
-      }
-      if (t.kind === 'LPAREN') {
-        const v = parseComparison();
-        if (next().kind !== 'RPAREN') throw new Error("missing closing ')'");
-        return v;
-      }
-      throw new Error(`unexpected token '${t.text}'`);
-    };
-
-    const parseUnary = (): number => {
-      const k = peek().kind;
-      if (k === 'PLUS') {
-        next();
-        return parseUnary();
-      }
-      if (k === 'MINUS') {
-        next();
-        return -parseUnary();
-      }
-      return parsePrimary();
-    };
-
-    const parseMulDiv = (): number => {
-      let left = parseUnary();
-      while (true) {
-        const k = peek().kind;
-        if (k === 'MUL') {
-          next();
-          left *= parseUnary();
-        } else if (k === 'DIV') {
-          next();
-          const right = parseUnary();
-          if (right === 0) throw new Error('division by zero');
-          left /= right;
-        } else {
-          return left;
-        }
-      }
-    };
-
-    const parseAddSub = (): number => {
-      let left = parseMulDiv();
-      while (true) {
-        const k = peek().kind;
-        if (k === 'PLUS') {
-          next();
-          left += parseMulDiv();
-        } else if (k === 'MINUS') {
-          next();
-          left -= parseMulDiv();
-        } else {
-          return left;
-        }
-      }
-    };
-
-    const parseComparison = (): number => {
-      let left = parseAddSub();
-      while (true) {
-        const k = peek().kind;
-        if (
-          k === 'GT' ||
-          k === 'LT' ||
-          k === 'GTE' ||
-          k === 'LTE' ||
-          k === 'EQ' ||
-          k === 'NEQ'
-        ) {
-          next();
-          const right = parseAddSub();
-          let ok = false;
-          if (k === 'GT') ok = left > right;
-          else if (k === 'LT') ok = left < right;
-          else if (k === 'GTE') ok = left >= right;
-          else if (k === 'LTE') ok = left <= right;
-          else if (k === 'EQ') ok = Math.abs(left - right) < 1e-9;
-          else ok = Math.abs(left - right) >= 1e-9;
-          left = ok ? 1 : 0;
-        } else {
-          return left;
-        }
-      }
-    };
-
-    const val = parseComparison();
-    if (peek().kind !== 'EOF') {
-      throw new Error(`unexpected trailing token '${peek().text}'`);
-    }
-    if (!Number.isFinite(val)) {
-      throw new Error('result is undefined');
-    }
-    return {
-      expression: expr,
-      valid: true,
-      valueRp: goRound(val),
-      valueFloat: round2(val),
-      usedTokens: Array.from(used).sort(),
-    };
-  } catch (err: any) {
-    return {
-      expression: expr,
-      valid: false,
-      valueRp: 0,
-      valueFloat: 0,
-      usedTokens: [],
-      error: err?.message || 'invalid formula expression',
-    };
-  }
-}
-
-export function evaluateFormulaSuiteTs(req: FormulaSuiteRequest): FormulaSuiteResult {
-  const results: Record<string, FormulaEvalResult> = {};
-  let allValid = true;
-  for (const [k, expr] of Object.entries(req.formulas ?? {})) {
-    const r = evaluateFormulaDslTs(expr, req.variables ?? {});
-    if (!r.valid) allValid = false;
-    results[k] = r;
-  }
-  return { allValid, results };
-}
+export * from './formula-dsl';

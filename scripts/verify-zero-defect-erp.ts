@@ -88,9 +88,10 @@ async function main() {
 
     // Upcoming period (22 Nov 2026): 12/2026 (27 Nov – 27 Dec 2026, PRE_PAYDAY Day 0, starts in 5 days) with Natal THR H-7 Dec 18
     assert.equal(Math.round(dec26?.finalTotalIncome ?? -1), 9737425, '12/2026 finalTotalIncome (Salary + Natal THR 3,833,425) must be 9,737,425');
-    assert.equal(Math.round(dec26?.totalDeductions ?? -1), 4110341, '12/2026 Total Debt (after CC #31 delete) must be 4,110,341');
+    assert.equal(Math.round(dec26?.totalDeductions ?? -1), 4162341, '12/2026 Total Debt (with Nov 23 Americano & Dunhill Rp 52k routed H-15 to 12/2026) must be 4,162,341');
     assert.equal(Math.round(dec26?.actualDailyOperational ?? -1), 1500000, '12/2026 actualDailyOperational must be 1,500,000');
     assert.equal(Math.round(dec26?.actualSavings ?? -1), 1000000, '12/2026 P1 must be 1,000,000 funded with Natal THR');
+    assert.equal(Math.round(dec26?.selfReward ?? -1), 2775084, '12/2026 P2 must be 2,775,084');
     assert.equal(Math.round(dec26?.deficitUncovered ?? -1), 0, '12/2026 deficitUncovered must be 0 with Natal THR');
 
     const decPacing = await financeSelectors.getPacing(
@@ -106,9 +107,9 @@ async function main() {
     assert.equal(Math.round(decPacing.totalOperationalBudget), 1500000, '12/2026 pacing totalOperationalBudget must be 1,500,000');
 
     assert.equal(Math.round(jan27?.finalTotalIncome ?? -1), 5941000, '01/2027 Total Income (THR moved to 12/2026) must be 5,941,000');
-    assert.equal(Math.round(jan27?.totalDeductions ?? -1), 3223115, '01/2027 Total Debt (incl. Nov 23 Americano & Dunhill Rp 52k) must be 3,223,115');
+    assert.equal(Math.round(jan27?.totalDeductions ?? -1), 3171115, '01/2027 Total Debt (after Nov 23 Americano & Dunhill Rp 52k relocated to 12/2026) must be 3,171,115');
     assert.equal(Math.round(jan27?.dailyOperational ?? -1), 1500000, '01/2027 dailyOperational must be 1,500,000');
-    assert.equal(Math.round(jan27?.actualSavings ?? -1), 682885, '01/2027 P1 must be 682,885');
+    assert.equal(Math.round(jan27?.actualSavings ?? -1), 734885, '01/2027 P1 must be 734,885');
     assert.equal(Math.round(jan27?.selfReward ?? -1), 0, '01/2027 P2 must be 0');
 
     assert.equal(Math.round(feb27?.totalDeductions ?? -1), 1967159, '02/2027 Total Debt must be 1,967,159');
@@ -348,10 +349,11 @@ async function main() {
       1,
     );
     assert.equal(parsed.rows.length, 2, 'Expected 2 parsed statement rows');
+    assert.equal(parsed.rows[0].originalPeriodCode, '09/2026', 'Expected row 0 pre-cutoff SPayLater originalPeriodCode === 09/2026');
+    assert.equal(parsed.rows[1].originalPeriodCode, '10/2026', 'Expected row 1 Cash originalPeriodCode === 10/2026');
     for (const r of parsed.rows) {
       assert.equal(r.targetPeriodCode, '11/2026', `Expected lock-safe 11/2026, got ${r.targetPeriodCode}`);
       assert.equal(r.advancedFromLocked, true, 'Expected advancedFromLocked === true');
-      assert.equal(r.originalPeriodCode, '10/2026', 'Expected originalPeriodCode === 10/2026');
     }
     const formulaRes = await financeSelectors.evaluateFormulaSuiteForUser(
       12,
@@ -427,8 +429,8 @@ async function main() {
     );
     assert.equal(
       intelDec.networth.currentCycleDebtRp,
-      4110341,
-      `12/2026 currentCycleDebtRp must be 4,110,341, got ${intelDec.networth.currentCycleDebtRp}`,
+      4162341,
+      `12/2026 currentCycleDebtRp must be 4,162,341, got ${intelDec.networth.currentCycleDebtRp}`,
     );
     const p1AccountsTotal = (intelNov.effectiveAssetAccounts ?? [])
       .filter((a: any) => a.accountType === 'SAVINGS_VAULT')
@@ -438,7 +440,7 @@ async function main() {
       `User #1 11/2026 P1 vault (${p1AccountsTotal}) must exclude pre-epoch phantom backfill`,
     );
     console.log(
-      `  PASS: Zero Hoodie P1 leak, 03/2027 contracts = ${mar27ActiveContracts.length} (CC only), 11/2026 currentCycleDebtRp = Rp 4,522,976, 12/2026 currentCycleDebtRp = Rp 4,110,341, P1 vault = Rp ${p1AccountsTotal}.`,
+      `  PASS: Zero Hoodie P1 leak, 03/2027 contracts = ${mar27ActiveContracts.length} (CC only), 11/2026 currentCycleDebtRp = Rp 4,522,976, 12/2026 currentCycleDebtRp = Rp 4,162,341, P1 vault = Rp ${p1AccountsTotal}.`,
     );
 
     // 11. Verify Two-Stage 02/2027 Payday Date (Jan 27, 2027) & Non-Double-Counted Dec 2026 Natal THR Timeline

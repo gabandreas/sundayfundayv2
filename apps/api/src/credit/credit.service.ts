@@ -70,8 +70,10 @@ import {
 } from './credit.utils';
 import {
   computeLosslessSlices,
+  resolveCutoffDayForMonthTs,
   simulateCutoffTs,
 } from '../calculator/hybrid-engine';
+import { resolveStudioConfig } from '../config/studio.defaults';
 
 export function formatBulkBillTransactionLabel(b: {
   label: string;
@@ -257,12 +259,31 @@ export class CreditService {
     const config =
       (await this.prisma.globalConfig.findFirst({ where: { userId } })) ||
       (await this.prisma.globalConfig.findFirst({ where: { userId: 1 } }));
-    const statementDay = config?.creditStatementDay ?? 25;
+    const studioConfig = resolveStudioConfig(userId, config?.formulaParamsJson, config);
+    const ccInst = studioConfig.instrumentsTable.find(
+      (i) => i.active && i.type === 'CREDIT_CARD',
+    );
+    const parsedDate = String(dto.transactionDate || '').split('T')[0].split('-');
+    const txY = Number(parsedDate[0]) || new Date().getFullYear();
+    const txM = Number(parsedDate[1]) || new Date().getMonth() + 1;
+    const txD = Number(parsedDate[2]) || new Date().getDate();
+    const fallbackStatementDay = ccInst?.cutoffDay ?? config?.creditStatementDay ?? 25;
+    const statementDay = resolveCutoffDayForMonthTs(
+      ccInst?.cutoffFormula,
+      fallbackStatementDay,
+      txD,
+      txM,
+      txY,
+      ccInst?.dueDay ?? config?.creditDueDay ?? 11,
+      studioConfig.paycycleFormulaConfig.paydayAnchorDay,
+    ).cutoffDay;
 
-    const { billingMonth, billingYear } = this.calculateBillingCycle(
+    const computedCycle = this.calculateBillingCycle(
       dto.transactionDate,
       statementDay,
     );
+    const billingMonth = dto.billingMonth ?? computedCycle.billingMonth;
+    const billingYear = dto.billingYear ?? computedCycle.billingYear;
 
     // Locked guard: check if the target billing period snapshot is locked
     const targetSnapshot = await this.prisma.monthlySnapshot.findUnique({
@@ -2110,10 +2131,31 @@ export class CreditService {
       throw new BadRequestException('Monthly amount or total amount must be greater than Rp 0');
     }
 
+    const cfgRow =
+      (await this.prisma.globalConfig?.findFirst({ where: { userId } })) ||
+      (await this.prisma.globalConfig?.findFirst({ where: { userId: 1 } }));
+    const studioConfig = resolveStudioConfig(userId, cfgRow?.formulaParamsJson, cfgRow);
+    const targetInstType =
+      dto.category === LiabilityCategory.PAYLATER
+        ? 'PAYLATER'
+        : dto.category === LiabilityCategory.PERSONAL_DEBT
+          ? 'CASH_LOAN'
+          : 'CREDIT_CARD';
+    const matchedInst = studioConfig.instrumentsTable.find(
+      (i) => i.active && i.type.toUpperCase() === targetInstType,
+    );
+
     let cutoffDay =
-      dto.cutoffDay ?? (dto.category === LiabilityCategory.PAYLATER ? 15 : 1);
+      dto.cutoffDay ??
+      matchedInst?.cutoffDay ??
+      (dto.category === LiabilityCategory.PAYLATER ? 15 : 1);
     let dueDay =
-      dto.dueDay ?? (dto.category === LiabilityCategory.PAYLATER ? 25 : 8);
+      dto.dueDay ??
+      (matchedInst?.dueDay && matchedInst.dueDay > 0
+        ? matchedInst.dueDay
+        : dto.category === LiabilityCategory.PAYLATER
+          ? 25
+          : 8);
 
     let startMonth = dto.startMonth;
     let startYear = dto.startYear;
@@ -2132,7 +2174,13 @@ export class CreditService {
         monthlyAmount: dto.monthlyAmount ?? sliceAmounts[0],
         tenorMonths,
         purchaseDate: dto.purchaseDate,
-        dueDayOverride: dto.dueDay,
+        dueDayOverride: dto.dueDay ?? (matchedInst?.dueDay && matchedInst.dueDay > 0 ? matchedInst.dueDay : undefined),
+        cutoffFormula: matchedInst?.cutoffFormula,
+        cutoffBoundaryInclusive: matchedInst?.cutoffBoundaryInclusive,
+        preCutoffOffsetMonths: matchedInst?.preCutoffOffsetMonths,
+        postCutoffOffsetMonths: matchedInst?.postCutoffOffsetMonths,
+        dueShiftRule: matchedInst?.dueShiftRule,
+        anchorDay: studioConfig.paycycleFormulaConfig.paydayAnchorDay,
         holdPastCutoff: Boolean(dto.holdPastCutoff),
         startMonthOverride:
           dto.autoRouteByCutoff === false ? dto.startMonth : undefined,
