@@ -349,6 +349,58 @@ export function MarqueeAiSettingsPanel() {
   -d '{"message":"log kopi 32k","autoConfirm":true}'`}
         </pre>
       </div>
+
+      {/* Model Context Protocol (MCP) Server */}
+      <div className="rounded-lg border border-border bg-surface p-5 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle pb-3">
+          <div>
+            <div className="text-sm font-semibold text-text-primary">
+              Sunday Funday MCP Server (JSON-RPC 2.0 · Business Functions Only)
+            </div>
+            <p className="text-xs text-text-tertiary mt-0.5">
+              Connect Claude Desktop, Cursor, or Antigravity via Streamable HTTP or the local stdio bridge using your{" "}
+              <code className="font-mono text-text-secondary">X-Marquee-Token</code>. Exposes strictly curated financial functions with zero shell or raw SQL access.
+            </p>
+          </div>
+          <span className="px-2 py-0.5 rounded border border-border bg-canvas text-[10px] font-mono text-delta-positive">
+            15 Curated ERP Tools · Isolated per userId
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+          <div className="rounded border border-border-subtle bg-canvas/70 p-3 space-y-1">
+            <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+              Streamable HTTP MCP Endpoint
+            </div>
+            <div className="font-mono text-text-primary break-all">
+              https://sundayfunday-api.vercel.app/api/marquee/mcp
+            </div>
+          </div>
+          <div className="rounded border border-border-subtle bg-canvas/70 p-3 space-y-1">
+            <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+              Authentication Header
+            </div>
+            <div className="font-mono text-text-primary">
+              X-Marquee-Token: {rawTokenOnce || config?.webhookTokenPreview || "<Generate token above>"}
+            </div>
+          </div>
+        </div>
+
+        <pre className="p-3 rounded border border-border-subtle bg-canvas text-[11px] font-mono text-text-secondary overflow-x-auto">
+{`{
+  "mcpServers": {
+    "sundayfunday-erp": {
+      "command": "npx",
+      "args": ["tsx", "scripts/sundayfunday-mcp.ts"],
+      "env": {
+        "SUNDAYFUNDAY_API_URL": "https://sundayfunday-api.vercel.app",
+        "SUNDAYFUNDAY_MARQUEE_TOKEN": "${rawTokenOnce || "<YOUR_MRQ_TOKEN>"}"
+      }
+    }
+  }
+}`}
+        </pre>
+      </div>
     </div>
   );
 }

@@ -30,10 +30,10 @@ interface ChatMessageItem {
 const QUICK_PROMPTS = [
   "Safe to spend today?",
   "Log kopi kenangan 34k",
+  "Cari histori beli kopi",
   "Split my 3.8jt Natal THR bonus",
   "Compare 11/2026 vs 12/2026 variance",
   "Cek sisa cicilan aktif & payoff",
-  "Formula net_income - total_debt - living_pool",
 ];
 
 function isPointInsideRect(x: number, y: number, rect: DOMRect): boolean {

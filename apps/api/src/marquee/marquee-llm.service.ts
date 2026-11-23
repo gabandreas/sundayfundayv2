@@ -9,6 +9,13 @@ export type MarqueeAiProvider =
   | 'OPENCODE'
   | 'AUTO';
 
+export interface MarqueeLoopHop {
+  tool: MarqueeToolName;
+  args: Record<string, any>;
+  result: any;
+  durationMs: number;
+}
+
 export interface LlmIntentResolution {
   usedProvider: MarqueeAiProvider;
   model: string;
@@ -20,6 +27,9 @@ export interface LlmIntentResolution {
   toolCallId?: string;
   endpointUrlUsed?: string;
   apiKeyUsed?: string;
+  finalToolResult?: any;
+  executedHops?: MarqueeLoopHop[];
+  synthesizedInLoop?: boolean;
 }
 
 export function stripReasoningBlocks(rawText?: string | null): {
@@ -297,6 +307,45 @@ export const MARQUEE_TOOL_DEFS = [
       },
     },
   },
+  {
+    name: 'manage_user_memory',
+    description:
+      'Remember, list, or forget user-specific financial rules and merchant payment preferences (e.g. "always log coffee on SPayLater").',
+    parameters: {
+      type: 'object',
+      properties: {
+        action: { type: 'string', enum: ['REMEMBER', 'LIST', 'FORGET'] },
+        ruleText: { type: 'string', description: 'Human-readable preference rule to remember' },
+        merchantPattern: { type: 'string', description: 'Keyword trigger like kopi or grab' },
+        defaultInstrument: { type: 'string', enum: ['CASH', 'PAYLATER', 'CREDIT_CARD'] },
+        memoryId: { type: 'string', description: 'ID or keyword to forget when action=FORGET' },
+      },
+      required: ['action'],
+    },
+  },
+  {
+    name: 'search_financial_history',
+    description:
+      'Search user-scoped historical transactions, credit card charges, and PayLater/loan bills with synonym expansion and exact totals.',
+    parameters: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Search keyword e.g. kopi, grab, sepatu, nike' },
+      },
+      required: ['query'],
+    },
+  },
+  {
+    name: 'refuse_out_of_scope',
+    description:
+      'Politely refuse requests outside Sunday Funday financial ERP (such as downloads, shell/terminal execution, file access, or raw ExecuteSQL).',
+    parameters: {
+      type: 'object',
+      properties: {
+        reasonQuery: { type: 'string' },
+      },
+    },
+  },
 ];
 
 @Injectable()
@@ -315,6 +364,7 @@ export class MarqueeLlmService {
     systemContextPrompt?: string;
     message: string;
     tier1Fallback: MarqueeParsedIntent;
+    executeTool?: (toolName: MarqueeToolName, args: Record<string, any>) => Promise<any>;
   }): Promise<LlmIntentResolution | null> {
     const {
       provider,
@@ -328,6 +378,7 @@ export class MarqueeLlmService {
       systemContextPrompt,
       message,
       tier1Fallback,
+      executeTool,
     } = params;
 
     if (provider === 'TIER1_ONLY') return null;
@@ -343,6 +394,7 @@ export class MarqueeLlmService {
             message,
             systemContextPrompt,
             tier1Fallback,
+            executeTool,
           });
         } catch (err: any) {
           this.logger.warn(`DeepSeek Tier-2 fallback: ${err?.message || err}`);
@@ -360,6 +412,7 @@ export class MarqueeLlmService {
             message,
             systemContextPrompt,
             tier1Fallback,
+            executeTool,
           });
         } catch (err: any) {
           this.logger.warn(`OpenCode Tier-2 fallback: ${err?.message || err}`);
@@ -384,6 +437,7 @@ export class MarqueeLlmService {
             message,
             systemContextPrompt,
             tier1Fallback,
+            executeTool,
           });
         } catch (err: any) {
           this.logger.warn(`Groq Tier-2 fallback: ${err?.message || err}`);
@@ -471,6 +525,7 @@ export class MarqueeLlmService {
     message: string;
     systemContextPrompt?: string;
     tier1Fallback?: MarqueeParsedIntent;
+    executeTool?: (toolName: MarqueeToolName, args: Record<string, any>) => Promise<any>;
   }): Promise<LlmIntentResolution | null> {
     const {
       usedProvider,
@@ -479,21 +534,29 @@ export class MarqueeLlmService {
       model,
       message,
       systemContextPrompt,
-      tier1Fallback,
+      executeTool,
     } = params;
     const toolPolicy = [
-      'TOOL USAGE POLICY:',
-      '- For casual greetings (hi, halo, thanks) or analytical questions you can answer accurately from the hydrated ERP ledger below (credit cards, contracts, wishlist, savings pockets, subscriptions, routine quotas, snapshots), answer directly in crisp human prose WITHOUT forcing a tool call.',
-      '- Invoke `simulate_purchase_cutoff` whenever the user asks when a purchase will bill/fall due (e.g. "gesek permata cc tanggal 26 nov masuk tagihan kapan?", "spaylater 23 nov masuk desember atau januari?"), passing `instrument` (`CREDIT_CARD` or `PAYLATER`), `purchaseDate` in `YYYY-MM-DD`, and `amountRp: 0` if no nominal is stated.',
-      '- Invoke `get_paycycle_pulse` when checking today’s safe-to-spend, remaining cash, or cycle countdown.',
-      '- You CAN also perform write service actions for the user behind a 1-click confirmation gate: `prepare_quick_transaction` (log cash/paylater/cc expense with optional purchaseDate or explicit billingStartMonth/billingStartYear), `manage_liability_item` (shift bill earlier/later or settle), `revise_budget_or_quota` (update cycle budgets), `manage_savings_pocket_or_goal` (savings deposits/goals), `manage_wishlist_or_subscription` (wishlist add or subscription kill-switch), and `run_what_if_scenario` (12-month simulation).',
-      '- STRICT COPY RULE: Never output emojis, generic buzzwords, or artificial terms like Vault, Forward-Borrow, or Outlook. Use Emergency Fund, Savings Reserve, and Temporary Savings Advance.',
+      'TOOL USAGE & DOMAIN POLICY:',
+      '- DOMAIN BOUNDARY: You ONLY operate Sunday Funday ERP financial tools. You have NO terminal, shell, OS filesystem, external downloader, or raw SQL (ExecuteSQL) tool. For unrelated or out-of-scope requests, invoke `refuse_out_of_scope` or reply politely stating what financial ERP tasks you can help with.',
+      '- MULTI-STEP WORKFLOW: When checking eligibility before acting (e.g. check balance/headroom first, then stage an expense or shift), you may chain read-only tools (`get_paycycle_pulse`, `simulate_purchase_cutoff`, `search_financial_history`) before staging a write confirmation.',
+      '- For casual greetings or questions already answered cleanly by the hydrated ledger below, reply directly in crisp human prose WITHOUT forcing a tool call.',
+      '- Invoke `simulate_purchase_cutoff` whenever asked when a purchase bills/falls due (`instrument`, `purchaseDate` YYYY-MM-DD, `amountRp: 0` if unspecified).',
+      '- Invoke `search_financial_history` when searching historical spending across past months (`query`).',
+      '- Invoke `manage_user_memory` (`REMEMBER` / `LIST` / `FORGET`) when asked to remember or list personal payment defaults or rules.',
+      '- Stage write requests behind 1-click confirmation via `prepare_quick_transaction`, `manage_liability_item`, `revise_budget_or_quota`, `manage_savings_pocket_or_goal`, `manage_wishlist_or_subscription`, or `run_what_if_scenario`.',
+      '- STRICT COPY RULE: Never output emojis or artificial terms like Vault, Forward-Borrow, or Outlook. Use Emergency Fund, Savings Reserve, and Temporary Savings Advance.',
     ].join('\n');
     const sys = systemContextPrompt
       ? `${systemContextPrompt}\n\n${toolPolicy}`
       : `You are Marquee, an Indonesian personal finance ERP co-pilot.\n\n${toolPolicy}`;
 
-    const executeRequest = async (url: string, targetModel: string, includeTools: boolean) =>
+    const messages: Array<Record<string, any>> = [
+      { role: 'system', content: sys },
+      { role: 'user', content: message },
+    ];
+
+    const sendChat = async (url: string, targetModel: string, includeTools: boolean) =>
       fetch(url, {
         method: 'POST',
         headers: {
@@ -503,13 +566,7 @@ export class MarqueeLlmService {
         body: JSON.stringify({
           model: targetModel,
           temperature: 0.2,
-          messages: [
-            {
-              role: 'system',
-              content: sys,
-            },
-            { role: 'user', content: message },
-          ],
+          messages,
           ...(includeTools
             ? {
                 tools: MARQUEE_TOOL_DEFS.map((t) => ({
@@ -528,81 +585,182 @@ export class MarqueeLlmService {
 
     let effectiveUrl = endpointUrl;
     let effectiveModel = model;
-    let res = await executeRequest(effectiveUrl, effectiveModel, true);
+    const executedHops: MarqueeLoopHop[] = [];
+    const reasoningParts: string[] = [];
+    let lastToolName: MarqueeToolName | null = null;
+    let lastToolArgs: Record<string, any> = {};
+    let lastToolCallId: string | undefined;
+    let lastToolResult: any = null;
+    const MAX_AGENT_HOPS = executeTool ? 4 : 1;
 
-    // If proxy endpoint rejects tools parameter (400/422), retry without tools
-    if (!res.ok && (res.status === 400 || res.status === 422)) {
-      res = await executeRequest(effectiveUrl, effectiveModel, false);
-    }
+    for (let hop = 0; hop < MAX_AGENT_HOPS; hop++) {
+      let res = await sendChat(effectiveUrl, effectiveModel, true);
 
-    // If OPENCODE endpoint returns 401/403/404 with a native DeepSeek sk-... key, bridge to api.deepseek.com
-    if (
-      !res.ok &&
-      usedProvider === 'OPENCODE' &&
-      (res.status === 401 || res.status === 403 || res.status === 404) &&
-      apiKey.startsWith('sk-') &&
-      !endpointUrl.includes('api.deepseek.com')
-    ) {
-      effectiveUrl = 'https://api.deepseek.com/v1/chat/completions';
-      const lower = model.toLowerCase();
-      effectiveModel = lower.includes('reason')
-        ? 'deepseek-reasoner'
-        : lower.includes('pro')
-          ? 'deepseek-v4-pro'
-          : 'deepseek-flash';
-      res = await executeRequest(effectiveUrl, effectiveModel, true);
       if (!res.ok && (res.status === 400 || res.status === 422)) {
-        res = await executeRequest(effectiveUrl, effectiveModel, false);
+        res = await sendChat(effectiveUrl, effectiveModel, false);
       }
+
+      if (
+        hop === 0 &&
+        !res.ok &&
+        usedProvider === 'OPENCODE' &&
+        (res.status === 401 || res.status === 403 || res.status === 404) &&
+        apiKey.startsWith('sk-') &&
+        !endpointUrl.includes('api.deepseek.com')
+      ) {
+        effectiveUrl = 'https://api.deepseek.com/v1/chat/completions';
+        const lower = model.toLowerCase();
+        effectiveModel = lower.includes('reason')
+          ? 'deepseek-reasoner'
+          : lower.includes('pro')
+            ? 'deepseek-v4-pro'
+            : 'deepseek-flash';
+        res = await sendChat(effectiveUrl, effectiveModel, true);
+        if (!res.ok && (res.status === 400 || res.status === 422)) {
+          res = await sendChat(effectiveUrl, effectiveModel, false);
+        }
+      }
+
+      if (!res.ok) {
+        if (executedHops.length > 0 && lastToolResult) break;
+        throw new Error(`${usedProvider} HTTP ${res.status}`);
+      }
+
+      const payload: any = await res.json();
+      const msg = payload?.choices?.[0]?.message;
+      const stripped = stripReasoningBlocks(msg?.content);
+      const externalReasoning =
+        typeof msg?.reasoning_content === 'string' && msg.reasoning_content.trim()
+          ? msg.reasoning_content.trim()
+          : undefined;
+      if (stripped.reasoning) reasoningParts.push(stripped.reasoning);
+      else if (externalReasoning) reasoningParts.push(externalReasoning);
+      const assistantText = stripped.cleanText ? stripped.cleanText : undefined;
+
+      const firstToolCall = msg?.tool_calls?.[0];
+      const call = firstToolCall?.function;
+      if (call?.name && MARQUEE_TOOL_DEFS.some((t) => t.name === call.name)) {
+        let parsedArgs: Record<string, any> = {};
+        try {
+          parsedArgs = call.arguments ? JSON.parse(call.arguments) : {};
+        } catch {
+          parsedArgs = {};
+        }
+        const callName = call.name as MarqueeToolName;
+        const callId = String(firstToolCall?.id || `call_marquee_${hop + 1}`);
+        lastToolName = callName;
+        lastToolArgs = parsedArgs;
+        lastToolCallId = callId;
+
+        if (!executeTool) {
+          return {
+            usedProvider,
+            model: effectiveModel,
+            tool: callName,
+            args: parsedArgs,
+            assistantPrefix: assistantText,
+            didCallTool: true,
+            toolCallId: callId,
+            endpointUrlUsed: effectiveUrl,
+            apiKeyUsed: apiKey,
+            ...(reasoningParts.length > 0 ? { reasoning: reasoningParts.join('\n\n') } : {}),
+          };
+        }
+
+        const hopT0 = Date.now();
+        const hopResult = await executeTool(callName, parsedArgs);
+        const hopDur = Math.max(1, Date.now() - hopT0);
+        executedHops.push({
+          tool: callName,
+          args: parsedArgs,
+          result: hopResult,
+          durationMs: hopDur,
+        });
+        lastToolResult = hopResult;
+
+        messages.push({
+          role: 'assistant',
+          content: '',
+          tool_calls: [
+            {
+              id: callId,
+              type: 'function',
+              function: {
+                name: callName,
+                arguments: JSON.stringify(parsedArgs ?? {}),
+              },
+            },
+          ],
+        });
+        messages.push({
+          role: 'tool',
+          tool_call_id: callId,
+          content: JSON.stringify({
+            ok: hopResult?.ok ?? true,
+            tool: hopResult?.tool ?? callName,
+            summary: hopResult?.summary,
+            cards: hopResult?.cards,
+            ...(hopResult?.data ? { data: hopResult.data } : {}),
+          }),
+        });
+
+        // Stop immediately once a write confirmation card or explicit domain refusal is reached
+        if (hopResult?.pendingAction || callName === 'refuse_out_of_scope') {
+          break;
+        }
+        continue;
+      }
+
+      // No tool call in this turn -> either pure conversational reply or synthesized conclusion after hops
+      if (executedHops.length > 0 && lastToolName) {
+        return {
+          usedProvider,
+          model: effectiveModel,
+          tool: lastToolName,
+          args: lastToolArgs,
+          assistantPrefix: assistantText,
+          didCallTool: true,
+          toolCallId: lastToolCallId,
+          endpointUrlUsed: effectiveUrl,
+          apiKeyUsed: apiKey,
+          finalToolResult: lastToolResult,
+          executedHops,
+          synthesizedInLoop: Boolean(assistantText),
+          ...(reasoningParts.length > 0 ? { reasoning: reasoningParts.join('\n\n') } : {}),
+        };
+      }
+
+      if (assistantText) {
+        return {
+          usedProvider,
+          model: effectiveModel,
+          tool: null,
+          args: {},
+          assistantPrefix: assistantText,
+          didCallTool: false,
+          endpointUrlUsed: effectiveUrl,
+          apiKeyUsed: apiKey,
+          ...(reasoningParts.length > 0 ? { reasoning: reasoningParts.join('\n\n') } : {}),
+        };
+      }
+
+      break;
     }
 
-    if (!res.ok) {
-      throw new Error(`${usedProvider} HTTP ${res.status}`);
-    }
-    const payload: any = await res.json();
-    const msg = payload?.choices?.[0]?.message;
-    const stripped = stripReasoningBlocks(msg?.content);
-    const externalReasoning =
-      typeof msg?.reasoning_content === 'string' && msg.reasoning_content.trim()
-        ? msg.reasoning_content.trim()
-        : undefined;
-    const reasoning = stripped.reasoning || externalReasoning;
-    const assistantPrefix = stripped.cleanText ? stripped.cleanText : undefined;
-
-    const firstToolCall = msg?.tool_calls?.[0];
-    const call = firstToolCall?.function;
-    if (call?.name && MARQUEE_TOOL_DEFS.some((t) => t.name === call.name)) {
-      let parsedArgs: Record<string, any> = {};
-      try {
-        parsedArgs = call.arguments ? JSON.parse(call.arguments) : {};
-      } catch {
-        parsedArgs = {};
-      }
+    if (executedHops.length > 0 && lastToolName) {
       return {
         usedProvider,
         model: effectiveModel,
-        tool: call.name as MarqueeToolName,
-        args: parsedArgs,
-        assistantPrefix,
+        tool: lastToolName,
+        args: lastToolArgs,
         didCallTool: true,
-        toolCallId: String(firstToolCall?.id || 'call_marquee_1'),
+        toolCallId: lastToolCallId,
         endpointUrlUsed: effectiveUrl,
         apiKeyUsed: apiKey,
-        ...(reasoning ? { reasoning } : {}),
-      };
-    }
-
-    if (assistantPrefix) {
-      return {
-        usedProvider,
-        model: effectiveModel,
-        tool: null,
-        args: {},
-        assistantPrefix,
-        didCallTool: false,
-        endpointUrlUsed: effectiveUrl,
-        apiKeyUsed: apiKey,
-        ...(reasoning ? { reasoning } : {}),
+        finalToolResult: lastToolResult,
+        executedHops,
+        synthesizedInLoop: false,
+        ...(reasoningParts.length > 0 ? { reasoning: reasoningParts.join('\n\n') } : {}),
       };
     }
 

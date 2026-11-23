@@ -892,7 +892,34 @@ async function runLayer3User1ReadOnlyParity(baseUrl: string): Promise<void> {
   });
   assert.equal(badWebhookRes.status, 401, 'Invalid X-Marquee-Token must be rejected with 401');
 
-  console.log('  PASS: All 13 routes, Smart Default Period, USER/SUPERADMIN isolation, and Marquee 3-Tier guards verified.');
+  // Verify Marquee V4 out-of-scope guardrail & MCP JSON-RPC 2.0 endpoint security
+  const badMcpRes = await fetch(`${baseUrl}/api/marquee/mcp`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-user-id': '1' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
+  });
+  assert.equal(badMcpRes.status, 401, 'Unauthenticated MCP request must return 401');
+
+  const mcpListRes = await apiReq(baseUrl, u1Session, 'POST', '/api/marquee/mcp', {
+    jsonrpc: '2.0',
+    id: 2,
+    method: 'tools/list',
+  });
+  assert.ok(mcpListRes.status === 200 || mcpListRes.status === 201, `Authenticated MCP tools/list failed: ${mcpListRes.rawText}`);
+  const mcpToolNames = (mcpListRes.data?.result?.tools ?? []).map((t: any) => t.name);
+  assert.ok(mcpToolNames.includes('get_paycycle_pulse'), 'MCP tools/list must include get_paycycle_pulse');
+  assert.ok(mcpToolNames.includes('search_financial_history'), 'MCP tools/list must include search_financial_history');
+  assert.ok(!mcpToolNames.includes('execute_sql'), 'MCP tools/list must NEVER expose execute_sql');
+
+  const mcpBlockedCall = await apiReq(baseUrl, u1Session, 'POST', '/api/marquee/mcp', {
+    jsonrpc: '2.0',
+    id: 3,
+    method: 'tools/call',
+    params: { name: 'execute_sql', arguments: { query: 'SELECT 1' } },
+  });
+  assert.equal(mcpBlockedCall.data?.result?.isError, true, 'MCP must reject disallowed execute_sql tool');
+
+  console.log('  PASS: All 13 routes, Smart Default Period, USER/SUPERADMIN isolation, Marquee V4 guardrails & MCP server verified.');
 }
 
 async function main() {

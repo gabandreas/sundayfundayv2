@@ -12,6 +12,14 @@ export interface MarqueePayoffMilestone {
   event: string;
 }
 
+export interface MarqueeMemoryRule {
+  id: string;
+  ruleText: string;
+  merchantPattern?: string;
+  defaultInstrument?: 'CASH' | 'PAYLATER' | 'CREDIT_CARD';
+  createdAt: string;
+}
+
 export interface MarqueeProactiveReminder {
   id: string;
   tone: 'default' | 'caution' | 'positive';
@@ -114,6 +122,7 @@ export interface MarqueeFinancialContext {
     activeSubTab: string | null;
     locale: 'en' | 'id' | 'zh';
   };
+  memoryRules?: MarqueeMemoryRule[];
   proactiveReminders: MarqueeProactiveReminder[];
   systemPrompt: string;
 }
@@ -252,6 +261,22 @@ export class MarqueeContextHydrator {
       globalConfigRaw?.formulaParamsJson,
       globalConfigRaw,
     );
+    const policyObj =
+      (globalConfigRaw as any)?.financialPolicyJson &&
+      typeof (globalConfigRaw as any).financialPolicyJson === 'object'
+        ? ((globalConfigRaw as any).financialPolicyJson as Record<string, any>)
+        : {};
+    const memoryRules: MarqueeMemoryRule[] = Array.isArray(policyObj.marqueeMemory)
+      ? policyObj.marqueeMemory
+          .filter((r: any) => r && typeof r.ruleText === 'string')
+          .map((r: any) => ({
+            id: String(r.id || ''),
+            ruleText: String(r.ruleText),
+            ...(r.merchantPattern ? { merchantPattern: String(r.merchantPattern) } : {}),
+            ...(r.defaultInstrument ? { defaultInstrument: r.defaultInstrument } : {}),
+            createdAt: String(r.createdAt || ''),
+          }))
+      : [];
     const spayCfg = studioConfig.instrumentsTable.find(
       (i) => i.active && i.type === 'PAYLATER',
     );
@@ -526,6 +551,17 @@ export class MarqueeContextHydrator {
       `WISHLIST TARGETS:\n${wishlistLines}`,
       `SAVINGS RESERVE (${formatRp(totalVaultBalanceRp)} total, ${formatRp(rdpuBalanceRp)} RDPU) & GOALS:\n${savingsGoalLines || '- No goals configured'}`,
       `ROUTINE QUOTA TEMPLATES:\n${routineLines || '- None'}`,
+      `SAVED USER PREFERENCES & MEMORY RULES:\n${
+        memoryRules.length > 0
+          ? memoryRules
+              .map(
+                (r) =>
+                  `- [${r.id}] ${r.ruleText}${r.merchantPattern ? ` (keyword="${r.merchantPattern}" -> ${r.defaultInstrument || 'NOTE'})` : ''}`,
+              )
+              .join('\n')
+          : '- No saved custom preferences yet.'
+      }`,
+      `DOMAIN BOUNDARY GUARDRAIL: You only execute Sunday Funday ERP financial tools. You have NO terminal, shell, OS filesystem, web downloader, or raw ExecuteSQL access. Politely refuse non-financial or system requests.`,
       `PAYOFF MILESTONES: JAN '27 (Oct SPinjam 3/3 retires +Rp 147.960/mo), FEB '27 (11.11 3x & Nov SPinjam 3/3 retire +Rp 522.010/mo), MAR '27 (SPinjam = Rp 0), SEP '27 (final 12x card installment matures).`,
     ].join('\n');
 
@@ -571,6 +607,7 @@ export class MarqueeContextHydrator {
         activeSubTab,
         locale,
       },
+      memoryRules,
       proactiveReminders,
       systemPrompt,
     };

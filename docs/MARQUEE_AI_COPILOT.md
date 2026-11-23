@@ -15,8 +15,16 @@ Large language models must **never** invent Rupiah balances, Debt Service Ratios
    - Proactive reminders (`proactiveReminders`: upcoming SPayLater dynamic `15th`/`16th` cutoff, Permata CC `25th` cutoff, next payday transition, and daily safe-to-spend allowance),
    - Active UI route & sub-tab context (`activeRoute`, `activeSubTab`, `locale`).
 2. User intent is resolved via **Tier 2** live conversational + two-turn tool-calling LLM (`deepseek-flash` / DeepSeek V4.1 Flash primary via `api.deepseek.com` with `sk-...` auto-bridge, **OpenCode Zen** `deepseek-v4.1-flash-free`, **Google Gemini** `gemini-3.8-flash`, or **Groq** `llama-3.3-70b-versatile`) with automatic graceful **Tier 1** (`<5ms` trilingual NLU) offline fallback when no LLM key is configured or unreachable. Casual conversational prompts (`tool: null`, e.g., `"hi"`) respond naturally without forcing heavy ledger dumps.
-3. Reasoning blocks (`<think>...</think>`) and emojis emitted by reasoning models are automatically stripped from the visible answer (`stripReasoningBlocks`), while developer trace tags (`TIER1_NLU`, raw tool names) are never surfaced in consumer chat chrome. Responses render clean GitHub-style Markdown (headings, lists, bold figures, inline code, tables).
-4. The resolved intent executes one of **8 canonical deterministic tools** in `MarqueeToolsService`, returning exact figures and human-written explanations obeying the 6 Human Writing Laws.
+3. Reasoning blocks (`<think>...</think>`) and emojis emitted by reasoning models are automatically stripped from the visible answer (`stripReasoningBlocks`), while developer trace tags (`TIER1_NLU`, raw snake_case tool names) are scrubbed cleanly from consumer chat chrome (`agentSteps` and `sanitizeReasoningForUi`). Responses render clean GitHub-style Markdown (headings, lists, bold figures, inline code, tables).
+4. **Bounded Multi-Step Tool Loop (`ReAct`, max 4 hops):** Tier 2 OpenAI-compatible providers (`DEEPSEEK`, `OPENCODE`, `GROQ`) can chain up to 4 read-only tool calls in one turn (e.g. `get_paycycle_pulse` -> `simulate_purchase_cutoff` -> `prepare_quick_transaction`) and automatically stop once a 1-click confirmation card (`pendingAction`) or explicit domain refusal (`refuse_out_of_scope`) is reached.
+5. **User Financial Memory (`manage_user_memory`), Scoped History Archive Search (`search_financial_history`), & Domain Guardrail (`refuse_out_of_scope`):**
+   - Remembered merchant rules (`GlobalConfig.financialPolicyJson.marqueeMemory`) inject into `systemPrompt` and auto-select default payment methods (`PAYLATER` / `CREDIT_CARD` / `CASH`) when prompts omit an explicit method.
+   - `search_financial_history` performs synonym-expanded retrieval across the authenticated user's own `Transaction`, `CreditCardTransaction`, and `LiabilityLineItem` archive with exact Rupiah sums.
+   - Non-financial, terminal/shell, download, and raw `ExecuteSQL` prompts are rejected cleanly by `refuse_out_of_scope`.
+
+### Tier 4 — Authenticated Business MCP Server (`POST /api/marquee/mcp` + `scripts/sundayfunday-mcp.ts`)
+- Streamable HTTP JSON-RPC 2.0 endpoint authenticated strictly via `X-Marquee-Token` or verified JWT (`initialize`, `tools/list`, `tools/call`) plus optional local stdio bridge (`npx tsx scripts/sundayfunday-mcp.ts`).
+- Exposes only the **15 curated ERP business functions** (`confirm` defaults to safe preview `false` on mutating calls); unknown/unpermitted tools like `execute_sql` or `run_shell` return `isError: true` with domain restriction guidance.
 
 ---
 

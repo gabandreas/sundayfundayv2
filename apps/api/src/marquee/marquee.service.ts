@@ -8,8 +8,30 @@ import {
   maskSecretPreview,
   verifySecretToken,
 } from '../common/crypto.util';
-import { parseMarqueeIntent } from './marquee-nlu';
-import { MarqueeAiProvider, MarqueeLlmService } from './marquee-llm.service';
+import { MarqueeToolName, parseMarqueeIntent } from './marquee-nlu';
+import {
+  MARQUEE_TOOL_DEFS,
+  MarqueeAiProvider,
+  MarqueeLlmService,
+} from './marquee-llm.service';
+
+const MCP_EXPOSED_TOOLS = new Set<string>([
+  'get_paycycle_pulse',
+  'simulate_purchase_cutoff',
+  'optimize_payday_thr_split',
+  'analyze_debt_burndown',
+  'evaluate_custom_formula',
+  'prepare_quick_transaction',
+  'prepare_wallet_checkin',
+  'explain_period_variance',
+  'manage_liability_item',
+  'revise_budget_or_quota',
+  'manage_savings_pocket_or_goal',
+  'manage_wishlist_or_subscription',
+  'run_what_if_scenario',
+  'manage_user_memory',
+  'search_financial_history',
+]);
 import {
   MarqueePendingAction,
   MarqueeToolResult,
@@ -36,6 +58,9 @@ const HUMAN_TOOL_LABELS: Record<string, string> = {
   run_what_if_scenario: 'Ran debt payoff and cashflow projection',
   evaluate_formula: 'Evaluated custom formula expression',
   calculate_life_energy: 'Calculated real hourly wage and work-hours cost',
+  manage_user_memory: 'Updated personal financial preference memory',
+  search_financial_history: 'Searched historical ledger & card archive',
+  refuse_out_of_scope: 'Enforced Sunday Funday financial domain boundary',
 };
 
 const TOOL_TEXT_REPLACEMENTS: Array<[RegExp, string]> = [
@@ -51,6 +76,9 @@ const TOOL_TEXT_REPLACEMENTS: Array<[RegExp, string]> = [
   [/\bmanage_savings_pocket_or_goal\b/g, 'savings allocation helper'],
   [/\bmanage_wishlist_or_subscription\b/g, 'wishlist and recurring helper'],
   [/\brun_what_if_scenario\b/g, 'what-if scenario simulator'],
+  [/\bmanage_user_memory\b/g, 'preference memory helper'],
+  [/\bsearch_financial_history\b/g, 'historical archive search'],
+  [/\brefuse_out_of_scope\b/g, 'domain boundary guard'],
   [/\bpurchaseDate\b/g, 'purchase date'],
   [/\bdaysInMonth\b/g, 'days in month'],
 ];
@@ -369,6 +397,14 @@ export class MarqueeService {
     throw new UnauthorizedException('Invalid or revoked X-Marquee-Token.');
   }
 
+  async getMemoryRules(userId: number) {
+    return this.toolsService.getUserMemoryRules(userId);
+  }
+
+  async deleteMemoryRule(userId: number, memoryId: string) {
+    return this.toolsService.deleteUserMemoryRule(userId, memoryId);
+  }
+
   async chat(userId: number, dto: MarqueeChatRequestDto): Promise<MarqueeChatResponse> {
     return this.chatWithProgress(userId, dto);
   }
@@ -527,7 +563,33 @@ export class MarqueeService {
       itemQuery: parsedTier1.itemQuery,
       category: parsedTier1.category,
       purchaseDate: parsedTier1.purchaseDateIso,
+      ruleText: parsedTier1.ruleText,
+      merchantPattern: parsedTier1.merchantPattern,
+      defaultInstrument: parsedTier1.defaultInstrument,
+      searchQuery: parsedTier1.searchQuery,
+      reasonQuery: message,
+      locale,
     };
+
+    // Apply user memory defaults (e.g. remembered merchant -> defaultInstrument) when prompt leaves method implicit
+    const explicitInstMention =
+      /\b(cash|tunai|spaylater|paylater|pay later|cc|credit\s*card|kartu\s*kredit|permata|shopee)\b/i.test(
+        message,
+      );
+    let memoryDefaultInstrument: 'CASH' | 'PAYLATER' | 'CREDIT_CARD' | undefined;
+    if (!explicitInstMention && hydrated?.memoryRules?.length) {
+      const lowerMsg = message.toLowerCase();
+      const matchedMem = hydrated.memoryRules.find(
+        (m) =>
+          m.merchantPattern &&
+          m.defaultInstrument &&
+          lowerMsg.includes(m.merchantPattern.toLowerCase()),
+      );
+      if (matchedMem?.defaultInstrument) {
+        memoryDefaultInstrument = matchedMem.defaultInstrument;
+        selectedArgs.instrument = matchedMem.defaultInstrument;
+      }
+    }
     let tierUsed: MarqueeChatResponse['tierUsed'] = 'TIER1_NLU';
     let model = 'tier1-deterministic-nlu';
     let assistantPrefix: string | undefined;
@@ -573,6 +635,26 @@ export class MarqueeService {
         systemContextPrompt: hydrated?.systemPrompt,
         message,
         tier1Fallback: parsedTier1,
+        executeTool: async (hopTool, hopArgs) => {
+          emit('ANALYZING', 'Running ledger check...', describeToolAction(hopTool));
+          const mergedArgs = {
+            ...hopArgs,
+            ...(hopTool === 'prepare_quick_transaction' &&
+            !hopArgs?.instrument &&
+            memoryDefaultInstrument
+              ? { instrument: memoryDefaultInstrument }
+              : {}),
+            ...(hopTool === 'refuse_out_of_scope' && !hopArgs?.reasonQuery
+              ? { reasonQuery: message, locale }
+              : {}),
+          };
+          return this.toolsService.executeTool(hopTool, mergedArgs, {
+            userId,
+            confirm: Boolean(dto.confirm),
+            month: dto.month,
+            year: dto.year,
+          });
+        },
       });
 
       if (resolved && resolved.usedProvider !== 'TIER1_ONLY') {
@@ -603,7 +685,7 @@ export class MarqueeService {
             model,
             locale,
             assistantPrefix: resolved.assistantPrefix,
-            ...(reasoning ? { reasoning } : {}),
+            ...(reasoning ? { reasoning: sanitizeReasoningForUi(reasoning) } : {}),
             agentSteps: steps,
             ...(hydrated?.proactiveReminders
               ? { proactiveReminders: hydrated.proactiveReminders }
@@ -619,23 +701,43 @@ export class MarqueeService {
       }
     }
 
-    const actionSummary = describeToolAction(selectedTool);
-    emit('ANALYZING', 'Running ledger check...', actionSummary);
-    const result = await this.toolsService.executeTool(selectedTool, selectedArgs, {
-      userId,
-      confirm: Boolean(dto.confirm),
-      month: dto.month,
-      year: dto.year,
-    });
-    steps.push({
-      id: 'step_tool',
-      label: actionSummary,
-      detail: result.pendingAction
-        ? `${HUMAN_ACTION_LABELS[result.pendingAction.type] ?? 'Staged ledger update'} awaiting confirmation`
-        : `${result.cards?.length ?? 0} summary metrics verified`,
-      status: 'done',
-      durationMs: Math.max(1, Date.now() - t0),
-    });
+    let result: MarqueeToolResult;
+    if (llmResolution?.finalToolResult) {
+      result = { ...llmResolution.finalToolResult };
+      const hops = llmResolution.executedHops ?? [];
+      hops.forEach((hop, idx) => {
+        steps.push({
+          id: `step_hop_${idx + 1}`,
+          label: describeToolAction(hop.tool),
+          detail: hop.result?.pendingAction
+            ? `${HUMAN_ACTION_LABELS[hop.result.pendingAction.type] ?? 'Staged ledger update'} awaiting confirmation`
+            : `${hop.result?.cards?.length ?? 0} summary metrics verified`,
+          status: 'done',
+          durationMs: hop.durationMs,
+        });
+      });
+      if (llmResolution.synthesizedInLoop && assistantPrefix) {
+        result.summary = assistantPrefix;
+      }
+    } else {
+      const actionSummary = describeToolAction(selectedTool);
+      emit('ANALYZING', 'Running ledger check...', actionSummary);
+      result = await this.toolsService.executeTool(selectedTool, selectedArgs, {
+        userId,
+        confirm: Boolean(dto.confirm),
+        month: dto.month,
+        year: dto.year,
+      });
+      steps.push({
+        id: 'step_tool',
+        label: actionSummary,
+        detail: result.pendingAction
+          ? `${HUMAN_ACTION_LABELS[result.pendingAction.type] ?? 'Staged ledger update'} awaiting confirmation`
+          : `${result.cards?.length ?? 0} summary metrics verified`,
+        status: 'done',
+        durationMs: Math.max(1, Date.now() - t0),
+      });
+    }
     if (result.pendingAction) {
       emit(
         'STAGING',
@@ -646,6 +748,7 @@ export class MarqueeService {
 
     if (
       llmResolution?.didCallTool &&
+      !llmResolution.synthesizedInLoop &&
       !result.pendingAction &&
       llmResolution.endpointUrlUsed &&
       llmResolution.apiKeyUsed &&
@@ -703,6 +806,114 @@ export class MarqueeService {
       agentSteps: steps,
       ...(hydrated?.proactiveReminders ? { proactiveReminders: hydrated.proactiveReminders } : {}),
       hydratedContext: buildHydratedMeta(),
+    };
+  }
+
+  /**
+   * Model Context Protocol (MCP) JSON-RPC 2.0 handler exposing strictly curated
+   * Sunday Funday ERP business functions scoped to the authenticated userId.
+   */
+  async handleMcpRpc(
+    userId: number,
+    rpc: {
+      jsonrpc?: string;
+      id?: string | number | null;
+      method?: string;
+      params?: Record<string, any>;
+    },
+  ) {
+    const id = rpc?.id ?? null;
+    const method = String(rpc?.method ?? '').trim();
+
+    if (method === 'initialize') {
+      return {
+        jsonrpc: '2.0',
+        id,
+        result: {
+          protocolVersion: '2025-03-26',
+          capabilities: { tools: { listChanged: false } },
+          serverInfo: { name: 'sundayfunday-erp', version: '4.0.0' },
+          instructions:
+            'Sunday Funday ERP financial MCP server. Only curated ERP financial functions are allowed; raw SQL, shell, filesystem, and external downloads are restricted.',
+        },
+      };
+    }
+
+    if (method === 'notifications/initialized' || method === 'ping') {
+      return { jsonrpc: '2.0', id, result: {} };
+    }
+
+    if (method === 'tools/list') {
+      const tools = MARQUEE_TOOL_DEFS.filter((t) => MCP_EXPOSED_TOOLS.has(t.name)).map((t) => ({
+        name: t.name,
+        description: t.description,
+        inputSchema: {
+          type: 'object',
+          properties: {
+            ...(t.parameters?.properties ?? {}),
+            confirm: {
+              type: 'boolean',
+              description: 'Set true to persist state-mutating actions; defaults to safe staging preview',
+            },
+            month: { type: 'number', description: 'Optional target billing/budget month 1-12' },
+            year: { type: 'number', description: 'Optional target billing/budget year' },
+          },
+          ...(Array.isArray((t.parameters as any)?.required)
+            ? { required: (t.parameters as any).required }
+            : {}),
+        },
+      }));
+      return { jsonrpc: '2.0', id, result: { tools } };
+    }
+
+    if (method === 'tools/call') {
+      const toolName = String(rpc?.params?.name ?? '').trim();
+      const args =
+        rpc?.params?.arguments && typeof rpc.params.arguments === 'object'
+          ? (rpc.params.arguments as Record<string, any>)
+          : {};
+
+      if (!MCP_EXPOSED_TOOLS.has(toolName)) {
+        return {
+          jsonrpc: '2.0',
+          id,
+          result: {
+            isError: true,
+            content: [
+              {
+                type: 'text',
+                text: `Domain restriction: "${toolName}" is not a permitted Sunday Funday financial business function. Only registered ERP tools may be executed.`,
+              },
+            ],
+          },
+        };
+      }
+
+      const out = await this.toolsService.executeTool(toolName as MarqueeToolName, args, {
+        userId,
+        confirm: Boolean(args.confirm),
+        month: Number(args.month || 0) || undefined,
+        year: Number(args.year || 0) || undefined,
+      });
+
+      return {
+        jsonrpc: '2.0',
+        id,
+        result: {
+          isError: !out.ok,
+          content: [{ type: 'text', text: out.summary }],
+          structuredContent: out,
+        },
+      };
+    }
+
+    return {
+      jsonrpc: '2.0',
+      id,
+      error: {
+        code: -32601,
+        message: `Unsupported MCP method: ${method || '(empty)'}`,
+      },
     };
   }
 }

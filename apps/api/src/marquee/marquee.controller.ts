@@ -2,12 +2,15 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Headers,
+  Param,
   Post,
   Put,
   Req,
   Res,
+  UnauthorizedException,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { getUserIdOrThrow } from '../auth/auth.utils';
@@ -126,5 +129,44 @@ export class MarqueeController {
       month: dto?.month,
       year: dto?.year,
     });
+  }
+
+  @Get('memory')
+  async getMemory(@Req() req?: any) {
+    const userId = getUserIdOrThrow(req);
+    return { rules: await this.marqueeService.getMemoryRules(userId) };
+  }
+
+  @Delete('memory/:id')
+  async deleteMemory(@Param('id') id: string, @Req() req?: any) {
+    const userId = getUserIdOrThrow(req);
+    return this.marqueeService.deleteMemoryRule(userId, id);
+  }
+
+  /**
+   * Model Context Protocol (MCP) JSON-RPC 2.0 Streamable HTTP endpoint.
+   * Authenticates strictly via X-Marquee-Token or verified JWT session (never x-user-id spoofing).
+   */
+  @Post('mcp')
+  async handleMcp(
+    @Headers('x-marquee-token') tokenHeader: string | undefined,
+    @Req() req: any,
+    @Body()
+    rpcBody: {
+      jsonrpc?: string;
+      id?: string | number | null;
+      method?: string;
+      params?: Record<string, any>;
+    },
+  ) {
+    let userId: number;
+    if (tokenHeader && tokenHeader.trim()) {
+      userId = await this.marqueeService.resolveUserIdFromWebhookToken(tokenHeader);
+    } else if (req?.isAuthenticated && (req?.user?.id || req?.userId)) {
+      userId = Number(req?.user?.id ?? req?.userId);
+    } else {
+      throw new UnauthorizedException('Valid X-Marquee-Token or authenticated session is required for MCP access.');
+    }
+    return this.marqueeService.handleMcpRpc(userId, rpcBody ?? {});
   }
 }

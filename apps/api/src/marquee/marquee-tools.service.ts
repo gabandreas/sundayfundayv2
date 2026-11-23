@@ -102,6 +102,33 @@ function evaluateSafeFormulaExpression(
   }
 }
 
+const HISTORY_SYNONYM_GROUPS: string[][] = [
+  ['kopi', 'coffee', 'americano', 'espresso', 'latte', 'kenangan', 'starbucks', 'fore', 'tuku', 'cafe'],
+  ['grab', 'gojek', 'ojek', 'transport', 'krl', 'commuter', 'mrt', 'taxi', 'bensin', 'fuel', 'parkir'],
+  ['rokok', 'dunhill', 'vape', 'liquid', 'cartridge', 'pod', 'cigarette'],
+  ['makan', 'food', 'lunch', 'dinner', 'sate', 'warteg', 'gofood', 'grabfood', 'shopeefood', 'bakmi'],
+  ['sepatu', 'shoes', 'nike', 'dunk', 'new balance', 'sneakers'],
+  ['ai', 'claude', 'anthropic', 'gemini', 'google', 'deepseek', 'openai', 'chatgpt'],
+  ['internet', 'kuota', 'wifi', 'biznet', 'telkomsel', 'indihome'],
+  ['cukur', 'haircut', 'barber', 'grooming'],
+];
+
+function expandSearchTerms(query: string): string[] {
+  const tokens = query
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((t) => t.length >= 2);
+  const expanded = new Set<string>(tokens);
+  for (const tok of tokens) {
+    for (const grp of HISTORY_SYNONYM_GROUPS) {
+      if (grp.some((word) => word.includes(tok) || tok.includes(word))) {
+        for (const word of grp) expanded.add(word);
+      }
+    }
+  }
+  return Array.from(expanded);
+}
+
 @Injectable()
 export class MarqueeToolsService {
   constructor(
@@ -123,8 +150,65 @@ export class MarqueeToolsService {
     year?: number,
   ): Promise<{ month: number; year: number }> {
     if (month && year) return { month, year };
-    const def = await this.snapshotsSelectors.getDefaultActivePeriod(userId);
-    return { month: def.month, year: def.year };
+    try {
+      const def = await this.snapshotsSelectors.getDefaultActivePeriod(userId);
+      return { month: def.month, year: def.year };
+    } catch {
+      const now = new Date();
+      return { month: now.getMonth() + 1, year: now.getFullYear() };
+    }
+  }
+
+  async getUserMemoryRules(userId: number): Promise<
+    Array<{
+      id: string;
+      ruleText: string;
+      merchantPattern?: string;
+      defaultInstrument?: 'CASH' | 'PAYLATER' | 'CREDIT_CARD';
+      createdAt: string;
+    }>
+  > {
+    if (!this.prisma?.globalConfig || typeof this.prisma.globalConfig.findFirst !== 'function') {
+      return [];
+    }
+    const cfg = await this.prisma.globalConfig.findFirst({ where: { userId } });
+    const policy =
+      cfg?.financialPolicyJson && typeof cfg.financialPolicyJson === 'object'
+        ? (cfg.financialPolicyJson as Record<string, any>)
+        : {};
+    const list = Array.isArray(policy.marqueeMemory) ? policy.marqueeMemory : [];
+    return list
+      .filter((r: any) => r && typeof r.ruleText === 'string')
+      .map((r: any) => ({
+        id: String(r.id || ''),
+        ruleText: String(r.ruleText),
+        ...(r.merchantPattern ? { merchantPattern: String(r.merchantPattern) } : {}),
+        ...(r.defaultInstrument ? { defaultInstrument: r.defaultInstrument } : {}),
+        createdAt: String(r.createdAt || ''),
+      }));
+  }
+
+  async deleteUserMemoryRule(userId: number, memoryId: string): Promise<{ removed: number; remaining: number }> {
+    if (!this.prisma?.globalConfig) return { removed: 0, remaining: 0 };
+    const cfg = await this.prisma.globalConfig.findFirst({ where: { userId } });
+    if (!cfg) return { removed: 0, remaining: 0 };
+    const policy =
+      cfg.financialPolicyJson && typeof cfg.financialPolicyJson === 'object'
+        ? { ...(cfg.financialPolicyJson as Record<string, any>) }
+        : {};
+    const existing = await this.getUserMemoryRules(userId);
+    const q = memoryId.toLowerCase().trim();
+    const filtered = existing.filter(
+      (r) =>
+        r.id !== memoryId &&
+        !(q && (r.merchantPattern?.toLowerCase().includes(q) || r.ruleText.toLowerCase().includes(q))),
+    );
+    policy.marqueeMemory = filtered;
+    await this.prisma.globalConfig.update({
+      where: { id: cfg.id },
+      data: { financialPolicyJson: policy as any },
+    });
+    return { removed: existing.length - filtered.length, remaining: filtered.length };
   }
 
   async executeTool(
@@ -132,6 +216,25 @@ export class MarqueeToolsService {
     args: Record<string, any>,
     ctx: MarqueeExecutionContext,
   ): Promise<MarqueeToolResult> {
+    if (tool === 'refuse_out_of_scope') {
+      const reqText = String(args.reasonQuery ?? args.query ?? '').toLowerCase();
+      const isId =
+        /\b(tolong|dong|buat|unduh|pasang|unduh|saya|aku|kamu|gimana|tolongin|sekarang)\b/.test(reqText) ||
+        args.locale === 'id';
+      const summary = isId
+        ? 'Maaf, saya adalah asisten keuangan Sunday Funday ERP dan hanya memiliki akses ke fungsi finansial terdaftar (cek saldo harian, simulasi cutoff kartu/PayLater, catat pengeluaran, ubah jadwal tagihan, revisi kuota, tabungan, riwayat transaksi, dan memori aturan). Saya tidak memiliki akses terminal, shell OS, unduhan web, maupun query SQL langsung.'
+        : 'Sorry, I am the Sunday Funday ERP financial co-pilot and only have access to registered financial functions (daily safe-to-spend, PayLater/card cutoff simulation, expense staging, bill shifting, budget revisions, savings goals, transaction history search, and preference memory). I cannot run OS/terminal commands, download external software, or execute raw SQL.';
+      return {
+        ok: true,
+        tool,
+        summary,
+        cards: [
+          { label: 'Scope', value: 'Sunday Funday Financial ERP Only', tone: 'caution' },
+          { label: 'Restricted', value: 'No OS / Shell / Download / Raw SQL' },
+        ],
+      };
+    }
+
     const { month, year } = await this.resolvePeriod(
       ctx.userId,
       Number(args.month || ctx.month || 0) || undefined,
@@ -1032,6 +1135,215 @@ export class MarqueeToolsService {
             { label: 'Runway Gain', value: `+${runwayDelta}d`, tone: 'positive' },
           ],
           data: { scenario },
+        };
+      }
+
+      case 'manage_user_memory': {
+        const action = String(args.action || 'LIST').toUpperCase();
+        if (action === 'LIST') {
+          const rules = await this.getUserMemoryRules(ctx.userId);
+          return {
+            ok: true,
+            tool,
+            summary:
+              rules.length > 0
+                ? `Active preference rules (${rules.length}):\n${rules.map((r) => `- ${r.ruleText}`).join('\n')}`
+                : 'No custom financial preference rules saved yet.',
+            cards: [{ label: 'Saved Rules', value: String(rules.length) }],
+            data: { rules },
+          };
+        }
+
+        if (action === 'FORGET') {
+          const idOrQuery = String(args.memoryId ?? args.merchantPattern ?? args.ruleText ?? '').trim();
+          const res = await this.deleteUserMemoryRule(ctx.userId, idOrQuery);
+          return {
+            ok: true,
+            tool,
+            summary:
+              res.removed > 0
+                ? `Removed ${res.removed} saved rule (${res.remaining} remaining).`
+                : 'No matching saved rule was found to remove.',
+            cards: [
+              { label: 'Removed', value: String(res.removed) },
+              { label: 'Remaining Rules', value: String(res.remaining) },
+            ],
+            data: res,
+          };
+        }
+
+        const ruleText = String(args.ruleText ?? args.rule ?? '').trim();
+        if (!ruleText) {
+          return {
+            ok: false,
+            tool,
+            summary: 'Specify the preference or rule you want Marquee to remember.',
+            cards: [],
+          };
+        }
+        const merchantPattern = args.merchantPattern
+          ? String(args.merchantPattern).trim().toLowerCase()
+          : undefined;
+        const defaultInstrument =
+          args.defaultInstrument && ['CASH', 'PAYLATER', 'CREDIT_CARD'].includes(String(args.defaultInstrument).toUpperCase())
+            ? (String(args.defaultInstrument).toUpperCase() as 'CASH' | 'PAYLATER' | 'CREDIT_CARD')
+            : undefined;
+
+        const existing = await this.getUserMemoryRules(ctx.userId);
+        const newRule = {
+          id: `mem_${Date.now()}`,
+          ruleText,
+          ...(merchantPattern ? { merchantPattern } : {}),
+          ...(defaultInstrument ? { defaultInstrument } : {}),
+          createdAt: new Date().toISOString(),
+        };
+        const updated = [
+          ...existing.filter((r) => !merchantPattern || r.merchantPattern !== merchantPattern),
+          newRule,
+        ].slice(-25);
+
+        if (this.prisma?.globalConfig) {
+          const cfg = await this.prisma.globalConfig.findFirst({ where: { userId: ctx.userId } });
+          if (cfg) {
+            const policy =
+              cfg.financialPolicyJson && typeof cfg.financialPolicyJson === 'object'
+                ? { ...(cfg.financialPolicyJson as Record<string, any>) }
+                : {};
+            policy.marqueeMemory = updated;
+            await this.prisma.globalConfig.update({
+              where: { id: cfg.id },
+              data: { financialPolicyJson: policy as any },
+            });
+          }
+        }
+
+        return {
+          ok: true,
+          tool,
+          summary: `Remembered rule: "${ruleText}"${defaultInstrument ? ` (defaults to ${formatInstrumentLabel(defaultInstrument)})` : ''}.`,
+          cards: [
+            { label: 'Memory Rule', value: merchantPattern || 'General Policy', tone: 'positive' },
+            ...(defaultInstrument ? [{ label: 'Default Method', value: formatInstrumentLabel(defaultInstrument) }] : []),
+            { label: 'Total Saved Rules', value: String(updated.length) },
+          ],
+          data: { rule: newRule, rules: updated },
+        };
+      }
+
+      case 'search_financial_history': {
+        const query = String(args.query ?? args.searchQuery ?? args.title ?? '').trim();
+        if (!this.prisma) {
+          return {
+            ok: false,
+            tool,
+            summary: 'Historical ledger search requires database access.',
+            cards: [],
+          };
+        }
+
+        const terms = expandSearchTerms(query);
+        const [txs, ccTxs, lineItems] = await Promise.all([
+          typeof this.prisma.transaction?.findMany === 'function'
+            ? this.prisma.transaction
+                .findMany({
+                  where: { snapshot: { userId: ctx.userId } },
+                  orderBy: { date: 'desc' },
+                  take: 300,
+                })
+                .catch(() => [])
+            : Promise.resolve([]),
+          typeof this.prisma.creditCardTransaction?.findMany === 'function'
+            ? this.prisma.creditCardTransaction
+                .findMany({
+                  where: { userId: ctx.userId },
+                  orderBy: { transactionDate: 'desc' },
+                  take: 200,
+                })
+                .catch(() => [])
+            : Promise.resolve([]),
+          typeof this.prisma.liabilityLineItem?.findMany === 'function'
+            ? this.prisma.liabilityLineItem
+                .findMany({
+                  where: { userId: ctx.userId },
+                  orderBy: [{ year: 'desc' }, { month: 'desc' }],
+                  take: 300,
+                })
+                .catch(() => [])
+            : Promise.resolve([]),
+        ]);
+
+        interface HistoryMatch {
+          source: string;
+          label: string;
+          amountRp: number;
+          period: string;
+          score: number;
+        }
+        const candidates: HistoryMatch[] = [
+          ...(Array.isArray(txs) ? txs : []).map((t: any) => {
+            const d = t.date ? new Date(t.date) : null;
+            return {
+              source: 'Transaction',
+              label: String(t.label ?? ''),
+              amountRp: Math.round(Number(t.amount ?? 0)),
+              period: d ? `${String(d.getUTCMonth() + 1).padStart(2, '0')}/${d.getUTCFullYear()}` : periodTag,
+              score: 0,
+            };
+          }),
+          ...(Array.isArray(ccTxs) ? ccTxs : []).map((c: any) => ({
+            source: 'Credit Card',
+            label: String(c.label ?? ''),
+            amountRp: Math.round(Number(c.amount ?? c.monthlyAmount ?? 0)),
+            period: `${String(c.billingMonth ?? c.startMonth ?? month).padStart(2, '0')}/${c.billingYear ?? c.startYear ?? year}`,
+            score: 0,
+          })),
+          ...(Array.isArray(lineItems) ? lineItems : []).map((li: any) => ({
+            source: formatInstrumentLabel(String(li.category ?? 'Bill')),
+            label: String(li.title ?? ''),
+            amountRp: Math.round(Number(li.monthlyAmount ?? 0)),
+            period: `${String(li.month ?? month).padStart(2, '0')}/${li.year ?? year}`,
+            score: 0,
+          })),
+        ];
+
+        const lowerQ = query.toLowerCase();
+        const matches = candidates
+          .map((item) => {
+            const hay = item.label.toLowerCase();
+            let score = lowerQ && hay.includes(lowerQ) ? 3 : 0;
+            for (const t of terms) {
+              if (hay.includes(t)) score += 1;
+            }
+            return { ...item, score };
+          })
+          .filter((item) => (terms.length > 0 ? item.score > 0 : true))
+          .sort((a, b) => b.score - a.score || b.amountRp - a.amountRp);
+
+        const totalMatchedRp = matches.reduce((s, m) => s + m.amountRp, 0);
+        const topPreview = matches
+          .slice(0, 8)
+          .map((m) => `- [${m.period}] ${m.label} (${m.source}): ${formatRp(m.amountRp)}`)
+          .join('\n');
+
+        return {
+          ok: true,
+          tool,
+          summary:
+            matches.length > 0
+              ? `Found ${matches.length} matching entries for "${query}" totaling ${formatRp(totalMatchedRp)}:\n${topPreview}`
+              : `No matching entries found for "${query}" across your ledger history.`,
+          cards: [
+            { label: 'Query', value: query || 'All History' },
+            { label: 'Matches', value: `${matches.length} entries` },
+            { label: 'Matched Total', value: formatRp(totalMatchedRp), tone: matches.length > 0 ? 'positive' : 'default' },
+          ],
+          data: {
+            query,
+            expandedTerms: terms,
+            matchCount: matches.length,
+            totalMatchedRp,
+            matches: matches.slice(0, 20),
+          },
         };
       }
     }

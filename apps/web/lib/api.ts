@@ -6741,6 +6741,39 @@ export async function rotateMarqueeWebhookToken(): Promise<{
   }
 }
 
+export interface MarqueeMemoryRule {
+  id: string;
+  ruleText: string;
+  merchantPattern?: string;
+  defaultInstrument?: "CASH" | "PAYLATER" | "CREDIT_CARD";
+  createdAt: string;
+}
+
+export async function fetchMarqueeMemory(): Promise<MarqueeMemoryRule[]> {
+  try {
+    const res = await fetch(`${API_URL}/api/marquee/memory`, {
+      headers: await getAuthHeaders(),
+      cache: "no-store",
+    });
+    const body = await handleResponse<{ rules?: MarqueeMemoryRule[] } | null>(res, null);
+    return Array.isArray(body?.rules) ? body.rules : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function deleteMarqueeMemory(id: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_URL}/api/marquee/memory/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      headers: await getAuthHeaders(),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 export interface CashRadarSubItemDto {
   title: string;
   amountRp: number;

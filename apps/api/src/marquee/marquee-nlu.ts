@@ -13,6 +13,9 @@ export type MarqueeToolName =
   | 'manage_savings_pocket_or_goal'
   | 'manage_wishlist_or_subscription'
   | 'run_what_if_scenario'
+  | 'manage_user_memory'
+  | 'search_financial_history'
+  | 'refuse_out_of_scope'
   // Legacy Aliases (preserved 1:1 for backward compatibility)
   | 'get_financial_pulse'
   | 'log_quick_expense'
@@ -38,6 +41,10 @@ export interface MarqueeParsedIntent {
   itemQuery?: string;
   category?: string;
   purchaseDateIso?: string;
+  merchantPattern?: string;
+  defaultInstrument?: MarqueeInstrument;
+  ruleText?: string;
+  searchQuery?: string;
   confidence: number;
 }
 
@@ -45,7 +52,7 @@ export function detectLocale(message: string): MarqueeLocale {
   if (/[\u4e00-\u9fff]/.test(message)) return 'zh';
   const lower = message.toLowerCase();
   if (
-    /\b(catat|beli|bayar|aman|berapa|tabungan|tagihan|dompet|sisa|cicilan|lunas|simulasi|belanja|gaji|pake|pakai|buat|hari|ini|saya|ga|gak|nggak|bulan|ribu|juta|jt|rb)\b/.test(
+    /\b(catat|beli|bayar|aman|berapa|tabungan|tagihan|dompet|sisa|cicilan|lunas|simulasi|belanja|gaji|pake|pakai|buat|hari|ini|saya|aku|kamu|ga|gak|nggak|bulan|ribu|juta|jt|rb|tolong|tolongin|dong|sekarang|kenapa|cari|ingat|lupakan|pindah|pindahin|ubah|siapkan)\b/.test(
       lower,
     )
   ) {
@@ -153,6 +160,79 @@ export function parseMarqueeIntent(message: string): MarqueeParsedIntent {
   const tenorMonths = extractTenorMonths(message);
   const instrument = detectInstrument(message);
   const title = extractTitleFromMessage(message);
+
+  // 0.0 Strict Domain Boundary Guardrail: reject OS/terminal/download/raw-SQL/non-finance prompts cleanly
+  if (
+    /\b(download|install|kimi\s*web\s*bridge|executesql|execute_sql|run_shell|powershell|bash|terminal|curl|wget|drop\s+table|select\s+\*\s+from|sudo|pip\s+install|npm\s+install|cuaca|weather|resep\s+masakan)\b/.test(
+      lower,
+    )
+  ) {
+    return {
+      tool: 'refuse_out_of_scope',
+      locale,
+      instrument,
+      tenorMonths,
+      title: message.slice(0, 120),
+      confidence: 0.99,
+    };
+  }
+
+  // 0.0B User Financial Preference Memory (REMEMBER / LIST / FORGET)
+  if (
+    /\b(ingat(?:kan)?|remember|simpan\s+aturan|lupakan|forget\s+rule|hapus\s+memori|daftar\s+memori|list\s+memory|aturan\s+saya)\b/.test(
+      lower,
+    )
+  ) {
+    const isList = /\b(daftar|list|apa\s+aja|lihat)\b/.test(lower) && !/\b(ingat|remember)\b/.test(lower);
+    const isForget = /\b(lupakan|forget|hapus|delete)\b/.test(lower);
+    const patternCleanup = message
+      .replace(
+        /\b(tolong|hey|ingat|ingatkan|remember|kalau|jika|bila|beli|bayar|selalu|catat|pake|pakai|ke|spaylater|paylater|credit\s*card|kartu\s*kredit|cc|cash|tunai|aturan|memori|rule|lupakan|forget|hapus|delete|mesti|harus|default|nya)\b/gi,
+        ' ',
+      )
+      .replace(/[:"'?!.,]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
+    return {
+      tool: 'manage_user_memory',
+      locale,
+      action: isForget ? 'FORGET' : isList ? 'LIST' : 'REMEMBER',
+      ruleText: message.trim(),
+      ...(patternCleanup ? { merchantPattern: patternCleanup.split(' ').slice(0, 3).join(' ') } : {}),
+      ...(/(spaylater|paylater|cc|credit\s*card|kartu\s*kredit|cash|tunai)/.test(lower)
+        ? { defaultInstrument: instrument }
+        : {}),
+      instrument,
+      tenorMonths,
+      confidence: 0.94,
+    };
+  }
+
+  // 0.0C Scoped Historical Archive Search (Hybrid RAG tool)
+  if (
+    /\b(cari\s+histori|search\s+history|riwayat\s+belanja|histori\s+transaksi|rekam\s+jejak|pernah\s+beli|kapan\s+terakhir|total\s+pengeluaran)\b/.test(
+      lower,
+    )
+  ) {
+    const cleanedSearch = message
+      .replace(
+        /\b(cari|search|histori|history|riwayat|transaksi|belanja|pengeluaran|rekam|jejak|pernah|beli|kapan|terakhir|kali|berapa|total|selama|bulan|tahun)\b/gi,
+        ' ',
+      )
+      .replace(/[?!.,]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    return {
+      tool: 'search_financial_history',
+      locale,
+      searchQuery: cleanedSearch || title,
+      title: cleanedSearch || title,
+      instrument,
+      tenorMonths,
+      confidence: 0.93,
+    };
+  }
 
   // 0A. Shift / Settle liability item (e.g. "pindahkan Americano ke desember", "shift Americano earlier", "lunasi")
   if (

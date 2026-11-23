@@ -1,12 +1,15 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { Send, Settings2 } from "lucide-react";
+import { Send, Settings2, Trash2 } from "lucide-react";
 import { MarqueeRobotAvatar } from "@/components/primitives/MarqueeRobotAvatar";
 import {
   MarqueeChatResponse,
+  MarqueeMemoryRule,
   MarqueeStreamStatusEvent,
+  deleteMarqueeMemory,
+  fetchMarqueeMemory,
   sendMarqueeChat,
   sendMarqueeChatStream,
 } from "@/lib/api";
@@ -35,15 +38,15 @@ const EXAMPLE_GROUPS = [
     prompts: [
       "Log kopi kenangan 34k",
       "Catat spaylater sepatu 900rb 3x",
-      "Aman ga belanja headset 450k pake cc?",
+      "Ingat kalau beli kopi catat ke SPayLater",
     ],
   },
   {
-    label: "THR Split, Debt & Formulas",
+    label: "THR Split, Debt & History Search",
     prompts: [
       "Split my 3.8jt Natal THR bonus",
-      "Cek sisa cicilan aktif & payoff",
-      "Formula net_income - total_debt - living_pool",
+      "Cari histori beli kopi bulan ini",
+      "Cek saldo hari ini & simulasi sepatu 300rb SPayLater",
     ],
   },
 ];
@@ -57,6 +60,16 @@ export function MarqueeWorkspaceClient() {
   const [liveStatus, setLiveStatus] = useState<MarqueeStreamStatusEvent | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [turns, setTurns] = useState<WorkspaceTurn[]>([]);
+  const [memoryRules, setMemoryRules] = useState<MarqueeMemoryRule[]>([]);
+
+  const reloadMemory = async () => {
+    const rules = await fetchMarqueeMemory();
+    setMemoryRules(rules);
+  };
+
+  useEffect(() => {
+    void reloadMemory();
+  }, []);
 
   const periodTag = `${String(month).padStart(2, "0")}/${year}`;
 
@@ -95,6 +108,7 @@ export function MarqueeWorkspaceClient() {
           response: res ?? undefined,
         },
       ]);
+      void reloadMemory();
     } finally {
       setSending(false);
       setLiveStatus(null);
@@ -317,20 +331,20 @@ export function MarqueeWorkspaceClient() {
               </ul>
             </div>
 
-            <div className="pt-2.5 space-y-1">
+            <div className="py-2.5 space-y-1.5">
               <div className="text-[10px] font-mono uppercase text-text-tertiary">
-                Built-In Ledger Capabilities
+                Built-In Ledger Capabilities &amp; Domain Guard
               </div>
               <div className="flex flex-wrap gap-1 pt-1">
                 {[
-                  "Daily Safe-to-Spend",
+                  "Multi-Step Analysis",
                   "Cutoff Simulation",
-                  "THR & Payday Split",
-                  "Debt Payoff Planner",
-                  "Custom Formulas",
                   "Expense Staging",
-                  "Wallet Check-In",
-                  "Period Comparison",
+                  "Liability Shifts",
+                  "History Archive Search",
+                  "Preference Memory",
+                  "THR & Payday Split",
+                  "MCP Server Ready",
                 ].map((cap) => (
                   <span
                     key={cap}
@@ -340,6 +354,47 @@ export function MarqueeWorkspaceClient() {
                   </span>
                 ))}
               </div>
+              <p className="text-[10px] text-text-tertiary leading-relaxed pt-1">
+                Restricted strictly to Sunday Funday ERP tools (no host terminal, downloads, or raw SQL access).
+              </p>
+            </div>
+
+            <div className="pt-2.5 space-y-1.5">
+              <div className="flex items-center justify-between text-[10px] font-mono uppercase text-text-tertiary">
+                <span>Saved Preference Memory ({memoryRules.length})</span>
+                <Link href="/preferences?sub=ai" className="text-text-secondary hover:text-text-primary">
+                  MCP Setup
+                </Link>
+              </div>
+              {memoryRules.length === 0 ? (
+                <div className="text-[11px] text-text-tertiary">
+                  Say &quot;Ingat kalau beli kopi catat ke SPayLater&quot; to teach Marquee your default routing rules.
+                </div>
+              ) : (
+                <ul className="space-y-1.5">
+                  {memoryRules.map((rule) => (
+                    <li
+                      key={rule.id}
+                      className="flex items-start justify-between gap-2 rounded border border-border-subtle bg-canvas px-2.5 py-1.5 text-[11px]"
+                    >
+                      <span className="text-text-secondary leading-snug">{rule.ruleText}</span>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (await deleteMarqueeMemory(rule.id)) {
+                            setMemoryRules((prev) => prev.filter((r) => r.id !== rule.id));
+                          }
+                        }}
+                        aria-label={`Remove rule ${rule.id}`}
+                        className="p-0.5 text-text-tertiary hover:text-delta-negative cursor-pointer shrink-0"
+                        title="Forget rule"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </div>
         </aside>

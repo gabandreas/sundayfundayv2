@@ -2,6 +2,7 @@ import { UnauthorizedException } from '@nestjs/common';
 import { parseMarqueeIntent } from './marquee-nlu';
 import { MarqueeToolsService } from './marquee-tools.service';
 import { MarqueeService } from './marquee.service';
+import { MarqueeController } from './marquee.controller';
 import { MarqueeLlmService, stripReasoningBlocks } from './marquee-llm.service';
 import { MarqueeContextHydrator } from './marquee-context.service';
 import { encryptSecret, hashSecretToken } from '../common/crypto.util';
@@ -978,6 +979,393 @@ describe('Marquee NLU, 8 Deterministic Tools & Webhook Token Auth', () => {
       expect(stagedExp.summary).toContain('SPayLater');
       expect(stagedExp.summary).not.toContain('PAYLATER');
       expect(stagedExp.cards?.find((c) => c.label === 'Routed Cycle')?.value).toBe("DEC '26 (SPayLater)");
+    });
+  });
+
+  describe('Marquee V4 Agentic Guardrails, Multi-Step Loop, Memory, History RAG & MCP Server', () => {
+    it('refuses out-of-scope system, download, and raw SQL requests cleanly without balance fallback', async () => {
+      const parsedDownload = parseMarqueeIntent('Hey tolong download kimi web bridge sekarang');
+      expect(parsedDownload.tool).toBe('refuse_out_of_scope');
+      expect(parsedDownload.locale).toBe('id');
+
+      const parsedSql = parseMarqueeIntent('ExecuteSQL SELECT * FROM users');
+      expect(parsedSql.tool).toBe('refuse_out_of_scope');
+
+      const tools = new MarqueeToolsService(
+        { getDefaultActivePeriod: jest.fn().mockResolvedValue({ month: 11, year: 2026 }) } as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+      );
+      const res = await tools.executeTool(
+        'refuse_out_of_scope' as any,
+        { reasonQuery: 'Hey tolong download kimi web bridge' },
+        { userId: 1, month: 11, year: 2026 },
+      );
+      expect(res.ok).toBe(true);
+      expect(res.pendingAction).toBeUndefined();
+      expect(res.summary.toLowerCase()).toMatch(/sunday funday|keuangan|tidak dapat|cannot|outside/);
+    });
+
+    it('persists, hydrates, lists, forgets, and auto-applies user financial memory rules per userId', async () => {
+      const savedPolicy: any = { marqueeAi: { provider: 'TIER1_ONLY' } };
+      const prismaMock: any = {
+        globalConfig: {
+          findFirst: jest.fn().mockImplementation(async () => ({
+            id: 1,
+            userId: 1,
+            promoKillSwitchesJson: [],
+            formulaParamsJson: {},
+            financialPolicyJson: savedPolicy,
+          })),
+          update: jest.fn().mockImplementation(async ({ data }: any) => {
+            Object.assign(savedPolicy, data.financialPolicyJson);
+            return { id: 1, userId: 1, financialPolicyJson: savedPolicy };
+          }),
+        },
+        monthlySnapshot: {
+          findMany: jest.fn().mockResolvedValue([
+            {
+              id: 11,
+              month: 11,
+              year: 2026,
+              status: 'DRAFT',
+              finalTotalIncome: 5891000,
+              totalDeductions: 4522976,
+              actualDailyOperational: 1720316,
+              deficitUncovered: 0,
+              actualSavings: 6341,
+              selfReward: 250000,
+            },
+          ]),
+        },
+        liabilityLineItem: { findMany: jest.fn().mockResolvedValue([]) },
+        transaction: { findMany: jest.fn().mockResolvedValue([]) },
+        creditCardTransaction: { findMany: jest.fn().mockResolvedValue([]) },
+        creditContract: { findMany: jest.fn().mockResolvedValue([]) },
+        wishlistItem: { findMany: jest.fn().mockResolvedValue([]) },
+        savingsGoal: { findMany: jest.fn().mockResolvedValue([]) },
+        subscriptionItem: { findMany: jest.fn().mockResolvedValue([]) },
+      };
+
+      const simulateCutoffMock = jest.fn().mockResolvedValue({
+        startPeriodLabel: "DEC '26",
+        startPeriodMonth: 12,
+        startPeriodYear: 2026,
+        firstDueDateIso: '2026-12-25',
+        verdict: 'SAFE',
+        dsrAfterPercent: 21.5,
+      });
+
+      const tools = new MarqueeToolsService(
+        {
+          getDefaultActivePeriod: jest.fn().mockResolvedValue({ month: 11, year: 2026 }),
+          getOrCreateDraftSnapshot: jest.fn().mockResolvedValue({ id: 11, month: 11, year: 2026, actualDailyOperational: 1720316 }),
+        } as any,
+        {} as any,
+        {
+          simulateCutoffForUser: simulateCutoffMock,
+          getPacing: jest.fn().mockResolvedValue({ remainingBudget: 160000, weightedSafeToSpendToday: 40000 }),
+        } as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        undefined,
+        undefined,
+        undefined,
+        prismaMock,
+      );
+
+      // 1. Save preference memory: kopi -> PAYLATER
+      const rem = await tools.executeTool(
+        'manage_user_memory' as any,
+        {
+          action: 'REMEMBER',
+          ruleText: 'Kalau beli kopi catat ke SPayLater',
+          merchantPattern: 'kopi',
+          defaultInstrument: 'PAYLATER',
+        },
+        { userId: 1, confirm: true, month: 11, year: 2026 },
+      );
+      expect(rem.ok).toBe(true);
+      expect(Array.isArray(savedPolicy.marqueeMemory)).toBe(true);
+      expect(savedPolicy.marqueeMemory[0].defaultInstrument).toBe('PAYLATER');
+
+      // 2. Hydrator injects saved memory rules into context prompt
+      const hydrator = new MarqueeContextHydrator(
+        prismaMock,
+        { getDefaultActivePeriod: jest.fn().mockResolvedValue({ month: 11, year: 2026, cycleTemporalState: 'ACTIVE' }) } as any,
+        { getPacing: jest.fn().mockResolvedValue({ remainingBudget: 160000, weightedSafeToSpendToday: 40000 }) } as any,
+        { getOverview: jest.fn().mockResolvedValue({ totalBalance: 272541, rdpuBalance: 0 }) } as any,
+      );
+      const ctx = await hydrator.hydrateForUser(1, { month: 11, year: 2026, locale: 'id' });
+      expect(ctx.systemPrompt).toContain('Kalau beli kopi catat ke SPayLater');
+
+      // 3. Logging "catat kopi 34k" without instrument auto-applies PAYLATER from remembered rule!
+      const svc = new MarqueeService(
+        prismaMock,
+        tools,
+        new MarqueeLlmService(),
+        hydrator,
+      );
+      const autoRouted = await svc.chatWithProgress(1, {
+        message: 'catat kopi 34k',
+        month: 11,
+        year: 2026,
+      });
+      expect(autoRouted.pendingAction?.payload?.instrument).toBe('PAYLATER');
+
+      // 4. Forget memory rule cleanly
+      const listRes = await tools.executeTool('manage_user_memory' as any, { action: 'LIST' }, { userId: 1 });
+      expect((listRes.data as any).rules).toHaveLength(1);
+      const forgetRes = await tools.executeTool(
+        'manage_user_memory' as any,
+        { action: 'FORGET', memoryId: savedPolicy.marqueeMemory[0].id },
+        { userId: 1, confirm: true },
+      );
+      expect(forgetRes.ok).toBe(true);
+      expect(savedPolicy.marqueeMemory).toHaveLength(0);
+    });
+
+    it('searches scoped historical ledger records with synonym expansion and exact totals (search_financial_history)', async () => {
+      const prismaMock: any = {
+        transaction: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: 10, label: 'Kopi Kenangan Sudirman', amount: 34000, date: new Date('2026-10-12'), category: 'Food' },
+            { id: 11, label: 'GrabRide Kantor', amount: 28000, date: new Date('2026-10-14'), category: 'Transport' },
+          ]),
+        },
+        creditCardTransaction: {
+          findMany: jest.fn().mockResolvedValue([]),
+        },
+        liabilityLineItem: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: 318, title: 'Americano & Dunhill', monthlyAmount: 52000, month: 12, year: 2026, category: 'PAYLATER', isSettled: false },
+          ]),
+        },
+      };
+
+      const tools = new MarqueeToolsService(
+        { getDefaultActivePeriod: jest.fn().mockResolvedValue({ month: 11, year: 2026 }) } as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        undefined,
+        undefined,
+        undefined,
+        prismaMock,
+      );
+
+      const searchRes = await tools.executeTool(
+        'search_financial_history' as any,
+        { query: 'kopi' },
+        { userId: 1, month: 11, year: 2026 },
+      );
+      expect(searchRes.ok).toBe(true);
+      expect((searchRes.data as any).totalMatchedRp).toBe(86000);
+      expect((searchRes.data as any).matchCount).toBe(2);
+      expect(prismaMock.transaction.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ snapshot: { userId: 1 } }) }),
+      );
+    });
+
+    it('chains up to 4 bounded multi-step tool calls before staging 1 confirmation card', async () => {
+      const origFetch = global.fetch;
+      let llmCalls = 0;
+      global.fetch = jest.fn().mockImplementation(async () => {
+        llmCalls++;
+        if (llmCalls === 1) {
+          return {
+            ok: true,
+            json: async () => ({
+              choices: [
+                {
+                  message: {
+                    content: '',
+                    tool_calls: [{ id: 'tc_1', type: 'function', function: { name: 'get_paycycle_pulse', arguments: '{}' } }],
+                  },
+                },
+              ],
+            }),
+          } as any;
+        }
+        if (llmCalls === 2) {
+          return {
+            ok: true,
+            json: async () => ({
+              choices: [
+                {
+                  message: {
+                    content: '',
+                    tool_calls: [
+                      {
+                        id: 'tc_2',
+                        type: 'function',
+                        function: {
+                          name: 'simulate_purchase_cutoff',
+                          arguments: JSON.stringify({ title: 'Sepatu', amountRp: 300000, instrument: 'PAYLATER' }),
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            }),
+          } as any;
+        }
+        return {
+          ok: true,
+          json: async () => ({
+            choices: [
+              {
+                message: {
+                  content: '',
+                  tool_calls: [
+                    {
+                      id: 'tc_3',
+                      type: 'function',
+                      function: {
+                        name: 'prepare_quick_transaction',
+                        arguments: JSON.stringify({ title: 'Sepatu', amountRp: 300000, instrument: 'PAYLATER' }),
+                      },
+                    },
+                  ],
+                },
+              },
+            ],
+          }),
+        } as any;
+      });
+
+      try {
+        const deepseekEnc = encryptSecret('sk-deepseek-multistep-test');
+        const prismaMock: any = {
+          globalConfig: {
+            findFirst: jest.fn().mockResolvedValue({
+              userId: 1,
+              financialPolicyJson: { marqueeAi: { provider: 'DEEPSEEK', deepseekApiKeyEnc: deepseekEnc, deepseekModel: 'deepseek-flash' } },
+            }),
+          },
+        };
+        const tools = new MarqueeToolsService(
+          {
+            getDefaultActivePeriod: jest.fn().mockResolvedValue({ month: 11, year: 2026 }),
+            getOrCreateDraftSnapshot: jest.fn().mockResolvedValue({ id: 11, month: 11, year: 2026, actualDailyOperational: 1720316, finalTotalIncome: 5891000 }),
+          } as any,
+          {} as any,
+          {
+            getPacing: jest.fn().mockResolvedValue({ remainingBudget: 160000, weightedSafeToSpendToday: 40000, cycleTemporalState: 'ACTIVE' }),
+            simulateCutoffForUser: jest.fn().mockResolvedValue({ startPeriodLabel: "DEC '26", firstDueDateIso: '2026-12-25', verdict: 'SAFE', dsrAfterPercent: 25 }),
+          } as any,
+          {} as any,
+          {} as any,
+          {} as any,
+          undefined,
+          undefined,
+          undefined,
+          prismaMock,
+        );
+
+        const svc = new MarqueeService(prismaMock, tools, new MarqueeLlmService());
+        const res = await svc.chatWithProgress(1, {
+          message: 'Cek saldo dan simulasi sepatu 300rb SPayLater, kalau aman siapkan catatan',
+          month: 11,
+          year: 2026,
+        });
+        expect(llmCalls).toBe(3);
+        expect(res.pendingAction?.type).toBe('CONFIRM_EXPENSE');
+        expect((res.agentSteps ?? []).length).toBeGreaterThanOrEqual(4);
+      } finally {
+        global.fetch = origFetch;
+      }
+    });
+
+    it('exposes authenticated narrow business MCP JSON-RPC endpoints and blocks ExecuteSQL / unauthed calls', async () => {
+      const secret = 'mrq_mcp_valid_secret_token';
+      const hashed = hashSecretToken(secret);
+      const prismaMock: any = {
+        globalConfig: {
+          findMany: jest.fn().mockResolvedValue([
+            {
+              userId: 1,
+              financialPolicyJson: {
+                marqueeAi: { webhookEnabled: true, webhookTokenHash: hashed },
+              },
+            },
+          ]),
+          findFirst: jest.fn().mockResolvedValue({ userId: 1, financialPolicyJson: {} }),
+        },
+      };
+      const tools = new MarqueeToolsService(
+        {
+          getDefaultActivePeriod: jest.fn().mockResolvedValue({ month: 11, year: 2026 }),
+          getOrCreateDraftSnapshot: jest.fn().mockResolvedValue({ id: 11, month: 11, year: 2026, actualDailyOperational: 160000 }),
+        } as any,
+        {} as any,
+        {
+          getPacing: jest.fn().mockResolvedValue({
+            cycleTemporalState: 'ACTIVE',
+            safeToSpendToday: 40000,
+            remainingBudget: 160000,
+            cycleDateLabel: '28 Oct - 26 Nov 2026',
+          }),
+        } as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        undefined,
+        undefined,
+        undefined,
+        prismaMock,
+      );
+      const svc = new MarqueeService(prismaMock, tools, new MarqueeLlmService());
+      const controller = new MarqueeController(svc);
+
+      // 1. Unauthenticated MCP call throws 401
+      await expect(
+        controller.handleMcp(undefined, undefined, { jsonrpc: '2.0', id: 1, method: 'tools/list' } as any),
+      ).rejects.toThrow(UnauthorizedException);
+
+      // 2. Initialize handshake returns server info cleanly
+      const initRes: any = await controller.handleMcp(
+        secret,
+        undefined,
+        { jsonrpc: '2.0', id: 1, method: 'initialize' } as any,
+      );
+      expect(initRes.result.serverInfo.name).toBe('sundayfunday-erp');
+
+      // 3. tools/list lists business tools only (no ExecuteSQL or shell tools)
+      const listRes: any = await controller.handleMcp(
+        secret,
+        undefined,
+        { jsonrpc: '2.0', id: 2, method: 'tools/list' } as any,
+      );
+      const names: string[] = listRes.result.tools.map((t: any) => t.name);
+      expect(names).toContain('get_paycycle_pulse');
+      expect(names).toContain('search_financial_history');
+      expect(names).toContain('manage_user_memory');
+      expect(names).not.toContain('execute_sql');
+      expect(names).not.toContain('run_shell');
+
+      // 4. tools/call executes allowed read tool and blocks execute_sql
+      const callOk: any = await controller.handleMcp(
+        secret,
+        undefined,
+        { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'get_paycycle_pulse', arguments: {} } } as any,
+      );
+      expect(callOk.result.isError).toBe(false);
+      expect(callOk.result.content?.[0]?.text).toContain('Rp 40.000');
+
+      const callBlocked: any = await controller.handleMcp(
+        secret,
+        undefined,
+        { jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'execute_sql', arguments: { query: 'SELECT 1' } } } as any,
+      );
+      expect(callBlocked.result.isError).toBe(true);
     });
   });
 });
