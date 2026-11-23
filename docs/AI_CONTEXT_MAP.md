@@ -11,6 +11,7 @@ Exact module and symbol locations to minimize redundant search reads. See also:
 - `docs/MOBILE_PRD.md`
 - `docs/MOBILE_ARCHITECTURE.md`
 - `docs/MOBILE_TDD_AND_UX_SPEC.md`
+- `docs/WEB_E2E_BASELINE_AND_MOBILE_PENDING.md` (Latest checkpoint anchor: last Web enhancement commits vs Mobile pending snapshot)
 - `docs/GO_ENGINE_ARCHITECTURE.md`
 - `docs/PAYCYCLE_HORIZON_AND_CUTOFF_LAW.md`
 - `docs/MODULAR_PREFERENCES_AND_NAVIGATION.md`
