@@ -8,6 +8,7 @@ import {
   Param,
   ParseIntPipe,
   Req,
+  UseGuards,
 } from '@nestjs/common';
 import { ConfigService } from './config.service';
 import { ConfigSelectors } from './config.selectors';
@@ -16,6 +17,7 @@ import { SimulateRulesDto } from './dto/simulate-rules.dto';
 import { CreateCustomRequestDto } from './dto/create-custom-request.dto';
 import { UpdateCustomRequestDto } from './dto/update-custom-request.dto';
 import { getUserIdOrThrow } from '../auth/auth.utils';
+import { PlatformOwnerGuard } from '../auth/roles.guard';
 
 @Controller('api/config')
 export class ConfigController {
@@ -60,11 +62,13 @@ export class ConfigController {
   }
 
   @Get('backup')
-  exportBackup() {
-    return this.configSelectors.exportFullBackup();
+  exportBackup(@Req() req?: any) {
+    const userId = getUserIdOrThrow(req);
+    return this.configSelectors.exportFullBackup(userId);
   }
 
   @Post('restore')
+  @UseGuards(PlatformOwnerGuard)
   restoreBackup(
     @Body()
     body: {
@@ -80,16 +84,19 @@ export class ConfigController {
   // ─────────────────────────────────────────────
 
   @Get('custom-requests')
-  listCustomRequests() {
-    return this.configService.listCustomRequests();
+  listCustomRequests(@Req() req?: any) {
+    const userId = getUserIdOrThrow(req);
+    return this.configService.listCustomRequests(userId);
   }
 
   @Post('custom-requests')
-  createCustomRequest(@Body() dto: CreateCustomRequestDto) {
-    return this.configService.createCustomRequest(dto);
+  createCustomRequest(@Body() dto: CreateCustomRequestDto, @Req() req?: any) {
+    const userId = getUserIdOrThrow(req);
+    return this.configService.createCustomRequest(dto, userId);
   }
 
   @Patch('custom-requests/:id')
+  @UseGuards(PlatformOwnerGuard)
   updateCustomRequest(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateCustomRequestDto,
@@ -98,6 +105,7 @@ export class ConfigController {
   }
 
   @Delete('custom-requests/:id')
+  @UseGuards(PlatformOwnerGuard)
   deleteCustomRequest(@Param('id', ParseIntPipe) id: number) {
     return this.configService.deleteCustomRequest(id);
   }

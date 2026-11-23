@@ -158,9 +158,13 @@ export class CreditService {
   // CreditContract CRUD
   // -------------------------------------------------------------------------
 
-  async createContract(dto: CreateCreditContractDto): Promise<CreditContract> {
+  async createContract(
+    dto: CreateCreditContractDto,
+    userId: number = 1,
+  ): Promise<CreditContract> {
     const created = await this.prisma.creditContract.create({
       data: {
+        userId,
         label: dto.label,
         principalAmount: dto.principalAmount,
         monthlyInstallment: dto.monthlyInstallment,
@@ -173,6 +177,7 @@ export class CreditService {
     });
 
     await this.auditLogService.record({
+      userId,
       action: 'CREATE_CREDIT_CONTRACT',
       category: AuditCategory.LIABILITIES,
       summary: `Created credit contract "${created.label}"`,
@@ -188,9 +193,10 @@ export class CreditService {
   async updateContract(
     id: number,
     dto: UpdateCreditContractDto,
+    userId: number = 1,
   ): Promise<CreditContract> {
-    const existing = await this.prisma.creditContract.findUnique({
-      where: { id },
+    const existing = await this.prisma.creditContract.findFirst({
+      where: { id, userId },
     });
     if (!existing) {
       throw new NotFoundException(`CreditContract #${id} not found`);
@@ -212,6 +218,7 @@ export class CreditService {
     });
 
     await this.auditLogService.record({
+      userId,
       action: 'UPDATE_CREDIT_CONTRACT',
       category: AuditCategory.LIABILITIES,
       summary: `Updated credit contract "${updated.label}" (#${id})`,
@@ -224,9 +231,12 @@ export class CreditService {
     return updated;
   }
 
-  async deleteContract(id: number): Promise<CreditContract> {
-    const existing = await this.prisma.creditContract.findUnique({
-      where: { id },
+  async deleteContract(
+    id: number,
+    userId: number = 1,
+  ): Promise<CreditContract> {
+    const existing = await this.prisma.creditContract.findFirst({
+      where: { id, userId },
     });
     if (!existing) {
       throw new NotFoundException(`CreditContract #${id} not found`);
@@ -234,6 +244,7 @@ export class CreditService {
     const deleted = await this.prisma.creditContract.delete({ where: { id } });
 
     await this.auditLogService.record({
+      userId,
       action: 'DELETE_CREDIT_CONTRACT',
       category: AuditCategory.LIABILITIES,
       summary: `Deleted credit contract "${existing.label}" (#${id})`,
@@ -1012,14 +1023,13 @@ export class CreditService {
     }
 
     const [contracts, bulkBills, cardTxs] = await Promise.all([
-      userId === 1
-        ? tx.creditContract.findMany({
-            where: {
-              isActive: true,
-              remainingTenor: { gt: 0 },
-            },
-          })
-        : Promise.resolve<CreditContract[]>([]),
+      tx.creditContract.findMany({
+        where: {
+          userId,
+          isActive: true,
+          remainingTenor: { gt: 0 },
+        },
+      }),
       tx.monthlyBulkBill.findMany({
         where: {
           userId,

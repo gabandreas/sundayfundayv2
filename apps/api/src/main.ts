@@ -32,7 +32,7 @@ export function isAllowedCorsOrigin(origin: string | undefined, extraOrigins: st
   if (!origin) return true;
   if (extraOrigins.includes(origin)) return true;
   if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return true;
-  if (/^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(origin)) return true;
+  if (/^https:\/\/sundayfunday(?:-[a-z0-9-]+)?\.vercel\.app$/.test(origin)) return true;
   return false;
 }
 

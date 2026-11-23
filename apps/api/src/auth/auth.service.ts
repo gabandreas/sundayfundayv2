@@ -49,13 +49,39 @@ export class AuthService implements OnModuleInit {
     @Optional() private readonly configService?: ConfigService,
   ) {}
 
-  private recordLoginFailureWithAlert(
+  private async checkRateLimit(rateLimitKey: string, clientIp: string): Promise<void> {
+    if (typeof (this.rateLimiter as any).checkAsync === 'function') {
+      await this.rateLimiter.checkAsync(rateLimitKey, clientIp);
+      return;
+    }
+    this.rateLimiter.check(rateLimitKey, clientIp);
+  }
+
+  private async recordRateLimitFailure(rateLimitKey: string, clientIp: string): Promise<void> {
+    if (typeof (this.rateLimiter as any).recordFailureAsync === 'function') {
+      await this.rateLimiter.recordFailureAsync(rateLimitKey, clientIp);
+      return;
+    }
+    this.rateLimiter.recordFailure(rateLimitKey, clientIp);
+  }
+
+  private async recordRateLimitSuccess(rateLimitKey: string, clientIp: string): Promise<void> {
+    if (typeof (this.rateLimiter as any).recordSuccessAsync === 'function') {
+      await this.rateLimiter.recordSuccessAsync(rateLimitKey, clientIp);
+      return;
+    }
+    if (typeof this.rateLimiter.recordSuccess === 'function') {
+      this.rateLimiter.recordSuccess(rateLimitKey, clientIp);
+    }
+  }
+
+  private async recordLoginFailureWithAlert(
     rateLimitKey: string,
     clientIp: string,
     userId?: number,
-  ): void {
+  ): Promise<void> {
     try {
-      this.rateLimiter.recordFailure(rateLimitKey, clientIp);
+      await this.recordRateLimitFailure(rateLimitKey, clientIp);
     } catch (err) {
       if (
         err instanceof HttpException &&
@@ -330,7 +356,7 @@ export class AuthService implements OnModuleInit {
     // 1. Authenticate via Account Name + Username or Username fallback (Enterprise 3-field flow)
     if (acc && usr) {
       rateLimitKey = `${acc}:${usr}`.toLowerCase();
-      this.rateLimiter.check(rateLimitKey, clientIp);
+      await this.checkRateLimit(rateLimitKey, clientIp);
 
       user = await this.prisma.user.findFirst({
         where: {
@@ -340,7 +366,7 @@ export class AuthService implements OnModuleInit {
       });
     } else if (usr) {
       rateLimitKey = usr.toLowerCase();
-      this.rateLimiter.check(rateLimitKey, clientIp);
+      await this.checkRateLimit(rateLimitKey, clientIp);
 
       user = await this.prisma.user.findFirst({
         where: {
@@ -355,7 +381,7 @@ export class AuthService implements OnModuleInit {
       // 2. Legacy / test-mode fallback via email
       const email = dto.email.trim().toLowerCase();
       rateLimitKey = email;
-      this.rateLimiter.check(rateLimitKey, clientIp);
+      await this.checkRateLimit(rateLimitKey, clientIp);
 
       user = await this.prisma.user.findUnique({
         where: { email },
@@ -371,7 +397,7 @@ export class AuthService implements OnModuleInit {
     if (!user) {
       // Constant-time dummy scrypt hash verification to prevent user enumeration timing leaks
       verifyPasswordWithStatus(dto.password || '', DUMMY_SCRYPT_HASH);
-      this.recordLoginFailureWithAlert(rateLimitKey || 'unknown', clientIp);
+      await this.recordLoginFailureWithAlert(rateLimitKey || 'unknown', clientIp);
       throw new UnauthorizedException(failureMessage);
     }
 
@@ -380,11 +406,8 @@ export class AuthService implements OnModuleInit {
     }
 
     const pwStatus = verifyPasswordWithStatus(dto.password, user.passwordHash);
-    const isPasswordValid =
-      pwStatus.isValid ||
-      (user.id === 1 && (dto.password === 'SundayFunday#2026' || dto.password === 'Djakarta2026Nov!@#'));
-    if (!isPasswordValid) {
-      this.recordLoginFailureWithAlert(rateLimitKey || user.email, clientIp, user.id);
+    if (!pwStatus.isValid) {
+      await this.recordLoginFailureWithAlert(rateLimitKey || user.email, clientIp, user.id);
       throw new UnauthorizedException(failureMessage);
     }
 
@@ -421,7 +444,7 @@ export class AuthService implements OnModuleInit {
           }
 
           if (!user.securityPinHash || !verifyPin(dto.securityPin, user.securityPinHash)) {
-            this.recordLoginFailureWithAlert(rateLimitKey || user.email, clientIp, user.id);
+            await this.recordLoginFailureWithAlert(rateLimitKey || user.email, clientIp, user.id);
             throw new UnauthorizedException('Invalid Security PIN.');
           }
 
@@ -448,7 +471,7 @@ export class AuthService implements OnModuleInit {
     }
 
     // Authentication succeeded: reset failed attempts counter for this key
-    this.rateLimiter.recordSuccess(rateLimitKey || user.email, clientIp);
+    await this.recordRateLimitSuccess(rateLimitKey || user.email, clientIp);
 
     const token = signToken({
       sub: user.id,
@@ -526,7 +549,7 @@ export class AuthService implements OnModuleInit {
     }
 
     const rateLimitKey = `verify_pw:${userId}`;
-    this.rateLimiter.check(rateLimitKey, clientIp);
+    await this.checkRateLimit(rateLimitKey, clientIp);
 
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -537,15 +560,8 @@ export class AuthService implements OnModuleInit {
     }
 
     const pwStatus = verifyPasswordWithStatus(password, user.passwordHash);
-    let isValid = pwStatus.isValid;
-
-    // Fallback for User 1 in legacy test runs if SundayFunday#2026 is used
-    if (!isValid && user.id === 1 && password === 'SundayFunday#2026') {
-      isValid = true;
-    }
-
-    if (!isValid) {
-      this.rateLimiter.recordFailure(rateLimitKey, clientIp);
+    if (!pwStatus.isValid) {
+      await this.recordLoginFailureWithAlert(rateLimitKey, clientIp, userId);
       throw new UnauthorizedException('Invalid account password.');
     }
 
@@ -557,7 +573,7 @@ export class AuthService implements OnModuleInit {
       }).catch(() => {});
     }
 
-    this.rateLimiter.recordSuccess(rateLimitKey, clientIp);
+    await this.recordRateLimitSuccess(rateLimitKey, clientIp);
     return { verified: true };
   }
 
@@ -853,11 +869,7 @@ export class AuthService implements OnModuleInit {
       throw new NotFoundException('User account not found.');
     }
     const check = verifyPasswordWithStatus(dto.currentPassword || '', user.passwordHash);
-    const isLegacyOwnerMatch =
-      user.id === 1 &&
-      (dto.currentPassword === 'SundayFunday#2026' ||
-        dto.currentPassword === 'Djakarta2026Nov!@#');
-    if (!check.isValid && !isLegacyOwnerMatch) {
+    if (!check.isValid) {
       throw new UnauthorizedException('Current password is incorrect.');
     }
     if (!dto.newPassword || dto.newPassword.length < 8) {

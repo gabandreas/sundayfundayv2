@@ -409,16 +409,9 @@ export class SnapshotsSelectors {
       this.prisma.creditCardTransaction.findMany({
         where: { userId },
       }),
-      userId === 1
-        ? this.prisma.creditContract.findMany({
-            where: { isActive: true, remainingTenor: { gt: 0 } },
-          })
-        : Promise.resolve([] as Array<{
-            startYear: number;
-            startMonth: number;
-            totalTenor: number;
-            monthlyInstallment: number;
-          }>),
+      this.prisma.creditContract.findMany({
+        where: { userId, isActive: true, remainingTenor: { gt: 0 } },
+      }),
     ]);
 
     if (!config) {

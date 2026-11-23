@@ -36,7 +36,7 @@ Every headline, empty state, helper label, and Marquee AI response must follow s
 4. **Unified Highlight & Callout Tokens (`globals.css`):** Selected cards, active drawer items, and alerts use semantic dark-slate utility tokens (`.erp-surface-selected`, `.erp-callout-caution`, `.erp-callout-urgency`, `.erp-callout-positive`) instead of loud yellow/white wireframe borders.
 5. **Zero Dev-Trace Leakage in Consumer AI Chat:** Marquee chat prose strips `<think>` blocks and emojis and never renders raw tool names or `TIER1_NLU` / `Tier 2` debug tags.
 4. **Flattened Card Hierarchy (Hairline-Divided Strips):** Never nest bordered mini-cards inside sub-cards inside parent cards (`card-in-card-in-card`). Group secondary metrics inside a card using hairline dividers (`divide-x divide-border-subtle border-y border-border-subtle py-2.5`).
-5. **Intentional Asymmetric Grid Proportions:** Avoid reflexive 3-equal-column (`grid-cols-3`) rows for unequal domain concepts. Use 12-column asymmetric proportions (`5 / 4 / 3` on `OverviewExecutiveRibbon`, `8 / 4` on `MarqueeWorkspaceClient`).
+5. **Intentional Asymmetric Grid Proportions:** Avoid reflexive 3-equal-column (`grid-cols-3`) rows for unequal domain concepts. Use 12-column asymmetric proportions (`5 / 4 / 3` on `OverviewExecutiveRibbon`, `8 / 4` with `min-w-0` and `xl:sticky` on `MarqueeWorkspaceClient`).
 6. **Typographic Discipline:** Reserve the display serif face (`font-serif` / `font-display`) strictly for centerpiece numbers (Safe-to-Spend Today, Net Position, Discipline Score). All secondary figures, ledger rows, and matrices use tabular monospace (`font-mono tabular-nums`).
 
 ---

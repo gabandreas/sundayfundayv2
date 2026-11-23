@@ -23,6 +23,7 @@ export function MarqueeAiSettingsPanel() {
   const [webhookEnabled, setWebhookEnabled] = useState(true);
   const [rawTokenOnce, setRawTokenOnce] = useState<string | null>(null);
   const [copiedToken, setCopiedToken] = useState(false);
+  const [copiedMcpConfig, setCopiedMcpConfig] = useState(false);
   const [saving, setSaving] = useState(false);
   const [rotating, setRotating] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -94,6 +95,31 @@ export function MarqueeAiSettingsPanel() {
       await navigator.clipboard.writeText(val);
       setCopiedToken(true);
       setTimeout(() => setCopiedToken(false), 1800);
+    } catch {}
+  };
+
+  const mcpSnippetJson = JSON.stringify(
+    {
+      mcpServers: {
+        "sundayfunday-erp": {
+          command: "npx",
+          args: ["tsx", "scripts/sundayfunday-mcp.ts"],
+          env: {
+            SUNDAYFUNDAY_API_URL: "https://sundayfunday-api.vercel.app",
+            SUNDAYFUNDAY_MARQUEE_TOKEN: rawTokenOnce || "<YOUR_MRQ_TOKEN>",
+          },
+        },
+      },
+    },
+    null,
+    2,
+  );
+
+  const copyMcpConfig = async () => {
+    try {
+      await navigator.clipboard.writeText(mcpSnippetJson);
+      setCopiedMcpConfig(true);
+      setTimeout(() => setCopiedMcpConfig(false), 1800);
     } catch {}
   };
 
@@ -272,7 +298,7 @@ export function MarqueeAiSettingsPanel() {
               type="checkbox"
               checked={webhookEnabled}
               onChange={(e) => setWebhookEnabled(e.target.checked)}
-              className="rounded border-border"
+              className="h-4 w-4 rounded border-border bg-canvas accent-delta-positive cursor-pointer"
             />
             <span>Enable headless quick-capture webhook (POST /api/marquee/webhook)</span>
           </label>
@@ -386,20 +412,24 @@ export function MarqueeAiSettingsPanel() {
           </div>
         </div>
 
-        <pre className="p-3 rounded border border-border-subtle bg-canvas text-[11px] font-mono text-text-secondary overflow-x-auto">
-{`{
-  "mcpServers": {
-    "sundayfunday-erp": {
-      "command": "npx",
-      "args": ["tsx", "scripts/sundayfunday-mcp.ts"],
-      "env": {
-        "SUNDAYFUNDAY_API_URL": "https://sundayfunday-api.vercel.app",
-        "SUNDAYFUNDAY_MARQUEE_TOKEN": "${rawTokenOnce || "<YOUR_MRQ_TOKEN>"}"
-      }
-    }
-  }
-}`}
-        </pre>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+              MCP Client Configuration (claude_desktop_config.json / mcp_config.json)
+            </span>
+            <button
+              type="button"
+              onClick={() => void copyMcpConfig()}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-border bg-canvas hover:bg-surface-hover text-[11px] font-mono text-text-secondary hover:text-text-primary cursor-pointer"
+            >
+              {copiedMcpConfig ? <Check className="w-3.5 h-3.5 text-delta-positive" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copiedMcpConfig ? "Copied JSON" : "Copy Config JSON"}</span>
+            </button>
+          </div>
+          <pre className="p-3 rounded border border-border-subtle bg-canvas text-[11px] font-mono text-text-secondary overflow-x-auto">
+            {mcpSnippetJson}
+          </pre>
+        </div>
       </div>
     </div>
   );

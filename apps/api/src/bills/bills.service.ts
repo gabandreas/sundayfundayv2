@@ -11,9 +11,10 @@ export class BillsService {
    * isActive defaults to true; isProcessed is not set here — processing is an
    * explicit, separate action. Do not auto-process on creation.
    */
-  async createBill(dto: CreateScheduledBillDto) {
+  async createBill(dto: CreateScheduledBillDto, userId: number = 1) {
     return this.prisma.scheduledBill.create({
       data: {
+        userId,
         label: dto.label,
         amount: dto.amount,
         dueDayOfMonth: dto.dueDayOfMonth,
@@ -22,8 +23,10 @@ export class BillsService {
     });
   }
 
-  async deleteBill(id: number) {
-    const existing = await this.prisma.scheduledBill.findUnique({ where: { id } });
+  async deleteBill(id: number, userId: number = 1) {
+    const existing = await this.prisma.scheduledBill.findFirst({
+      where: { id, userId },
+    });
     if (!existing) {
       throw new NotFoundException(`ScheduledBill #${id} not found`);
     }

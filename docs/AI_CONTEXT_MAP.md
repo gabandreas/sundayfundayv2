@@ -7,6 +7,7 @@ Exact module and symbol locations to minimize redundant search reads. See also:
 - `docs/MARQUEE_AI_COPILOT.md`
 - `docs/COPYWRITING_AND_DESIGN_SYSTEM.md`
 - `docs/TDD_AND_ERROR_CATALOG.md`
+- `docs/ERD_AND_MOBILE_API_CONTRACT.md`
 - `docs/GO_ENGINE_ARCHITECTURE.md`
 - `docs/PAYCYCLE_HORIZON_AND_CUTOFF_LAW.md`
 - `docs/MODULAR_PREFERENCES_AND_NAVIGATION.md`
@@ -28,9 +29,9 @@ Exact module and symbol locations to minimize redundant search reads. See also:
 - `common/crypto.util.ts`: `encryptSecret`, `decryptSecret` (`v1:<ivHex>:<authTagHex>:<cipherHex>` AES-256-GCM), `generateMarqueeToken` (`mrq_*`), `hashSecretToken` (SHA-256), `verifySecretToken` (`crypto.timingSafeEqual`).
 - `marquee/marquee-context.service.ts`: `MarqueeContextHydrator.hydrateForUser` (userId-scoped paycycle state, multi-cycle snapshots, canonical due days `[11, 17, 23, 24, 25]` with H-1 business-day shift on the 11th + dynamic `daysInMonth-15` SPayLater / `25th` Permata CC cutoffs, payoff milestones `JAN '27` / `FEB '27` / `SEP '27`, active route/sub-tab context, and 6 Human Writing Laws system prompt).
 - `marquee/marquee-nlu.ts`: `parseMarqueeIntent` (<5ms Tier 1 trilingual EN/ID/ZH NLU parser).
-- `marquee/marquee-tools.service.ts`: `MarqueeToolsService.executeTool` (8 canonical tools: `get_paycycle_pulse`, `simulate_purchase_cutoff`, `optimize_payday_thr_split`, `analyze_debt_burndown`, `evaluate_custom_formula`, `prepare_quick_transaction`, `prepare_wallet_checkin`, `explain_period_variance` + legacy aliases).
-- `marquee/marquee-llm.service.ts`: `MarqueeLlmService` (DeepSeek V4.1 Flash `deepseek-flash` / `deepseek-chat` / `deepseek-reasoner` with two-turn `synthesizeToolResult` & `tool: null` conversation support, OpenCode `deepseek-v4.1-flash-free`, `@google/genai` `gemini-3.8-flash`, and Groq `llama-3.3-70b-versatile` with Tier 1 fallback).
-- `marquee/marquee.controller.ts` (`/api/marquee`): `POST /chat`, `GET /config`, `PUT /config`, `POST /webhook-token/rotate`, `POST /webhook` (`X-Marquee-Token` headless quick-capture).
+- `marquee/marquee-tools.service.ts`: `MarqueeToolsService.executeTool` (15 curated business tools: `get_paycycle_pulse`, `simulate_purchase_cutoff`, `optimize_payday_thr_split`, `analyze_debt_burndown`, `evaluate_custom_formula` via AST `evaluateFormulaDslTs` with zero dynamic eval, `prepare_quick_transaction`, `prepare_wallet_checkin`, `explain_period_variance`, `manage_user_memory`, `search_financial_history`, `refuse_out_of_scope` + mutation/alias handlers).
+- `marquee/marquee-llm.service.ts`: `MarqueeLlmService` (DeepSeek V4.1 Flash `deepseek-flash` / `deepseek-chat` / `deepseek-reasoner` with bounded 4-hop ReAct tool loop, OpenCode `deepseek-v4.1-flash-free`, `@google/genai` `gemini-3.8-flash`, and Groq `llama-3.3-70b-versatile` with Tier 1 fallback).
+- `marquee/marquee.controller.ts` (`/api/marquee`): `POST /chat`, `POST /chat/stream` (SSE progress + answer streaming), `GET /memory`, `DELETE /memory/:id`, `GET /config`, `PUT /config`, `POST /webhook-token/rotate`, `POST /webhook` (`X-Marquee-Token`), and `POST /mcp` (authenticated JSON-RPC 2.0 MCP server paired with `scripts/sundayfunday-mcp.ts`).
 
 ### Credit & Debt Matrix (`apps/api/src/credit/`)
 - `credit.controller.ts` (`/api/credit`):
@@ -44,8 +45,10 @@ Exact module and symbol locations to minimize redundant search reads. See also:
 - `credit.utils.ts`: `calculateCardDueAmountForMonth`, `calculateCardInstallmentProgress`.
 - `kill-switch-message.ts`: `DEFAULT_KILL_SWITCH_MESSAGE_TEMPLATE`, `formatKillSwitchEmailSubject`, `buildKillSwitchEmailHtml` (formal English cancellation correspondence).
 
-### Email Delivery, Profile Auth & SMTP (`apps/api/src/email/` & `apps/api/src/auth/`)
-- `auth.controller.ts` & `auth.service.ts` (`/api/auth`): `POST /login`, `POST /demo-login`, `POST /demo-reset`, `PATCH /profile` (`UpdateProfileDto` updating authenticated `User.email`/`fullName` without touching `GlobalConfig.killSwitchSmtpAppPassword`).
+### Email Delivery, Profile Auth & Security Hardening (`apps/api/src/email/`, `apps/api/src/auth/`, `apps/api/src/main.ts`)
+- `main.ts`: Strict `isAllowedCorsOrigin` permitting Sunday Funday domains (`/^https:\/\/sundayfunday(?:-[a-z0-9-]+)?\.vercel\.app$/`) and explicit localhost origins (`CORS` wildcard `*.vercel.app` removed), security headers (`HSTS`, `X-Content-Type-Options`, `Referrer-Policy`).
+- `auth/rate-limiter.service.ts`: `RateLimiterService` providing synchronous checks plus Postgres-backed `AuthRateLimit` persistence (`checkAsync`, `recordFailureAsync`, `recordSuccessAsync`) for serverless multi-isolate brute-force protection.
+- `auth/auth.controller.ts` & `auth/auth.service.ts` (`/api/auth`): `POST /login`, `POST /demo-login`, `POST /demo-reset`, `PATCH /profile`, `POST /change-password` — strictly cryptographic `scryptv2` verification (zero literal owner backdoor passwords).
 - `email.controller.ts` (`/api/email`): `GET /status` (includes `profileEmail` & `platformFrom`), `POST /verify`, `POST /preview` (strictly read-only template renderer), `POST /test-dispatch`, `POST /monthly-statement`, `POST /cutoff-digest`, `POST /ledger-backup` (dispatch endpoints accept optional `dryRun: boolean`).
 - `email.service.ts`: `getStatus` & `verifyConnection` (`mode: 'LIVE_SMTP' | 'AUTH_ERROR' | 'DRY_RUN_PREVIEW'` backed by real `verifySmtpConnection`), decoupled `From`/`Reply-To` (`PLATFORM_EMAIL_FROM` = `"Sunday Funday ERP" <sundayfundayerp@gmail.com>`) vs `To` (`User.email`) vs Gmail SMTP Auth Login, Stripe/Linear/Mercury light-canvas HTML templates (`EN`/`ID`/`ZH`), and synthetic pentest lockout alert suppression (`isSyntheticProbeIdentifier`).
 - `smtp-transport.util.ts`: Shared SMTP utility providing `PLATFORM_EMAIL_FROM`, `PLATFORM_EMAIL_REPLY_TO`, `isSyntheticProbeIdentifier`, `normalizeSmtpAppPassword`, `sanitizeSmtpMessage`, `classifySmtpError` (`535`/`534`/`ETIMEDOUT`/TLS/`550`), `verifySmtpConnection`, and `sendSmtpMailWithFallback` (automatic `465` SSL -> `587` STARTTLS retry for network/TLS failures).

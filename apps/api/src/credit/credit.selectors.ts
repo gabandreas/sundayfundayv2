@@ -251,12 +251,11 @@ export class CreditSelectors {
   constructor(private readonly prisma: PrismaService) {}
 
   async listContracts(isActive?: boolean, userId: number = 1): Promise<ContractWithTimeline[]> {
-    if (userId === 2) {
-      return [];
-    }
-
     const contracts = await this.prisma.creditContract.findMany({
-      where: isActive !== undefined ? { isActive } : undefined,
+      where: {
+        userId,
+        ...(isActive !== undefined ? { isActive } : {}),
+      },
       orderBy: { createdAt: 'desc' },
     });
 
@@ -286,8 +285,8 @@ export class CreditSelectors {
     });
   }
 
-  async getContractById(id: number): Promise<CreditContract | null> {
-    return this.prisma.creditContract.findUnique({ where: { id } });
+  async getContractById(id: number, userId: number = 1): Promise<CreditContract | null> {
+    return this.prisma.creditContract.findFirst({ where: { id, userId } });
   }
 
   async listCardTransactions(
@@ -506,12 +505,10 @@ export class CreditSelectors {
           where: { userId },
           orderBy: [{ year: 'asc' }, { month: 'asc' }, { id: 'asc' }],
         }),
-        userId === 2
-          ? Promise.resolve([])
-          : this.prisma.creditContract.findMany({
-              where: { isActive: true },
-              orderBy: { createdAt: 'asc' },
-            }),
+        this.prisma.creditContract.findMany({
+          where: { userId, isActive: true },
+          orderBy: { createdAt: 'asc' },
+        }),
         this.prisma.creditCardTransaction.findMany({
           where: {
             userId,
@@ -1041,11 +1038,9 @@ export class CreditSelectors {
             status: { in: [CreditCardStatus.ACTIVE, CreditCardStatus.SETTLED] },
           },
         }),
-        userId === 1
-          ? this.prisma.creditContract.findMany({
-              where: { isActive: true },
-            })
-          : Promise.resolve([]),
+        this.prisma.creditContract.findMany({
+          where: { userId, isActive: true },
+        }),
       ]);
 
     const bankCreditLimit = config?.creditLimit ?? 7_000_000;

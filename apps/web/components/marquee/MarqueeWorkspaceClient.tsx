@@ -186,7 +186,7 @@ export function MarqueeWorkspaceClient() {
 
       {/* Intentional Asymmetric 12-Column Workstation: 8-col Conversation Canvas + 4-col Hydrated Ledger Context Rail */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-        <div className="lg:col-span-8 space-y-4">
+        <div className="lg:col-span-8 min-w-0 space-y-4">
           <div className="rounded-lg border border-border bg-surface p-5 space-y-4">
             <div className="space-y-3 min-h-[280px] max-h-[540px] overflow-y-auto pr-1">
               {turns.length === 0 ? (
@@ -288,7 +288,7 @@ export function MarqueeWorkspaceClient() {
         </div>
 
         {/* Right 4-Column Hydrated Ledger & Paycycle Domain Reference Rail */}
-        <aside className="lg:col-span-4 rounded-lg border border-border bg-surface p-5 space-y-4 text-xs">
+        <aside className="lg:col-span-4 min-w-0 xl:sticky xl:top-6 rounded-lg border border-border bg-surface p-5 space-y-4 text-xs">
           <div className="border-b border-border-subtle pb-3">
             <div className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
               Hydrated Domain Context

@@ -11,6 +11,8 @@ erDiagram
     User ||--o{ LiabilityLineItem : "owns (cascade)"
     User ||--o| GlobalConfig : "userId (1:1 config)"
     User ||--o{ MonthlySnapshot : "userId (1:N cycles)"
+    User ||--o{ CreditContract : "userId (1:N contracts)"
+    User ||--o{ ScheduledBill : "userId (1:N recurring bills)"
     User ||--o{ MonthlyBulkBill : "userId (1:N period summaries)"
     User ||--o{ CreditCardTransaction : "userId (1:N card charges)"
     User ||--o{ SavingsManualTransaction : "userId (1:N vault entries)"
@@ -19,6 +21,14 @@ erDiagram
     User ||--o{ AuditLog : "userId (1:N audit trail)"
     User ||--o{ CustomFeatureRequest : "userId (1:N bespoke requests)"
     User ||--o{ TrustedIpAddress : "userId (1:N whitelisted IPs)"
+
+    AuthRateLimit {
+        string key PK "email_or_user:normalizedIp"
+        int attempts
+        datetime firstAttemptAt
+        datetime lockedUntil "429 lockout expiry"
+        datetime updatedAt
+    }
 
     MonthlySnapshot ||--o{ Transaction : "snapshotId (1:N ledger rows)"
     MonthlySnapshot ||--o{ BudgetRevision : "snapshotId (cascade revisions)"
@@ -64,7 +74,7 @@ erDiagram
         float haircut
         float baseSavings
         float creditLimit
-        int creditStatementDay
+        int creditStatementDay "Default 25 (Permata CC)"
         int creditDueDay
         int payrollPayoutDay
         int ccUsageLimit
@@ -218,6 +228,7 @@ erDiagram
 
     CreditContract {
         int id PK
+        int userId FK "Index + Cascade Delete to User"
         string label
         float principalAmount
         float monthlyInstallment
@@ -226,6 +237,15 @@ erDiagram
         boolean isActive
         int startMonth
         int startYear
+    }
+
+    ScheduledBill {
+        int id PK
+        int userId FK "Index + Cascade Delete to User"
+        string label
+        float amount
+        int dueDayOfMonth
+        boolean isActive
     }
 
     SavingsManualTransaction {

@@ -58,21 +58,25 @@ export class CreditController {
   }
 
   @Post('contracts')
-  async createContract(@Body() dto: CreateCreditContractDto) {
-    return this.creditService.createContract(dto);
+  async createContract(@Body() dto: CreateCreditContractDto, @Req() req?: any) {
+    const userId = getUserIdOrThrow(req);
+    return this.creditService.createContract(dto, userId);
   }
 
   @Put('contracts/:id')
   async updateContract(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateCreditContractDto,
+    @Req() req?: any,
   ) {
-    return this.creditService.updateContract(id, dto);
+    const userId = getUserIdOrThrow(req);
+    return this.creditService.updateContract(id, dto, userId);
   }
 
   @Delete('contracts/:id')
-  async deleteContract(@Param('id', ParseIntPipe) id: number) {
-    return this.creditService.deleteContract(id);
+  async deleteContract(@Param('id', ParseIntPipe) id: number, @Req() req?: any) {
+    const userId = getUserIdOrThrow(req);
+    return this.creditService.deleteContract(id, userId);
   }
 
   // -------------------------------------------------------------------------

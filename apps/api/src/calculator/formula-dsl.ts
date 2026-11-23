@@ -273,7 +273,7 @@ export function evaluateFormulaDslTs(
       }
       if (t.kind === 'IDENT') {
         if (peek().kind !== 'LPAREN') {
-          if (RESERVED_WORDS_CATALOG.has(t.text)) {
+          if (RESERVED_WORDS_CATALOG.has(t.text) || t.text in normVars) {
             used.add(t.text);
             return normVars[t.text] ?? 0;
           }

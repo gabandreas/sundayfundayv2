@@ -477,4 +477,41 @@ describe('System-Wide Anti-AI-Slop Visual Design, Temporal Chart Axis & Human Co
     expect(studioTablesSrc).toContain('cutoffFormula');
     expect(studioTablesSrc).toContain('preCutoffOffsetMonths');
   });
+
+  it('forbids new Function dynamic eval in Marquee business tools and enforces complete multi-tenant userId/User relations in Prisma ERD', () => {
+    const toolsSrc = fs.readFileSync(
+      path.join(REPO_ROOT, 'apps', 'api', 'src', 'marquee', 'marquee-tools.service.ts'),
+      'utf8',
+    );
+    expect(toolsSrc).not.toContain('new Function(');
+
+    const schemaSrc = fs.readFileSync(
+      path.join(REPO_ROOT, 'apps', 'api', 'prisma', 'schema.prisma'),
+      'utf8',
+    );
+    const tenantModels = [
+      'CreditContract',
+      'ScheduledBill',
+      'GlobalConfig',
+      'MonthlySnapshot',
+      'CreditCardTransaction',
+      'MonthlyBulkBill',
+      'LiabilityLineItem',
+      'SavingsManualTransaction',
+      'SavingsGoal',
+      'WishlistItem',
+      'AuditLog',
+      'CustomFeatureRequest',
+      'TrustedIpAddress',
+    ];
+    for (const modelName of tenantModels) {
+      const rx = new RegExp(`model\\s+${modelName}\\s+\\{([\\s\\S]*?)\\n\\}`, 'm');
+      const block = schemaSrc.match(rx)?.[1] ?? '';
+      expect({ modelName, hasUserId: /\buserId\s+Int\b/.test(block), hasUserRel: /\buser\s+User\s+@relation/.test(block) }).toEqual({
+        modelName,
+        hasUserId: true,
+        hasUserRel: true,
+      });
+    }
+  });
 });

@@ -680,8 +680,9 @@ export class ConfigService {
   /**
    * Lists all submitted custom ERP module & rule requests.
    */
-  async listCustomRequests() {
+  async listCustomRequests(userId: number = 1) {
     return this.prisma.customFeatureRequest.findMany({
+      where: { userId },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -689,9 +690,10 @@ export class ConfigService {
   /**
    * Submits a new custom ERP module or formula rule request.
    */
-  async createCustomRequest(dto: CreateCustomRequestDto) {
+  async createCustomRequest(dto: CreateCustomRequestDto, userId: number = 1) {
     const request = await this.prisma.customFeatureRequest.create({
       data: {
+        userId,
         title: dto.title.trim(),
         category: dto.category,
         currentWorkflowDescription: dto.currentWorkflowDescription.trim(),
@@ -702,6 +704,7 @@ export class ConfigService {
     });
 
     await this.auditLogService.record({
+      userId,
       action: 'CUSTOM_REQUEST_SUBMITTED',
       category: AuditCategory.SETTINGS,
       summary: `Submitted custom feature request: "${request.title}" (${request.category})`,

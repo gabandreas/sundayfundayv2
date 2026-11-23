@@ -122,7 +122,19 @@ model User {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
-  liabilityLineItems  LiabilityLineItem[]
+  trustedIpAddresses     TrustedIpAddress[]
+  globalConfig           GlobalConfig?
+  monthlySnapshots       MonthlySnapshot[]
+  creditContracts        CreditContract[]
+  scheduledBills         ScheduledBill[]
+  creditCardTransactions CreditCardTransaction[]
+  monthlyBulkBills       MonthlyBulkBill[]
+  liabilityLineItems     LiabilityLineItem[]
+  savingsTransactions    SavingsManualTransaction[]
+  savingsGoals           SavingsGoal[]
+  wishlistItems          WishlistItem[]
+  auditLogs              AuditLog[]
+  customFeatureRequests  CustomFeatureRequest[]
 
   @@unique([accountName, username])
 }
@@ -130,6 +142,7 @@ model User {
 model TrustedIpAddress {
   id         Int      @id @default(autoincrement())
   userId     Int
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   ipAddress  String
   label      String
   isActive   Boolean  @default(true)
@@ -146,6 +159,7 @@ model TrustedIpAddress {
 model GlobalConfig {
   id                 Int      @id @default(autoincrement())
   userId             Int      @unique @default(1)
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   baseSalary         Float
   dailyAllowance     Float
   laptopAllowance    Float    @default(250000)
@@ -156,7 +170,7 @@ model GlobalConfig {
   haircut            Float    @default(0)
   baseSavings        Float    @default(0)
   creditLimit        Float    @default(7000000)
-  creditStatementDay Int      @default(20)
+  creditStatementDay Int      @default(25)
   creditDueDay       Int      @default(11)
   payrollPayoutDay   Int      @default(25)
   ccUsageLimit          Int      @default(0)
@@ -204,6 +218,7 @@ model GlobalConfig {
 model MonthlySnapshot {
   id                 Int             @id @default(autoincrement())
   userId             Int             @default(1)
+  user               User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   month              Int             // 1–12
   year               Int
   status             SnapshotStatus  @default(DRAFT)
@@ -275,6 +290,7 @@ model Transaction {
   snapshot   MonthlySnapshot       @relation(fields: [snapshotId], references: [id])
 
   @@index([snapshotId])
+  @@index([date])
 }
 
 // ─────────────────────────────────────────────
@@ -283,6 +299,8 @@ model Transaction {
 
 model CreditContract {
   id                  Int      @id @default(autoincrement())
+  userId              Int      @default(1)
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   label               String
   principalAmount     Float
   monthlyInstallment  Float
@@ -293,6 +311,8 @@ model CreditContract {
   startYear           Int
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
+
+  @@index([userId])
 }
 
 // ─────────────────────────────────────────────
@@ -300,13 +320,17 @@ model CreditContract {
 // ─────────────────────────────────────────────
 
 model ScheduledBill {
-  id          Int      @id @default(autoincrement())
-  label       String
-  amount      Float
+  id            Int      @id @default(autoincrement())
+  userId        Int      @default(1)
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label         String
+  amount        Float
   dueDayOfMonth Int
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId])
 }
 
 // ─────────────────────────────────────────────
@@ -316,6 +340,7 @@ model ScheduledBill {
 model CreditCardTransaction {
   id              Int                  @id @default(autoincrement())
   userId          Int                  @default(1)
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   label           String
   amount          Float
   totalAmount     Float?
@@ -355,6 +380,7 @@ model CreditCardTransaction {
 model MonthlyBulkBill {
   id                 Int      @id @default(autoincrement())
   userId             Int      @default(1)
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   label              String   @default("Monthly Bulk Bill")
   paylaterAmount     Float    @default(0)
   personalDebtAmount Float    @default(0)
@@ -406,6 +432,7 @@ model LiabilityLineItem {
 model SavingsManualTransaction {
   id             Int                   @id @default(autoincrement())
   userId         Int                   @default(1)
+  user           User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
   label          String
   amount         Float
   instrumentType SavingsInstrumentType @default(LIQUID_CASH)
@@ -422,6 +449,7 @@ model SavingsManualTransaction {
 model SavingsGoal {
   id                     Int      @id @default(autoincrement())
   userId                 Int      @default(1)
+  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   name                   String
   targetAmount           Float
   currentAllocatedAmount Float    @default(0)
@@ -443,6 +471,7 @@ model SavingsGoal {
 model WishlistItem {
   id              Int                 @id @default(autoincrement())
   userId          Int                 @default(1)
+  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   name            String
   price           Float
   fundingType     WishlistFundingType @default(CASH)
@@ -481,6 +510,8 @@ model BudgetRevision {
   createdAt     DateTime               @default(now())
 
   snapshot      MonthlySnapshot        @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+
+  @@index([snapshotId])
 }
 
 // ─────────────────────────────────────────────
@@ -490,6 +521,7 @@ model BudgetRevision {
 model AuditLog {
   id        Int           @id @default(autoincrement())
   userId    Int           @default(1)
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   action    String
   category  AuditCategory
   summary   String
@@ -509,6 +541,7 @@ model AuditLog {
 model CustomFeatureRequest {
   id                          Int      @id @default(autoincrement())
   userId                      Int      @default(1)
+  user                        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   title                       String
   category                    String   // "CUSTOM_PAYROLL_FORMULA" | "CUSTOM_WATERFALL_RULE" | "BANK_EXPORT_INTEGRATION" | "BESPOKE_MODULE"
   currentWorkflowDescription  String   @db.Text
@@ -521,4 +554,18 @@ model CustomFeatureRequest {
   updatedAt                   DateTime @updatedAt
 
   @@index([userId])
+}
+
+// ─────────────────────────────────────────────
+// 13. AuthRateLimit — Persistent Brute-Force Lockout Store
+// ─────────────────────────────────────────────
+
+model AuthRateLimit {
+  key            String    @id
+  attempts       Int       @default(1)
+  firstAttemptAt DateTime  @default(now())
+  lockedUntil    DateTime?
+  updatedAt      DateTime  @updatedAt
+
+  @@index([lockedUntil])
 }

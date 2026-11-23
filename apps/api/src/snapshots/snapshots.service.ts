@@ -506,16 +506,14 @@ export class SnapshotsService {
       // 3. Final recalculation within the transaction
       await this.recalculateSnapshot(snapshotId, tx);
 
-      // 4. Decrement remainingTenor by 1 for all active legacy contracts (userId 1 only)
-      const activeContracts =
-        current.userId === 1
-          ? await tx.creditContract.findMany({
-              where: {
-                isActive: true,
-                remainingTenor: { gt: 0 },
-              },
-            })
-          : [];
+      // 4. Decrement remainingTenor by 1 for all active contracts owned by this user
+      const activeContracts = await tx.creditContract.findMany({
+        where: {
+          userId: current.userId,
+          isActive: true,
+          remainingTenor: { gt: 0 },
+        },
+      });
 
       for (const contract of activeContracts) {
         const newRemainingTenor = Math.max(0, contract.remainingTenor - 1);

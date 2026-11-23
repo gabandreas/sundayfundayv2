@@ -814,7 +814,7 @@ export class EmailService {
       this.prisma.monthlyBulkBill.findMany({ where: { userId: params.userId } }),
       this.prisma.liabilityLineItem.findMany({ where: { userId: params.userId } }),
       this.prisma.creditCardTransaction.findMany({ where: { userId: params.userId } }),
-      this.prisma.creditContract.findMany({}),
+      this.prisma.creditContract.findMany({ where: { userId: params.userId } }),
       this.prisma.budgetRevision.findMany({ where: { snapshot: { userId: params.userId } } }),
       this.prisma.savingsGoal.findMany({ where: { userId: params.userId } }),
     ]);

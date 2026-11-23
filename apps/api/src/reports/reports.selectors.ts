@@ -150,12 +150,10 @@ export class ReportsSelectors {
         },
         orderBy: { id: 'asc' },
       }),
-      userId === 2
-        ? Promise.resolve([])
-        : this.prisma.creditContract.findMany({
-            where: { isActive: true },
-            orderBy: { id: 'asc' },
-          }),
+      this.prisma.creditContract.findMany({
+        where: { userId, isActive: true },
+        orderBy: { id: 'asc' },
+      }),
       this.auditService.getFullReport(userId),
     ]);
 
@@ -1442,14 +1440,12 @@ export class ReportsSelectors {
         include: { transactions: true },
         orderBy: [{ year: 'asc' }, { month: 'asc' }],
       }),
-      userId === 2
-        ? Promise.resolve([])
-        : this.prisma.creditContract.findMany({
-            where: { isActive: true },
-            orderBy: { id: 'asc' },
-          }),
+      this.prisma.creditContract.findMany({
+        where: { userId, isActive: true },
+        orderBy: { id: 'asc' },
+      }),
       this.prisma.scheduledBill.findMany({
-        where: { isActive: true },
+        where: { userId, isActive: true },
         orderBy: { id: 'asc' },
       }),
       this.prisma.creditCardTransaction.findMany({

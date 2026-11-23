@@ -10,6 +10,7 @@ import { SavingsService } from '../savings/savings.service';
 import { WishlistService } from '../wishlist/wishlist.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { MarqueeInstrument, MarqueeToolName } from './marquee-nlu';
+import { evaluateFormulaDslTs } from '../calculator/formula-dsl';
 
 export interface MarqueeCardItem {
   label: string;
@@ -65,8 +66,8 @@ function formatRp(amount: number): string {
 }
 
 /**
- * Safe deterministic evaluator for custom financial formulas over live snapshot tokens.
- * Supports +, -, *, /, parentheses, numbers, and reserved identifiers.
+ * Evaluates custom financial formulas using the unified recursive-descent AST DSL engine
+ * without dynamic eval. Supports lowercase & uppercase tokens.
  */
 function evaluateSafeFormulaExpression(
   rawExpr: string,
@@ -74,32 +75,33 @@ function evaluateSafeFormulaExpression(
 ): { valueRp: number; substituted: string } {
   let expr = rawExpr.trim();
   const eqIdx = expr.indexOf('=');
-  if (eqIdx >= 0 && eqIdx < expr.length - 1) {
+  const eqPrefix = eqIdx > 0 ? expr.slice(0, eqIdx).trim() : '';
+  if (eqPrefix && /^[a-zA-Z_][a-zA-Z0-9_\s]*$/.test(eqPrefix) && !/[<>!]/.test(expr.slice(eqIdx - 1, eqIdx + 2))) {
     expr = expr.slice(eqIdx + 1).trim();
   }
 
+  const upperVars: Record<string, number> = {};
   let substituted = expr;
   for (const [key, val] of Object.entries(vars)) {
+    const rounded = Math.round(val);
+    upperVars[key.toUpperCase()] = rounded;
     const re = new RegExp(`\\b${key}\\b`, 'gi');
-    substituted = substituted.replace(re, String(Math.round(val)));
+    substituted = substituted.replace(re, String(rounded));
   }
 
-  // Strip everything except digits, whitespace, decimal points, +, -, *, /, (, )
-  const sanitized = substituted.replace(/[^0-9+\-*/().\s]/g, '').trim();
-  if (!sanitized || !/\d/.test(sanitized)) {
-    return { valueRp: vars.net_income - vars.total_debt - vars.living_pool, substituted };
-  }
-
-  try {
-    const fn = new Function(`return (${sanitized});`);
-    const out = Number(fn());
+  const astResult = evaluateFormulaDslTs(expr, upperVars);
+  if (!astResult.valid) {
+    const fallbackExpr = 'NET_INCOME - TOTAL_DEBT - LIVING_POOL';
+    const fb = evaluateFormulaDslTs(fallbackExpr, upperVars);
     return {
-      valueRp: Number.isFinite(out) ? Math.round(out) : 0,
-      substituted: sanitized,
+      valueRp: fb.valid ? fb.valueRp : 0,
+      substituted: astResult.error ? `Invalid syntax (${astResult.error})` : substituted,
     };
-  } catch {
-    return { valueRp: 0, substituted: sanitized };
   }
+  return {
+    valueRp: astResult.valueRp,
+    substituted,
+  };
 }
 
 const HISTORY_SYNONYM_GROUPS: string[][] = [
@@ -558,7 +560,13 @@ export class MarqueeToolsService {
             { label: 'Net Income Token', value: formatRp(vars.net_income) },
             { label: 'Total Debt Token', value: formatRp(vars.total_debt) },
           ],
-          data: { expression: rawExpr, evaluated, vars },
+          data: {
+            expression: rawExpr,
+            valueRp: evaluated.valueRp,
+            substituted: evaluated.substituted,
+            evaluated,
+            vars,
+          },
         };
       }
 

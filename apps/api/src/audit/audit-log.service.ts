@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditCategory, AuditSeverity, AuditLog } from '@prisma/client';
 
 export interface RecordAuditLogParams {
+  userId?: number;
   action: string;
   category: AuditCategory;
   summary: string;
@@ -42,6 +43,7 @@ export class AuditLogService {
     if (typeof actionOrParams === 'object') {
       return this.prisma.auditLog.create({
         data: {
+          userId: actionOrParams.userId ?? 1,
           action: actionOrParams.action,
           category: actionOrParams.category,
           summary: actionOrParams.summary,

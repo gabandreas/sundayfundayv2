@@ -217,6 +217,7 @@ export class WishlistService {
     const result = await this.prisma.$transaction(async (tx) => {
       const contract = await tx.creditContract.create({
         data: {
+          userId,
           label: item.name,
           principalAmount: item.price,
           monthlyInstallment: effectiveMonthlyPayment,
@@ -260,15 +261,13 @@ export class WishlistService {
     defaultBaseIncome?: number,
     userId: number = 1,
   ): Promise<ExistingLiabilityPeriod[]> {
-    const contracts =
-      userId === 1
-        ? await this.prisma.creditContract.findMany({
-            where: {
-              isActive: true,
-              remainingTenor: { gt: 0 },
-            },
-          })
-        : [];
+    const contracts = await this.prisma.creditContract.findMany({
+      where: {
+        userId,
+        isActive: true,
+        remainingTenor: { gt: 0 },
+      },
+    });
 
     const cardTxs = await this.prisma.creditCardTransaction.findMany({
       where: { userId, status: CreditCardStatus.ACTIVE },

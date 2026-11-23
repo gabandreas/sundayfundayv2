@@ -100,9 +100,9 @@ export class ConfigSelectors {
   }
 
   /**
-   * Read-only Full ERP Database Snapshot Backup across all 11 domain tables.
+   * Read-only tenant-scoped ERP Database Snapshot Backup across all 11 domain tables.
    */
-  async exportFullBackup() {
+  async exportFullBackup(userId: number = 1) {
     const [
       globalConfig,
       monthlySnapshots,
@@ -116,20 +116,33 @@ export class ConfigSelectors {
       wishlistItems,
       auditLogs,
     ] = await Promise.all([
-      this.prisma.globalConfig.findMany({ orderBy: { id: 'asc' } }),
+      this.prisma.globalConfig.findMany({ where: { userId }, orderBy: { id: 'asc' } }),
       this.prisma.monthlySnapshot.findMany({
+        where: { userId },
         orderBy: [{ year: 'asc' }, { month: 'asc' }],
       }),
-      this.prisma.transaction.findMany({ orderBy: { id: 'asc' } }),
-      this.prisma.budgetRevision.findMany({ orderBy: { id: 'asc' } }),
-      this.prisma.creditContract.findMany({ orderBy: { id: 'asc' } }),
-      this.prisma.scheduledBill.findMany({ orderBy: { id: 'asc' } }),
-      this.prisma.creditCardTransaction.findMany({ orderBy: { id: 'asc' } }),
-      this.prisma.monthlyBulkBill.findMany({ orderBy: { id: 'asc' } }),
-      this.prisma.savingsManualTransaction.findMany({ orderBy: { id: 'asc' } }),
-      this.prisma.wishlistItem.findMany({ orderBy: { id: 'asc' } }),
-      this.prisma.auditLog.findMany({ orderBy: { id: 'asc' } }),
+      this.prisma.transaction.findMany({
+        where: { snapshot: { userId } },
+        orderBy: { id: 'asc' },
+      }),
+      this.prisma.budgetRevision.findMany({
+        where: { snapshot: { userId } },
+        orderBy: { id: 'asc' },
+      }),
+      this.prisma.creditContract.findMany({ where: { userId }, orderBy: { id: 'asc' } }),
+      this.prisma.scheduledBill.findMany({ where: { userId }, orderBy: { id: 'asc' } }),
+      this.prisma.creditCardTransaction.findMany({ where: { userId }, orderBy: { id: 'asc' } }),
+      this.prisma.monthlyBulkBill.findMany({ where: { userId }, orderBy: { id: 'asc' } }),
+      this.prisma.savingsManualTransaction.findMany({ where: { userId }, orderBy: { id: 'asc' } }),
+      this.prisma.wishlistItem.findMany({ where: { userId }, orderBy: { id: 'asc' } }),
+      this.prisma.auditLog.findMany({ where: { userId }, orderBy: { id: 'asc' } }),
     ]);
+
+    const redactedGlobalConfig = globalConfig.map((cfg) => ({
+      ...cfg,
+      killSwitchSmtpAppPassword: cfg.killSwitchSmtpAppPassword ? '[REDACTED]' : null,
+      killSwitchWaApiKey: cfg.killSwitchWaApiKey ? '[REDACTED]' : null,
+    }));
 
     return {
       schemaVersion: '2.0',
@@ -149,7 +162,7 @@ export class ConfigSelectors {
         auditLogs: auditLogs.length,
       },
       data: {
-        globalConfig,
+        globalConfig: redactedGlobalConfig,
         monthlySnapshots,
         transactions,
         budgetRevisions,

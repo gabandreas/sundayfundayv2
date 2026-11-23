@@ -1,4 +1,5 @@
-import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
+import { Injectable, HttpException, HttpStatus, Optional } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
 import { normalizeIp } from './auth.utils';
 
 export interface RateLimitState {
@@ -13,6 +14,12 @@ export class RateLimiterService {
   private readonly WINDOW_MS = 15 * 60 * 1000; // 15 minutes
   private readonly MAX_ATTEMPTS = 5;
   private readonly LOCK_DURATION_MS = 15 * 60 * 1000; // 15 minutes
+
+  constructor(@Optional() private readonly prisma?: PrismaService) {}
+
+  private hasDbStore(): boolean {
+    return typeof (this.prisma as any)?.authRateLimit?.findUnique === 'function';
+  }
 
   private makeKey(email: string, clientIp: string): string {
     const cleanEmail = (email || '').trim().toLowerCase();
@@ -92,6 +99,97 @@ export class RateLimiterService {
   reset(email: string, clientIp: string): void {
     const key = this.makeKey(email, clientIp);
     this.attemptsMap.delete(key);
+  }
+
+  /**
+   * Async check backed by Postgres AuthRateLimit for serverless multi-isolate consistency.
+   */
+  async checkAsync(email: string, clientIp: string): Promise<void> {
+    if (!this.hasDbStore()) {
+      this.check(email, clientIp);
+      return;
+    }
+
+    const key = this.makeKey(email, clientIp);
+    const row = await (this.prisma as any).authRateLimit.findUnique({ where: { key } });
+    if (!row?.lockedUntil) {
+      this.attemptsMap.delete(key);
+      return;
+    }
+
+    const nowMs = Date.now();
+    const lockedUntilMs = new Date(row.lockedUntil).getTime();
+    if (nowMs < lockedUntilMs) {
+      this.attemptsMap.set(key, {
+        attempts: row.attempts,
+        firstAttemptAt: new Date(row.firstAttemptAt).getTime(),
+        lockedUntil: lockedUntilMs,
+      });
+      throw new HttpException(
+        'Too many failed authentication attempts. Please wait 15 minutes before retrying.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    await (this.prisma as any).authRateLimit.deleteMany({ where: { key } });
+    this.attemptsMap.delete(key);
+  }
+
+  /**
+   * Async failure recorder backed by Postgres AuthRateLimit so brute-force lockouts
+   * persist accurately across Vercel serverless isolates.
+   */
+  async recordFailureAsync(email: string, clientIp: string): Promise<{ attempts: number; isLocked: boolean }> {
+    if (!this.hasDbStore()) {
+      return this.recordFailure(email, clientIp);
+    }
+
+    const key = this.makeKey(email, clientIp);
+    const now = new Date();
+    const nowMs = now.getTime();
+    const existing = await (this.prisma as any).authRateLimit.findUnique({ where: { key } });
+
+    const windowExpired =
+      !existing || nowMs - new Date(existing.firstAttemptAt).getTime() > this.WINDOW_MS;
+    const attempts = windowExpired ? 1 : Number(existing.attempts || 0) + 1;
+    const firstAttemptAt = windowExpired ? now : new Date(existing.firstAttemptAt);
+    const isLocked = attempts >= this.MAX_ATTEMPTS;
+    const lockedUntil = isLocked
+      ? new Date(nowMs + this.LOCK_DURATION_MS)
+      : existing?.lockedUntil && !windowExpired
+        ? new Date(existing.lockedUntil)
+        : null;
+
+    await (this.prisma as any).authRateLimit.upsert({
+      where: { key },
+      create: { key, attempts, firstAttemptAt, lockedUntil },
+      update: { attempts, firstAttemptAt, lockedUntil },
+    });
+
+    this.attemptsMap.set(key, {
+      attempts,
+      firstAttemptAt: firstAttemptAt.getTime(),
+      lockedUntil: lockedUntil ? lockedUntil.getTime() : null,
+    });
+
+    if (isLocked) {
+      throw new HttpException(
+        'Too many failed login attempts. Please wait 15 minutes before retrying.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    return { attempts, isLocked: false };
+  }
+
+  /**
+   * Clears in-memory and persisted failed-attempt state on successful authentication.
+   */
+  async recordSuccessAsync(email: string, clientIp: string): Promise<void> {
+    this.recordSuccess(email, clientIp);
+    if (!this.hasDbStore()) return;
+    const key = this.makeKey(email, clientIp);
+    await (this.prisma as any).authRateLimit.deleteMany({ where: { key } });
   }
 
   /**

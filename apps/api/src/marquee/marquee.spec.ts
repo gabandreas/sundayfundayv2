@@ -1367,5 +1367,59 @@ describe('Marquee NLU, 8 Deterministic Tools & Webhook Token Auth', () => {
       );
       expect(callBlocked.result.isError).toBe(true);
     });
+
+    it('evaluates evaluate_custom_formula using AST formula-dsl cleanly and isolates CreditContract queries by userId', async () => {
+      const prismaMock: any = {
+        monthlySnapshot: { findMany: jest.fn().mockResolvedValue([]) },
+        liabilityLineItem: { findMany: jest.fn().mockResolvedValue([]) },
+        transaction: { findMany: jest.fn().mockResolvedValue([]) },
+        creditCardTransaction: { findMany: jest.fn().mockResolvedValue([]) },
+        creditContract: { findMany: jest.fn().mockResolvedValue([]) },
+        wishlistItem: { findMany: jest.fn().mockResolvedValue([]) },
+        savingsGoal: { findMany: jest.fn().mockResolvedValue([]) },
+        subscriptionItem: { findMany: jest.fn().mockResolvedValue([]) },
+        globalConfig: { findFirst: jest.fn().mockResolvedValue({ userId: 2, promoKillSwitchesJson: [], formulaParamsJson: {} }) },
+      };
+
+      const hydrator = new MarqueeContextHydrator(
+        prismaMock,
+        { getDefaultActivePeriod: jest.fn().mockResolvedValue({ month: 11, year: 2026, cycleTemporalState: 'ACTIVE' }) } as any,
+        { getPacing: jest.fn().mockResolvedValue({ remainingBudget: 100000, weightedSafeToSpendToday: 25000 }) } as any,
+        { getOverview: jest.fn().mockResolvedValue({ totalBalance: 0, rdpuBalance: 0 }) } as any,
+      );
+      await hydrator.hydrateForUser(2, { month: 11, year: 2026 });
+      expect(prismaMock.creditContract.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ userId: 2 }) }),
+      );
+
+      const tools = new MarqueeToolsService(
+        {
+          getDefaultActivePeriod: jest.fn().mockResolvedValue({ month: 11, year: 2026 }),
+          getOrCreateDraftSnapshot: jest.fn().mockResolvedValue({
+            id: 11,
+            month: 11,
+            year: 2026,
+            finalTotalIncome: 5904000,
+            totalDeductions: 4187341,
+            actualDailyOperational: 1416659,
+            deficitUncovered: 83341,
+            actualSavings: 0,
+            selfReward: 216659,
+          }),
+        } as any,
+        {} as any,
+        { getPacing: jest.fn().mockResolvedValue({ baselineDailyRate: 45700 }) } as any,
+        {} as any,
+        {} as any,
+        {} as any,
+      );
+      const astRes = await tools.executeTool(
+        'evaluate_custom_formula',
+        { expression: 'ROUND((net_income - total_debt) * 0.5)' },
+        { userId: 1, month: 11, year: 2026 },
+      );
+      expect(astRes.ok).toBe(true);
+      expect((astRes.data as any).valueRp).toBe(858330);
+    });
   });
 });

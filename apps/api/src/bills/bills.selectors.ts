@@ -11,13 +11,14 @@ export class BillsSelectors {
    * the credit/finance modules handle per-month materialization into transactions.
    * isProcessed is never mutated here.
    */
-  async listBills() {
+  async listBills(userId: number = 1) {
     return this.prisma.scheduledBill.findMany({
+      where: { userId },
       orderBy: { dueDayOfMonth: 'asc' },
     });
   }
 
-  async getBillById(id: number) {
-    return this.prisma.scheduledBill.findUnique({ where: { id } });
+  async getBillById(id: number, userId: number = 1) {
+    return this.prisma.scheduledBill.findFirst({ where: { id, userId } });
   }
 }

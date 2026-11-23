@@ -228,7 +228,7 @@ export class MarqueeContextHydrator {
         : Promise.resolve([]),
       (this.prisma as any).creditContract
         ? (this.prisma as any).creditContract
-            .findMany({ where: { isActive: true }, take: 15 })
+            .findMany({ where: { userId, isActive: true }, take: 15 })
             .catch(() => [])
         : Promise.resolve([]),
       (this.prisma as any).wishlistItem
