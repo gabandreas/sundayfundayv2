@@ -5,35 +5,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sundayfunday_mobile/core/config/env.dart';
 import 'package:sundayfunday_mobile/core/network/api_client.dart';
-import 'package:sundayfunday_mobile/core/storage/secure_vault.dart';
 
-class _InMemoryVault implements SecureVault {
-  String? accessToken;
-  String? refreshToken;
-
-  _InMemoryVault({this.accessToken});
-
-  @override
-  Future<String?> readAccessToken() async => accessToken;
-
-  @override
-  Future<String?> readRefreshToken() async => refreshToken;
-
-  @override
-  Future<void> saveSessionTokens({
-    required String accessToken,
-    String? refreshToken,
-  }) async {
-    this.accessToken = accessToken;
-    if (refreshToken != null) this.refreshToken = refreshToken;
-  }
-
-  @override
-  Future<void> clearSession() async {
-    accessToken = null;
-    refreshToken = null;
-  }
-}
+import '../helpers/in_memory_vault.dart';
 
 class _FakeHttpAdapter implements HttpClientAdapter {
   final Future<ResponseBody> Function(RequestOptions options) onRequest;
@@ -61,7 +34,7 @@ void main() {
   });
 
   test('attaches Bearer JWT without static x-user-id and passes Idempotency-Key', () async {
-    final vault = _InMemoryVault(accessToken: 'jwt-abc-123');
+    final vault = InMemorySecureVault(accessToken: 'jwt-abc-123');
     final adapter = _FakeHttpAdapter((options) async {
       return ResponseBody.fromString(
         jsonEncode({'ok': true}),
@@ -86,7 +59,7 @@ void main() {
   });
 
   test('maps HTTP 429 Too Many Requests into typed RateLimitedException', () async {
-    final vault = _InMemoryVault();
+    final vault = InMemorySecureVault();
     final adapter = _FakeHttpAdapter((options) async {
       return ResponseBody.fromString(
         jsonEncode({'message': 'Too many failed authentication attempts.'}),
