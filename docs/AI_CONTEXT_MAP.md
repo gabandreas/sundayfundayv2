@@ -8,6 +8,9 @@ Exact module and symbol locations to minimize redundant search reads. See also:
 - `docs/COPYWRITING_AND_DESIGN_SYSTEM.md`
 - `docs/TDD_AND_ERROR_CATALOG.md`
 - `docs/ERD_AND_MOBILE_API_CONTRACT.md`
+- `docs/MOBILE_PRD.md`
+- `docs/MOBILE_ARCHITECTURE.md`
+- `docs/MOBILE_TDD_AND_UX_SPEC.md`
 - `docs/GO_ENGINE_ARCHITECTURE.md`
 - `docs/PAYCYCLE_HORIZON_AND_CUTOFF_LAW.md`
 - `docs/MODULAR_PREFERENCES_AND_NAVIGATION.md`
