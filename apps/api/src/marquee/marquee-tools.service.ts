@@ -32,6 +32,16 @@ export interface MarqueePendingAction {
   payload: Record<string, any>;
 }
 
+function formatInstrumentLabel(inst: string): string {
+  const up = (inst || '').toUpperCase();
+  if (up === 'PAYLATER' || up === 'SPAYLATER') return 'SPayLater';
+  if (up === 'CREDIT_CARD' || up === 'CC') return 'Credit Card';
+  if (up === 'SPINJAM') return 'SPinjam';
+  if (up === 'CASH_LOAN') return 'Cash Loan';
+  if (up === 'CASH') return 'Living Cash';
+  return inst;
+}
+
 export interface MarqueeToolResult {
   ok: boolean;
   tool: MarqueeToolName;
@@ -232,14 +242,15 @@ export class MarqueeToolsService {
             },
             ctx.userId,
           );
+          const instLabel = formatInstrumentLabel(instrument);
           return {
             ok: true,
             tool,
-            summary: `Staged ${title} (${formatRp(amountRp)} via ${instrument}${tenorMonths > 1 ? ` ${tenorMonths}x` : ''}) into ${preview.startPeriodLabel}. Verdict is ${preview.verdict} at ${preview.dsrAfterPercent}% DSR. Confirm below to commit this entry.`,
+            summary: `Staged ${title} (${formatRp(amountRp)} via ${instLabel}${tenorMonths > 1 ? ` ${tenorMonths}x` : ''}) into ${preview.startPeriodLabel}. Verdict is ${preview.verdict} at ${preview.dsrAfterPercent}% DSR. Confirm below to commit this entry.`,
             cards: [
               { label: 'Item', value: title },
               { label: 'Amount', value: formatRp(amountRp) },
-              { label: 'Routed Cycle', value: `${preview.startPeriodLabel} (${instrument})` },
+              { label: 'Routed Cycle', value: `${preview.startPeriodLabel} (${instLabel})` },
               {
                 label: 'Verdict',
                 value: `${preview.verdict} (DSR ${preview.dsrAfterPercent}%)`,

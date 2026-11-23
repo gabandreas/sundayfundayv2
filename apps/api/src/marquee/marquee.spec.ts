@@ -963,6 +963,21 @@ describe('Marquee NLU, 8 Deterministic Tools & Webhook Token Auth', () => {
       const ctx = await hydrator.hydrateForUser(1, { month: 11, year: 2026, locale: 'id' });
       expect(ctx.systemPrompt).toContain('Mac Mini M4');
       expect(ctx.systemPrompt).toContain('Nike Dunk SE IB6399001');
+
+      // 5. Staged PayLater entry uses human "SPayLater" label instead of raw enum "PAYLATER"
+      const stagedExp = await tools.executeTool(
+        'prepare_quick_transaction',
+        {
+          title: 'Kopi',
+          amountRp: 34000,
+          instrument: 'PAYLATER',
+          purchaseDate: '2026-11-23',
+        },
+        { userId: 1, confirm: false, month: 11, year: 2026 },
+      );
+      expect(stagedExp.summary).toContain('SPayLater');
+      expect(stagedExp.summary).not.toContain('PAYLATER');
+      expect(stagedExp.cards?.find((c) => c.label === 'Routed Cycle')?.value).toBe("DEC '26 (SPayLater)");
     });
   });
 });

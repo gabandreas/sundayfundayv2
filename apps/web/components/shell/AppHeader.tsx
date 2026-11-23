@@ -46,7 +46,7 @@ export function AppHeader({ onToggleMobileDrawer }: { onToggleMobileDrawer?: () 
   return (
     <header className="print-hidden relative z-30 h-14 border-b border-border bg-canvas/95 px-3 sm:px-4 lg:px-5 flex items-center justify-between gap-2 shrink-0 select-none">
       {/* Left Zone: Route breadcrumb + Mobile Drawer Trigger + Mobile BrandMark */}
-      <div className="flex items-center gap-1.5 text-xs font-sans min-w-0 shrink">
+      <div className="flex items-center gap-1.5 text-xs font-sans min-w-0 shrink pr-2">
         {onToggleMobileDrawer && (
           <button
             type="button"

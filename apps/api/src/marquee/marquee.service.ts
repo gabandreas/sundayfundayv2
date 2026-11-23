@@ -22,10 +22,12 @@ import {
 } from './marquee-context.service';
 
 const HUMAN_TOOL_LABELS: Record<string, string> = {
+  log_quick_expense: 'Log expense entry',
   get_paycycle_pulse: 'Checked active paycycle balance and daily safe-to-spend',
   get_due_schedule: 'Checked scheduled bill maturities and due dates',
   explain_period_variance: 'Compared income, bills, and savings across periods',
   simulate_cutoff: 'Simulated statement cutoff and monthly billing period',
+  simulate_purchase_cutoff: 'Simulated statement cutoff and monthly billing period',
   prepare_quick_transaction: 'Prepared expense entry with statement cutoff routing',
   manage_liability_item: 'Prepared liability schedule adjustment',
   revise_budget_or_quota: 'Prepared monthly budget allocation revision',
@@ -35,6 +37,32 @@ const HUMAN_TOOL_LABELS: Record<string, string> = {
   evaluate_formula: 'Evaluated custom formula expression',
   calculate_life_energy: 'Calculated real hourly wage and work-hours cost',
 };
+
+const TOOL_TEXT_REPLACEMENTS: Array<[RegExp, string]> = [
+  [/\bprepare_quick_transaction\b/g, 'the expense staging helper'],
+  [/\bsimulate_purchase_cutoff\b/g, 'the cutoff simulator'],
+  [/\bsimulate_cutoff\b/g, 'the cutoff simulator'],
+  [/\blog_quick_expense\b/g, 'expense entry'],
+  [/\bget_paycycle_pulse\b/g, 'paycycle balance check'],
+  [/\bget_due_schedule\b/g, 'due-date schedule lookup'],
+  [/\bexplain_period_variance\b/g, 'cycle variance comparison'],
+  [/\bmanage_liability_item\b/g, 'liability schedule editor'],
+  [/\brevise_budget_or_quota\b/g, 'quota revision helper'],
+  [/\bmanage_savings_pocket_or_goal\b/g, 'savings allocation helper'],
+  [/\bmanage_wishlist_or_subscription\b/g, 'wishlist and recurring helper'],
+  [/\brun_what_if_scenario\b/g, 'what-if scenario simulator'],
+  [/\bpurchaseDate\b/g, 'purchase date'],
+  [/\bdaysInMonth\b/g, 'days in month'],
+];
+
+function sanitizeReasoningForUi(text?: string): string | undefined {
+  if (!text) return undefined;
+  let cleaned = text;
+  for (const [rx, replacement] of TOOL_TEXT_REPLACEMENTS) {
+    cleaned = cleaned.replace(rx, replacement);
+  }
+  return cleaned;
+}
 
 const HUMAN_ACTION_LABELS: Record<string, string> = {
   RECORD_TRANSACTION: 'Ready to record expense entry',
@@ -409,8 +437,8 @@ export class MarqueeService {
     const steps: MarqueeAgentStep[] = [
       {
         id: 'step_intent',
-        label: 'Parsed intent',
-        detail: `${parsedTier1.tool}${parsedTier1.amountRp ? ` · Rp ${parsedTier1.amountRp.toLocaleString('id-ID')}` : ''}`,
+        label: 'Understood request',
+        detail: `${describeToolAction(parsedTier1.tool)}${parsedTier1.amountRp ? ` · Rp ${parsedTier1.amountRp.toLocaleString('id-ID')}` : ''}`,
         status: 'done',
       },
     ];
@@ -664,13 +692,14 @@ export class MarqueeService {
       }
     }
 
+    const cleanedReasoning = sanitizeReasoningForUi(reasoning);
     return {
       ...result,
       tierUsed,
       model,
       locale,
       ...(assistantPrefix ? { assistantPrefix } : {}),
-      ...(reasoning ? { reasoning } : {}),
+      ...(cleanedReasoning ? { reasoning: cleanedReasoning } : {}),
       agentSteps: steps,
       ...(hydrated?.proactiveReminders ? { proactiveReminders: hydrated.proactiveReminders } : {}),
       hydratedContext: buildHydratedMeta(),

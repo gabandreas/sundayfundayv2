@@ -389,6 +389,7 @@ export function RecordExpenseCard({
                           type="checkbox"
                           checked={holdPastCutoff}
                           onChange={(e) => setHoldPastCutoff(e.target.checked)}
+                          className="h-3.5 w-3.5 rounded border-border bg-canvas accent-delta-positive cursor-pointer"
                         />
                         <span>+1 cycle</span>
                       </label>

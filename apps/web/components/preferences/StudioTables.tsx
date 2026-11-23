@@ -931,259 +931,287 @@ export function InstrumentsTableCard({ initialConfig }: { initialConfig?: Modula
 
       <SaveBanner savedMsg={savedMsg} errorMsg={errorMsg} />
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[1040px] text-xs text-left">
-          <thead className="bg-surface-subtle text-[10px] font-mono uppercase text-text-tertiary border-b border-border">
-            <tr>
-              <th className="px-2.5 py-2">Instrument Name</th>
-              <th className="px-2.5 py-2">Type</th>
-              <th className="px-2.5 py-2">Cutoff Formula</th>
-              <th className="px-2.5 py-2">Boundary Rule</th>
-              <th className="px-2.5 py-2">Offsets (Pre / Post)</th>
-              <th className="px-2.5 py-2">Due Day / Shift</th>
-              <th className="px-2.5 py-2">Rate (% / mo)</th>
-              <th className="px-2.5 py-2">Limit (Rp)</th>
-              <th className="px-2.5 py-2">Active</th>
-              <th className="px-2.5 py-2 text-right">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border-subtle">
-            {rows.map((row, idx) => {
-              const isLoan = row.dueRule === "DISBURSEMENT_DAY";
-              const inclusive =
-                typeof row.cutoffBoundaryInclusive === "boolean"
-                  ? row.cutoffBoundaryInclusive
-                  : row.type !== "CREDIT_CARD";
-              const preOffset =
-                typeof row.preCutoffOffsetMonths === "number"
-                  ? row.preCutoffOffsetMonths
-                  : row.type === "CREDIT_CARD"
-                    ? 1
-                    : 0;
-              const postOffset =
-                typeof row.postCutoffOffsetMonths === "number"
-                  ? row.postCutoffOffsetMonths
-                  : row.type === "CREDIT_CARD"
-                    ? 2
-                    : 1;
-              return (
-                <tr key={row.id} className="hover:bg-surface-hover/40">
-                  <td className="px-2.5 py-2">
-                    <input
-                      type="text"
-                      value={row.name}
-                      onChange={(e) => {
-                        const next = [...rows];
-                        next[idx] = { ...row, name: e.target.value };
-                        setRows(next);
-                      }}
-                      className="w-40 bg-canvas border border-border rounded px-2 py-1 text-xs text-text-primary"
-                    />
-                  </td>
-                  <td className="px-2.5 py-2">
-                    <select
-                      value={row.type}
-                      onChange={(e) => {
-                        const next = [...rows];
-                        next[idx] = { ...row, type: e.target.value };
-                        setRows(next);
-                      }}
-                      className="bg-canvas border border-border rounded px-2 py-1 text-xs text-text-secondary"
-                    >
-                      <option value="PAYLATER">PayLater</option>
-                      <option value="CREDIT_CARD">Credit Card</option>
-                      <option value="CASH_LOAN">Cash Loan</option>
-                    </select>
-                  </td>
-                  <td className="px-2.5 py-2 space-y-1">
-                    {isLoan ? (
-                      <span className="text-[11px] font-mono text-text-tertiary">N/A (Disb. Day)</span>
-                    ) : (
-                      <>
-                        <input
-                          type="text"
-                          value={row.cutoffFormula ?? String(row.cutoffDay || 15)}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            const num = Number(val);
-                            const next = [...rows];
-                            next[idx] = {
-                              ...row,
-                              cutoffFormula: val,
-                              ...(Number.isFinite(num) && num >= 0 && num <= 31 ? { cutoffDay: num } : {}),
-                            };
-                            setRows(next);
-                          }}
-                          placeholder="DAYS_IN_MONTH - 15"
-                          className="w-40 bg-canvas border border-border rounded px-2 py-1 font-mono text-[11px] text-text-primary"
-                        />
-                        <div className="flex gap-1">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const next = [...rows];
-                              next[idx] = { ...row, cutoffFormula: "DAYS_IN_MONTH - 15", cutoffDay: 15 };
-                              setRows(next);
-                            }}
-                            className="px-1.5 py-0.5 rounded bg-surface-subtle border border-border-subtle text-[9px] font-mono text-text-tertiary hover:text-text-primary cursor-pointer"
-                          >
-                            H-15 EOM
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const next = [...rows];
-                              next[idx] = { ...row, cutoffFormula: "25", cutoffDay: 25 };
-                              setRows(next);
-                            }}
-                            className="px-1.5 py-0.5 rounded bg-surface-subtle border border-border-subtle text-[9px] font-mono text-text-tertiary hover:text-text-primary cursor-pointer"
-                          >
-                            25th
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </td>
-                  <td className="px-2.5 py-2">
-                    {isLoan ? (
-                      <span className="text-[11px] font-mono text-text-tertiary">+1 month</span>
-                    ) : (
-                      <select
-                        value={inclusive ? "INCLUSIVE" : "EXCLUSIVE"}
+      <div className="space-y-3">
+        {rows.map((row, idx) => {
+          const isLoan = row.dueRule === "DISBURSEMENT_DAY";
+          const inclusive =
+            typeof row.cutoffBoundaryInclusive === "boolean"
+              ? row.cutoffBoundaryInclusive
+              : row.type !== "CREDIT_CARD";
+          const preOffset =
+            typeof row.preCutoffOffsetMonths === "number"
+              ? row.preCutoffOffsetMonths
+              : row.type === "CREDIT_CARD"
+                ? 1
+                : 0;
+          const postOffset =
+            typeof row.postCutoffOffsetMonths === "number"
+              ? row.postCutoffOffsetMonths
+              : row.type === "CREDIT_CARD"
+                ? 2
+                : 1;
+          return (
+            <div
+              key={row.id}
+              className="rounded-md border border-border bg-canvas/70 p-3.5 space-y-3"
+            >
+              {/* Row 1: Identity, Instrument Type, Rate, Limit, Active & Action */}
+              <div className="grid grid-cols-12 gap-3 items-end">
+                <label className="col-span-4 space-y-1">
+                  <span className="block text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+                    Instrument Name
+                  </span>
+                  <input
+                    type="text"
+                    value={row.name}
+                    onChange={(e) => {
+                      const next = [...rows];
+                      next[idx] = { ...row, name: e.target.value };
+                      setRows(next);
+                    }}
+                    className="w-full bg-surface border border-border rounded px-2.5 py-1.5 text-xs text-text-primary focus:outline-none focus:border-border-strong"
+                  />
+                </label>
+
+                <label className="col-span-2 space-y-1">
+                  <span className="block text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+                    Type
+                  </span>
+                  <select
+                    value={row.type}
+                    onChange={(e) => {
+                      const next = [...rows];
+                      next[idx] = { ...row, type: e.target.value };
+                      setRows(next);
+                    }}
+                    className="w-full bg-surface border border-border rounded px-2 py-1.5 text-xs text-text-secondary"
+                  >
+                    <option value="PAYLATER">PayLater</option>
+                    <option value="CREDIT_CARD">Credit Card</option>
+                    <option value="CASH_LOAN">Cash Loan</option>
+                  </select>
+                </label>
+
+                <label className="col-span-2 space-y-1">
+                  <span className="block text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+                    Rate (% / mo)
+                  </span>
+                  <input
+                    type="number"
+                    step="0.05"
+                    min={0}
+                    value={row.monthlyInterestPct}
+                    onChange={(e) => {
+                      const next = [...rows];
+                      next[idx] = { ...row, monthlyInterestPct: Number(e.target.value) || 0 };
+                      setRows(next);
+                    }}
+                    className="w-full bg-surface border border-border rounded px-2.5 py-1.5 font-mono text-xs text-text-primary"
+                  />
+                </label>
+
+                <label className="col-span-3 space-y-1">
+                  <span className="block text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+                    Limit (Rp)
+                  </span>
+                  <input
+                    type="number"
+                    step={500000}
+                    min={0}
+                    value={row.creditLimitRp}
+                    onChange={(e) => {
+                      const next = [...rows];
+                      next[idx] = { ...row, creditLimitRp: Number(e.target.value) || 0 };
+                      setRows(next);
+                    }}
+                    className="w-full bg-surface border border-border rounded px-2.5 py-1.5 font-mono text-xs text-text-primary"
+                  />
+                </label>
+
+                <div className="col-span-1 flex items-center justify-end gap-2 pb-1.5">
+                  <input
+                    type="checkbox"
+                    title="Instrument active"
+                    aria-label={`Toggle ${row.name} active`}
+                    checked={row.active}
+                    onChange={(e) => {
+                      const next = [...rows];
+                      next[idx] = { ...row, active: e.target.checked };
+                      setRows(next);
+                    }}
+                    className="h-4 w-4 rounded border-border bg-surface accent-delta-positive cursor-pointer"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setRows(rows.filter((_, i) => i !== idx))}
+                    className="p-1 text-text-tertiary hover:text-delta-negative cursor-pointer"
+                    title="Delete instrument"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Row 2: Cutoff Formula, Boundary Rule, Pre/Post Cycle Offsets & Due Schedule */}
+              <div className="grid grid-cols-12 gap-3 items-start pt-2.5 border-t border-border-subtle/70">
+                <div className="col-span-4 space-y-1">
+                  <span className="block text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+                    Cutoff Formula
+                  </span>
+                  {isLoan ? (
+                    <div className="py-1.5 text-[11px] font-mono text-text-tertiary">
+                      Disbursement Day Anchor (+1 mo)
+                    </div>
+                  ) : (
+                    <>
+                      <input
+                        type="text"
+                        value={row.cutoffFormula ?? String(row.cutoffDay || 15)}
                         onChange={(e) => {
+                          const val = e.target.value;
+                          const num = Number(val);
                           const next = [...rows];
                           next[idx] = {
                             ...row,
-                            cutoffBoundaryInclusive: e.target.value === "INCLUSIVE",
+                            cutoffFormula: val,
+                            ...(Number.isFinite(num) && num >= 0 && num <= 31 ? { cutoffDay: num } : {}),
                           };
                           setRows(next);
                         }}
-                        className="bg-canvas border border-border rounded px-2 py-1 text-[11px] font-mono text-text-secondary"
-                      >
-                        <option value="INCLUSIVE">&gt;= Cutoff rolls next</option>
-                        <option value="EXCLUSIVE">&gt; Cutoff rolls next</option>
-                      </select>
-                    )}
-                  </td>
-                  <td className="px-2.5 py-2">
-                    <div className="flex items-center gap-1 font-mono">
-                      <input
-                        type="number"
-                        min={0}
-                        max={6}
-                        title="Pre-cutoff cycle offset (months)"
-                        value={preOffset}
-                        onChange={(e) => {
-                          const next = [...rows];
-                          next[idx] = { ...row, preCutoffOffsetMonths: Math.max(0, Number(e.target.value) || 0) };
-                          setRows(next);
-                        }}
-                        className="w-12 bg-canvas border border-border rounded px-1.5 py-1 text-xs text-text-primary"
+                        placeholder="DAYS_IN_MONTH - 15"
+                        className="w-full bg-surface border border-border rounded px-2.5 py-1.5 font-mono text-[11px] text-text-primary focus:outline-none focus:border-border-strong"
                       />
-                      <span className="text-text-tertiary">/</span>
-                      <input
-                        type="number"
-                        min={0}
-                        max={6}
-                        title="Post-cutoff cycle offset (months)"
-                        value={postOffset}
-                        onChange={(e) => {
-                          const next = [...rows];
-                          next[idx] = { ...row, postCutoffOffsetMonths: Math.max(0, Number(e.target.value) || 0) };
-                          setRows(next);
-                        }}
-                        className="w-12 bg-canvas border border-border rounded px-1.5 py-1 text-xs text-text-primary"
-                      />
-                    </div>
-                  </td>
-                  <td className="px-2.5 py-2 space-y-1">
-                    {isLoan ? (
-                      <span className="inline-flex items-center whitespace-nowrap px-2 py-0.5 rounded bg-surface-subtle border border-border-subtle text-[11px] text-text-secondary">
-                        Disbursement Day
-                      </span>
-                    ) : (
-                      <div className="flex items-center gap-1">
-                        <input
-                          type="number"
-                          min={1}
-                          max={31}
-                          value={row.dueDay}
-                          onChange={(e) => {
+                      <div className="flex gap-1.5 pt-0.5">
+                        <button
+                          type="button"
+                          onClick={() => {
                             const next = [...rows];
-                            next[idx] = { ...row, dueDay: Number(e.target.value) || 25 };
+                            next[idx] = { ...row, cutoffFormula: "DAYS_IN_MONTH - 15", cutoffDay: 15 };
                             setRows(next);
                           }}
-                          className="w-14 bg-canvas border border-border rounded px-1.5 py-1 font-mono text-xs text-text-primary"
-                        />
-                        <select
-                          value={row.dueShiftRule ?? (row.type === "CREDIT_CARD" ? "SHIFT_PREVIOUS_FRIDAY" : "EXACT_DAY")}
-                          onChange={(e) => {
-                            const next = [...rows];
-                            next[idx] = { ...row, dueShiftRule: e.target.value };
-                            setRows(next);
-                          }}
-                          className="bg-canvas border border-border rounded px-1.5 py-1 text-[10px] text-text-secondary"
+                          className="px-2 py-0.5 rounded bg-surface-subtle border border-border-subtle text-[10px] font-mono text-text-tertiary hover:text-text-primary cursor-pointer"
                         >
-                          <option value="EXACT_DAY">Exact Due Day</option>
-                          <option value="SHIFT_PREVIOUS_FRIDAY">H-1 Weekday</option>
-                        </select>
+                          H-15 EOM
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const next = [...rows];
+                            next[idx] = { ...row, cutoffFormula: "25", cutoffDay: 25 };
+                            setRows(next);
+                          }}
+                          className="px-2 py-0.5 rounded bg-surface-subtle border border-border-subtle text-[10px] font-mono text-text-tertiary hover:text-text-primary cursor-pointer"
+                        >
+                          25th
+                        </button>
                       </div>
-                    )}
-                  </td>
-                  <td className="px-2.5 py-2">
-                    <input
-                      type="number"
-                      step="0.05"
-                      min={0}
-                      value={row.monthlyInterestPct}
+                    </>
+                  )}
+                </div>
+
+                <div className="col-span-3 space-y-1">
+                  <span className="block text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+                    Boundary Rule
+                  </span>
+                  {isLoan ? (
+                    <div className="py-1.5 text-[11px] font-mono text-text-tertiary">
+                      +1 month maturity
+                    </div>
+                  ) : (
+                    <select
+                      value={inclusive ? "INCLUSIVE" : "EXCLUSIVE"}
                       onChange={(e) => {
                         const next = [...rows];
-                        next[idx] = { ...row, monthlyInterestPct: Number(e.target.value) || 0 };
+                        next[idx] = {
+                          ...row,
+                          cutoffBoundaryInclusive: e.target.value === "INCLUSIVE",
+                        };
                         setRows(next);
                       }}
-                      className="w-16 bg-canvas border border-border rounded px-2 py-1 font-mono text-xs text-text-primary"
-                    />
-                  </td>
-                  <td className="px-2.5 py-2">
-                    <input
-                      type="number"
-                      step={500000}
-                      min={0}
-                      value={row.creditLimitRp}
-                      onChange={(e) => {
-                        const next = [...rows];
-                        next[idx] = { ...row, creditLimitRp: Number(e.target.value) || 0 };
-                        setRows(next);
-                      }}
-                      className="w-28 bg-canvas border border-border rounded px-2 py-1 font-mono text-xs text-text-primary"
-                    />
-                  </td>
-                  <td className="px-2.5 py-2">
-                    <input
-                      type="checkbox"
-                      checked={row.active}
-                      onChange={(e) => {
-                        const next = [...rows];
-                        next[idx] = { ...row, active: e.target.checked };
-                        setRows(next);
-                      }}
-                    />
-                  </td>
-                  <td className="px-2.5 py-2 text-right">
-                    <button
-                      type="button"
-                      onClick={() => setRows(rows.filter((_, i) => i !== idx))}
-                      className="p-1 text-text-tertiary hover:text-delta-negative cursor-pointer"
-                      title="Delete instrument"
+                      className="w-full bg-surface border border-border rounded px-2 py-1.5 text-[11px] font-mono text-text-secondary whitespace-nowrap"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                      <option value="INCLUSIVE">&gt;= Cutoff rolls next</option>
+                      <option value="EXCLUSIVE">&gt; Cutoff rolls next</option>
+                    </select>
+                  )}
+                </div>
+
+                <div className="col-span-2 space-y-1">
+                  <span className="block text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+                    Offsets (Pre / Post)
+                  </span>
+                  <div className="flex items-center gap-1.5 font-mono">
+                    <input
+                      type="number"
+                      min={0}
+                      max={6}
+                      title="Pre-cutoff cycle offset (months)"
+                      value={preOffset}
+                      onChange={(e) => {
+                        const next = [...rows];
+                        next[idx] = { ...row, preCutoffOffsetMonths: Math.max(0, Number(e.target.value) || 0) };
+                        setRows(next);
+                      }}
+                      className="w-12 bg-surface border border-border rounded px-2 py-1.5 text-xs text-text-primary"
+                    />
+                    <span className="text-text-tertiary">/</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={6}
+                      title="Post-cutoff cycle offset (months)"
+                      value={postOffset}
+                      onChange={(e) => {
+                        const next = [...rows];
+                        next[idx] = { ...row, postCutoffOffsetMonths: Math.max(0, Number(e.target.value) || 0) };
+                        setRows(next);
+                      }}
+                      className="w-12 bg-surface border border-border rounded px-2 py-1.5 text-xs text-text-primary"
+                    />
+                  </div>
+                </div>
+
+                <div className="col-span-3 space-y-1">
+                  <span className="block text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+                    Due Day / Shift
+                  </span>
+                  {isLoan ? (
+                    <span className="inline-flex items-center whitespace-nowrap px-2.5 py-1.5 rounded bg-surface-subtle border border-border-subtle text-[11px] text-text-secondary">
+                      Disbursement Day
+                    </span>
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="number"
+                        min={1}
+                        max={31}
+                        value={row.dueDay}
+                        onChange={(e) => {
+                          const next = [...rows];
+                          next[idx] = { ...row, dueDay: Number(e.target.value) || 25 };
+                          setRows(next);
+                        }}
+                        className="w-14 bg-surface border border-border rounded px-2 py-1.5 font-mono text-xs text-text-primary"
+                      />
+                      <select
+                        value={row.dueShiftRule ?? (row.type === "CREDIT_CARD" ? "SHIFT_PREVIOUS_FRIDAY" : "EXACT_DAY")}
+                        onChange={(e) => {
+                          const next = [...rows];
+                          next[idx] = { ...row, dueShiftRule: e.target.value };
+                          setRows(next);
+                        }}
+                        className="flex-1 min-w-0 bg-surface border border-border rounded px-2 py-1.5 text-[11px] text-text-secondary"
+                      >
+                        <option value="EXACT_DAY">Exact Due Day</option>
+                        <option value="SHIFT_PREVIOUS_FRIDAY">H-1 Weekday</option>
+                      </select>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* Live Multi-Month & February 28/29 Cutoff Tester */}
