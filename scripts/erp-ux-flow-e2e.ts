@@ -559,7 +559,7 @@ async function main() {
     await page.click('.erp-toast-viewport button:not([aria-label="Dismiss notification"])');
     await page.waitForSelector('input[type="password"][placeholder="Enter password"]', { timeout: 5000 });
     await page.type('input[type="password"][placeholder="Enter password"]', 'Djakarta2026Nov!@#');
-    await page.click('button[type="submit"]');
+    await page.click('form:has(input[placeholder="Enter password"]) button[type="submit"]');
     await page.waitForFunction(() => !document.body.innerText.includes('Rp •••••'), { timeout: 15000 });
 
     // Verify custom ErpDatePicker (toggle + #main-content scroll anchor/dismiss), Title Case cycle label, and zero Marquee orb collision on PayLater tab
