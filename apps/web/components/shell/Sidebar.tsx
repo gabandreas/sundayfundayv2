@@ -7,7 +7,6 @@ import { useAuth } from "@/context/AuthContext";
 import { usePerspective } from "@/context/PerspectiveContext";
 import { TranslationKey, useLanguage } from "@/context/LanguageContext";
 import { usePeriod } from "@/context/PeriodContext";
-import { LanguageSwitcher } from "./LanguageSwitcher";
 import { CustomSidebarShortcut, ModuleKey } from "@/lib/api";
 import { syncSubInUrl } from "@/lib/tabs";
 import {
@@ -386,14 +385,6 @@ export function Sidebar({
             )}
           </div>
         </nav>
-
-        {/* Mobile Locale Switcher */}
-        {!collapsed && (
-          <div className="sm:hidden px-3.5 py-2 border-t border-border-subtle flex items-center justify-between">
-            <span className="text-[11px] font-mono text-text-tertiary">Locale</span>
-            <LanguageSwitcher compact />
-          </div>
-        )}
 
         {/* Single Global Balance Visibility Utility */}
         <div

@@ -1068,6 +1068,12 @@ describe('System-Wide Anti-AI-Slop Visual Design, Temporal Chart Axis & Human Co
     expect(localeSwitcherSrc).toContain('popoverTarget="locale-menu-popover"');
     expect(localeSwitcherSrc).toContain('"scroll"');
 
+    const sidebarSrc = fs.readFileSync(
+      path.join(WEB_DIR, 'components', 'shell', 'Sidebar.tsx'),
+      'utf8',
+    );
+    expect(sidebarSrc).not.toContain('<LanguageSwitcher');
+
     const privacyGuardPath = path.join(WEB_DIR, 'hooks', 'usePrivacyGuard.ts');
     expect(fs.existsSync(privacyGuardPath)).toBe(true);
     const privacyGuardSrc = fs.readFileSync(privacyGuardPath, 'utf8');

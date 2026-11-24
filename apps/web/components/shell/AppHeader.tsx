@@ -88,9 +88,7 @@ export function AppHeader({ onToggleMobileDrawer }: { onToggleMobileDrawer?: () 
           <MonthYearSwitcher />
         </Suspense>
 
-        <div className="hidden sm:block">
-          <LanguageSwitcher compact />
-        </div>
+        <LanguageSwitcher compact />
 
         <AccountHeaderBadge />
       </div>
