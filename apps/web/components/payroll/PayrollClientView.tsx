@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   GlobalConfig,
   IntelligenceBundleResponse,
@@ -17,6 +18,7 @@ import { usePeriodSlice } from "@/hooks/usePeriodSlice";
 import { useSubModule } from "@/hooks/useSubModule";
 import { PAYROLL_SUB_KEYS, PayrollSubKey } from "@/lib/tabs";
 import { useLanguage } from "@/context/LanguageContext";
+import { usePeriod } from "@/context/PeriodContext";
 import { usePerspective } from "@/context/PerspectiveContext";
 import { PageHeader } from "@/components/primitives/PageHeader";
 import { SubModuleNav } from "@/components/primitives/SubModuleNav";
@@ -49,10 +51,12 @@ export function PayrollClientView({
   initialData,
 }: PayrollClientViewProps) {
   const { t } = useLanguage();
+  const { refreshPeriod } = usePeriod();
   const { isBespokeWorkspace, isModuleEnabled } = usePerspective();
   const showCorporatePayroll = isBespokeWorkspace || isModuleEnabled("corporate_payroll");
   const [activeSub, selectSub] = useSubModule<PayrollSubKey>(PAYROLL_SUB_KEYS, "payslip");
   const [intel, setIntel] = useState<IntelligenceBundleResponse | null>(null);
+  const [showManualThrEstimator, setShowManualThrEstimator] = useState(false);
   const { month, year, data, isPreBoundary } =
     usePeriodSlice<PayrollPeriodData>({
       initialMonth,
@@ -96,6 +100,10 @@ export function PayrollClientView({
     };
   }, [month, year]);
 
+  useEffect(() => {
+    setShowManualThrEstimator(false);
+  }, [month, year]);
+
   if (isPreBoundary) {
     return <PreBoundaryNotice month={month} year={year} />;
   }
@@ -106,9 +114,20 @@ export function PayrollClientView({
     payroll?.finalTotalIncome ?? snapshot?.finalTotalIncome ?? 0;
   const netSalaryIncome =
     payroll?.netSalaryIncome ?? snapshot?.netSalaryIncome ?? 0;
+  const directPayrollDeductions =
+    payroll?.directPayrollDeductions ?? snapshot?.directPayrollDeductions ?? 0;
+  const bankTakeHomeSalary =
+    payroll?.bankTakeHomeSalary ?? Math.max(0, netSalaryIncome - directPayrollDeductions);
   const extraIncome = payroll?.extraIncome ?? snapshot?.extraIncome ?? 0;
   const workingDays =
     payroll?.totalWorkingDays ?? snapshot?.totalWorkingDays ?? 0;
+  const thrConfig = config?.studioConfig?.thrConfig ?? null;
+  const thrPayoutMonth = thrConfig?.payoutMonth ?? 12;
+  const thrEnabled = thrConfig?.enabled ?? true;
+  const activeThrAmount = payroll?.thrAmount ?? snapshot?.thrAmount ?? 0;
+  const showThrEstimator =
+    showManualThrEstimator ||
+    (thrEnabled && (month === thrPayoutMonth || activeThrAmount > 0));
 
   return (
     <div className="space-y-6 w-full max-w-full">
@@ -147,6 +166,8 @@ export function PayrollClientView({
             <PayrollCashflowHighlights
               finalTotalIncome={finalTotalIncome}
               netSalaryIncome={netSalaryIncome}
+              bankTakeHomeSalary={bankTakeHomeSalary}
+              directPayrollDeductions={directPayrollDeductions}
               extraIncome={extraIncome}
               thrAmount={payroll?.thrAmount ?? snapshot?.thrAmount ?? 0}
               bonusAmount={payroll?.bonusAmount ?? snapshot?.bonusAmount ?? 0}
@@ -166,18 +187,47 @@ export function PayrollClientView({
                   </div>
                 )}
 
-                <ThrBonusEstimatorCard
-                  key={`thr-estimator-${month}-${year}-${snapshot?.thrAmount ?? 0}`}
-                  baseSalary={payroll?.baseSalary ?? config?.baseSalary ?? 0}
-                  dailyAllowance={payroll?.dailyAllowance ?? config?.dailyAllowance ?? 0}
-                  laptopAllowance={payroll?.laptopAllowance ?? config?.laptopAllowance ?? 0}
-                  currentWorkingDays={workingDays}
-                  currentSalaryAdjustment={snapshot?.salaryAdjustment ?? 0}
-                  currentCafeteriaDeduction={snapshot?.cafeteriaDeduction ?? 0}
-                  currentExtraIncome={extraIncome}
-                  currentThrAmount={payroll?.thrAmount ?? snapshot?.thrAmount ?? 0}
-                  currentMonth={month}
-                />
+                {showThrEstimator ? (
+                  <ThrBonusEstimatorCard
+                    key={`thr-estimator-${month}-${year}-${snapshot?.thrAmount ?? 0}`}
+                    baseSalary={payroll?.baseSalary ?? config?.baseSalary ?? 0}
+                    dailyAllowance={payroll?.dailyAllowance ?? config?.dailyAllowance ?? 0}
+                    laptopAllowance={payroll?.laptopAllowance ?? config?.laptopAllowance ?? 0}
+                    currentWorkingDays={workingDays}
+                    currentSalaryAdjustment={snapshot?.salaryAdjustment ?? 0}
+                    currentCafeteriaDeduction={snapshot?.cafeteriaDeduction ?? 0}
+                    currentExtraIncome={extraIncome}
+                    currentThrAmount={activeThrAmount}
+                    currentMonth={month}
+                    thrConfig={thrConfig}
+                    directDeductionsTotal={directPayrollDeductions}
+                  />
+                ) : (
+                  <div className="bg-surface border border-border-subtle rounded-lg px-4 py-3 flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <span className="text-text-tertiary font-sans">
+                      {thrEnabled
+                        ? `${thrConfig?.label || "Holiday Bonus (THR)"} estimator activates automatically in month ${thrPayoutMonth}.`
+                        : "Holiday Bonus (THR) estimator is disabled in Preferences."}
+                    </span>
+                    <div className="flex items-center gap-3">
+                      {thrEnabled && (
+                        <button
+                          type="button"
+                          onClick={() => setShowManualThrEstimator(true)}
+                          className="font-mono text-[11px] text-accent hover:underline cursor-pointer"
+                        >
+                          Estimate {thrConfig?.label || "Holiday Bonus"}
+                        </button>
+                      )}
+                      <Link
+                        href="/preferences?sub=payroll"
+                        className="font-mono text-[11px] text-text-secondary hover:text-text-primary hover:underline"
+                      >
+                        Configure in Preferences
+                      </Link>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -197,6 +247,10 @@ export function PayrollClientView({
                   initialThrAmount={snapshot.thrAmount ?? 0}
                   baseSalary={config?.baseSalary ?? 0}
                   initialPayrollPayoutDate={snapshot.payrollPayoutDate}
+                  thrConfig={thrConfig}
+                  templates={config?.payrollAdjustmentTemplates ?? []}
+                  periodAdjustments={snapshot.payrollPeriodAdjustments ?? []}
+                  onAdjusted={refreshPeriod}
                 />
               )}
 

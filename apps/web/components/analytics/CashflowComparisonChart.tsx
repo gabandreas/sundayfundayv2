@@ -357,7 +357,7 @@ export function CashflowComparisonChart({
           </div>
           <div>
             <span className="text-text-tertiary mr-1 font-sans">
-              Flexible Surplus:
+              Discretionary:
             </span>
             <span className="text-text-primary font-medium">
               {formatRp(activePeriod.selfRewardSurplus)}

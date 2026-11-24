@@ -91,8 +91,24 @@ export class FinanceSelectors {
     month: number;
     totalWorkingDays: number;
     extraIncome: number;
+    customAdjustments?: any[];
   }): PayrollResult {
     const { config, snapshot, month, totalWorkingDays, extraIncome } = params;
+    const rawAdj = Array.isArray(params.customAdjustments)
+      ? params.customAdjustments
+      : Array.isArray(snapshot?.payrollPeriodAdjustments)
+        ? snapshot.payrollPeriodAdjustments
+        : [];
+    const customAdjustments = rawAdj
+      .map((adj: any) => ({
+        id: adj.id,
+        templateId: adj.templateId ?? null,
+        label: String(adj.label || '').trim(),
+        stage: adj.stage,
+        amount: Math.max(0, Math.round(Number(adj.amount) || 0)),
+        notes: adj.notes ?? null,
+      }))
+      .filter((adj: any) => adj.amount > 0 && adj.label.length > 0);
     const frozenPayrollRules = (snapshot?.frozenRulesJson as any)?.payrollRules;
     const payrollRules =
       Array.isArray(frozenPayrollRules) && frozenPayrollRules.length > 0
@@ -123,6 +139,7 @@ export class FinanceSelectors {
         month,
         payrollRules,
         customPayrollRows: (config.formulaParamsJson as any)?.customPayrollRows,
+        customAdjustments,
       });
       return {
         baseSalary: config.baseSalary,
@@ -135,6 +152,11 @@ export class FinanceSelectors {
         dailyAllowance: effectiveDailyAllowance,
         totalDailyAllowance: mod.totalDailyAllowance,
         netSalaryIncome: mod.netSalaryIncome,
+        customPayrollAdditions: mod.customPayrollAdditions,
+        customPayrollDeductions: mod.customPayrollDeductions,
+        directPayrollDeductions: mod.directPayrollDeductions,
+        bankTakeHomeSalary: mod.bankTakeHomeSalary,
+        customAdjustments,
         extraIncome,
         finalTotalIncome: mod.finalTotalIncome,
         thrAmount: mod.thrAmount,
@@ -161,6 +183,7 @@ export class FinanceSelectors {
       extraIncome,
       laptopAllowance: pcCfg.laptopAllowanceRp ?? config.laptopAllowance,
       bpjsRate: (pcCfg.bpjsRatePercent ?? 3) / 100,
+      customAdjustments,
     });
   }
 
@@ -191,9 +214,17 @@ export class FinanceSelectors {
       throw new NotFoundException('Global configuration not found');
     }
 
-    const transactions = await this.prisma.transaction.findMany({
-      where: { snapshotId: snapshot.id },
-    });
+    const [transactions, periodAdjustments] = await Promise.all([
+      this.prisma.transaction.findMany({
+        where: { snapshotId: snapshot.id },
+      }),
+      this.prisma.payrollPeriodAdjustment && !(snapshot as any).isSandbox
+        ? this.prisma.payrollPeriodAdjustment.findMany({
+            where: { snapshotId: snapshot.id },
+            orderBy: { id: 'asc' },
+          })
+        : Promise.resolve([]),
+    ]);
 
     const extraIncome = sumExtraIncome(transactions);
 
@@ -203,6 +234,7 @@ export class FinanceSelectors {
       month,
       totalWorkingDays: snapshot.totalWorkingDays,
       extraIncome,
+      customAdjustments: periodAdjustments,
     });
   }
 
@@ -238,6 +270,21 @@ export class FinanceSelectors {
       throw new NotFoundException('Global configuration not found');
     }
 
+    const snapIds = snapshots.map((s) => s.id);
+    const periodAdjustmentsAll =
+      snapIds.length > 0 && this.prisma.payrollPeriodAdjustment
+        ? await this.prisma.payrollPeriodAdjustment.findMany({
+            where: { userId, snapshotId: { in: snapIds } },
+            orderBy: { id: 'asc' },
+          })
+        : [];
+    const adjBySnapId = new Map<number, any[]>();
+    for (const adj of periodAdjustmentsAll) {
+      const list = adjBySnapId.get(adj.snapshotId) ?? [];
+      list.push(adj);
+      adjBySnapId.set(adj.snapshotId, list);
+    }
+
     const studioCfg = resolveStudioConfig(
       userId,
       config.formulaParamsJson,
@@ -260,6 +307,7 @@ export class FinanceSelectors {
           snap?.totalWorkingDays ??
           calculateWorkingDaysForConsumptionPeriod(month, year, holidays, attWindow),
         extraIncome: snap ? sumExtraIncome(snap.transactions) : 0,
+        customAdjustments: snap ? adjBySnapId.get(snap.id) ?? [] : [],
       });
       return { month, year, payroll };
     });

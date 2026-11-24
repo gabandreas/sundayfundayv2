@@ -40,8 +40,8 @@ type EventFilterMode = "ALL" | "INFLOW" | "BILLS" | "CUTOFF" | "SPENDING";
 
 const COPY_BY_LOCALE = {
   en: {
-    eyebrow: "CASH RADAR & BILLING SCHEDULE",
-    title: "Daily Cashflow & Cutoff Radar",
+    eyebrow: "CASH CALENDAR & BILLING SCHEDULE",
+    title: "Daily Cashflow & Cutoff Calendar",
     subtitle:
       "Track payday credits, THR payouts, card and PayLater statement closings, daily living spend, individual due dates, and your running bank balance across each paycycle.",
     paydayInflows: "Payday & Inflows",
@@ -72,8 +72,8 @@ const COPY_BY_LOCALE = {
     nextMonth: "Next month",
   },
   id: {
-    eyebrow: "RADAR KAS & JADWAL TAGIHAN",
-    title: "Radar Arus Kas & Tanggal Cutoff",
+    eyebrow: "KALENDER KAS & JADWAL TAGIHAN",
+    title: "Kalender Arus Kas & Tanggal Cutoff",
     subtitle:
       "Pantau tanggal gajian, pencairan THR, tanggal tutup buku kartu kredit dan PayLater, pengeluaran harian, jatuh tempo kontrak, serta saldo berjalan dalam satu siklus.",
     paydayInflows: "Masuk Gajian & Inflow",
@@ -104,8 +104,8 @@ const COPY_BY_LOCALE = {
     nextMonth: "Periode berikutnya",
   },
   zh: {
-    eyebrow: "现金流雷达与账单日程",
-    title: "每日现金流与结账日雷达",
+    eyebrow: "现金流日历与账单日程",
+    title: "每日现金流与账单日历",
     subtitle:
       "按发薪周期完整追踪薪资与津贴入账、信用卡与分期结账日、日常消费记录、逐笔到期扣款及每日银行余额走势。",
     paydayInflows: "发薪与入账总额",

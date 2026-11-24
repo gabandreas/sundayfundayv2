@@ -7,7 +7,7 @@ import { usePerspective } from "@/context/PerspectiveContext";
 
 const DEFAULT_TIERS: PriorityTierConfig[] = [
   { key: "SAVINGS", label: "Core Savings Reserve", order: 1, enabled: true },
-  { key: "DISCRETIONARY", label: "Flexible Surplus", order: 2, enabled: true },
+  { key: "DISCRETIONARY", label: "Discretionary", order: 2, enabled: true },
 ];
 
 export function PriorityTiersEditor({ initialConfig }: { initialConfig?: ModularStudioConfig }) {
@@ -45,7 +45,7 @@ export function PriorityTiersEditor({ initialConfig }: { initialConfig?: Modular
     const cleaned = tiers.map((t, i) => ({
       ...t,
       order: i + 1,
-      label: t.label.trim() || (t.key === "SAVINGS" ? "Core Savings Reserve" : "Flexible Surplus"),
+      label: t.label.trim() || (t.key === "SAVINGS" ? "Core Savings Reserve" : "Discretionary"),
     }));
     await updateStudioConfig({ priorityTiers: cleaned });
     setTiers(cleaned);

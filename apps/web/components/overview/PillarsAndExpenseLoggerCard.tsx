@@ -148,7 +148,7 @@ export function PillarsAndExpenseLoggerCard({
 
   const { studioConfig } = usePerspective();
   const savingsTierLabel = resolvePriorityTierLabel(studioConfig, "SAVINGS", "Core Savings");
-  const surplusTierLabel = resolvePriorityTierLabel(studioConfig, "DISCRETIONARY", "Flexible Surplus");
+  const surplusTierLabel = resolvePriorityTierLabel(studioConfig, "DISCRETIONARY", "Discretionary");
 
   const totalAllocated =
     (snapshot?.actualSavings ?? 0) +
@@ -203,7 +203,7 @@ export function PillarsAndExpenseLoggerCard({
             </div>
           </div>
 
-          {/* Flexible Surplus */}
+          {/* Discretionary */}
           <div className="flex items-center justify-between">
             <div>
               <span className="text-text-secondary text-[11px] block">{surplusTierLabel}:</span>

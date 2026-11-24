@@ -67,7 +67,7 @@ export function BridgeLoanModal({
       return;
     }
     if (totalAllocated > principal) {
-      setErrorMsg("Living Cash + Routine Bills allocation cannot exceed disbursed principal.");
+      setErrorMsg("Spending Pool + Routine Bills allocation cannot exceed disbursed principal.");
       return;
     }
 
@@ -233,7 +233,7 @@ export function BridgeLoanModal({
                 </select>
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-mono text-text-tertiary">Living Cash</label>
+                <label className="text-[10px] font-mono text-text-tertiary">Spending Pool</label>
                 <input
                   type="text"
                   inputMode="numeric"

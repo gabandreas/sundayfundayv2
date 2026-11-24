@@ -423,7 +423,7 @@ export function ReportsClientView({
           footer={
             uw.isDeficit
               ? "Uncovered deficit after upfront debt & living bills"
-              : `Core Savings: ${formatIDR(uw.actualSavings)} · Flexible Surplus: ${formatIDR(uw.actualSelfReward)}`
+              : `Core Savings: ${formatIDR(uw.actualSavings)} · Discretionary: ${formatIDR(uw.actualSelfReward)}`
           }
         />
       </div>
@@ -489,7 +489,7 @@ export function ReportsClientView({
               </div>
             </div>
             <div>
-              <div className="text-[10px] text-text-tertiary">Debt Burn-Down</div>
+              <div className="text-[10px] text-text-tertiary">Debt Paydown</div>
               <div className="font-semibold text-text-primary mt-0.5">
                 {formatIDR(horizon.debtBurnDownVelocityRp)}/mo
               </div>
@@ -501,7 +501,7 @@ export function ReportsClientView({
               </div>
             </div>
             <div className="col-span-2 lg:col-span-1">
-              <div className="text-[10px] text-text-tertiary">Next Cashflow Unlock</div>
+              <div className="text-[10px] text-text-tertiary">Next Payoff Relief</div>
               <div className="font-semibold text-delta-positive mt-0.5 truncate" title={horizon.nextMilestoneLabel}>
                 {horizon.nextMilestoneLabel}
               </div>
@@ -841,7 +841,7 @@ export function ReportsClientView({
               <div className="p-4 flex flex-col justify-between space-y-3">
                 <div className="space-y-1.5">
                   <div className="text-[10px] font-mono text-text-tertiary">
-                    4. Flexible Surplus Allowance
+                    4. Discretionary Allowance
                   </div>
                   <div className="font-mono text-base font-semibold text-text-primary">
                     {formatIDR(
@@ -1408,7 +1408,7 @@ export function ReportsClientView({
                   Step 5 · Savings &amp; Bottom Line (What You Kept)
                 </h3>
                 <p className="text-[11px] text-text-secondary mt-0.5">
-                  Core Savings Reserve, Flexible Surplus, Savings Pockets, and Period Verdict.
+                  Core Savings Reserve, Discretionary, Savings Pockets, and Period Verdict.
                 </p>
               </div>
               <span
@@ -1453,7 +1453,7 @@ export function ReportsClientView({
                   <div className="px-4 py-2.5 flex items-center justify-between">
                     <div>
                       <div className="font-medium text-text-primary">
-                        Flexible Surplus
+                        Discretionary
                       </div>
                       <div className="text-[11px] text-text-tertiary">
                         Target: {formatIDR(mc.savingsBottomLine.p2Target)}
@@ -1541,7 +1541,7 @@ export function ReportsClientView({
                 Month-to-Month Comparison ({comp.periodCount} Months)
               </h3>
               <p className="text-[11px] text-text-secondary mt-0.5">
-                Side-by-side comparison of Money In, Debt Bills, Routine &amp; Daily Living, Core Savings, Flexible Surplus, and Change vs Last Month.
+                Side-by-side comparison of Money In, Debt Bills, Routine &amp; Daily Living, Core Savings, Discretionary, and Change vs Last Month.
               </p>
             </div>
           </div>
@@ -1566,7 +1566,7 @@ export function ReportsClientView({
                     Core Savings
                   </th>
                   <th className="py-2.5 px-4 text-right font-medium">
-                    Flexible Surplus
+                    Discretionary
                   </th>
                   <th className="py-2.5 px-5 text-left font-medium">
                     Change vs Last Month
@@ -2250,7 +2250,7 @@ export function ReportsClientView({
 
                     <div className="flex items-center justify-between">
                       <span className="text-text-secondary">
-                        Projected Flexible Surplus
+                        Projected Discretionary
                       </span>
                       <span className="font-mono text-text-primary">
                         {formatIDR(m.waterfall.projectedSelfRewardSurplus)}

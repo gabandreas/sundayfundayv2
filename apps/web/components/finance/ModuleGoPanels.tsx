@@ -201,7 +201,7 @@ export function EnvelopesAndSinkingPanel({
           <div className="font-mono text-xl font-semibold text-delta-positive mt-1 tabular-nums">
             {env.bufferDays} Days
           </div>
-          <div className="text-[11px] text-text-tertiary mt-1">At current daily burn rate</div>
+          <div className="text-[11px] text-text-tertiary mt-1">At current daily spending pace</div>
         </div>
         <div className="p-4 min-w-0">
           <div className="text-[11px] font-sans text-text-tertiary">Unspent Sweep to Savings</div>
@@ -389,10 +389,12 @@ const RECONCILER_INSTRUMENT_LABELS: Record<string, string> = {
 export function BulkStatementReconcilerPanel({
   onCommitted,
   externalText,
+  externalDefaultMethod,
   externalVersion,
 }: {
   onCommitted?: () => void;
   externalText?: string;
+  externalDefaultMethod?: "CASH" | "PAYLATER" | "CREDIT_CARD";
   externalVersion?: number;
 }) {
   const { isAmountsMasked } = usePrivacyMask();
@@ -409,10 +411,13 @@ export function BulkStatementReconcilerPanel({
   React.useEffect(() => {
     if (externalText !== undefined && externalVersion !== undefined && externalVersion > 0) {
       setRawText(externalText);
+      if (externalDefaultMethod) {
+        setDefaultMethod(externalDefaultMethod);
+      }
       setResult(null);
       setStatusMsg(null);
     }
-  }, [externalText, externalVersion]);
+  }, [externalText, externalDefaultMethod, externalVersion]);
 
   const handleParse = async () => {
     setParsing(true);
@@ -504,7 +509,9 @@ export function BulkStatementReconcilerPanel({
         <div className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
             <span className="text-text-secondary font-mono">
-              Parsed: {result.parsedCount} rows · New: {result.newEntryCount} · Duplicates: {result.duplicateCount} · Total: {formatRupiah(result.totalAmountRp, isAmountsMasked)}
+              Debit Rows: {result.parsedCount} · New: {result.newEntryCount} · Duplicates: {result.duplicateCount}
+              {(result.skippedCreditCount ?? 0) > 0 ? ` · Skipped CR Inflows: ${result.skippedCreditCount}` : ""} · Total:{" "}
+              {formatRupiah(result.totalAmountRp, isAmountsMasked)}
             </span>
             <button
               type="button"
@@ -777,7 +784,7 @@ export function WealthForecaster12MPanel({
                 <th className="px-3 py-2">Period</th>
                 <th className="px-3 py-2">Baseline Plan</th>
                 <th className="px-3 py-2">Disciplined Zero-Leakage</th>
-                <th className="px-3 py-2">Spend Shock (+15% Burn)</th>
+                <th className="px-3 py-2">Spend Shock (+15% Expense)</th>
                 <th className="px-3 py-2">DSR %</th>
               </tr>
             </thead>

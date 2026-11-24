@@ -48,7 +48,7 @@ const QUERY_PRESETS = [
     sql: 'SELECT id, "userId", month, year, status, "totalIncome", "totalDeductions" FROM "MonthlySnapshot" ORDER BY "userId", year, month;',
   },
   {
-    label: "Active Kill-Switches",
+    label: "Active Renewal Alerts",
     sql: 'SELECT id, "userId", name, amount, "promoLabel", "promoEndDate", "killSwitchArmed" FROM "CreditCardTransaction" WHERE "killSwitchArmed" = true ORDER BY id;',
   },
   {

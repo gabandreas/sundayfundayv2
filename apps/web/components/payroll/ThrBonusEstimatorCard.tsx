@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { formatRupiah } from "@/lib/utils";
+import { ThrConfig } from "@/lib/api";
 import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 
 interface ThrBonusEstimatorCardProps {
@@ -14,6 +15,21 @@ interface ThrBonusEstimatorCardProps {
   currentExtraIncome: number;
   currentThrAmount?: number;
   currentMonth?: number;
+  thrConfig?: ThrConfig | null;
+  directDeductionsTotal?: number;
+}
+
+type EstimatorMethod = "EXACT_DAYS" | "MONTHS_PRORATED" | "FULL_100" | "CUSTOM";
+
+function diffCalendarDaysInclusive(startIso: string, endIso: string): number | null {
+  if (!startIso || !endIso) return null;
+  const start = new Date(`${startIso.slice(0, 10)}T00:00:00Z`);
+  const end = new Date(`${endIso.slice(0, 10)}T00:00:00Z`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) {
+    return null;
+  }
+  const days = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  return Math.max(0, Math.min(365, days));
 }
 
 export function ThrBonusEstimatorCard({
@@ -25,84 +41,133 @@ export function ThrBonusEstimatorCard({
   currentCafeteriaDeduction,
   currentExtraIncome,
   currentThrAmount = 0,
-  currentMonth = 11,
+  currentMonth = 12,
+  thrConfig,
+  directDeductionsTotal = 0,
 }: ThrBonusEstimatorCardProps) {
   const { isAmountsMasked } = usePrivacyMask();
   const adjustedBase = Math.max(0, baseSalary + currentSalaryAdjustment);
-  const joinDateIso = "2026-04-06";
-  const exactDays2026 = 264;
-  const completedMonths2026 = 8;
-  const derivedDefaultTenure =
-    currentThrAmount > 0 && adjustedBase > 0
-      ? Math.round((currentThrAmount / adjustedBase) * 12 * 100) / 100
-      : currentMonth === 12
-        ? Math.round((exactDays2026 / 365) * 12 * 100) / 100
-        : 12;
+  const thrBase = thrConfig?.includeFixedAllowances
+    ? adjustedBase + laptopAllowance
+    : adjustedBase;
+
+  const thrLabel = thrConfig?.label?.trim() || "Holiday Bonus (THR)";
+  const joinDateIso = thrConfig?.joinDateIso?.trim() || "";
+  const holidayDateIso = thrConfig?.holidayDateIso?.trim() || "";
+  const exactDays = useMemo(
+    () => diffCalendarDaysInclusive(joinDateIso, holidayDateIso),
+    [joinDateIso, holidayDateIso],
+  );
+  const payoutMonth = thrConfig?.payoutMonth ?? 12;
+
+  const defaultTenureMonths = useMemo(() => {
+    if (currentThrAmount > 0 && thrBase > 0) {
+      return Math.round((currentThrAmount / thrBase) * 12 * 100) / 100;
+    }
+    if (exactDays !== null) {
+      return Math.round((exactDays / 365) * 12 * 100) / 100;
+    }
+    return 12;
+  }, [currentThrAmount, exactDays, thrBase]);
+
+  const initialMethod: EstimatorMethod =
+    thrConfig?.calculationMode === "EXACT_DAYS_365" && exactDays !== null
+      ? "EXACT_DAYS"
+      : thrConfig?.calculationMode === "FULL_MONTH"
+        ? "FULL_100"
+        : thrConfig?.calculationMode === "STATUTORY_MONTHS_12"
+          ? "MONTHS_PRORATED"
+          : currentMonth === payoutMonth && exactDays !== null
+            ? "EXACT_DAYS"
+            : "MONTHS_PRORATED";
 
   const [simulatedDays, setSimulatedDays] = useState<number>(
-    currentWorkingDays > 0 ? currentWorkingDays : 21
+    currentWorkingDays > 0 ? currentWorkingDays : 20,
   );
-  const [thrMethod, setThrMethod] = useState<"SUNFISH_DAYS" | "PERMENAKER_FLOOR" | "CUSTOM">(
-    currentMonth === 12 ? "SUNFISH_DAYS" : "CUSTOM"
-  );
-  const [tenureMonths, setTenureMonths] = useState<number>(derivedDefaultTenure);
+  const [method, setMethod] = useState<EstimatorMethod>(initialMethod);
+  const [tenureMonths, setTenureMonths] = useState<number>(defaultTenureMonths);
+  const [customThrInput, setCustomThrInput] = useState<number>(currentThrAmount);
   const [bonusFactorMonths, setBonusFactorMonths] = useState<number>(0);
 
   const bpjsDeduction = Math.round(adjustedBase * 0.03);
   const netBase = adjustedBase - bpjsDeduction + laptopAllowance;
   const attendanceTotal = simulatedDays * dailyAllowance;
-  const sunfishExactThr = Math.round((exactDays2026 / 365) * adjustedBase);
-  const permenakerFloorThr = Math.round((completedMonths2026 / 12) * adjustedBase);
-  const aprilProofBase = Math.round((25 / 30) * adjustedBase);
-  const proratedThr =
-    thrMethod === "SUNFISH_DAYS"
-      ? sunfishExactThr
-      : thrMethod === "PERMENAKER_FLOOR"
-        ? permenakerFloorThr
-        : Math.round(adjustedBase * (Math.min(12, Math.max(0, tenureMonths)) / 12));
+
+  const exactDaysThr = exactDays !== null ? Math.round((exactDays / 365) * thrBase) : 0;
+  const monthsThr = Math.round(thrBase * (Math.min(12, Math.max(0, tenureMonths)) / 12));
+
+  const estimatedThr =
+    method === "EXACT_DAYS" && exactDays !== null
+      ? exactDaysThr
+      : method === "FULL_100"
+        ? thrBase
+        : method === "CUSTOM"
+          ? Math.max(0, Math.round(customThrInput))
+          : monthsThr;
+
   const projectedBonus = Math.round(adjustedBase * Math.max(0, bonusFactorMonths));
-  const projectedNetSalary = Math.max(0, netBase + attendanceTotal - currentCafeteriaDeduction);
-  const projectedTakeHome = projectedNetSalary + proratedThr + projectedBonus + currentExtraIncome;
+  const projectedSlipNet = Math.max(0, netBase + attendanceTotal - currentCafeteriaDeduction);
+  const projectedBankTransfer = Math.max(0, projectedSlipNet - Math.max(0, directDeductionsTotal));
+  const projectedTakeHome =
+    projectedBankTransfer + estimatedThr + projectedBonus + currentExtraIncome;
+
+  const dayGrid = [19, 20, 21, 22, 23];
 
   return (
     <div className="bg-surface border border-border-default rounded-lg p-5 space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3 pb-2.5 border-b border-border-subtle">
         <div>
           <h3 className="text-sm font-semibold font-sans text-text-primary tracking-tight">
-            THR (Gross Base Only), Bonus &amp; Attendance Simulator
+            {thrLabel} &amp; Attendance Estimator
           </h3>
           <p className="text-xs font-sans text-text-tertiary mt-0.5">
-            THR prorates strictly on Gross Base Salary ({formatRupiah(adjustedBase, isAmountsMasked)}) excluding Laptop Allowance, paid max H-7 (~Dec 18 into Dec cycle).
+            {thrConfig?.includeFixedAllowances
+              ? `Prorated on base + fixed allowances (${formatRupiah(thrBase, isAmountsMasked)}).`
+              : `Prorated strictly on base salary (${formatRupiah(thrBase, isAmountsMasked)}), excluding variable attendance.`}
           </p>
         </div>
-        <div className="inline-flex items-center rounded border border-border bg-canvas p-0.5 text-[10px] font-mono">
+
+        <div className="inline-flex flex-wrap items-center rounded border border-border bg-canvas p-0.5 text-[10px] font-mono">
+          {exactDays !== null && (
+            <button
+              type="button"
+              onClick={() => setMethod("EXACT_DAYS")}
+              className={`px-2 py-1 rounded-sm cursor-pointer ${
+                method === "EXACT_DAYS"
+                  ? "bg-surface-active text-text-primary font-semibold"
+                  : "text-text-tertiary hover:text-text-secondary"
+              }`}
+            >
+              {exactDays}/365 Days
+            </button>
+          )}
           <button
             type="button"
-            onClick={() => setThrMethod("SUNFISH_DAYS")}
+            onClick={() => setMethod("MONTHS_PRORATED")}
             className={`px-2 py-1 rounded-sm cursor-pointer ${
-              thrMethod === "SUNFISH_DAYS"
+              method === "MONTHS_PRORATED"
                 ? "bg-surface-active text-text-primary font-semibold"
                 : "text-text-tertiary hover:text-text-secondary"
             }`}
           >
-            264/365 Days
+            Months / 12
           </button>
           <button
             type="button"
-            onClick={() => setThrMethod("PERMENAKER_FLOOR")}
+            onClick={() => setMethod("FULL_100")}
             className={`px-2 py-1 rounded-sm cursor-pointer ${
-              thrMethod === "PERMENAKER_FLOOR"
+              method === "FULL_100"
                 ? "bg-surface-active text-text-primary font-semibold"
                 : "text-text-tertiary hover:text-text-secondary"
             }`}
           >
-            8/12 Mo Floor
+            Full 100%
           </button>
           <button
             type="button"
-            onClick={() => setThrMethod("CUSTOM")}
+            onClick={() => setMethod("CUSTOM")}
             className={`px-2 py-1 rounded-sm cursor-pointer ${
-              thrMethod === "CUSTOM"
+              method === "CUSTOM"
                 ? "bg-surface-active text-text-primary font-semibold"
                 : "text-text-tertiary hover:text-text-secondary"
             }`}
@@ -112,19 +177,19 @@ export function ThrBonusEstimatorCard({
         </div>
       </div>
 
-      {/* SunFish Payslip Proration Proof Strip */}
-      <div className="px-3 py-2 rounded bg-canvas border border-border-subtle flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono text-text-secondary">
-        <span>
-          Join {joinDateIso} · April 2026 Proof (25/30d):{" "}
-          <strong className="text-text-primary tabular-nums">{formatRupiah(aprilProofBase, isAmountsMasked)}</strong>
-        </span>
-        <span>
-          Dec 25 Exact (264/365):{" "}
-          <strong className="text-delta-positive tabular-nums">{formatRupiah(sunfishExactThr, isAmountsMasked)}</strong>{" "}
-          · Statutory Floor (8/12):{" "}
-          <strong className="text-text-primary tabular-nums">{formatRupiah(permenakerFloorThr, isAmountsMasked)}</strong>
-        </span>
-      </div>
+      {exactDays !== null && (
+        <div className="px-3 py-2 rounded bg-canvas border border-border-subtle flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono text-text-secondary">
+          <span>
+            Service Window: {joinDateIso.slice(0, 10)} to {holidayDateIso.slice(0, 10)} ({exactDays}/365 days)
+          </span>
+          <span>
+            Exact Prorated:{" "}
+            <strong className="text-delta-positive tabular-nums">
+              {formatRupiah(exactDaysThr, isAmountsMasked)}
+            </strong>
+          </span>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div>
@@ -134,29 +199,46 @@ export function ThrBonusEstimatorCard({
           <input
             type="number"
             min={0}
-            max={26}
+            max={31}
             value={simulatedDays}
             onChange={(e) => setSimulatedDays(Math.max(0, Number(e.target.value) || 0))}
             className="w-full px-2.5 py-1.5 rounded bg-surface-subtle border border-border-default font-mono text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-text-secondary"
           />
         </div>
 
-        <div>
-          <label className="block text-[11px] font-sans text-text-secondary mb-1">
-            THR Tenure (Months / 12)
-          </label>
-          <input
-            type="number"
-            min={0}
-            max={12}
-            step={0.1}
-            value={tenureMonths}
-            onChange={(e) =>
-              setTenureMonths(Math.min(12, Math.max(0, Number(e.target.value) || 0)))
-            }
-            className="w-full px-2.5 py-1.5 rounded bg-surface-subtle border border-border-default font-mono text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-text-secondary"
-          />
-        </div>
+        {method === "CUSTOM" ? (
+          <div>
+            <label className="block text-[11px] font-sans text-text-secondary mb-1">
+              Custom Holiday Bonus (Rp)
+            </label>
+            <input
+              type="number"
+              min={0}
+              step={50000}
+              value={customThrInput}
+              onChange={(e) => setCustomThrInput(Math.max(0, Number(e.target.value) || 0))}
+              className="w-full px-2.5 py-1.5 rounded bg-surface-subtle border border-border-default font-mono text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-text-secondary"
+            />
+          </div>
+        ) : (
+          <div>
+            <label className="block text-[11px] font-sans text-text-secondary mb-1">
+              Tenure Weight (Months / 12)
+            </label>
+            <input
+              type="number"
+              min={0}
+              max={12}
+              step={0.1}
+              value={tenureMonths}
+              onChange={(e) =>
+                setTenureMonths(Math.min(12, Math.max(0, Number(e.target.value) || 0)))
+              }
+              disabled={method !== "MONTHS_PRORATED"}
+              className="w-full px-2.5 py-1.5 rounded bg-surface-subtle border border-border-default font-mono text-xs text-text-primary disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-text-secondary"
+            />
+          </div>
+        )}
 
         <div>
           <label className="block text-[11px] font-sans text-text-secondary mb-1">
@@ -174,35 +256,28 @@ export function ThrBonusEstimatorCard({
         </div>
       </div>
 
-      {/* Projected Output Summary */}
       <div className="p-3 rounded bg-surface-subtle border border-border-subtle grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
         <div>
-          <span className="text-[10px] font-sans text-text-tertiary block">
-            Attendance
-          </span>
+          <span className="text-[10px] font-sans text-text-tertiary block">Attendance</span>
           <span className="font-mono font-medium text-text-primary tabular-nums mt-0.5 block">
             {formatRupiah(attendanceTotal, isAmountsMasked)}
           </span>
         </div>
         <div>
-          <span className="text-[10px] font-sans text-text-tertiary block">
-            Est. THR
-          </span>
+          <span className="text-[10px] font-sans text-text-tertiary block">Est. {thrLabel}</span>
           <span className="font-mono font-medium text-text-primary tabular-nums mt-0.5 block">
-            {formatRupiah(proratedThr, isAmountsMasked)}
+            {formatRupiah(estimatedThr, isAmountsMasked)}
+          </span>
+        </div>
+        <div>
+          <span className="text-[10px] font-sans text-text-tertiary block">Slip Net Pay</span>
+          <span className="font-mono font-medium text-text-primary tabular-nums mt-0.5 block">
+            {formatRupiah(projectedSlipNet, isAmountsMasked)}
           </span>
         </div>
         <div>
           <span className="text-[10px] font-sans text-text-tertiary block">
-            Regular Net Pay
-          </span>
-          <span className="font-mono font-medium text-text-primary tabular-nums mt-0.5 block">
-            {formatRupiah(projectedNetSalary, isAmountsMasked)}
-          </span>
-        </div>
-        <div>
-          <span className="text-[10px] font-sans text-text-tertiary block">
-            Total Projected
+            Total Cycle Inflow
           </span>
           <span className="font-mono font-semibold text-delta-positive tabular-nums mt-0.5 block">
             {formatRupiah(projectedTakeHome, isAmountsMasked)}
@@ -210,9 +285,8 @@ export function ThrBonusEstimatorCard({
         </div>
       </div>
 
-      {/* Quick Attendance Reference Matrix */}
       <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono text-text-tertiary pt-1 border-t border-border-subtle">
-        {[19, 20, 21, 22, 23].map((d) => (
+        {dayGrid.map((d) => (
           <button
             key={d}
             type="button"

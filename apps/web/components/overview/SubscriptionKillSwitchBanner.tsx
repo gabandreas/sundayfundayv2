@@ -71,7 +71,7 @@ export function SubscriptionKillSwitchBanner({
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-[rgba(224,108,117,0.2)] text-[#e06c75] border border-[rgba(224,108,117,0.35)]">
-                    Kill-Switch Alert
+                    Renewal Notice
                   </span>
                   <span className="text-xs font-semibold font-sans text-text-primary">
                     {item.label}

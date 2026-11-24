@@ -7,6 +7,7 @@ import {
   IsOptional,
   IsString,
   Max,
+  MaxLength,
   Min,
 } from 'class-validator';
 
@@ -156,6 +157,7 @@ export class WalletGuardEvaluateDto {
 
 export class ParseReconcilerDto {
   @IsString()
+  @MaxLength(2000000)
   rawText: string;
 
   @IsOptional()

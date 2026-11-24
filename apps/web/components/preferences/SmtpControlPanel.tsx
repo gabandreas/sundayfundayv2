@@ -655,7 +655,7 @@ export function SmtpControlPanel({
               onChange={(e) => setSelectedTemplate(e.target.value as EmailTemplateKey)}
               className="px-2 py-1 rounded bg-canvas border border-border text-xs font-sans text-text-primary"
             >
-              <option value="kill-switch">Kill-Switch Cancellation Notice</option>
+              <option value="kill-switch">Renewal Cancellation Notice</option>
               <option value="monthly-statement">Monthly .xlsx Executive Statement</option>
               <option value="cutoff-digest">Cutoff &amp; Due-Date Digest</option>
               <option value="ledger-backup">Off-Site JSON + Excel Backup</option>

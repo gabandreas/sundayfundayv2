@@ -151,7 +151,7 @@ export function BillSettlementChecklistCard({
           <div className="text-[10px] text-text-tertiary">
             {savedWalletBalance !== null && savedWalletBalance !== undefined
               ? "Free Cash (Wallet - Hold)"
-              : "Planned Living Cash"}
+              : "Planned Spending Pool"}
           </div>
           <div
             className={`text-sm font-semibold mt-0.5 ${

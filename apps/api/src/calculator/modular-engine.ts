@@ -13,6 +13,7 @@ import {
   FormulaParams,
   CustomIncomeDeductionRow,
 } from './waterfall';
+import { PayrollAdjustmentItem } from './payroll';
 
 export type PayrollFormulaType =
   | 'FIXED_AMOUNT'
@@ -103,6 +104,7 @@ export interface ModularEngineSnapshotInput {
   totalCreditBills: number;
   totalDeductions?: number;
   payrollRules?: PayrollComponentRule[] | null;
+  customAdjustments?: PayrollAdjustmentItem[] | null;
   allocationBuckets?: AllocationBucketRule[] | null;
   surplusSplitRules?: SurplusSplitRules | null;
   financialPolicy?: FinancialPolicyConfig | null;
@@ -137,6 +139,10 @@ export interface ModularEngineCalculationResult {
     laptopAllowance: number;
     totalDailyAllowance: number;
     netSalaryIncome: number;
+    customPayrollAdditions: number;
+    customPayrollDeductions: number;
+    directPayrollDeductions: number;
+    bankTakeHomeSalary: number;
     finalTotalIncome: number;
     componentBreakdown: Array<{
       id: string;
@@ -490,6 +496,7 @@ export function evaluateModularPayroll(params: {
   month: number;
   payrollRules?: PayrollComponentRule[] | null;
   customPayrollRows?: CustomIncomeDeductionRow[] | null;
+  customAdjustments?: PayrollAdjustmentItem[] | null;
 }): {
   adjustedBaseSalary: number;
   bpjsDeduction: number;
@@ -497,6 +504,10 @@ export function evaluateModularPayroll(params: {
   netBasePayroll: number;
   totalDailyAllowance: number;
   netSalaryIncome: number;
+  customPayrollAdditions: number;
+  customPayrollDeductions: number;
+  directPayrollDeductions: number;
+  bankTakeHomeSalary: number;
   finalTotalIncome: number;
   thrAmount: number;
   bonusAmount: number;
@@ -614,12 +625,39 @@ export function evaluateModularPayroll(params: {
     }
   }
 
+  const normalizedAdj = Array.isArray(params.customAdjustments)
+    ? params.customAdjustments
+        .map((adj) => ({
+          ...adj,
+          amount: Math.max(0, Math.round(Number(adj.amount) || 0)),
+        }))
+        .filter((adj) => adj.amount > 0)
+    : [];
+
+  const customPayrollAdditions = normalizedAdj
+    .filter((a) => a.stage === 'PRE_NET_EARNING')
+    .reduce((sum, a) => sum + a.amount, 0);
+  const customPayrollDeductions = normalizedAdj
+    .filter((a) => a.stage === 'PRE_NET_DEDUCTION')
+    .reduce((sum, a) => sum + a.amount, 0);
+  const directPayrollDeductions = normalizedAdj
+    .filter((a) => a.stage === 'POST_NET_DEDUCTION')
+    .reduce((sum, a) => sum + a.amount, 0);
+
   const netSalaryIncome = Math.max(
     0,
-    netBasePayroll + totalDailyAllowance - cafeteriaDeduction,
+    netBasePayroll +
+      totalDailyAllowance +
+      customPayrollAdditions -
+      cafeteriaDeduction -
+      customPayrollDeductions,
+  );
+  const bankTakeHomeSalary = Math.max(
+    0,
+    netSalaryIncome - directPayrollDeductions,
   );
   const finalTotalIncome =
-    netSalaryIncome + thrAmount + bonusAmount + extraIncome;
+    bankTakeHomeSalary + thrAmount + bonusAmount + extraIncome;
 
   return {
     adjustedBaseSalary,
@@ -628,6 +666,10 @@ export function evaluateModularPayroll(params: {
     netBasePayroll,
     totalDailyAllowance,
     netSalaryIncome,
+    customPayrollAdditions,
+    customPayrollDeductions,
+    directPayrollDeductions,
+    bankTakeHomeSalary,
     finalTotalIncome,
     thrAmount,
     bonusAmount,
@@ -714,6 +756,7 @@ export function evaluateModularEngine(
     month: input.month,
     payrollRules: input.payrollRules,
     customPayrollRows: input.formulaParams?.customPayrollRows,
+    customAdjustments: input.customAdjustments,
   });
 
   const bridgeInflow = Math.max(
@@ -1233,6 +1276,10 @@ export function evaluateModularEngine(
       laptopAllowance: payroll.laptopAllowance,
       totalDailyAllowance: payroll.totalDailyAllowance,
       netSalaryIncome: payroll.netSalaryIncome,
+      customPayrollAdditions: payroll.customPayrollAdditions,
+      customPayrollDeductions: payroll.customPayrollDeductions,
+      directPayrollDeductions: payroll.directPayrollDeductions,
+      bankTakeHomeSalary: payroll.bankTakeHomeSalary,
       finalTotalIncome: payroll.finalTotalIncome,
       componentBreakdown: payroll.componentBreakdown,
     },

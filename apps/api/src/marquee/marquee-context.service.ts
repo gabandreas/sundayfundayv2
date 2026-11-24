@@ -554,9 +554,9 @@ export class MarqueeContextHydrator {
       ...(isBespokeOwner
         ? [
             `ERP MODULE & ROUTE MAP:`,
-            `- Overview (/): Daily safe-to-spend, wallet reconciliation, routine bills, expense logger.`,
-            `- Payday Activation (/payday-wizard): 4-step payday checklist.`,
-            `- Cash & Bill Radar (/calendar): Day-by-day running balance and low-cash bridge dates.`,
+            `- Overview (/): Spending balance, daily average, bank balance sync, routine bills, expense logger.`,
+            `- Payday & Closing (/payday-wizard): 4-step payday checklist and savings confirmation.`,
+            `- Cash Calendar (/calendar): Day-by-day running balance and low-cash bridge dates.`,
             `- Payroll & Cashflow (/payroll): Attendance cutoff window (${studioConfig.paycycleFormulaConfig.attendanceCutoffStartDay ?? 16}th -> ${studioConfig.paycycleFormulaConfig.attendanceCutoffEndDay ?? 15}th), BPJS (${studioConfig.paycycleFormulaConfig.bpjsRatePercent ?? 3}%), payslip rules.`,
             `- Allocations (/allocations): Priority waterfall and quota revisions.`,
             `- Credit & Liabilities (/credit): 12-month debt schedule (?sub=matrix), installment plans (?sub=contracts), cutoff simulator (?sub=simulator), reconciler (?sub=reconciler).`,

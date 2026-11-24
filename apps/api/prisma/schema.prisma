@@ -101,6 +101,18 @@ enum LiabilityCategory {
   P1_VAULT_REFUND
 }
 
+enum PayrollAdjustmentStage {
+  PRE_NET_EARNING
+  PRE_NET_DEDUCTION
+  POST_NET_DEDUCTION
+}
+
+enum PayrollAdjustmentCalcType {
+  FIXED
+  PERCENT_OF_BASE
+  PER_WORKING_DAY
+}
+
 // ─────────────────────────────────────────────
 // 0. User & TrustedIpAddress — Multi-Tenant & Security
 // ─────────────────────────────────────────────
@@ -142,8 +154,10 @@ model User {
   savingsTransactions    SavingsManualTransaction[]
   savingsGoals           SavingsGoal[]
   wishlistItems          WishlistItem[]
-  auditLogs              AuditLog[]
-  customFeatureRequests  CustomFeatureRequest[]
+  auditLogs                  AuditLog[]
+  customFeatureRequests      CustomFeatureRequest[]
+  payrollAdjustmentTemplates PayrollAdjustmentTemplate[]
+  payrollPeriodAdjustments   PayrollPeriodAdjustment[]
 
   @@unique([accountName, username])
 }
@@ -234,8 +248,11 @@ model MonthlySnapshot {
   salaryAdjustment   Float           @default(0)
   totalWorkingDays   Int             @default(0)
   cafeteriaDeduction Float           @default(0)
-  thrAmount          Float           @default(0)
-  bonusAmount        Float           @default(0)
+  thrAmount               Float           @default(0)
+  bonusAmount             Float           @default(0)
+  directPayrollDeductions Float           @default(0)
+  customPayrollAdditions  Float           @default(0)
+  customPayrollDeductions Float           @default(0)
 
   // Baseline targets copied from GlobalConfig at creation
   dailyOperational   Float           @default(0)
@@ -271,8 +288,9 @@ model MonthlySnapshot {
   createdAt              DateTime        @default(now())
   updatedAt              DateTime        @updatedAt
 
-  transactions       Transaction[]
-  budgetRevisions    BudgetRevision[]
+  transactions             Transaction[]
+  budgetRevisions          BudgetRevision[]
+  payrollPeriodAdjustments PayrollPeriodAdjustment[]
 
   @@unique([userId, month, year])
   @@index([userId])
@@ -703,4 +721,48 @@ model PasswordResetToken {
 
   @@index([userId, usedAt])
   @@index([expiresAt])
+}
+
+// ─────────────────────────────────────────────
+// 20. Modular Payroll Templates & Per-Period Adjustments
+// ─────────────────────────────────────────────
+
+model PayrollAdjustmentTemplate {
+  id            Int                       @id @default(autoincrement())
+  userId        Int
+  user          User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  code          String
+  label         String
+  stage         PayrollAdjustmentStage
+  calcType      PayrollAdjustmentCalcType @default(FIXED)
+  defaultAmount Float                     @default(0)
+  isRecurring   Boolean                   @default(false)
+  isActive      Boolean                   @default(true)
+  notes         String?
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+
+  periodAdjustments PayrollPeriodAdjustment[]
+
+  @@unique([userId, code])
+  @@index([userId, isActive])
+}
+
+model PayrollPeriodAdjustment {
+  id         Int                       @id @default(autoincrement())
+  userId     Int
+  user       User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  snapshotId Int
+  snapshot   MonthlySnapshot           @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  templateId Int?
+  template   PayrollAdjustmentTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  label      String
+  stage      PayrollAdjustmentStage
+  amount     Float
+  notes      String?
+  createdAt  DateTime                  @default(now())
+  updatedAt  DateTime                  @updatedAt
+
+  @@index([snapshotId, stage])
+  @@index([userId, snapshotId])
 }

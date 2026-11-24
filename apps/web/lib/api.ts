@@ -70,6 +70,58 @@ export interface BudgetRevision {
   createdAt: string;
 }
 
+export type PayrollAdjustmentStage =
+  | "PRE_NET_EARNING"
+  | "PRE_NET_DEDUCTION"
+  | "POST_NET_DEDUCTION";
+
+export type PayrollAdjustmentCalcType =
+  | "FIXED"
+  | "PERCENT_OF_BASE"
+  | "PER_WORKING_DAY";
+
+export interface PayrollAdjustmentTemplateDto {
+  id: number;
+  userId?: number;
+  code: string;
+  label: string;
+  stage: PayrollAdjustmentStage;
+  calcType: PayrollAdjustmentCalcType;
+  defaultAmount: number;
+  isRecurring: boolean;
+  isActive: boolean;
+  notes?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface PayrollPeriodAdjustmentDto {
+  id: number;
+  snapshotId: number;
+  templateId?: number | null;
+  label: string;
+  stage: PayrollAdjustmentStage;
+  amount: number;
+  notes?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ThrConfig {
+  enabled: boolean;
+  label?: string;
+  joinDateIso?: string;
+  holidayDateIso?: string;
+  payoutMonth?: number;
+  calculationMode?: "EXACT_DAYS_365" | "STATUTORY_MONTHS_12" | "FULL_MONTH" | "MANUAL";
+  includeFixedAllowances?: boolean;
+}
+
+export interface OverviewPreferencesConfig {
+  defaultPacingMode?: "FLAT" | "WEIGHTED_1_5X";
+  showDiscretionaryCard?: boolean;
+}
+
 export interface MonthlySnapshot {
   id: number;
   month: number;
@@ -93,6 +145,9 @@ export interface MonthlySnapshot {
   payrollPayoutDate?: string | null;
   isPayoutDateConfirmed?: boolean;
   netSalaryIncome: number | null;
+  directPayrollDeductions?: number | null;
+  customPayrollAdditions?: number | null;
+  customPayrollDeductions?: number | null;
   extraIncome: number | null;
   finalTotalIncome: number | null;
   totalDeductions: number | null;
@@ -108,6 +163,7 @@ export interface MonthlySnapshot {
   lockedP2?: number | null;
   bridgeInflowAmount?: number | null;
   oneOffBillsJson?: Array<{ slot: string; label: string; amount: number }> | null;
+  payrollPeriodAdjustments?: PayrollPeriodAdjustmentDto[];
   transactions?: Transaction[];
   budgetRevisions?: BudgetRevision[];
 }
@@ -873,19 +929,32 @@ export async function confirmPeriodDeposit(data: {
   year: number;
   amount: number;
   instrumentType?: SavingsInstrumentType;
-}): Promise<{ success: boolean; error?: string }> {
+}): Promise<{
+  success: boolean;
+  alreadyConfirmed?: boolean;
+  confirmedAmount?: number;
+  error?: string;
+}> {
   try {
     const res = await fetch(`${API_URL}/api/savings/confirm-period-deposit`, {
       method: "POST",
       headers: await getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(data),
     });
+    const body = await res.json().catch(() => ({}));
     if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      return { success: false, error: body.message || "Failed to confirm period deposit" };
+      return {
+        success: false,
+        error: body.message || "Failed to confirm period deposit",
+      };
     }
     invalidateCache();
-    return { success: true };
+    return {
+      success: true,
+      alreadyConfirmed: Boolean(body.alreadyConfirmed),
+      confirmedAmount:
+        typeof body.confirmedAmount === "number" ? body.confirmedAmount : data.amount,
+    };
   } catch (error: any) {
     return { success: false, error: error.message || "Network error" };
   }
@@ -1059,6 +1128,17 @@ export interface PayrollResult {
   dailyAllowance: number;
   totalDailyAllowance: number;
   netSalaryIncome: number;
+  customPayrollAdditions?: number;
+  customPayrollDeductions?: number;
+  directPayrollDeductions?: number;
+  bankTakeHomeSalary?: number;
+  customAdjustments?: Array<{
+    id?: number;
+    label: string;
+    stage: PayrollAdjustmentStage;
+    amount: number;
+    notes?: string | null;
+  }>;
   extraIncome: number;
   finalTotalIncome: number;
   thrAmount: number;
@@ -2481,6 +2561,7 @@ export interface GlobalConfig {
   formulaEngineType?: FormulaEngineType;
   formulaParamsJson?: FormulaParams | null;
   studioConfig?: ModularStudioConfig;
+  payrollAdjustmentTemplates?: PayrollAdjustmentTemplateDto[];
   killSwitchLeadDays?: number;
   killSwitchBannerEnabled?: boolean;
   recalculateDrafts?: boolean;
@@ -4588,7 +4669,7 @@ export const MODULE_REGISTRY_CATALOG: ModuleRegistryItem[] = [
   },
   {
     key: "payday_wizard",
-    label: "Payday & Closing Wizard (Opt-In)",
+    label: "Payday & Closing (Opt-In)",
     route: "/payday-wizard",
     isCore: false,
     description: "Step-by-step period closing and next-cycle initialization checklist.",
@@ -4661,7 +4742,7 @@ export const LIFE_STAGE_PRESET_CATALOG: LifeStagePresetMeta[] = [
     title: "Corporate Professional (Opt-In Credit & Payroll)",
     subtitle: "Full-suite ERP adding Corporate Payroll, Credit & Debts Matrix, Statement Import, and Discipline Audit.",
     formulaEngineType: "DEBT_FIRST_WATERFALL",
-    formulaLabel: "Debt-First Waterfall (Bills -> Routine -> Core Savings -> Flexible Surplus)",
+    formulaLabel: "Debt-First Waterfall (Bills -> Routine -> Core Savings -> Discretionary)",
     uiDensityMode: "COMMAND_COCKPIT",
     enabledModules: [...ALL_MODULE_KEYS],
     routineCategories: [
@@ -4708,7 +4789,7 @@ export const LIFE_STAGE_PRESET_CATALOG: LifeStagePresetMeta[] = [
     title: "Family & Household Budget",
     subtitle: "Household cashflow, housing/tuition commitments, shared groceries, and executive reporting.",
     formulaEngineType: "DEBT_FIRST_WATERFALL",
-    formulaLabel: "Debt-First Waterfall (Bills -> Routine -> Core Savings -> Flexible Surplus)",
+    formulaLabel: "Debt-First Waterfall (Bills -> Routine -> Core Savings -> Discretionary)",
     uiDensityMode: "COMMAND_COCKPIT",
     enabledModules: [...SUNDAY_FUNDAY_STANDARD_MODULES, "credit_liabilities"],
     routineCategories: [
@@ -6179,6 +6260,8 @@ export interface ModularStudioConfig {
   savingsPockets?: SavingsPocketConfig[];
   displayPreferences?: DisplayPreferencesConfig;
   privacyPreferences?: PrivacyPreferencesConfig;
+  thrConfig?: ThrConfig;
+  overviewPreferences?: OverviewPreferencesConfig;
 }
 
 export function resolvePriorityTierLabel(
@@ -6428,6 +6511,7 @@ export interface ReconcilerParseResponse {
   parsedCount: number;
   newEntryCount: number;
   duplicateCount: number;
+  skippedCreditCount?: number;
   totalAmountRp: number;
   rows: ReconcilerParsedRow[];
 }
@@ -6460,6 +6544,136 @@ export async function updateStudioConfigApi(
     window.dispatchEvent(new CustomEvent("erp:studio-updated", { detail: data?.studioConfig }));
   }
   return data;
+}
+
+export async function fetchPayrollTemplatesApi(): Promise<PayrollAdjustmentTemplateDto[]> {
+  const res = await fetch(`${API_URL}/api/config/payroll-templates`, {
+    headers: await getAuthHeaders(),
+    cache: "no-store",
+  });
+  return handleResponse<PayrollAdjustmentTemplateDto[]>(res, []);
+}
+
+export async function createPayrollTemplateApi(payload: {
+  code?: string;
+  label: string;
+  stage: PayrollAdjustmentStage;
+  calcType?: PayrollAdjustmentCalcType;
+  defaultAmount?: number;
+  isRecurring?: boolean;
+  isActive?: boolean;
+  notes?: string;
+}): Promise<{ success: boolean; data?: PayrollAdjustmentTemplateDto; error?: string }> {
+  try {
+    const res = await fetch(`${API_URL}/api/config/payroll-templates`, {
+      method: "POST",
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(payload),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { success: false, error: body.message || "Failed to create payroll template" };
+    }
+    invalidateCache();
+    return { success: true, data: body };
+  } catch (error: any) {
+    return { success: false, error: error.message || "Network error" };
+  }
+}
+
+export async function updatePayrollTemplateApi(
+  id: number,
+  payload: Partial<{
+    label: string;
+    stage: PayrollAdjustmentStage;
+    calcType: PayrollAdjustmentCalcType;
+    defaultAmount: number;
+    isRecurring: boolean;
+    isActive: boolean;
+    notes: string;
+  }>
+): Promise<{ success: boolean; data?: PayrollAdjustmentTemplateDto; error?: string }> {
+  try {
+    const res = await fetch(`${API_URL}/api/config/payroll-templates/${id}`, {
+      method: "PATCH",
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(payload),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { success: false, error: body.message || "Failed to update payroll template" };
+    }
+    invalidateCache();
+    return { success: true, data: body };
+  } catch (error: any) {
+    return { success: false, error: error.message || "Network error" };
+  }
+}
+
+export async function deletePayrollTemplateApi(
+  id: number
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${API_URL}/api/config/payroll-templates/${id}`, {
+      method: "DELETE",
+      headers: await getAuthHeaders(),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { success: false, error: body.message || "Failed to delete payroll template" };
+    }
+    invalidateCache();
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message || "Network error" };
+  }
+}
+
+export async function addSnapshotPayrollAdjustmentApi(
+  snapshotId: number,
+  payload: {
+    templateId?: number;
+    label: string;
+    stage: PayrollAdjustmentStage;
+    amount: number;
+    notes?: string;
+  }
+): Promise<{ success: boolean; data?: MonthlySnapshot; error?: string }> {
+  try {
+    const res = await fetch(`${API_URL}/api/snapshots/${snapshotId}/payroll-adjustments`, {
+      method: "POST",
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(payload),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { success: false, error: body.message || "Failed to add payroll adjustment" };
+    }
+    invalidateCache();
+    return { success: true, data: body };
+  } catch (error: any) {
+    return { success: false, error: error.message || "Network error" };
+  }
+}
+
+export async function deleteSnapshotPayrollAdjustmentApi(
+  snapshotId: number,
+  adjId: number
+): Promise<{ success: boolean; data?: MonthlySnapshot; error?: string }> {
+  try {
+    const res = await fetch(`${API_URL}/api/snapshots/${snapshotId}/payroll-adjustments/${adjId}`, {
+      method: "DELETE",
+      headers: await getAuthHeaders(),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { success: false, error: body.message || "Failed to remove payroll adjustment" };
+    }
+    invalidateCache();
+    return { success: true, data: body };
+  } catch (error: any) {
+    return { success: false, error: error.message || "Network error" };
+  }
 }
 
 export async function parseReconcilerStatementApi(payload: {

@@ -433,7 +433,7 @@ export function CashReconciliationModal({
                   </label>
                   {includesUnspentRoutinePool && preview && (
                     <div className="text-[11px] font-mono text-text-tertiary mt-1 ml-6">
-                      Effective Living Cash: {formatIDR(preview.effectiveOperationalCashBalance ?? parsedBalance)}
+                      Effective Spending Pool: {formatIDR(preview.effectiveOperationalCashBalance ?? parsedBalance)}
                     </div>
                   )}
                 </div>
@@ -586,7 +586,7 @@ export function CashReconciliationModal({
 
                     <div className="flex items-center justify-between">
                       <span className="text-text-secondary">
-                        Flexible Surplus
+                        Discretionary
                       </span>
                       <div className="flex items-center gap-2 font-mono">
                         <span className="text-text-tertiary">

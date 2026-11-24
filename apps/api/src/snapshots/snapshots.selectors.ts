@@ -127,6 +127,7 @@ export class SnapshotsSelectors {
         createdAt: new Date().toISOString(),
       })),
       budgetRevisions: [],
+      payrollPeriodAdjustments: [],
     };
   }
 
@@ -154,6 +155,9 @@ export class SnapshotsSelectors {
         },
         budgetRevisions: {
           orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        },
+        payrollPeriodAdjustments: {
+          orderBy: { id: 'asc' },
         },
       },
     });
@@ -250,6 +254,7 @@ export class SnapshotsSelectors {
         include: {
           transactions: true,
           budgetRevisions: true,
+          payrollPeriodAdjustments: { orderBy: { id: 'asc' } },
         },
       })
       .catch(async (err: any) => {
@@ -260,6 +265,7 @@ export class SnapshotsSelectors {
             include: {
               transactions: true,
               budgetRevisions: true,
+              payrollPeriodAdjustments: { orderBy: { id: 'asc' } },
             },
           });
         }
@@ -267,20 +273,73 @@ export class SnapshotsSelectors {
       });
 
     // Idempotent first-view provisioning exception (ARCHITECTURE.md §4):
-    // Sync due liabilities and recalculate initial snapshot figures ONLY on the creator request
-    if (createdNew && this.creditService) {
-      await this.creditService.syncLiabilitiesToSnapshot(month, year, undefined, userId);
-      return this.prisma.monthlySnapshot.findUniqueOrThrow({
-        where: { id: snapshot.id },
-        include: {
-          transactions: {
-            orderBy: { date: 'desc' },
-          },
-          budgetRevisions: {
-            orderBy: { createdAt: 'asc' },
-          },
-        },
-      });
+    // Seed recurring payroll templates + sync due liabilities ONLY on the creator request
+    if (createdNew) {
+      let seededCount = 0;
+      if (this.prisma.payrollAdjustmentTemplate && this.prisma.payrollPeriodAdjustment) {
+        const recurringTemplates = await this.prisma.payrollAdjustmentTemplate.findMany({
+          where: { userId, isActive: true, isRecurring: true },
+          orderBy: { id: 'asc' },
+        });
+        for (const tpl of recurringTemplates) {
+          let amount = Math.round(Number(tpl.defaultAmount) || 0);
+          if (tpl.calcType === 'PERCENT_OF_BASE') {
+            amount = Math.round((Number(config.baseSalary) || 0) * ((Number(tpl.defaultAmount) || 0) / 100));
+          } else if (tpl.calcType === 'PER_WORKING_DAY') {
+            amount = Math.round((Number(tpl.defaultAmount) || 0) * (snapshot.totalWorkingDays ?? 0));
+          }
+          if (amount > 0) {
+            await this.prisma.payrollPeriodAdjustment.create({
+              data: {
+                userId,
+                snapshotId: snapshot.id,
+                templateId: tpl.id,
+                label: tpl.label,
+                stage: tpl.stage,
+                amount,
+                notes: tpl.notes,
+              },
+            });
+            seededCount++;
+          }
+        }
+      }
+      if (this.creditService) {
+        await this.creditService.syncLiabilitiesToSnapshot(month, year, undefined, userId);
+      }
+      if (this.creditService || seededCount > 0) {
+        const reload =
+          typeof this.prisma.monthlySnapshot.findUniqueOrThrow === 'function'
+            ? await this.prisma.monthlySnapshot.findUniqueOrThrow({
+                where: { id: snapshot.id },
+                include: {
+                  transactions: {
+                    orderBy: { date: 'desc' },
+                  },
+                  budgetRevisions: {
+                    orderBy: { createdAt: 'asc' },
+                  },
+                  payrollPeriodAdjustments: {
+                    orderBy: { id: 'asc' },
+                  },
+                },
+              })
+            : await this.prisma.monthlySnapshot.findUnique({
+                where: { id: snapshot.id },
+                include: {
+                  transactions: {
+                    orderBy: { date: 'desc' },
+                  },
+                  budgetRevisions: {
+                    orderBy: { createdAt: 'asc' },
+                  },
+                  payrollPeriodAdjustments: {
+                    orderBy: { id: 'asc' },
+                  },
+                },
+              });
+        if (reload) return reload;
+      }
     }
 
     return snapshot;
@@ -295,6 +354,9 @@ export class SnapshotsSelectors {
         },
         budgetRevisions: {
           orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        },
+        payrollPeriodAdjustments: {
+          orderBy: { id: 'asc' },
         },
       },
     });

@@ -18,6 +18,10 @@ import { UpsertGlobalConfigDto } from './dto/upsert-global-config.dto';
 import { SimulateRulesDto } from './dto/simulate-rules.dto';
 import { CreateCustomRequestDto } from './dto/create-custom-request.dto';
 import { UpdateCustomRequestDto } from './dto/update-custom-request.dto';
+import {
+  CreatePayrollTemplateDto,
+  UpdatePayrollTemplateDto,
+} from './dto/payroll-template.dto';
 import { SnapshotsService } from '../snapshots/snapshots.service';
 import { getPayrollPeriodForDate } from '../calculator/pacing';
 import {
@@ -1208,5 +1212,93 @@ export class ConfigService {
       data: { customRoutineCategoriesJson: updated as any },
     });
     return updated.filter((c) => !c.hidden);
+  }
+
+  // ─────────────────────────────────────────────
+  // Modular Payroll Component Templates CRUD
+  // ─────────────────────────────────────────────
+
+  async listPayrollTemplates(userId: number = 1) {
+    return this.prisma.payrollAdjustmentTemplate.findMany({
+      where: { userId },
+      orderBy: { id: 'asc' },
+    });
+  }
+
+  async createPayrollTemplate(dto: CreatePayrollTemplateDto, userId: number = 1) {
+    const label = String(dto.label || '').trim();
+    if (!label) {
+      throw new BadRequestException('Template label is required');
+    }
+    const rawCode = dto.code?.trim()
+      ? dto.code.trim().toLowerCase().replace(/[^a-z0-9_]+/g, '_')
+      : `${label
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '_')
+          .replace(/^_|_$/g, '')
+          .slice(0, 32)}_${Date.now().toString().slice(-4)}`;
+
+    try {
+      return await this.prisma.payrollAdjustmentTemplate.create({
+        data: {
+          userId,
+          code: rawCode,
+          label,
+          stage: dto.stage,
+          calcType: dto.calcType ?? 'FIXED',
+          defaultAmount: Math.max(0, Number(dto.defaultAmount) || 0),
+          isRecurring: Boolean(dto.isRecurring),
+          isActive: dto.isActive !== false,
+          notes: dto.notes?.trim() || null,
+        },
+      });
+    } catch (err: any) {
+      if (err?.code === 'P2002') {
+        throw new BadRequestException(`Payroll template code "${rawCode}" already exists`);
+      }
+      throw err;
+    }
+  }
+
+  async updatePayrollTemplate(
+    id: number,
+    dto: UpdatePayrollTemplateDto,
+    userId: number = 1,
+  ) {
+    const existing = await this.prisma.payrollAdjustmentTemplate.findFirst({
+      where: { id, userId },
+    });
+    if (!existing) {
+      throw new NotFoundException(`Payroll template #${id} not found`);
+    }
+
+    return this.prisma.payrollAdjustmentTemplate.update({
+      where: { id: existing.id },
+      data: {
+        ...(dto.label !== undefined ? { label: dto.label.trim() || existing.label } : {}),
+        ...(dto.stage !== undefined ? { stage: dto.stage } : {}),
+        ...(dto.calcType !== undefined ? { calcType: dto.calcType } : {}),
+        ...(dto.defaultAmount !== undefined
+          ? { defaultAmount: Math.max(0, Number(dto.defaultAmount) || 0) }
+          : {}),
+        ...(dto.isRecurring !== undefined ? { isRecurring: dto.isRecurring } : {}),
+        ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
+        ...(dto.notes !== undefined ? { notes: dto.notes?.trim() || null } : {}),
+      },
+    });
+  }
+
+  async deletePayrollTemplate(id: number, userId: number = 1) {
+    const existing = await this.prisma.payrollAdjustmentTemplate.findFirst({
+      where: { id, userId },
+    });
+    if (!existing) {
+      throw new NotFoundException(`Payroll template #${id} not found`);
+    }
+
+    await this.prisma.payrollAdjustmentTemplate.delete({
+      where: { id: existing.id },
+    });
+    return { deleted: true, id: existing.id };
   }
 }

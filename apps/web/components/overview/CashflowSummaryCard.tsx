@@ -17,7 +17,7 @@ export function CashflowSummaryCard({ snapshot, pacing }: CashflowSummaryCardPro
   const { t } = useLanguage();
   const { studioConfig } = usePerspective();
   const savingsTierLabel = resolvePriorityTierLabel(studioConfig, "SAVINGS", "Core Savings");
-  const surplusTierLabel = resolvePriorityTierLabel(studioConfig, "DISCRETIONARY", "Flexible Surplus");
+  const surplusTierLabel = resolvePriorityTierLabel(studioConfig, "DISCRETIONARY", "Discretionary");
   const totalIncome = snapshot.finalTotalIncome ?? snapshot.netSalaryIncome ?? 0;
   const totalDeductions = snapshot.totalDeductions ?? 0;
   const dailySpent = pacing?.totalDailySpent ?? 0;

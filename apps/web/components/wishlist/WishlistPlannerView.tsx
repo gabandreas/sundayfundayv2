@@ -201,11 +201,11 @@ export function WishlistPlannerView({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Path A: Cash from Flexible Surplus */}
+            {/* Path A: Cash from Discretionary */}
             <div className="p-4 rounded-md border border-border-subtle bg-surface-subtle space-y-2.5 flex flex-col justify-between">
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-[11px] font-sans">
-                  <span className="font-semibold text-text-secondary">Path A: Cash (Flexible Surplus)</span>
+                  <span className="font-semibold text-text-secondary">Path A: Cash (Discretionary)</span>
                   <span
                     className={`font-mono text-[10px] font-semibold ${
                       quickPrice <= activeP2

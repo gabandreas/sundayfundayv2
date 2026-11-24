@@ -183,7 +183,7 @@ export function CreditCardTransactionsTable({
             href="/preferences?tab=killswitch"
             className="px-2.5 py-1 rounded text-xs font-medium text-text-secondary hover:text-text-primary bg-surface-subtle border border-border-subtle hover:bg-surface transition-colors"
           >
-            Subscription Kill-Switch →
+            Renewal Alerts →
           </Link>
           <span className="text-xs font-mono text-text-tertiary">
             {transactions.length} charges
@@ -286,7 +286,7 @@ export function CreditCardTransactionsTable({
                         {tx.killSwitchEnabled && (
                           <div className="mt-1">
                             <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono border border-[rgba(16,183,141,0.25)] text-[#10b78d] bg-[rgba(16,183,141,0.08)]">
-                              Kill-Switch Armed{tx.promoEndDate ? ` (Ends ${tx.promoEndDate.split("T")[0]})` : ""}
+                              Renewal Alert{tx.promoEndDate ? ` (Ends ${tx.promoEndDate.split("T")[0]})` : ""}
                             </span>
                           </div>
                         )}

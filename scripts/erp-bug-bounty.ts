@@ -791,7 +791,7 @@ async function runLayer3User1ReadOnlyParity(baseUrl: string): Promise<void> {
       assert.ok(p.safeToSpendToday > 0, `User #1 11/2026 safeToSpendToday must be > 0, got ${p.safeToSpendToday}`);
     }
     if (m === 12 && y === 2026) {
-      assert.equal(Math.round(s.finalTotalIncome), 9737425);
+      assert.equal(Math.round(s.finalTotalIncome), 9376925);
       assert.equal(Math.round(s.totalDeductions), 4189341);
       assert.equal(Math.round(s.actualDailyOperational), 1500000);
       assert.equal(Math.round(s.deficitUncovered), 0);

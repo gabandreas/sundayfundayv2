@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Body,
   Param,
   Query,
@@ -20,6 +21,7 @@ import { CreateBudgetRevisionDto } from './dto/create-budget-revision.dto';
 import { PreviewBudgetRevisionDto } from './dto/preview-budget-revision.dto';
 import { ClosePeriodDto } from './dto/close-period.dto';
 import { BorrowFromP1Dto } from './dto/borrow-p1.dto';
+import { CreatePayrollPeriodAdjustmentDto } from './dto/payroll-period-adjustment.dto';
 
 import { getPayrollPeriodForDate } from '../calculator/pacing';
 
@@ -162,5 +164,34 @@ export class SnapshotsController {
   ) {
     const userId = getUserIdOrThrow(req);
     return this.service.borrowFromP1Vault(id, dto, userId);
+  }
+
+  @Get(':id/payroll-adjustments')
+  async listPayrollAdjustments(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req?: any,
+  ) {
+    const userId = getUserIdOrThrow(req);
+    return this.service.listPayrollAdjustments(id, userId);
+  }
+
+  @Post(':id/payroll-adjustments')
+  async addPayrollAdjustment(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CreatePayrollPeriodAdjustmentDto,
+    @Req() req?: any,
+  ) {
+    const userId = getUserIdOrThrow(req);
+    return this.service.addPayrollAdjustment(id, dto, userId);
+  }
+
+  @Delete(':id/payroll-adjustments/:adjId')
+  async deletePayrollAdjustment(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('adjId', ParseIntPipe) adjId: number,
+    @Req() req?: any,
+  ) {
+    const userId = getUserIdOrThrow(req);
+    return this.service.deletePayrollAdjustment(id, adjId, userId);
   }
 }

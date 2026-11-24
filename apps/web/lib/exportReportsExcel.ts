@@ -246,7 +246,7 @@ export async function buildExecutiveReportWorkbook(
     ["Daily Living Budget (Daily Operational)", uw.actualDailyOperational, `Remaining: Rp ${Math.round(mc.dailyLiving.remainingOperationalCash).toLocaleString("id-ID")}`],
     ["Emergency Buffer Pocket", uw.actualBufferPocket, "Protected reserve"],
     ["Core Savings Allocation", uw.actualSavings, `Realized Savings: Rp ${Math.round(mc.savingsBottomLine.realizedInVaultTotal).toLocaleString("id-ID")}`],
-    ["Flexible Surplus Allowance", uw.actualSelfReward, "Discretionary surplus"],
+    ["Discretionary Allowance", uw.actualSelfReward, "Discretionary surplus"],
     ["Deficit Uncovered", uw.deficitUncovered, uw.isDeficit ? "Cap exceeds inflow" : "Fully covered"],
   ].forEach(([label, amt, note], i) => {
     const rNum = ws1.lastRow!.number + 1;
@@ -289,7 +289,7 @@ export async function buildExecutiveReportWorkbook(
       "Debt Bills",
       "Routine & Daily Ops",
       "Core Savings",
-      "Flexible Surplus",
+      "Discretionary",
       "DSR %",
       "Score",
       "Narrative Driver",

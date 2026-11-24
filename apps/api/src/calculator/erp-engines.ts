@@ -1563,6 +1563,7 @@ export interface ReconcilerParseResult {
   parsedCount: number;
   newEntryCount: number;
   duplicateCount: number;
+  skippedCreditCount: number;
   totalAmountRp: number;
   rows: ReconcilerParsedRow[];
 }
@@ -1573,7 +1574,7 @@ function inferInst(line: string, defInst: string): string {
     return 'PAYLATER';
   }
   if (
-    lower.includes('permata') ||
+    lower.includes('permata credit') ||
     lower.includes('credit card') ||
     lower.includes('kartu kredit') ||
     lower.includes(' cc ')
@@ -1584,6 +1585,7 @@ function inferInst(line: string, defInst: string): string {
   if (
     lower.includes('qris') ||
     lower.includes('bca') ||
+    lower.includes('permata') ||
     lower.includes('cash') ||
     lower.includes('transfer')
   ) {
@@ -1612,6 +1614,14 @@ function inferCat(desc: string): string {
     lower.includes('transport')
   ) {
     return 'TRANSPORT';
+  }
+  if (
+    lower.includes('listrik') ||
+    lower.includes('pln') ||
+    lower.includes('pdam') ||
+    lower.includes('token')
+  ) {
+    return 'UTILITIES';
   }
   if (
     lower.includes('vape') ||
@@ -1643,15 +1653,160 @@ function inferCat(desc: string): string {
   return 'GENERAL';
 }
 
+const MAX_RECONCILER_ROWS = 500;
+const RECON_ISO_DATE_RX = /\b(20\d{2})[-/](\d{1,2})[-/](\d{1,2})\b/;
+const RECON_DMY_DATE_RX = /\b(\d{1,2})[-/](\d{1,2})(?:[-/](20\d{2}))?\b/;
+const RECON_AMOUNT_RX =
+  /(?:Rp\.?\s*|IDR\s*)?(\d{1,3}(?:[.,]\d{3})+(?:[.,]\d{2})?|\d{4,9}(?:[.,]\d{2})?)\b(?:\s*(?:DB|CR))?/g;
+const RECON_RP_PREFIX_RX = /\b(?:rp|idr)\.?\s*[\d.,]+/gi;
+const RECON_CREDIT_MARKER_RX =
+  /(?:^\s*(?:rp\.?\s*|idr\s*)?\d[\d.,]*\s*(?:CR|KREDIT|CREDIT)\s*$|\d\s*CR\b|\bCR\s*$|\bTRSF E-BANKING CR\b|\bBI-FAST CR\b|\bMUTASI KREDIT\b)/i;
+const RECON_DEBIT_CELL_RX = /^\s*(?:rp\.?\s*|idr\s*)?\d[\d.,]*\s*(?:DB|DEBET|DEBIT)\s*$/i;
+const RECON_ACCOUNT_MASK_RX = /\b\d{10,16}\b/g;
+const RECON_TRAILING_CENTS_RX = /[.,]\d{2}$/;
+const RECON_BRANCH_ZERO_RX = /^\d{4}$/;
+
+function maskAccountNumbersTs(text: string): string {
+  return text.replace(RECON_ACCOUNT_MASK_RX, (m) => `****${m.slice(-4)}`);
+}
+
+function parseAmountRpTs(token: string): number {
+  let upper = token.trim().toUpperCase();
+  upper = upper.replace(/(?:DB|CR)$/i, '').trim();
+  upper = upper.replace(/^(?:IDR|RP)\.?/i, '').trim();
+  if (RECON_TRAILING_CENTS_RX.test(upper)) {
+    upper = upper.slice(0, -3);
+  }
+  const clean = upper.replace(/\D/g, '');
+  return clean ? parseInt(clean, 10) : 0;
+}
+
+function splitLogicalRecordsTs(rawText: string): string[] {
+  const normalized = (rawText || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const records: string[] = [];
+  let cur = '';
+  let inQuotes = false;
+  for (let i = 0; i < normalized.length; i++) {
+    const ch = normalized[i];
+    if (ch === '"') {
+      inQuotes = !inQuotes;
+      cur += ch;
+      continue;
+    }
+    if (ch === '\n') {
+      if (inQuotes) {
+        cur += ' ';
+      } else {
+        records.push(cur);
+        cur = '';
+      }
+      continue;
+    }
+    cur += ch;
+  }
+  if (cur.length > 0) records.push(cur);
+  return records;
+}
+
+function parseCsvCellsTs(line: string): string[] {
+  const cells: string[] = [];
+  let cur = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQuotes && i + 1 < line.length && line[i + 1] === '"') {
+        cur += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+    if (ch === ',' && !inQuotes) {
+      cells.push(cur.trim());
+      cur = '';
+      continue;
+    }
+    cur += ch;
+  }
+  cells.push(cur.trim());
+  return cells;
+}
+
+function splitRowCellsTs(line: string): { cells: string[]; formatKind: string } {
+  if (line.includes('|')) {
+    return { cells: line.split('|').map((c) => c.trim()), formatKind: 'PIPE' };
+  }
+  if (line.includes('\t')) {
+    return { cells: line.split('\t').map((c) => c.trim()), formatKind: 'TSV' };
+  }
+  if (line.includes(',')) {
+    const cells = parseCsvCellsTs(line);
+    if (cells.length >= 2) return { cells, formatKind: 'CSV' };
+  }
+  return { cells: [], formatKind: 'PLAIN' };
+}
+
+function isMetadataOrFooterRowTs(line: string, cells: string[]): boolean {
+  const lower = line.trim().toLowerCase();
+  const firstCell =
+    cells.length > 0 ? cells[0].trim().replace(/^["']+|["']+$/g, '').toLowerCase() : lower;
+  const prefixes = [
+    '#',
+    'date,',
+    'tanggal',
+    'no. rekening',
+    'no rekening',
+    'account number',
+    'account no',
+    'nama',
+    'periode',
+    'mata uang',
+    'currency',
+    'saldo awal',
+    'mutasi kredit',
+    'mutasi debet',
+    'mutasi debit',
+    'saldo akhir',
+    'starting balance',
+    'ending balance',
+    'total debet',
+    'total debit',
+    'total kredit',
+    'total credit',
+  ];
+  return prefixes.some((p) => lower.startsWith(p) || firstCell.startsWith(p));
+}
+
+function extractDateIsoTs(text: string, defYear: number): { dateIso: string; dateMatchStr: string } {
+  const cleaned = text.trim().replace(/^'+/, '');
+  const mIso = RECON_ISO_DATE_RX.exec(cleaned);
+  if (mIso) {
+    return {
+      dateIso: `${String(Number(mIso[1])).padStart(4, '0')}-${String(Number(mIso[2])).padStart(2, '0')}-${String(Number(mIso[3])).padStart(2, '0')}`,
+      dateMatchStr: mIso[0],
+    };
+  }
+  const mDmy = RECON_DMY_DATE_RX.exec(cleaned);
+  if (mDmy) {
+    const dy = Number(mDmy[1]);
+    const mo = Number(mDmy[2]);
+    const yr = mDmy[3] ? Number(mDmy[3]) : defYear;
+    if (mo >= 1 && mo <= 12 && dy >= 1 && dy <= 31) {
+      return {
+        dateIso: `${String(yr).padStart(4, '0')}-${String(mo).padStart(2, '0')}-${String(dy).padStart(2, '0')}`,
+        dateMatchStr: mDmy[0],
+      };
+    }
+  }
+  return { dateIso: new Date().toISOString().slice(0, 10), dateMatchStr: '' };
+}
+
 export function parseStatementBatchTs(req: ReconcilerParseRequest): ReconcilerParseResult {
   const defYear = req.defaultYear < 2020 ? new Date().getFullYear() : req.defaultYear;
   const anchor = req.anchorDay <= 0 ? 27 : req.anchorDay;
   const defMethod = (req.defaultMethod || '').trim().toUpperCase() || 'CASH';
-
-  const isoDateRx = /\b(20\d{2})[-/](\d{1,2})[-/](\d{1,2})\b/;
-  const dmyDateRx = /\b(\d{1,2})[-/](\d{1,2})(?:[-/](20\d{2}))?\b/;
-  const amountRx = /(?:Rp\.?\s*)?(\d{1,3}(?:[.,]\d{3})+|\d{4,9})\b/g;
-  const rpPrefixRx = /\brp\.?\s*[\d.,]+/gi;
 
   const lockedSet = new Set<string>(
     (req.lockedPeriodCodes ?? []).map((c) => c.trim()).filter(Boolean),
@@ -1669,63 +1824,141 @@ export function parseStatementBatchTs(req: ReconcilerParseRequest): ReconcilerPa
     }
   }
 
-  const lines = (req.rawText || '').split(/\r?\n/);
+  const lines = splitLogicalRecordsTs(req.rawText);
   const rows: ReconcilerParsedRow[] = [];
   let totalAmt = 0;
   let newCount = 0;
   let dupCount = 0;
+  let skippedCreditCount = 0;
 
   for (let idx = 0; idx < lines.length; idx++) {
+    if (rows.length >= MAX_RECONCILER_ROWS) break;
     const line = lines[idx].trim();
-    const lowerLine = line.toLowerCase();
-    if (
-      !line ||
-      line.startsWith('#') ||
-      lowerLine.startsWith('date,') ||
-      lowerLine.startsWith('tanggal')
-    ) {
-      continue;
-    }
+    if (!line) continue;
 
-    let dateIso = new Date().toISOString().slice(0, 10);
+    const { cells, formatKind } = splitRowCellsTs(line);
+    if (isMetadataOrFooterRowTs(line, cells)) continue;
+
+    let dateIso = '';
     let dateMatchStr = '';
-    const mIso = isoDateRx.exec(line);
-    if (mIso) {
-      dateIso = `${String(Number(mIso[1])).padStart(4, '0')}-${String(Number(mIso[2])).padStart(2, '0')}-${String(Number(mIso[3])).padStart(2, '0')}`;
-      dateMatchStr = mIso[0];
-    } else {
-      const mDmy = dmyDateRx.exec(line);
-      if (mDmy) {
-        const dy = Number(mDmy[1]);
-        const mo = Number(mDmy[2]);
-        const yr = mDmy[3] ? Number(mDmy[3]) : defYear;
-        if (mo >= 1 && mo <= 12 && dy >= 1 && dy <= 31) {
-          dateIso = `${String(yr).padStart(4, '0')}-${String(mo).padStart(2, '0')}-${String(dy).padStart(2, '0')}`;
-          dateMatchStr = mDmy[0];
+    let amountRp = 0;
+    let desc = '';
+    let isCreditInflow = false;
+
+    if (formatKind !== 'PLAIN' && cells.length >= 2) {
+      let dateColIdx = -1;
+      for (let ci = 0; ci < cells.length; ci++) {
+        const cClean = cells[ci].trim().replace(/^'+/, '');
+        if (cClean.toUpperCase() === 'PEND') {
+          dateColIdx = ci;
+          dateIso = new Date().toISOString().slice(0, 10);
+          break;
+        }
+        const extracted = extractDateIsoTs(cClean, defYear);
+        if (extracted.dateMatchStr) {
+          dateColIdx = ci;
+          dateIso = extracted.dateIso;
+          dateMatchStr = extracted.dateMatchStr;
+          break;
         }
       }
+      if (dateColIdx === -1) {
+        dateIso = new Date().toISOString().slice(0, 10);
+      }
+
+      let amountColIdx = -1;
+      for (let ci = 0; ci < cells.length; ci++) {
+        if (ci === dateColIdx) continue;
+        const cellTrim = cells[ci].trim();
+        if (RECON_CREDIT_MARKER_RX.test(cellTrim)) {
+          isCreditInflow = true;
+          amountColIdx = ci;
+          break;
+        }
+        if (RECON_DEBIT_CELL_RX.test(cellTrim)) {
+          const matches = Array.from(cellTrim.matchAll(RECON_AMOUNT_RX));
+          if (matches.length > 0) {
+            const parsed = parseAmountRpTs(matches[matches.length - 1][1] || '');
+            if (parsed > 0) {
+              amountRp = parsed;
+              amountColIdx = ci;
+              break;
+            }
+          }
+        }
+      }
+
+      if (isCreditInflow) {
+        skippedCreditCount++;
+        continue;
+      }
+
+      if (amountColIdx === -1) {
+        for (let ci = cells.length - 1; ci >= 0; ci--) {
+          if (ci === dateColIdx) continue;
+          const cellTrim = cells[ci].trim();
+          if (RECON_BRANCH_ZERO_RX.test(cellTrim)) continue;
+          const matches = Array.from(cellTrim.matchAll(RECON_AMOUNT_RX));
+          if (matches.length > 0) {
+            const parsed = parseAmountRpTs(matches[matches.length - 1][1] || '');
+            if (parsed > 0) {
+              amountRp = parsed;
+              amountColIdx = ci;
+              break;
+            }
+          }
+        }
+      }
+
+      if (amountRp <= 0) continue;
+
+      const descParts: string[] = [];
+      for (let ci = 0; ci < cells.length; ci++) {
+        if (ci === dateColIdx || ci === amountColIdx) continue;
+        const trimmedCell = cells[ci].trim();
+        if (
+          amountColIdx !== -1 &&
+          ci > amountColIdx &&
+          new RegExp(RECON_AMOUNT_RX.source).test(trimmedCell)
+        ) {
+          continue;
+        }
+        if (RECON_BRANCH_ZERO_RX.test(trimmedCell)) continue;
+        if (trimmedCell) descParts.push(trimmedCell);
+      }
+      desc = maskAccountNumbersTs(descParts.join(' ')).replace(/\s+/g, ' ').trim();
+      if (!desc) desc = 'Imported Statement Entry';
+    } else {
+      if (RECON_CREDIT_MARKER_RX.test(line)) {
+        skippedCreditCount++;
+        continue;
+      }
+      const extracted = extractDateIsoTs(line, defYear);
+      dateIso = extracted.dateIso;
+      dateMatchStr = extracted.dateMatchStr;
+
+      const cleanedForAmount = maskAccountNumbersTs(
+        dateMatchStr ? line.replace(dateMatchStr, ' ') : line,
+      );
+      const matches = Array.from(cleanedForAmount.matchAll(RECON_AMOUNT_RX));
+      let amtToken = '';
+      if (matches.length > 0) {
+        const last = matches[matches.length - 1];
+        amountRp = parseAmountRpTs(last[1] || '');
+        amtToken = last[0];
+      }
+      if (amountRp <= 0) continue;
+
+      desc = cleanedForAmount;
+      if (amtToken) {
+        desc = desc.replace(RECON_RP_PREFIX_RX, ' ').replace(amtToken, ' ');
+      }
+      desc = desc.replace(/[,;|\t]/g, ' ').replace(/\s+/g, ' ').trim();
+      if (!desc) desc = 'Imported Statement Entry';
     }
 
-    const cleanedForAmount = dateMatchStr ? line.replace(dateMatchStr, ' ') : line;
-    const matches = Array.from(cleanedForAmount.matchAll(amountRx));
-    let amountRp = 0;
-    let amtToken = '';
-    if (matches.length > 0) {
-      const last = matches[matches.length - 1];
-      const digits = (last[1] || '').replace(/\D/g, '');
-      amountRp = digits ? parseInt(digits, 10) : 0;
-      amtToken = last[0];
-    }
-    if (amountRp <= 0) continue;
-
-    let desc = cleanedForAmount;
-    if (amtToken) {
-      desc = desc.replace(rpPrefixRx, ' ').replace(amtToken, ' ');
-    }
-    desc = desc.replace(/[,;|\t]/g, ' ').replace(/\s+/g, ' ').trim();
-    if (!desc) desc = 'Imported Statement Entry';
-
-    const inst = inferInst(line, defMethod);
+    const safeRawLine = maskAccountNumbersTs(line);
+    const inst = inferInst(safeRawLine, defMethod);
     const cat = inferCat(desc);
     const routed = routeTransactionToPaycycleTs({
       txDateIso: dateIso,
@@ -1798,7 +2031,7 @@ export function parseStatementBatchTs(req: ReconcilerParseRequest): ReconcilerPa
 
     rows.push({
       lineNumber: idx + 1,
-      rawLine: line,
+      rawLine: safeRawLine,
       dateIso,
       description: desc,
       amountRp,
@@ -1821,6 +2054,7 @@ export function parseStatementBatchTs(req: ReconcilerParseRequest): ReconcilerPa
     parsedCount: rows.length,
     newEntryCount: newCount,
     duplicateCount: dupCount,
+    skippedCreditCount,
     totalAmountRp: totalAmt,
     rows,
   };

@@ -85,6 +85,12 @@ export class ConfigSelectors {
       existing.uiDensityMode || presetDefaults.uiDensityMode || 'COMMAND_COCKPIT';
 
     const studioConfig = resolveStudioConfig(userId, existing.formulaParamsJson, existing);
+    const payrollAdjustmentTemplates = this.prisma.payrollAdjustmentTemplate
+      ? await this.prisma.payrollAdjustmentTemplate.findMany({
+          where: { userId },
+          orderBy: { id: 'asc' },
+        })
+      : [];
 
     return {
       ...existing,
@@ -97,6 +103,7 @@ export class ConfigSelectors {
       surplusSplitRules,
       financialPolicy,
       studioConfig,
+      payrollAdjustmentTemplates,
     };
   }
 

@@ -57,7 +57,7 @@ export function AllocationsClientView({
   const { t } = useLanguage();
   const { studioConfig } = usePerspective();
   const savingsLabel = resolvePriorityTierLabel(studioConfig, "SAVINGS", "Core Savings");
-  const surplusLabel = resolvePriorityTierLabel(studioConfig, "DISCRETIONARY", "Flexible Surplus");
+  const surplusLabel = resolvePriorityTierLabel(studioConfig, "DISCRETIONARY", "Discretionary");
   const activeInstruments = (studioConfig?.instrumentsTable ?? []).filter((i) => i.active);
   const cutoffSummaryText =
     activeInstruments.length > 0

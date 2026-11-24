@@ -132,7 +132,7 @@ export function ReportDrillDownDrawer({
               </div>
             </div>
             <div className="p-3 rounded border border-border bg-surface">
-              <div className="text-[10px] text-text-tertiary">Core Savings / Flexible Surplus</div>
+              <div className="text-[10px] text-text-tertiary">Core Savings / Discretionary</div>
               <div className="text-sm font-semibold text-positive mt-0.5">
                 {formatIDR(periodRow.actualSavings)} / {formatIDR(periodRow.selfReward)}
               </div>

@@ -1,6 +1,6 @@
 # Live Ledger State (`userId = 1` / Gabriel)
 
-Generated from Neon PostgreSQL Cloud at 2026-11-23T15:30:44.113Z.
+Generated from Neon PostgreSQL Cloud at 2026-11-24T13:11:53.325Z.
 Regenerate anytime via `npm run erp:report -- --write`.
 
 ## Global Configuration
@@ -20,7 +20,7 @@ Regenerate anytime via `npm run erp:report -- --write`.
 | 09/2026 | LOCKED | NO | Rp 5.881.400 | Rp 2.985.684 | Rp 2.045.000 | Rp 500.000 | Rp 716 | Rp 0 | 2026-08-25 |
 | 10/2026 | LOCKED | NO | Rp 5.791.000 | Rp 4.082.655 | Rp 991.000 | Rp 328.345 | Rp 0 | Rp 0 | 2026-09-28 |
 | 11/2026 | DRAFT | YES | Rp 5.891.000 | Rp 4.522.976 | Rp 1.720.316 | Rp 6.341 | Rp 250.000 | Rp 108.633 | 2026-10-28 |
-| 12/2026 | DRAFT | NO | Rp 9.737.425 | Rp 4.189.341 | Rp 1.500.000 | Rp 1.000.000 | Rp 2.748.084 | Rp 0 | 2026-11-27 |
+| 12/2026 | DRAFT | NO | Rp 9.376.925 | Rp 4.189.341 | Rp 1.500.000 | Rp 1.000.000 | Rp 2.387.584 | Rp 0 | 2026-11-27 |
 | 01/2027 | DRAFT | NO | Rp 5.941.000 | Rp 3.171.115 | Rp 1.500.000 | Rp 734.885 | Rp 0 | Rp 0 | 2026-12-28 |
 | 02/2027 | DRAFT | NO | Rp 5.891.000 | Rp 1.967.159 | Rp 1.500.000 | Rp 1.000.000 | Rp 888.841 | Rp 0 | 2027-01-27 |
 | 03/2027 | DRAFT | NO | Rp 5.891.000 | Rp 835.996 | Rp 1.500.000 | Rp 1.000.000 | Rp 2.020.004 | Rp 0 | 2027-02-26 |
@@ -30,6 +30,14 @@ Regenerate anytime via `npm run erp:report -- --write`.
 | 07/2027 | DRAFT | NO | Rp 5.841.000 | Rp 293.044 | Rp 1.500.000 | Rp 1.000.000 | Rp 2.512.956 | Rp 0 | 2027-06-29 |
 | 08/2027 | DRAFT | NO | Rp 5.941.000 | Rp 293.044 | Rp 1.500.000 | Rp 1.000.000 | Rp 2.612.956 | Rp 0 | 2027-07-27 |
 | 09/2027 | DRAFT | NO | Rp 5.916.000 | Rp 293.044 | Rp 1.500.000 | Rp 1.000.000 | Rp 2.587.956 | Rp 0 | 2027-08-27 |
+| 10/2027 | DRAFT | NO | Rp 5.916.000 | Rp 170.940 | Rp 1.500.000 | Rp 1.000.000 | Rp 2.710.060 | Rp 0 | 2027-09-28 |
+| 11/2027 | DRAFT | NO | Rp 5.941.000 | Rp 170.940 | Rp 1.500.000 | Rp 1.000.000 | Rp 2.735.060 | Rp 0 | 2027-10-27 |
+| 12/2027 | DRAFT | NO | Rp 5.916.000 | Rp 170.940 | Rp 1.500.000 | Rp 1.000.000 | Rp 2.710.060 | Rp 0 | 2027-11-29 |
+| 01/2028 | DRAFT | NO | Rp 5.941.000 | Rp 170.940 | Rp 1.500.000 | Rp 1.000.000 | Rp 2.735.060 | Rp 0 | 2027-12-28 |
+| 10/2028 | DRAFT | NO | Rp 5.966.000 | Rp 170.940 | Rp 1.500.000 | Rp 1.000.000 | Rp 2.760.060 | Rp 0 | 2028-09-27 |
+| 11/2028 | DRAFT | NO | Rp 5.891.000 | Rp 170.940 | Rp 1.500.000 | Rp 1.000.000 | Rp 2.685.060 | Rp 0 | 2028-10-27 |
+| 12/2028 | DRAFT | NO | Rp 5.966.000 | Rp 170.940 | Rp 1.500.000 | Rp 1.000.000 | Rp 2.760.060 | Rp 0 | 2028-11-28 |
+| 01/2029 | DRAFT | NO | Rp 5.941.000 | Rp 170.940 | Rp 1.500.000 | Rp 1.000.000 | Rp 2.735.060 | Rp 0 | 2028-12-27 |
 
 ## 12-Month Debt Matrix (`AUG '26` - `JUL '27`)
 
@@ -119,5 +127,5 @@ Regenerate anytime via `npm run erp:report -- --write`.
 
 ## Manual Savings Deposits (`SavingsManualTransaction`)
 
-- Count: 1 entries
-- Cumulative Manual Balance: Rp 266.200
+- Count: 2 entries
+- Cumulative Manual Balance: Rp 272.541

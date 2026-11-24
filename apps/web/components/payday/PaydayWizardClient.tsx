@@ -12,13 +12,18 @@ import {
   Wallet,
 } from "lucide-react";
 import {
+  GlobalConfig,
   LiabilityLineItemDto,
   MonthlySnapshot,
   PayrollResult,
+  SavingsInstrumentType,
+  SavingsOverviewResult,
   closeSnapshot,
   confirmPeriodDeposit,
+  fetchGlobalConfig,
   fetchLineItems,
   fetchPayroll,
+  fetchSavingsOverview,
   fetchSnapshot,
   getCached,
   recalculateSnapshot,
@@ -39,6 +44,8 @@ export interface PaydayWizardData {
   prevSnapshot: MonthlySnapshot | null;
   payroll: PayrollResult | null;
   lineItems: LiabilityLineItemDto[];
+  savingsOverview: SavingsOverviewResult | null;
+  config: GlobalConfig | null;
 }
 
 interface PaydayWizardClientProps {
@@ -78,16 +85,7 @@ export function PaydayWizardClient({
 
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<{ ok: boolean; text: string } | null>(null);
-
-  React.useEffect(() => {
-    if (!statusMessage) return;
-    toast({
-      title: statusMessage.ok ? "Payday Wizard" : "Payday Action Failed",
-      description: statusMessage.text,
-      variant: statusMessage.ok ? "success" : "error",
-    });
-  }, [statusMessage, toast]);
-  const [p1ConfirmedLocal, setP1ConfirmedLocal] = useState(false);
+  const [localConfirmedByPeriod, setLocalConfirmedByPeriod] = useState<Record<string, number>>({});
 
   const { month, year, data, isPreBoundary } = usePeriodSlice<PaydayWizardData>({
     initialMonth,
@@ -96,30 +94,45 @@ export function PaydayWizardClient({
     seedCache: (m, y, d) => {
       if (d.snapshot) setCached(`snapshot:${m}:${y}`, d.snapshot);
       if (d.payroll) setCached(`payroll:${m}:${y}`, d.payroll);
+      if (d.savingsOverview) setCached("savings:overview", d.savingsOverview);
+      if (d.config) setCached("global:config", d.config);
     },
     readFromCache: (m, y) => {
       const prev = getPreviousPeriod(m, y);
       const snapshot = getCached<MonthlySnapshot | null>(`snapshot:${m}:${y}`);
       const prevSnapshot = getCached<MonthlySnapshot | null>(`snapshot:${prev.month}:${prev.year}`);
       const payroll = getCached<PayrollResult | null>(`payroll:${m}:${y}`);
-      if (snapshot === undefined || prevSnapshot === undefined || payroll === undefined) {
+      const savingsOverview = getCached<SavingsOverviewResult | null>("savings:overview");
+      const config = getCached<GlobalConfig | null>("global:config");
+      if (
+        snapshot === undefined ||
+        prevSnapshot === undefined ||
+        payroll === undefined ||
+        savingsOverview === undefined ||
+        config === undefined
+      ) {
         return undefined;
       }
-      return { snapshot, prevSnapshot, payroll, lineItems: [] };
+      return { snapshot, prevSnapshot, payroll, lineItems: [], savingsOverview, config };
     },
     fetchForPeriod: async (m, y) => {
       const prev = getPreviousPeriod(m, y);
-      const [snapshot, prevSnapshot, payroll, lineItems] = await Promise.all([
-        fetchSnapshot(m, y),
-        fetchSnapshot(prev.month, prev.year),
-        fetchPayroll(m, y),
-        fetchLineItems({ month: m, year: y }),
-      ]);
+      const [snapshot, prevSnapshot, payroll, lineItems, savingsOverview, config] =
+        await Promise.all([
+          fetchSnapshot(m, y),
+          fetchSnapshot(prev.month, prev.year),
+          fetchPayroll(m, y),
+          fetchLineItems({ month: m, year: y }),
+          fetchSavingsOverview(),
+          fetchGlobalConfig(),
+        ]);
       return {
         snapshot,
         prevSnapshot,
         payroll,
         lineItems: Array.isArray(lineItems) ? lineItems : [],
+        savingsOverview,
+        config,
       };
     },
   });
@@ -128,7 +141,8 @@ export function PaydayWizardClient({
     return <PreBoundaryNotice month={month} year={year} />;
   }
 
-  const { snapshot, prevSnapshot, payroll, lineItems } = data;
+  const { snapshot, prevSnapshot, payroll, lineItems, savingsOverview, config } = data;
+  const periodKey = `${year}-${month}`;
   const periodLabel = `${MONTH_SHORT[(month - 1) % 12]} '${String(year).slice(2)}`;
   const prevPeriod = getPreviousPeriod(month, year);
   const prevLabel = `${MONTH_SHORT[(prevPeriod.month - 1) % 12]} '${String(prevPeriod.year).slice(2)}`;
@@ -144,13 +158,42 @@ export function PaydayWizardClient({
   const unsettledCount = lineItems.filter((li) => !li.isSettled).length;
   const isCycleLocked = snapshot?.status === "LOCKED";
 
-  // 4-step readiness checks
+  // 4-step readiness checks (deposit status hydrated from persisted DB accumulationLedger)
   const step1Done = Boolean(snapshot && (snapshot.finalTotalIncome ?? 0) > 0);
   const step2Done = !prevSnapshot || prevSnapshot.status === "LOCKED";
   const step3Done = lineItems.length === 0 || unsettledCount === 0;
   const plannedP1Savings = Math.max(0, Math.round(snapshot?.actualSavings ?? 0));
-  const step4Done = p1ConfirmedLocal || (snapshot?.status === "LOCKED") || plannedP1Savings === 0;
+  const ledgerRow = savingsOverview?.accumulationLedger?.find(
+    (item) => item.month === month && item.year === year,
+  );
+  const persistedConfirmed = Boolean(
+    ledgerRow &&
+      plannedP1Savings > 0 &&
+      (ledgerRow.isFullyDeposited || ledgerRow.depositedAmount >= plannedP1Savings),
+  );
+  const localConfirmedAmount = localConfirmedByPeriod[periodKey];
+  const recordedDepositRp = Math.max(
+    localConfirmedAmount ?? 0,
+    ledgerRow?.depositedAmount ?? 0,
+  );
+  const isDepositConfirmed =
+    plannedP1Savings === 0 ||
+    isCycleLocked ||
+    persistedConfirmed ||
+    localConfirmedAmount !== undefined;
+  const step4Done = isDepositConfirmed;
   const completedSteps = [step1Done, step2Done, step3Done, step4Done].filter(Boolean).length;
+  const depositInstrument: SavingsInstrumentType =
+    config?.studioConfig?.enableExternalAssetPortfolio ? "INVESTMENT_RDPU" : "LIQUID_CASH";
+
+  const notifyAction = (ok: boolean, text: string) => {
+    setStatusMessage({ ok, text });
+    toast({
+      title: ok ? "Payday & Closing" : "Payday Action Failed",
+      description: text,
+      variant: ok ? "success" : "error",
+    });
+  };
 
   const handleRecalculate = async () => {
     if (!snapshot) return;
@@ -159,10 +202,10 @@ export function PaydayWizardClient({
     const res = await recalculateSnapshot(snapshot.id);
     setBusyAction(null);
     if (res.success) {
-      setStatusMessage({ ok: true, text: `${periodLabel} payroll & waterfall recalculated.` });
+      notifyAction(true, `${periodLabel} payroll & budget allocation recalculated.`);
       refreshPeriod();
     } else {
-      setStatusMessage({ ok: false, text: res.error || "Failed to recalculate period." });
+      notifyAction(false, res.error || "Failed to recalculate period.");
     }
   };
 
@@ -173,10 +216,10 @@ export function PaydayWizardClient({
     const res = await closeSnapshot(prevSnapshot.id);
     setBusyAction(null);
     if (res.success) {
-      setStatusMessage({ ok: true, text: `Previous cycle ${prevLabel} closed and locked.` });
+      notifyAction(true, `Previous cycle ${prevLabel} closed and locked.`);
       refreshPeriod();
     } else {
-      setStatusMessage({ ok: false, text: res.error || `Failed to lock ${prevLabel}.` });
+      notifyAction(false, res.error || `Failed to lock ${prevLabel}.`);
     }
   };
 
@@ -186,9 +229,13 @@ export function PaydayWizardClient({
     const res = await toggleLineItemSettled(item.id, !item.isSettled);
     setBusyAction(null);
     if (res.success) {
+      notifyAction(
+        true,
+        `${item.title} marked as ${!item.isSettled ? "settled" : "unsettled"}.`,
+      );
       refreshPeriod();
     } else {
-      setStatusMessage({ ok: false, text: res.error || "Failed to update bill status." });
+      notifyAction(false, res.error || "Failed to update bill status.");
     }
   };
 
@@ -198,36 +245,37 @@ export function PaydayWizardClient({
     const res = await settleBulkLineItems({ month, year, isSettled: true });
     setBusyAction(null);
     if (res.success) {
-      setStatusMessage({
-        ok: true,
-        text: `Marked all ${periodLabel} liability items as settled (${res.data?.updatedCount ?? 0} updated).`,
-      });
+      notifyAction(
+        true,
+        `Marked all ${periodLabel} liability items as settled (${res.data?.updatedCount ?? 0} updated).`,
+      );
       refreshPeriod();
     } else {
-      setStatusMessage({ ok: false, text: res.error || "Failed to settle bills." });
+      notifyAction(false, res.error || "Failed to settle bills.");
     }
   };
 
   const handleConfirmP1Deposit = async () => {
-    if (plannedP1Savings <= 0) return;
+    if (plannedP1Savings <= 0 || isDepositConfirmed) return;
     setBusyAction("confirm-p1");
     setStatusMessage(null);
     const res = await confirmPeriodDeposit({
       month,
       year,
       amount: plannedP1Savings,
-      instrumentType: "INVESTMENT_RDPU",
+      instrumentType: depositInstrument,
     });
     setBusyAction(null);
     if (res.success) {
-      setP1ConfirmedLocal(true);
-      setStatusMessage({
-        ok: true,
-        text: `Confirmed ${formatRp(plannedP1Savings)} savings deposit for ${periodLabel}.`,
-      });
+      const confirmedRp = res.confirmedAmount ?? plannedP1Savings;
+      setLocalConfirmedByPeriod((prev) => ({ ...prev, [periodKey]: confirmedRp }));
+      const msg = res.alreadyConfirmed
+        ? `Savings deposit already recorded for ${periodLabel} (${formatRp(confirmedRp)}).`
+        : `Confirmed ${formatRp(confirmedRp)} savings deposit for ${periodLabel}.`;
+      notifyAction(true, msg);
       refreshPeriod();
     } else {
-      setStatusMessage({ ok: false, text: res.error || "Failed to confirm savings deposit." });
+      notifyAction(false, res.error || "Failed to confirm savings deposit.");
     }
   };
 
@@ -534,16 +582,21 @@ export function PaydayWizardClient({
                 <div className="font-mono text-lg font-semibold text-delta-positive mt-1 tabular-nums">
                   {formatRp(plannedP1Savings)}
                 </div>
+                {isDepositConfirmed && plannedP1Savings > 0 && (
+                  <div className="text-[11px] font-sans text-delta-positive mt-1">
+                    Recorded {formatRp(recordedDepositRp > 0 ? recordedDepositRp : plannedP1Savings)} in Savings.
+                  </div>
+                )}
               </div>
               <div className="pt-2">
                 {plannedP1Savings > 0 ? (
                   <button
                     type="button"
-                    disabled={busyAction === "confirm-p1" || p1ConfirmedLocal}
+                    disabled={busyAction === "confirm-p1" || isDepositConfirmed}
                     onClick={() => void handleConfirmP1Deposit()}
                     className="w-full px-3 py-1.5 rounded erp-btn-primary text-xs font-mono font-medium hover:opacity-90 disabled:opacity-50 cursor-pointer"
                   >
-                    {p1ConfirmedLocal
+                    {isDepositConfirmed
                       ? "Deposit Confirmed"
                       : busyAction === "confirm-p1"
                         ? "Confirming..."

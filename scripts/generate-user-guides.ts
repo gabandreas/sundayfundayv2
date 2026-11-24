@@ -102,8 +102,8 @@ function renderWaterfallSvg(lang: GuideLang): string {
           remSub: "Diteruskan ke 2 Prioritas",
           p1: "Prioritas 1: Core Savings",
           p1Sub: "Mengisi target tabungan utama dulu",
-          p2: "Prioritas 2: Surplus & Buffer",
-          p2Sub: "Flexible Surplus & Emergency Buffer",
+          p2: "Prioritas 2: Discretionary & Buffer",
+          p2Sub: "Dana Bebas & Emergency Buffer",
           shortfall: "Jika Pemasukan Kurang: Prioritas 1 & 2 otomatis Rp 0 agar Dana Hidup Harian tetap positif semaksimal mungkin.",
         }
       : {
@@ -114,15 +114,15 @@ function renderWaterfallSvg(lang: GuideLang): string {
           debtSub: "PayLater, Credit Cards, Loans",
           routine: "Fixed Routine Envelopes",
           routineSub: "Transport, Internet, Subscriptions",
-          living: "2. Daily Living Cash Pool",
+          living: "2. Daily Spending Pool",
           livingSub: "Food, coffee, day-to-day spend",
           rem: "Remaining Disposable Pool",
           remSub: "Flows down to 2 Priorities",
           p1: "Priority 1: Core Savings",
           p1Sub: "Fills main savings reserve up to target",
-          p2: "Priority 2: Surplus & Buffer",
-          p2Sub: "Flexible Surplus + Emergency Buffer",
-          shortfall: "On Income Shortfall: Priority 1 & 2 automatically drop to Rp 0 so Daily Living Cash stays positive first.",
+          p2: "Priority 2: Discretionary & Buffer",
+          p2Sub: "Discretionary + Emergency Buffer",
+          shortfall: "On Income Shortfall: Priority 1 & 2 automatically drop to Rp 0 so Daily Spending Pool stays positive first.",
         };
 
   return `
@@ -182,29 +182,29 @@ function renderWalletSyncDiagramSvg(lang: GuideLang): string {
           s1t: "1. Cek Saldo Riil",
           s1b: "Buka m-Banking / e-wallet",
           s1c: "Tanpa catat kopi harian",
-          s2t: "2. Isi Kolom 'Cash Rp'",
-          s2b: "Pilih mode Total Bank /",
-          s2c: "Living Cash sesuai saldo",
-          s3t: "3. Klik 'Guard' / 'Sync'",
-          s3b: "Guard: cek aman saja",
-          s3c: "Sync: catat selisih saldo",
-          s4t: "4. Semua Angka Sinkron",
-          s4b: "Cycle Budget Used & Burn",
-          s4c: "serta Audit otomatis update",
+          s2t: "2. Update Bank Balance",
+          s2b: "Masukkan saldo rekening",
+          s2c: "saat ini (termasuk tagihan)",
+          s3t: "3. Klik 'Sync Balance'",
+          s3b: "Sistem hitung selisih kas",
+          s3c: "masuk ke Balance History",
+          s4t: "4. Saldo & Laju Sinkron",
+          s4b: "Cycle Budget Used & Daily",
+          s4c: "Average otomatis akurat",
         }
       : {
-          s1t: "1. Check Real Wallet",
+          s1t: "1. Check Real Bank Balance",
           s1b: "Open bank / e-wallet total",
           s1c: "Skip logging daily coffees",
-          s2t: "2. Enter 'Cash Rp'",
-          s2b: "Pick Total Bank or Living",
-          s2c: "Cash Only to match balance",
-          s3t: "3. Click 'Guard' / 'Sync'",
-          s3b: "Guard: inspect safety only",
-          s3c: "Sync: logs unrecorded gap",
-          s4t: "4. Cockpit Auto-Updates",
-          s4b: "Cycle Budget Used & Daily Burn",
-          s4c: "& Safe-to-Spend recalculate clean",
+          s2t: "2. Update Bank Balance",
+          s2b: "Enter current actual balance",
+          s2c: "and optionally save check-in",
+          s3t: "3. Click 'Sync Balance'",
+          s3b: "Logs unrecorded spend gap",
+          s3c: "into clean Balance History",
+          s4t: "4. Overview Auto-Updates",
+          s4b: "Cycle Budget Used, Daily",
+          s4c: "Average & Spending Balance",
         };
 
   return `
@@ -408,30 +408,30 @@ function buildGabrielPages(lang: GuideLang): GuideBookSpec {
 
   const toc: TocEntry[] = isId
     ? [
-        { num: "01", title: "Cara Pakai Anti-Ribet & Konsep Waterfall", desc: "Payday cycle, Flexible Surplus, Emergency Buffer, Shortfall", page: 3 },
+        { num: "01", title: "Cara Pakai Anti-Ribet & Konsep Waterfall", desc: "Payday cycle, Core Savings, Discretionary, Buffer", page: 3 },
         { num: "02", title: "Login, PIN, Password & Navigasi Global", desc: "Auth flow, Privacy Alt+H di Sidebar, Header, Ctrl+K", page: 4 },
-        { num: "03", title: "Overview Kolom 1: Safe-to-Spend & Wallet Sync", desc: "Cycle Budget Used, Avg Burn, Expected Bank vs Cash Rp", page: 5 },
-        { num: "04", title: "Overview Kolom 2, Kolom 3 & Panel Bawah", desc: "Routine Bills, Mix 4 Pos, Record Expense, Checklist", page: 6 },
-        { num: "05", title: "Payday Wizard, Cash Radar & Payroll", desc: "Ritual gajian, penutupan siklus, THR Prorated & Work-Hours", page: 7 },
-        { num: "06", title: "Monthly Plan & Statement Import", desc: "Simulasi kuota, Rollover amplop, impor mutasi anti-duplikat", page: 8 },
+        { num: "03", title: "Overview Kolom 1: Spending Balance & Bank Sync", desc: "Days to Payday, Daily Average, Bank Balance Sync", page: 5 },
+        { num: "04", title: "Overview Kolom 2, Kolom 3 & Panel Bawah", desc: "Routine Bills, Bank / QRIS, Record Expense, Checklist", page: 6 },
+        { num: "05", title: "Payday & Closing, Cash Calendar & Payroll", desc: "Konfirmasi tabungan, Benefit GreatDay, THR opsional", page: 7 },
+        { num: "06", title: "Monthly Plan & Impor Mutasi KlikBCA / Permata", desc: "Simulasi kuota, Rollover, CSV KlikBCA tanpa password bank", page: 8 },
         { num: "07", title: "Installments & Bills (Hukum Cutoff & Matrix)", desc: "SPayLater M-15d, Permata CC 25th, 12-Month Matrix & Optimizer", page: 9 },
         { num: "08", title: "Savings & Emergency Fund + Scenario Lab", desc: "Milestone dana darurat, Net Worth, Go Monte Carlo Stress Test", page: 10 },
-        { num: "09", title: "Analytics, Financial Reports & Subscriptions", desc: "Audit disiplin, Ekspor Excel/PDF, Email, Promo Kill-Switch", page: 11 },
-        { num: "10", title: "Marquee AI Co-Pilot, Ctrl+K & Preferences 6-Tab", desc: "Stage-Commit aman, Memory, Formula DSL, SMTP, BYOK AES-256", page: 12 },
+        { num: "09", title: "Analytics, Financial Reports & Subscriptions", desc: "Audit disiplin, Ekspor Excel/PDF, Email, Renewal Alerts", page: 11 },
+        { num: "10", title: "Marquee AI Co-Pilot, Ctrl+K & Preferences 6-Tab", desc: "Stage-Commit aman, Template GreatDay, THR & Pacing Mode", page: 12 },
         { num: "11", title: "Superadmin Console & SQL Query Studio", desc: "Buat akun user + temp password, Audit Log, Safe SQL Browser", page: 13 },
         { num: "12", title: "Playbook Rutin, Glosarium Istilah & Shortcuts", desc: "Jadwal pakai 2 menit/minggu dan kamus semua istilah ERP", page: 14 },
       ]
     : [
-        { num: "01", title: "Two-Minute Habit & Waterfall Philosophy", desc: "Payday cycle, Flexible Surplus, Emergency Buffer, Shortfall", page: 3 },
+        { num: "01", title: "Two-Minute Habit & Waterfall Philosophy", desc: "Payday cycle, Core Savings, Discretionary, Buffer", page: 3 },
         { num: "02", title: "Auth, 6-Digit PIN, Privacy & Global Shell", desc: "Sign-in flow, Alt+H Sidebar privacy toggle, Header, Ctrl+K", page: 4 },
-        { num: "03", title: "Overview Col 1: Safe-to-Spend & Wallet Sync", desc: "Cycle Budget Used, Avg Burn, Guard vs Sync reconciliation", page: 5 },
-        { num: "04", title: "Overview Col 2, Col 3 & Activity Tables", desc: "Routine Bills, Allocation Mix, Record Expense, Settlement List", page: 6 },
-        { num: "05", title: "Payday Wizard, Cash Radar & Payroll", desc: "Payday ritual, cycle lock, THR engine, True Hourly Wage", page: 7 },
-        { num: "06", title: "Monthly Plan & Statement Import", desc: "Quota simulator, envelope rollover, lock-safe bulk reconciler", page: 8 },
+        { num: "03", title: "Overview Col 1: Spending Balance & Bank Sync", desc: "Days to Payday, Daily Average, Bank Balance Sync", page: 5 },
+        { num: "04", title: "Overview Col 2, Col 3 & Activity Tables", desc: "Routine Bills, Allocation Mix, Bank / QRIS, Checklist", page: 6 },
+        { num: "05", title: "Payday & Closing, Cash Calendar & Payroll", desc: "Persistent deposit confirmation, Benefit GreatDay, modular THR", page: 7 },
+        { num: "06", title: "Monthly Plan & KlikBCA / Permata Import", desc: "Quota simulator, envelope rollover, safe KlikBCA CSV import", page: 8 },
         { num: "07", title: "Installments & Bills (Cutoff Law & Matrix)", desc: "SPayLater M-15d, Permata CC 25th, 12-Month Matrix & Optimizer", page: 9 },
         { num: "08", title: "Savings & Emergency Fund + Scenario Lab", desc: "Emergency milestones, Net Worth, Go Monte Carlo stress testing", page: 10 },
-        { num: "09", title: "Analytics, Financial Reports & Subscriptions", desc: "Discipline audit, Excel/PDF exports, Email & Promo Kill-Switch", page: 11 },
-        { num: "10", title: "Marquee AI Co-Pilot, Ctrl+K & Preferences", desc: "Stage-Commit confirmation, syntax shortcuts, Formula DSL & SMTP", page: 12 },
+        { num: "09", title: "Analytics, Financial Reports & Subscriptions", desc: "Discipline audit, Excel/PDF exports, Email & Renewal Notices", page: 11 },
+        { num: "10", title: "Marquee AI Co-Pilot, Ctrl+K & Preferences", desc: "Stage-Commit confirmation, Direct Deductions, THR & Pacing", page: 12 },
         { num: "11", title: "Superadmin Console & SQL Query Studio", desc: "User provisioning + temp password, IP whitelist, SQL Studio", page: 13 },
         { num: "12", title: "Practical Playbook, Glossary & Shortcuts", desc: "2-minute weekly routine and plain definitions for every term", page: 14 },
       ];
@@ -445,8 +445,8 @@ function buildGabrielPages(lang: GuideLang): GuideBookSpec {
       toc,
       isId ? "Kunci Utama: Anda Tidak Perlu Input Kopi Setiap Hari" : "Core Takeaway: You Never Need to Log Every Daily Coffee",
       isId
-        ? "Banyak aplikasi keuangan gagal dipakai karena memaksa input tiap kali jajan Rp 25.000. Di Sunday Funday, pengeluaran besar/cicilan/tagihan cukup dicatat sekali (atau diimpor). Untuk jajan harian, cukup buka bank Anda 2-3 hari sekali, ketik total saldo ke Wallet Reconciliation, lalu klik Sync. Sistem otomatis menghitung belanja tak tercatat, memperbarui Cycle Budget Used, dan menjaga Safe-to-Spend tetap akurat."
-        : "Personal finance tools fail when they demand manual entry for every small coffee. In Sunday Funday, log bills and installments once, and handle everyday cash with 10-second Wallet Reconciliation: enter your current bank/e-wallet total every few days and hit Sync. The engine computes the unrecorded gap, updates Cycle Budget Used, and recalibrates Safe-to-Spend automatically.",
+        ? "Banyak aplikasi keuangan gagal dipakai karena memaksa input tiap kali jajan Rp 25.000. Di Sunday Funday, pengeluaran besar/cicilan/tagihan cukup dicatat sekali (atau diimpor). Untuk jajan harian, cukup buka bank Anda 2-3 hari sekali, klik Update Bank Balance di kartu Spending Balance, lalu klik Sync Balance. Sistem otomatis menghitung selisih tak tercatat ke Balance History dan menjaga angka tetap akurat."
+        : "Personal finance tools fail when they demand manual entry for every small coffee. In Sunday Funday, log bills and installments once (or import a statement), then open your bank every few days, click Update Bank Balance, enter your actual total, and hit Sync Balance. The engine logs the unrecorded gap cleanly into Balance History and updates Daily Average and Spending Balance automatically.",
     ),
   );
 
@@ -463,8 +463,8 @@ function buildGabrielPages(lang: GuideLang): GuideBookSpec {
           <p>Target tabungan wajib bulan ini yang tidak boleh diganggu untuk jajan biasa. Diisi terlebih dahulu setelah seluruh kewajiban utang, tagihan rutin, dan dana hidup harian aman terpenuhi.</p>
         </div>
         <div class="card">
-          <h3>Flexible Surplus (Surplus Fleksibel / Dana Bebas)</h3>
-          <p>Uang sisa <strong>bersih setelah seluruh utang lunas, pos rutin aman, dana hidup cukup, dan Core Savings terpenuhi</strong>. Misalnya di gambar Anda tertera <span class="mono">Rp 250.000</span>: ini dana fleksibel halal untuk self-reward, hobi, ekstra jajan akhir pekan, atau dipindah manual ke tabungan ekstra saat tutup periode.</p>
+          <h3>Discretionary (Dana Bebas)</h3>
+          <p>Uang sisa <strong>bersih setelah seluruh utang lunas, pos rutin aman, dana hidup cukup, dan Core Savings terpenuhi</strong>. Misalnya tertera <span class="mono">Rp 250.000</span>: ini dana bebas yang aman untuk self-reward, hobi, ekstra jajan akhir pekan, atau dipindah manual ke tabungan ekstra saat tutup periode.</p>
         </div>
         <div class="card">
           <h3>Emergency Buffer (Penyangga Darurat)</h3>
@@ -472,21 +472,21 @@ function buildGabrielPages(lang: GuideLang): GuideBookSpec {
         </div>
         <div class="card">
           <h3>Temporary Savings Advance & Budget Shortfall</h3>
-          <p><strong>Temporary Savings Advance:</strong> Pinjaman sementara dari kantong tabungan saat kas siklus kurang, dengan pengingat jadwal pengembalian. <strong>Budget Shortfall:</strong> Selisih saat total target melebihi gaji. Sistem menerapkan <em>Proportional Living Cash Law</em>: Core Savings & Flexible Surplus otomatis turun ke Rp 0 terlebih dahulu agar uang makan harian tetap positif.</p>
+          <p><strong>Temporary Savings Advance:</strong> Pinjaman sementara dari kantong tabungan saat kas siklus kurang, dengan pengingat jadwal pengembalian. <strong>Budget Shortfall:</strong> Selisih saat total target melebihi gaji. Sistem menerapkan aturan perlindungan belanja harian: Core Savings & Discretionary otomatis turun ke Rp 0 terlebih dahulu agar anggaran hidup harian tetap positif.</p>
         </div>
       </div>`
       : `
       <h2 class="chapter-title">01 · Paycycle Law & Two-Priority Waterfall</h2>
-      <p class="chapter-sub">How every cycle paycheck flows through fixed obligations before funding savings and discretionary surplus.</p>
+      <p class="chapter-sub">How every cycle paycheck flows through fixed obligations before funding savings and discretionary funds.</p>
       ${renderWaterfallSvg("en")}
       <div class="two-col">
         <div class="card">
           <h3>Core Savings</h3>
-          <p>Your primary monthly savings commitment protected from daily spending. Funded first once maturing debt bills, routine quotas, and Daily Living Cash are reserved.</p>
+          <p>Your primary monthly savings commitment protected from daily spending. Funded first once maturing debt bills, routine quotas, and Daily Spending Pool are reserved.</p>
         </div>
         <div class="card">
-          <h3>Flexible Surplus (e.g. Rp 250.000)</h3>
-          <p>True leftover cash remaining <strong>only after debt, routine bills, daily living budget, and Core Savings target are 100% covered</strong>. You can spend it guilt-free on self-reward, hobbies, weekend outings, or sweep it into long-term savings when closing the period.</p>
+          <h3>Discretionary (e.g. Rp 250.000)</h3>
+          <p>True leftover cash remaining <strong>only after debt, routine bills, daily living budget, and Core Savings target are 100% covered</strong>. You can spend it guilt-free on hobbies, weekend outings, or sweep it into long-term savings when closing the period.</p>
         </div>
         <div class="card">
           <h3>Emergency Buffer</h3>
@@ -494,7 +494,7 @@ function buildGabrielPages(lang: GuideLang): GuideBookSpec {
         </div>
         <div class="card">
           <h3>Temporary Savings Advance & Budget Shortfall</h3>
-          <p><strong>Temporary Savings Advance:</strong> Cash temporarily borrowed from your own savings pockets when cashflow dips, tracked for repayment. <strong>Budget Shortfall:</strong> Occurs when planned targets exceed paycheck inflow; Core Savings and Flexible Surplus compress to Rp 0 first so Daily Living Cash stays funded proportionally.</p>
+          <p><strong>Temporary Savings Advance:</strong> Cash temporarily borrowed from your own savings pockets when cashflow dips, tracked for repayment. <strong>Budget Shortfall:</strong> Occurs when planned targets exceed paycheck inflow; Core Savings and Discretionary compress to Rp 0 first so Daily Spending Pool stays funded proportionally.</p>
         </div>
       </div>`,
   );
@@ -564,52 +564,44 @@ function buildGabrielPages(lang: GuideLang): GuideBookSpec {
   sheets.push(
     isId
       ? `
-      <h2 class="chapter-title">03 · Overview Kolom 1: Safe-to-Spend & Wallet Reconciliation</h2>
-      <p class="chapter-sub">Penjelasan angka di screenshot Anda dan cara menggunakan Sync tanpa repot mencatat kopi harian.</p>
+      <h2 class="chapter-title">03 · Overview Kolom 1: Spending Balance & Bank Balance Sync</h2>
+      <p class="chapter-sub">Penjelasan angka belanja harian, hari menuju gajian, dan sinkronisasi saldo bank.</p>
       ${renderWalletSyncDiagramSvg("id")}
       <div class="two-col">
         <div class="card">
-          <h3>Safe-to-Spend, Mode Bobot & Cycle Budget Used</h3>
+          <h3>Spending Balance, Mode Harian & Cycle Budget Used</h3>
           <ul>
-            <li><strong>Safe-to-Spend Today:</strong> Batas jajan aman hari ini agar sisa kas hidup cukup sampai H-1 gajian berikutnya.</li>
-            <li><strong>Weighted 1.5x vs Flat Daily:</strong> Mode <em>Weighted 1.5x</em> memberi jatah akhir pekan (Sabtu-Minggu) 1,5x lebih longgar dibanding Senin-Jumat. <em>Flat Daily</em> membagi rata tanpa bobot.</li>
-            <li><strong>7-Day Runway:</strong> Estimasi jatah total aman selama 7 hari ke depan.</li>
-            <li><strong>Cycle Budget Used (Pengganti Spent Today):</strong> Menunjukkan <code>% terpakai</code> terhadap <code>% hari siklus berjalan</code> (penanda garis putih vertikal). Jadi walaupun tidak pernah input kopi hari itu, bar tetap jujur memperhitungkan seluruh belanja dan hasil Wallet Sync.</li>
-            <li><strong>Avg Daily Burn & Projected Cycle-End:</strong> Rata-rata keluarnya kas hidup per hari vs baseline. Jika di screenshot bernilai <code>-Rp 15.724</code>, artinya pada laju saat ini akhir siklus berpotensi selisih Rp 15.724 di atas target awal.</li>
+            <li><strong>Spending Balance & Days to Payday:</strong> Sisa jatah belanja harian aman sampai H-1 gajian berikutnya. Bawaan memakai <em>Flat Daily</em> agar angka mudah dibaca, dengan opsi <em>Weekend 1.5x</em> bila dibutuhkan.</li>
+            <li><strong>Cycle Budget Used:</strong> Menunjukkan <code>% anggaran terpakai</code> terhadap penanda waktu siklus berjalan. Otomatis terbarui dari pencatatan manual maupun Bank Balance Sync.</li>
+            <li><strong>Daily Average & Unsettled Cycle Bills:</strong> Rata-rata belanja per hari dibanding target awal, serta sisa tagihan rutin bulan berjalan yang masih perlu ditahan di rekening bank.</li>
           </ul>
         </div>
         <div class="card">
-          <h3>Wallet Reconciliation: Arti Living Cash, Unpaid Bills & Guard/Sync</h3>
+          <h3>Bank Balance Sync & Balance History</h3>
           <ul>
-            <li><strong>Living Cash (mis. Rp 100.000):</strong> Sisa kas bebas murni khusus makan/jajan harian Anda di pembukuan sistem saat ini.</li>
-            <li><strong>+ Unpaid Bills (mis. Rp 0):</strong> Total kuota pos rutin/tagihan bulan ini yang uangnya masih mengendap di rekening (belum dibayar keluar). Jika <code>Rp 0</code>, berarti pos rutin sudah lunas/ter-cover penuh.</li>
-            <li><strong>Expected Bank (= Living Cash + Unpaid Bills):</strong> Jumlah total uang yang seharusnya ada di rekening/e-wallet gabungan Anda sekarang.</li>
-            <li><strong>Tombol Guard vs Sync:</strong> Ketik total saldo nyata di <code>Cash Rp</code>. Klik <strong>Guard</strong> jika hanya ingin mengecek apakah saldo cukup menahan tagihan yang belum lunas (<em>Survival Guard</em>). Klik <strong>Sync</strong> untuk menyamakan catatan sistem ke saldo bank real; selisih otomatis tercatat ke <strong>Checkpoint & Burn Audit Trail</strong> (ada deteksi <em>Spike</em> jika > 2x jatah harian, dan tombol <strong>Undo</strong> jika salah ketik).</li>
+            <li><strong>Expected Balance:</strong> Satu angka utuh saldo bank yang diharapkan (otomatis mencakup dana jajan ditambah sisa tagihan rutin belum lunas).</li>
+            <li><strong>Update Bank Balance & Import Statement:</strong> Klik tombol <strong>Update Bank Balance</strong> untuk menyamakan catatan sistem dengan saldo bank nyata, atau langsung klik <strong>Import Statement</strong> untuk unggah mutasi KlikBCA/myBCA/Permata. Selisih tercatat rapi ke <strong>Balance History</strong> lengkap dengan tombol <strong>Undo</strong>.</li>
           </ul>
         </div>
       </div>`
       : `
-      <h2 class="chapter-title">03 · Overview Col 1: Safe-to-Spend & Wallet Reconciliation</h2>
-      <p class="chapter-sub">Exact meaning of every pacing telemetry figure and the 10-second Wallet Sync workflow.</p>
+      <h2 class="chapter-title">03 · Overview Col 1: Spending Balance & Bank Balance Sync</h2>
+      <p class="chapter-sub">Daily allowance clarity, days to payday, and a unified Bank Balance Sync workflow.</p>
       ${renderWalletSyncDiagramSvg("en")}
       <div class="two-col">
         <div class="card">
-          <h3>Safe-to-Spend, Weighting Modes & Cycle Budget Used</h3>
+          <h3>Spending Balance, Pacing Mode & Cycle Budget Used</h3>
           <ul>
-            <li><strong>Safe-to-Spend Today:</strong> Maximum recommended daily spending so your remaining living cash lasts smoothly until the day before next payday.</li>
-            <li><strong>Weighted 1.5x vs Flat Daily:</strong> <em>Weighted 1.5x</em> gives Saturdays and Sundays 1.5x budget weight versus weekdays; <em>Flat Daily</em> splits remaining cash evenly.</li>
-            <li><strong>7-Day Runway:</strong> Rolling 7-day living envelope at current weighted pacing.</li>
-            <li><strong>Cycle Budget Used:</strong> Compares <code>% budget consumed</code> directly against <code>% cycle time elapsed</code> (vertical white tick mark). Automatically captures both manual logs and Wallet Sync deductions.</li>
-            <li><strong>Avg Daily Burn & Projected Cycle-End:</strong> Real burn per elapsed day compared against baseline daily target; negative <code>Projected Cycle-End</code> warns you early if the current pace will slightly overrun by cycle end.</li>
+            <li><strong>Spending Balance & Days to Payday:</strong> Recommended daily spending allowance until the day before next payday. Uses <em>Flat Daily</em> by default (configurable in Preferences), with optional <em>Weekend 1.5x</em> weighting.</li>
+            <li><strong>Cycle Budget Used:</strong> Compares <code>% budget consumed</code> directly against <code>% cycle time elapsed</code>. Captures both itemized entries and Bank Balance Sync updates automatically.</li>
+            <li><strong>Daily Average & Unsettled Cycle Bills:</strong> Actual daily spend rate vs target alongside any unpaid routine bills still reserved inside your bank account.</li>
           </ul>
         </div>
         <div class="card">
-          <h3>Wallet Reconciliation: Guard vs Sync Explained</h3>
+          <h3>Bank Balance Sync & Balance History</h3>
           <ul>
-            <li><strong>Living Cash:</strong> System-tracked remaining operational cash reserved strictly for daily living.</li>
-            <li><strong>+ Unpaid Bills:</strong> Unspent routine/bill reserve still sitting inside your bank balance (<code>Rp 0</code> once routine bills for the cycle are settled).</li>
-            <li><strong>Expected Bank:</strong> Exact total cash (Living Cash + Unpaid Bills) that should sit across your spending bank/e-wallets right now.</li>
-            <li><strong>Guard vs Sync:</strong> Type your real bank/wallet balance into <code>Cash Rp</code>. Click <strong>Guard</strong> for a non-destructive Survival Guard check, or click <strong>Sync</strong> to post a single <code>Balance Checkpoint</code> into <strong>Checkpoint & Burn Audit Trail</strong> (flags > 2x daily spikes automatically and includes <strong>Undo</strong> on the latest checkpoint).</li>
+            <li><strong>Expected Balance:</strong> Single unified figure showing what your bank/wallet balance should hold right now (including reserved unpaid routine bills when applicable).</li>
+            <li><strong>Update Bank Balance & Import Statement:</strong> Expand <strong>Update Bank Balance</strong> to reconcile real bank balances in one step (or open <strong>Import Statement</strong> directly). All adjustments record cleanly in <strong>Balance History</strong> with one-click <strong>Undo</strong> on the latest entry.</li>
           </ul>
         </div>
       </div>`,
@@ -620,112 +612,110 @@ function buildGabrielPages(lang: GuideLang): GuideBookSpec {
     isId
       ? `
       <h2 class="chapter-title">04 · Overview Kolom 2, Kolom 3 & Panel Aktivitas Bawah</h2>
-      <p class="chapter-sub">Mengelola pos rutin bulanan, mencatat pengeluaran tunai/kredit, dan memantau kelunasan tagihan.</p>
+      <p class="chapter-sub">Mengelola pos rutin bulanan, mencatat pengeluaran Bank / QRIS atau kredit, dan memantau kelunasan tagihan.</p>
       <div class="two-col">
         <div class="card">
           <h3>Kolom 2: Living & Routine Bills + Allocation Mix</h3>
           <ul>
             <li><strong>Daily Food & Living Budget:</strong> Plafon uang makan/jajan satu siklus penuh. Klik ikon pensil untuk mengubah target bulan aktif (tercatat di Audit Revisi).</li>
-            <li><strong>Daftar Pos Rutin (Transport, Internet / Tagihan khusus):</strong> Setiap pos punya progres penggunaan dan tiga aksi cepat: <strong>Pay Full</strong> (lunas tunai dari kuota), <strong>Roll to PayLater</strong> (lempar sisa kuota ke Matrix bulan depan agar kas tunai selamat), dan <strong>Log Partial</strong> (bayar cicil/sebagian).</li>
-            <li><strong>+ Enable / Adjust Routine Quota:</strong> Membuka pos bernilai Rp 0 (misal <em>Vape</em> atau <em>Haircut</em>) agar aktif saat bulan tertentu dibutuhkan.</li>
-            <li><strong>Cycle Allocation Mix:</strong> Bar 4 warna yang merangkum proporsi gaji bulan ini ke Tagihan Tetap & Utang, Kas Hidup, Core Savings, serta Surplus & Buffer, lengkap dengan link langsung ke <code>Full Plan</code> dan <code>Due Calendar</code>.</li>
+            <li><strong>Daftar Pos Rutin (Transport, Internet / Tagihan khusus):</strong> Setiap pos punya progres penggunaan dan tiga aksi cepat: <strong>Pay Full</strong> (lunas dari kuota), <strong>Roll to PayLater</strong> (lempar sisa kuota ke Matrix bulan depan agar kas tunai selamat), dan <strong>Log Partial</strong> (bayar cicil/sebagian).</li>
+            <li><strong>+ Enable / Adjust Routine Quota:</strong> Membuka pos bernilai Rp 0 hanya pada bulan tertentu saat dibutuhkan.</li>
+            <li><strong>Cycle Allocation Mix:</strong> Bar 4 warna yang merangkum proporsi gaji bulan ini ke Tagihan Tetap & Utang, Kas Hidup, Core Savings, serta Discretionary & Buffer, lengkap dengan link ke <code>Full Plan</code> dan <code>Due Calendar</code>.</li>
           </ul>
         </div>
         <div class="card">
-          <h3>Kolom 3: Core Savings, Surplus & Record Expense</h3>
+          <h3>Kolom 3: Core Savings, Discretionary & Record Expense</h3>
           <ul>
-            <li><strong>Core Savings & Flexible Surplus Cards:</strong> Menunjukkan realisasi tabungan wajib serta sisa dana bebas dan buffer (<code>Rp 250.000</code> di gambar Anda = jatah surplus fleksibel siap pakai bulan ini).</li>
+            <li><strong>Core Savings & Discretionary Cards:</strong> Menunjukkan realisasi tabungan wajib serta sisa dana bebas dan buffer (visibilitas kartu Discretionary dapat diatur di Preferences).</li>
             <li><strong>Mode Input Record Expense (Pintasan N):</strong> Pilih <em>Daily Spend</em> (jajan harian), <em>Routine Bill</em> (potong kuota rutin), atau <em>Refund / Split</em> (mengembalikan jatah harian saat patungan dibayar teman tanpa menggembungkan gaji).</li>
-            <li><strong>Metode Bayar & Rute Cutoff:</strong> Pilih <code>Living Cash</code>, <code>PayLater</code>, atau <code>Credit Card</code>. Saat kredit dipilih, atur <em>Tenor</em> (1x/3x/6x/12x), pilih tanggal di kalender gelap <em>ErpDatePicker</em>, dan cek pratinjau <code>Billing Cycle</code> (Auto mengikuti aturan cutoff atau override manual ke bulan pilihan; centang <code>+1 cycle</code> jika ingin digeser 1 siklus ekstra).</li>
+            <li><strong>Metode Bayar & Rute Cutoff:</strong> Pilih <code>Bank / QRIS</code>, <code>PayLater</code>, atau <code>Credit Card</code>. Saat kredit dipilih, atur <em>Tenor</em>, pilih tanggal di kalender gelap <em>ErpDatePicker</em>, dan cek pratinjau <code>Billing Cycle</code>.</li>
             <li><strong>Work-Hours Cost:</strong> Otomatis menampilkan berapa jam kerja riil yang setara dengan nominal yang Anda ketik.</li>
           </ul>
         </div>
       </div>
       <div class="card tight">
         <h3>Bar Status Atas & Panel Bawah Overview</h3>
-        <p><strong>Active Cycle Bar:</strong> Tombol <code>Recalculate</code> menyinkronkan ulang rumus waterfall; <code>Close Period</code> mengunci siklus bila semua sudah final. <strong>Bill Settlement Checklist:</strong> Daftar ceklis tagihan jatuh tempo yang harus ditahan di rekening. <strong>Cashflow Summary & Recent Transactions:</strong> Ringkasan Pemasukan Bersih dikurangi Tagihan Terjadwal serta daftar transaksi terbaru lengkap dengan aksi edit/hapus (hanya saat status siklus masih <em>Draft</em>).</p>
+        <p><strong>Active Cycle Bar:</strong> Tombol <code>Recalculate</code> menyinkronkan ulang rumus waterfall; <code>Close Period</code> mengunci siklus bila semua sudah final. <strong>Bill Settlement Checklist:</strong> Daftar ceklis tagihan jatuh tempo yang harus ditahan di rekening. <strong>Cashflow Summary & Recent Transactions:</strong> Ringkasan Pemasukan Bersih dikurangi Tagihan Terjadwal serta daftar transaksi terbaru.</p>
       </div>`
       : `
       <h2 class="chapter-title">04 · Overview Col 2, Col 3 & Lower Ledger Panels</h2>
-      <p class="chapter-sub">Managing routine monthly envelopes, logging cash or credit entries, and tracking settlement checklists.</p>
+      <p class="chapter-sub">Managing routine monthly envelopes, logging Bank / QRIS or credit entries, and tracking settlement checklists.</p>
       <div class="two-col">
         <div class="card">
           <h3>Col 2: Living & Routine Bills + Cycle Allocation Mix</h3>
           <ul>
             <li><strong>Daily Food & Living Budget:</strong> Full-cycle allowance for everyday expenses; click the inline pencil to edit the target (logged with revision history).</li>
-            <li><strong>Routine Quotas:</strong> Track utilization per category and act in one click with <strong>Pay Full</strong> (settle cash from quota), <strong>Roll to PayLater</strong> (defer onto the Debt Matrix without spending cash today), or <strong>Log Partial</strong>.</li>
-            <li><strong>+ Enable / Adjust Routine Quota:</strong> Expand zero-target categories (such as supplies or grooming) only during months you activate them.</li>
+            <li><strong>Routine Quotas:</strong> Track utilization per category and act in one click with <strong>Pay Full</strong>, <strong>Roll to PayLater</strong> (defer onto the Debt Matrix without spending cash today), or <strong>Log Partial</strong>.</li>
+            <li><strong>+ Enable / Adjust Routine Quota:</strong> Expand zero-target categories only during months you activate them.</li>
             <li><strong>Cycle Allocation Mix:</strong> Four-segment proportional strip comparing Fixed Bills & Debt, Daily Living Pool, Core Savings, and Surplus & Buffer with quick links to <code>Full Plan</code> and <code>Due Calendar</code>.</li>
           </ul>
         </div>
         <div class="card">
-          <h3>Col 3: Core Savings, Surplus & Record Expense (Key N)</h3>
+          <h3>Col 3: Core Savings, Discretionary & Record Expense (Key N)</h3>
           <ul>
-            <li><strong>Savings & Buffer Cards:</strong> Display funded Core Savings reserve alongside Flexible Surplus and Emergency Buffer (both editable when the cycle is Draft).</li>
-            <li><strong>Expense Modes:</strong> Switch between <em>Daily Spend</em>, <em>Routine Bill</em> (deducts selected envelope), and <em>Refund / Split</em> (restores Daily Living budget directly when reimbursed by friends).</li>
-            <li><strong>Cash vs Credit Routing:</strong> Selecting <code>PayLater</code> or <code>Credit Card</code> unlocks Tenor pills, the dark obsidian <em>ErpDatePicker</em>, <code>Billing Cycle</code> (Auto cutoff routing or manual period override, plus <code>+1 cycle</code> toggle), quick-tap amount presets, and live <code>Work Hours</code> cost feedback.</li>
+            <li><strong>Savings & Discretionary Cards:</strong> Display funded Core Savings reserve alongside Discretionary and Emergency Buffer (visibility configurable in Preferences).</li>
+            <li><strong>Expense Modes:</strong> Switch between <em>Daily Spend</em>, <em>Routine Bill</em> (deducts selected envelope), and <em>Refund / Split</em> (restores spending budget directly when reimbursed by friends).</li>
+            <li><strong>Bank / QRIS vs Credit Routing:</strong> Selecting <code>PayLater</code> or <code>Credit Card</code> unlocks Tenor pills, the dark obsidian <em>ErpDatePicker</em>, <code>Billing Cycle</code>, quick-tap amount presets, and live <code>Work Hours</code> cost feedback.</li>
           </ul>
         </div>
       </div>
       <div class="card tight">
         <h3>Top Period Actions & Bottom Overview Tables</h3>
-        <p><strong>Active Cycle Bar:</strong> <code>Recalculate</code> refreshes all waterfall figures cleanly; <code>Close Period</code> locks a finished cycle into immutable history. Below the cockpit sit the <strong>Outlook Projection Strip</strong>, <strong>Bill Settlement Checklist & Bank Reservation</strong>, <strong>Cashflow Summary</strong>, and <strong>Recent Transactions</strong>.</p>
+        <p><strong>Active Cycle Bar:</strong> <code>Recalculate</code> refreshes all allocation figures cleanly; <code>Close Period</code> locks a finished cycle into immutable history. Below sit the projection strip, <strong>Bill Settlement Checklist</strong>, <strong>Cashflow Summary</strong>, and <strong>Recent Transactions</strong>.</p>
       </div>`,
   );
 
-  // Sheet 7: Payday Wizard, Cash Radar & Payroll
+  // Sheet 7: Payday & Closing, Cash Calendar & Payroll
   sheets.push(
     isId
       ? `
-      <h2 class="chapter-title">05 · Payday & Closing Wizard, Cash Radar & Payroll</h2>
-      <p class="chapter-sub">Mengawal hari gajian, melihat titik kas terendah di kalender, dan menghitung gaji bersih + upah riil.</p>
+      <h2 class="chapter-title">05 · Payday & Closing, Cash Calendar & Payroll</h2>
+      <p class="chapter-sub">Konfirmasi setoran tabungan permanen, kalender arus kas, serta Direct Payroll Deductions (Benefit by GreatDay).</p>
       <div class="stack">
         <div class="card">
-          <h3>Payday & Closing Wizard (<code>/payday-wizard</code>)</h3>
-          <p>Halaman panduan langkah-demi-langkah setiap kali gaji cair maupun saat menutup periode. Memverifikasi tanggal cair aktual (<code>payrollPayoutDate</code>), menampilkan daftar tagihan jatuh tempo siklus tersebut dalam urutan kronologis, mengecek kecukupan saldo bank untuk melunasi kewajiban, serta menjalankan penutupan siklus (<strong>Close Period -> Status LOCKED</strong>) dengan konfirmasi transfer Core Savings ke buku tabungan.</p>
+          <h3>Payday & Closing (<code>/payday-wizard</code>)</h3>
+          <p>Checklist 4 langkah setiap hari gajian & penutupan periode: memverifikasi gaji, mengunci siklus sebelumnya, melunasi tagihan jatuh tempo, dan menekan <strong>Confirm Savings Deposit</strong>. Status konfirmasi kini tersimpan persisten di database (memakai instrumen <code>LIQUID_CASH</code> secara bawaan bila portofolio eksternal tidak aktif) sehingga tetap berstatus <em>Deposit Confirmed</em> saat halaman di-refresh.</p>
         </div>
         <div class="two-col">
           <div class="card">
-            <h3>Cash Radar & Calendar (<code>/calendar</code>)</h3>
+            <h3>Cash Calendar (<code>/calendar</code>)</h3>
             <ul>
               <li>Memproyeksikan saldo kas harian dari tanggal awal hingga akhir siklus gaji secara kronologis.</li>
-              <li><strong>Lowest Cash Point:</strong> Menyoroti tanggal spesifik di mana saldo kas berada di titik paling tipis sehingga Anda tahu kapan harus menahan jajan sebelum gajian berikutnya.</li>
-              <li>Menampilkan rincian per tanggal jatuh tempo (tgl <code>11, 17, 23, 24, 25</code>) lengkap dengan item tagihan individual.</li>
+              <li><strong>Lowest Cash Point:</strong> Menyoroti tanggal spesifik saldo tertipis sebelum gajian berikutnya.</li>
+              <li>Menampilkan rincian tanggal jatuh tempo (tgl <code>11, 17, 23, 24, 25</code>) lengkap per item tagihan.</li>
             </ul>
           </div>
           <div class="card">
-            <h3>Payroll & Income (<code>/payroll</code> — 3 Sub-Tab)</h3>
+            <h3>Payroll & Income (<code>/payroll</code>)</h3>
             <ul>
-              <li><strong>Salary & Payslip:</strong> Menghitung gaji bersih berdasarkan jendela absensi <em>(16th M-2 s.d. 15th M-1)</em>, total hari kerja, uang makan/transport, potongan kafetaria, bonus, penyesuaian manual, <strong>THR Engine</strong> (No THR / Prorated <code>264/365</code> Des / Full / Custom), dan tanggal cair aktual.</li>
-              <li><strong>Payday Split-Bill Planner:</strong> Simulasi cepat membagi arus kas gaji langsung ke tagihan dan tabungan.</li>
-              <li><strong>Hourly Wage & Work-Cost:</strong> Menghitung <em>True Net Hourly Wage</em> (gaji bersih dibagi jam kerja plus waktu komuter) sebagai dasar kalkulator harga dalam jam kerja.</li>
+              <li><strong>Slip Net Pay vs Transferred to Bank:</strong> Memisahkan gaji bersih slip (mis. Des '26 <code>Rp 5.904.000</code>), <strong>Direct Payroll Deductions</strong> (<code>Benefit by GreatDay -Rp 360.500</code> = pelunasan Rp 350.000 + fee Rp 10.500), menjadi transfer rekening Permata <code>Rp 5.543.500</code>, ditambah THR Des <code>Rp 3.833.425</code> (<code>Total Cycle Inflow Rp 9.376.925</code>).</li>
+              <li><strong>Modular THR & Templates:</strong> Kartu estimator THR tampil kondisional sesuai pengaturan di <em>Preferences</em> agar bulan reguler tetap rapi.</li>
             </ul>
           </div>
         </div>
       </div>`
       : `
-      <h2 class="chapter-title">05 · Payday & Closing Wizard, Cash Radar & Payroll</h2>
-      <p class="chapter-sub">Step-by-step payday activation, daily calendar cash-floor tracking, and payroll/THR modeling.</p>
+      <h2 class="chapter-title">05 · Payday & Closing, Cash Calendar & Payroll</h2>
+      <p class="chapter-sub">Persistent savings deposit confirmation, daily cash calendar, and Direct Payroll Deductions.</p>
       <div class="stack">
         <div class="card">
-          <h3>Payday & Closing Wizard (<code>/payday-wizard</code>)</h3>
-          <p>Structured workflow used both when a paycheck arrives and when closing out a cycle. Confirms your actual payout date, aligns chronological maturing obligations (<code>11th / 17th / 23rd / 24th / 25th</code>), checks remaining cash coverage, and locks completed cycles (<code>DRAFT -> LOCKED</code>) while recording final Core Savings transfers.</p>
+          <h3>Payday & Closing (<code>/payday-wizard</code>)</h3>
+          <p>4-step payday checklist verifying income and payout date, locking completed cycles, settling scheduled obligations, and recording Core Savings transfers. Clicking <strong>Confirm Savings Deposit</strong> writes idempotently to PostgreSQL (<code>LIQUID_CASH</code> when external portfolio is off) and hydrates persistently on every reload as <em>Deposit Confirmed</em>.</p>
         </div>
         <div class="two-col">
           <div class="card">
-            <h3>Cash Radar & Calendar (<code>/calendar</code>)</h3>
+            <h3>Cash Calendar (<code>/calendar</code>)</h3>
             <ul>
-              <li>Maps projected bank cash day by day across the full payday-to-payday horizon.</li>
-              <li><strong>Lowest Cash Point:</strong> Pinpoints the exact calendar day when liquidity reaches its tightest point before the next paycheck arrives.</li>
+              <li>Maps projected bank balance day by day across the full payday-to-payday window.</li>
+              <li><strong>Lowest Cash Point:</strong> Pinpoints the exact date liquidity reaches its tightest buffer before next payday.</li>
               <li>Displays itemized maturing charges on every due date within the selected period.</li>
             </ul>
           </div>
           <div class="card">
-            <h3>Payroll & Income (<code>/payroll</code> — 3 Sub-Tabs)</h3>
+            <h3>Payroll & Income (<code>/payroll</code>)</h3>
             <ul>
-              <li><strong>Salary & Payslip:</strong> Computes take-home pay from the attendance cutoff window (<code>16th M-2 to 15th M-1</code>), working days, cafeteria deductions, salary adjustments, bonuses, <strong>THR Engine</strong> (None / Prorated <code>264/365</code> / Full / Custom), and confirmed <code>payrollPayoutDate</code>.</li>
-              <li><strong>Payday Split-Bill Planner:</strong> Plans immediate post-payday disbursements across debt and reserves.</li>
-              <li><strong>Hourly Wage & Work-Cost:</strong> Calculates <em>True Net Hourly Wage</em> factoring commute hours so expenses can be weighed in work hours.</li>
+              <li><strong>Slip Net Pay to Bank Transfer:</strong> Separates regular <em>Slip Net Pay</em> (e.g. Dec '26 <code>Rp 5.904.000</code>) minus itemized <strong>Direct Payroll Deductions</strong> (<em>Benefit by GreatDay</em> <code>-Rp 360.500</code>: Cash Advance Rp 350.000 + Fee Rp 10.500) to show exact <strong>Transferred to Bank</strong> (<code>Rp 5.543.500</code>) plus conditional THR (<code>Rp 3.833.425</code> = <code>Rp 9.376.925</code> total cycle inflow).</li>
+              <li><strong>Conditional THR & Custom Templates:</strong> THR estimator appears only when active/payout month or toggled on demand, configured per user in <em>Preferences</em>.</li>
             </ul>
           </div>
         </div>
@@ -736,58 +726,54 @@ function buildGabrielPages(lang: GuideLang): GuideBookSpec {
   sheets.push(
     isId
       ? `
-      <h2 class="chapter-title">06 · Monthly Plan (Allocations) & Statement Import</h2>
-      <p class="chapter-sub">Merancang alokasi gaji bulanan serta mengimpor mutasi tagihan sekaligus tanpa duplikat.</p>
+      <h2 class="chapter-title">06 · Monthly Plan (Allocations) & Impor Mutasi Bank Aman</h2>
+      <p class="chapter-sub">Merancang alokasi gaji bulanan serta mengimpor CSV KlikBCA / tempel mutasi myBCA & Permata tanpa password bank.</p>
       <div class="two-col">
         <div class="card">
           <h3>Monthly Plan / Allocations (<code>/allocations</code>)</h3>
           <ul>
-            <li><strong>Plan & Quota Simulator:</strong> Menguji perubahan target <em>Daily Food & Living Quota</em> maupun target tabungan dengan grafik efek langsung ke <em>Projected Savings</em>, <em>Projected Surplus</em>, dan status defisit sebelum mengklik <strong>Apply Quota</strong>.</li>
-            <li><strong>Routine & Sinking Reserve:</strong> Mengatur kebijakan akhir siklus tiap amplop rutin (<em>Sweep Unspent to Core Savings</em> agar sisa kuota masuk tabungan otomatis, atau biarkan mengendap).</li>
-            <li><strong>Periodic Bill Set-Asides:</strong> Jadwal cadangan dana berkala (misal pajak tahunan, servis, perpanjangan domain) supaya biaya besar yang jarang muncul tetap terdanai rata per bulan.</li>
-            <li><strong>Quota History:</strong> Rekam jejak lengkap setiap revisi target beserta alasan perubahannya.</li>
+            <li><strong>Plan & Quota Simulator:</strong> Menguji perubahan target <em>Daily Food & Living Quota</em> maupun target tabungan dengan efek langsung ke <em>Projected Savings</em> dan status defisit sebelum mengklik <strong>Apply Quota</strong>.</li>
+            <li><strong>Routine & Sinking Reserve:</strong> Mengatur kebijakan akhir siklus tiap amplop rutin (<em>Sweep Unspent to Core Savings</em> atau biarkan).</li>
+            <li><strong>Periodic Bill Set-Asides:</strong> Jadwal cadangan dana berkala agar pengeluaran tahunan tetap terdanai rata.</li>
           </ul>
         </div>
         <div class="card">
-          <h3>Statement Import / Reconciler (<code>/import</code>)</h3>
+          <h3>Safe Statement Import (<code>/import</code>)</h3>
           <ul>
-            <li><strong>Paste & Parse Statement Batch:</strong> Tempel salinan daftar belanja PayLater atau tagihan Kartu Kredit dari aplikasi bank/marketplace ke kotak parser.</li>
-            <li><strong>Parse & Auto-Route:</strong> Mesin Go langsung membaca tanggal, nominal, dan tipe instrumen, lalu menentukan periode jatuh tempo sesuai hukum cutoff.</li>
-            <li><strong>Lock-Safe Guard:</strong> Jika tanggal transaksi secara alami jatuh ke periode yang sudah dikunci (<code>LOCKED</code>, misal <code>10/2026</code>), sistem otomatis menggesernya maju ke periode terbuka terdekat (<code>11/2026</code>) dengan penanda <em>Advanced from Locked</em> dan memblokir baris yang terdeteksi duplikat.</li>
-            <li><strong>Commit Selected Rows:</strong> Hanya baris yang Anda centang yang masuk ke database secara atomik.</li>
+            <li><strong>KlikBCA CSV & myBCA/Permata Paste:</strong> Unduh CSV dari KlikBCA (<em>Informasi Rekening -> Mutasi Rekening -> Download CSV</em>) atau salin baris mutasi myBCA/Permata (maks 2 MB / 500 baris).</li>
+            <li><strong>Otomatis Lewati Kredit & Saldo:</strong> Parser Go & TypeScript otomatis melewati baris <code>CR</code> (pemasukan/gaji), mengabaikan kolom <code>Saldo</code> agar tidak salah nominal, membaca koma desimal <code>.00</code>, dan menyamarkan nomor rekening 10-16 digit.</li>
+            <li><strong>Lock-Safe Guard:</strong> Transaksi di bulan <code>LOCKED</code> digeser maju otomatis ke periode terbuka terdekat dan disaring duplikatnya sebelum klik <strong>Commit Selected Rows</strong>.</li>
           </ul>
         </div>
       </div>
       <div class="callout emerald">
-        <div class="callout-title">Kapan Memakai Statement Import vs Record Expense</div>
-        <p>Gunakan <strong>Record Expense</strong> untuk 1-2 belanja baru saat itu juga, dan gunakan <strong>Statement Import</strong> setiap akhir minggu atau sebelum tutup buku bila ingin memasukkan banyak rincian PayLater / Kartu Kredit sekaligus dengan cepat.</p>
+        <div class="callout-title">Keamanan Ekspor Offline (Tanpa Akses Login Bank)</div>
+        <p>Sistem tidak pernah meminta PIN m-Banking atau kredensial KlikBCA. Gunakan berkas CSV resmi atau tempel teks mutasi biasa; seluruh nomor rekening disamarkan menjadi <code>****XXXX</code> sebelum masuk ke buku transaksi.</p>
       </div>`
       : `
-      <h2 class="chapter-title">06 · Monthly Plan (Allocations) & Statement Import</h2>
-      <p class="chapter-sub">Interactive quota modeling, sinking fund schedules, and lock-safe batch statement reconciliation.</p>
+      <h2 class="chapter-title">06 · Monthly Plan (Allocations) & Safe Statement Import</h2>
+      <p class="chapter-sub">Interactive quota modeling plus safe KlikBCA CSV and myBCA / Permata statement parsing with zero bank credentials.</p>
       <div class="two-col">
         <div class="card">
           <h3>Monthly Plan / Allocations (<code>/allocations</code>)</h3>
           <ul>
-            <li><strong>Plan & Quota Simulator:</strong> Interactive sliders/inputs previewing how Daily Living or Savings target adjustments affect <em>Projected Savings</em>, <em>Projected Surplus</em>, and any shortfall before committing via <strong>Apply Quota</strong>.</li>
+            <li><strong>Plan & Quota Simulator:</strong> Previews how Daily Living or Savings target adjustments affect <em>Projected Savings</em> and shortfall status before applying changes.</li>
             <li><strong>Routine & Sinking Reserve:</strong> Configures end-of-cycle rollover behavior (such as <em>Sweep Unspent to Core Savings</em>) per routine bucket.</li>
-            <li><strong>Periodic Bill Set-Asides:</strong> Accumulates monthly reserves for irregular multi-month obligations so annual bills never shock a single cycle.</li>
-            <li><strong>Quota History:</strong> Audit list preserving every target revision and user note.</li>
+            <li><strong>Periodic Bill Set-Asides:</strong> Accumulates monthly reserves for irregular multi-month obligations cleanly.</li>
           </ul>
         </div>
         <div class="card">
-          <h3>Statement Import / Reconciler (<code>/import</code>)</h3>
+          <h3>Safe Statement Import (<code>/import</code>)</h3>
           <ul>
-            <li><strong>Paste & Parse Statement:</strong> Drop copied statement lines from PayLater apps or credit card portals for instant structured parsing.</li>
-            <li><strong>Parse & Auto-Route:</strong> Uses the Go reconciler engine to assign each row to its exact maturity cycle under dynamic cutoff rules while deduplicating existing entries.</li>
-            <li><strong>Lock-Safe Period Protection:</strong> Any row whose natural cutoff points into an already-locked historical cycle automatically advances to the earliest open draft period with an explicit notice banner.</li>
-            <li><strong>Commit Selected Rows:</strong> Commits checked rows atomically and triggers live snapshot recalculation.</li>
+            <li><strong>KlikBCA CSV & myBCA/Permata Paste:</strong> Upload official KlikBCA CSV exports (<em>Informasi Rekening -> Mutasi Rekening -> Download CSV</em>) or paste myBCA/Permata/PayLater lines (up to 2 MB / 500 rows).</li>
+            <li><strong>Smart Debit Filter & PII Masking:</strong> Skips incoming <code>CR</code> deposits, ignores running <code>Saldo</code> balance columns, handles <code>48,000.00 DB</code> decimals accurately, and masks 10 to 16 digit account numbers into <code>****XXXX</code>.</li>
+            <li><strong>Lock-Safe Protection:</strong> Deduplicates against existing ledger rows and shifts locked-cycle rows safely forward before committing.</li>
           </ul>
         </div>
       </div>
       <div class="callout emerald">
-        <div class="callout-title">Choosing Between Record Expense and Statement Import</div>
-        <p>Use <strong>Record Expense</strong> for single quick purchases and <strong>Statement Import</strong> weekly or before closing a period whenever reconciling multiple PayLater or Card lines in one pass.</p>
+        <div class="callout-title">Credential-Free Banking Workflow</div>
+        <p>Sunday Funday never asks for banking logins, m-PINs, or scraping tokens. Offline CSV and clipboard parsing keep your account credentials completely isolated on your bank portal.</p>
       </div>`,
   );
 
@@ -858,7 +844,7 @@ function buildGabrielPages(lang: GuideLang): GuideBookSpec {
         <div class="card">
           <h3>What-If Scenario Lab (<code>/scenarios</code>)</h3>
           <ul>
-            <li><strong>Scenario Inputs & 3 Preset Cepat:</strong> Geser slider <em>Extra Monthly Savings</em>, <em>One-Time Bonus / THR</em>, <em>Monthly Living Adjustment</em>, <em>Extra Debt Prepayment</em>, dan <em>Variable Expense Shock (%)</em>, atau gunakan preset instan <strong>Debt-Free Sprint</strong>, <strong>Bonus Prepayment</strong>, dan <strong>+15% Burn Shock</strong>.</li>
+            <li><strong>Scenario Inputs & 3 Preset Cepat:</strong> Geser slider <em>Extra Monthly Savings</em>, <em>One-Time Bonus / THR</em>, <em>Monthly Living Adjustment</em>, <em>Extra Debt Prepayment</em>, dan <em>Variable Expense Shock (%)</em>, atau gunakan preset instan <strong>Debt-Free Sprint</strong>, <strong>Bonus Prepayment</strong>, dan <strong>+15% Expense Shock</strong>.</li>
             <li><strong>Baseline vs Simulated 12-Month Curve:</strong> Membandingkan kurva kekayaan bersih dan tanggal bebas utang (DSR &lt; 15%).</li>
             <li><strong>Go Monte Carlo Cashflow Stress Test & Allocation Frontier:</strong> Menjalankan ribuan simulasi stokastik lintas skenario untuk menghitung <em>12-Month Survival Rate (%)</em> serta batas optimal alokasi surplus.</li>
           </ul>
@@ -883,7 +869,7 @@ function buildGabrielPages(lang: GuideLang): GuideBookSpec {
         <div class="card">
           <h3>What-If Scenario Lab (<code>/scenarios</code>)</h3>
           <ul>
-            <li><strong>Scenario Inputs & Presets:</strong> Test <em>Extra Monthly Savings</em>, <em>Bonus / THR Inflows</em>, <em>Living Adjustments</em>, <em>Extra Debt Prepayments</em>, and <em>Burn Shocks</em>, or trigger <strong>Debt-Free Sprint</strong>, <strong>Bonus Prepayment</strong>, and <strong>+15% Burn Shock</strong> presets.</li>
+            <li><strong>Scenario Inputs & Presets:</strong> Test <em>Extra Monthly Savings</em>, <em>Bonus / THR Inflows</em>, <em>Living Adjustments</em>, <em>Extra Debt Prepayments</em>, and <em>Expense Shocks</em>, or trigger <strong>Debt-Free Sprint</strong>, <strong>Bonus Prepayment</strong>, and <strong>+15% Expense Shock</strong> presets.</li>
             <li><strong>Wealth Trajectory Curve:</strong> Overlays simulated 12-month net cash accumulation and DSR &lt; 15% milestones over baseline.</li>
             <li><strong>Monte Carlo Stress Test & Allocation Frontier:</strong> Go-powered stochastic engine computing 12-month cashflow survival rates and debt vs savings frontier curves.</li>
           </ul>
@@ -916,16 +902,16 @@ function buildGabrielPages(lang: GuideLang): GuideBookSpec {
         </div>
       </div>
       <div class="card">
-        <h3>Subscriptions & Recurring + Promo Kill-Switch Deadline Guard (<code>/subscriptions</code>)</h3>
-        <p>Mencatat seluruh langganan bulanan berulang (cloud storage, tools AI, musik, dll.) beserta status perpanjangan kartu kredit. <strong>Promo Kill-Switch:</strong> Bila Anda berlangganan tarif promo sementara (misal diskon 3 bulan lalu naik ke harga normal), cukup masukkan tanggal batas (<em>Deadline Date</em>) dan tarif pasca-promo. Sistem menyalakan banner pengingat sebelum batas waktu lewat, lengkap dengan tautan langsung ke halaman pembatalan penyedia dan tombol pengiriman email pengingat.</p>
+        <h3>Subscriptions &amp; Recurring + Pengingat Perpanjangan Promo (<code>/subscriptions</code>)</h3>
+        <p>Mencatat seluruh langganan bulanan berulang (cloud storage, tools AI, musik, dll.) beserta status perpanjangan kartu kredit. <strong>Pengingat Perpanjangan Promo:</strong> Bila Anda berlangganan tarif promo sementara (misal diskon 3 bulan lalu naik ke harga normal), cukup masukkan tanggal batas (<em>Deadline Date</em>) dan tarif pasca-promo. Sistem menyalakan banner pengingat sebelum batas waktu lewat, lengkap dengan tautan langsung ke halaman pembatalan penyedia dan tombol pengiriman email pengingat.</p>
       </div>`
       : `
       <h2 class="chapter-title">09 · Analytics, Financial Reports & Subscriptions</h2>
-      <p class="chapter-sub">Cross-cycle trend audits, spreadsheet/PDF reporting, and Promo Kill-Switch renewal protection.</p>
+      <p class="chapter-sub">Cross-cycle trend audits, spreadsheet/PDF reporting, and Renewal Notice protection.</p>
       <div class="two-col">
         <div class="card">
           <h3>Spending & Trend Review (<code>/analytics</code>)</h3>
-          <p>Visualizes cross-cycle expense ratios, routine vs discretionary burn comparisons, cycle discipline health scores (<code>/audit</code>), and automated detection of post-cutoff charge creep.</p>
+          <p>Visualizes cross-cycle expense ratios, routine vs discretionary spending comparisons, cycle discipline health scores (<code>/audit</code>), and automated detection of post-cutoff charge creep.</p>
         </div>
         <div class="card">
           <h3>Financial Reports (<code>/reports</code> — 3 Sub-Tabs)</h3>
@@ -937,8 +923,8 @@ function buildGabrielPages(lang: GuideLang): GuideBookSpec {
         </div>
       </div>
       <div class="card">
-        <h3>Subscriptions & Recurring + Promo Kill-Switch Guard (<code>/subscriptions</code>)</h3>
-        <p>Centralizes recurring charges and card-linked plans. <strong>Promo Kill-Switch:</strong> Whenever signing up for a discounted promo tier that renews at a higher standard rate later, log its <em>Deadline Date</em>, post-promo rate, and cancellation portal URL. Active alert banners and optional SMTP email reminders warn you days before renewal hits.</p>
+        <h3>Subscriptions & Recurring + Renewal Notice Guard (<code>/subscriptions</code>)</h3>
+        <p>Centralizes recurring charges and card-linked plans. <strong>Renewal Notice:</strong> Whenever signing up for a discounted promo tier that renews at a higher standard rate later, log its <em>Deadline Date</em>, post-promo rate, and cancellation portal URL. Active alert banners and optional SMTP email reminders warn you days before renewal hits.</p>
       </div>`,
   );
 
@@ -989,7 +975,7 @@ function buildGabrielPages(lang: GuideLang): GuideBookSpec {
           <ul>
             <li><code>kopken 34200 spaylater</code> : quick PayLater entry with cutoff routing.</li>
             <li><code>claude 350000 cc 21 nov</code> : credit card entry dated 21 Nov.</li>
-            <li><code>wallet 515000</code> : instant Wallet Guard liquidity check.</li>
+            <li><code>wallet 515000</code> : instant bank liquidity check.</li>
             <li><code>afford 1.5m spaylater 3x</code> : jump to credit affordability simulator.</li>
             <li><code>sql</code> (Superadmin) : jump straight to Superadmin SQL Studio.</li>
           </ul>
@@ -997,7 +983,7 @@ function buildGabrielPages(lang: GuideLang): GuideBookSpec {
       </div>
       <div class="card tight">
         <h3>6-Tab Preferences Studio (<code>/preferences</code>)</h3>
-        <p><strong>1. Formula:</strong> Payday & allocation priority rules using safe formula DSL tokens. <strong>2. Instruments & Accounts:</strong> Custom cutoff expressions and external asset accounts. <strong>3. Templates:</strong> Routine & savings pocket defaults. <strong>4. Display & AI:</strong> Sidebar module overrides, custom shortcuts, and AES-256-GCM BYOK AI provider keys. <strong>5. Notifications:</strong> Encrypted SMTP and Kill-Switch alert thresholds. <strong>6. Backup:</strong> Tenant-scoped JSON backup & restore.</p>
+        <p><strong>1. Formula:</strong> Payday & allocation priority rules using safe formula DSL tokens. <strong>2. Instruments & Accounts:</strong> Custom cutoff expressions and external asset accounts. <strong>3. Templates:</strong> Routine & savings pocket defaults. <strong>4. Display & AI:</strong> Sidebar module overrides, custom shortcuts, and AES-256-GCM BYOK AI provider keys. <strong>5. Notifications:</strong> Encrypted SMTP and Renewal Notice alert thresholds. <strong>6. Backup:</strong> Tenant-scoped JSON backup & restore.</p>
       </div>`,
   );
 
@@ -1065,21 +1051,21 @@ function buildGabrielPages(lang: GuideLang): GuideBookSpec {
         <div class="card">
           <h3>Playbook 2 Menit (Tanpa Wajib Catat Kopi)</h3>
           <ul>
-            <li><strong>2-3 Hari Sekali (1 Menit):</strong> Cek total saldo rekening jajan Anda -> ketik ke <code>Cash Rp</code> -> klik <strong>Sync</strong>. Selesai. Lihat apakah <code>Cycle Budget Used</code> masih sejajar dengan garis hari berjalan.</li>
-            <li><strong>Saat Belanja Kredit / PayLater:</strong> Catat 1x di tab <code>PayLater / Credit Card</code> agar jatuh tempo bulan depan & batas aman 35% langsung tercatat.</li>
-            <li><strong>Tgl 15/16 & 25 (Cek Cutoff):</strong> Sebelum checkout barang besar, pakai <code>Safe-Spend Simulator</code> supaya tahu jatuh di tagihan bulan mana.</li>
-            <li><strong>Hari Gajian & Akhir Siklus:</strong> Buka <code>/payday-wizard</code> -> sahkan pemasukan gaji -> lunasi pos rutin -> tutup periode (<em>Close Period</em>) agar tabungan bersih tersimpan.</li>
+            <li><strong>2-3 Hari Sekali (1 Menit):</strong> Cek total saldo rekening jajan Anda -> klik <strong>Update Bank Balance</strong> -> klik <strong>Sync Balance</strong>. Lihat perbandingan <code>Cycle Budget Used</code> dan <code>Daily Average</code> terhadap garis waktu berjalan.</li>
+            <li><strong>Saat Belanja Kredit / PayLater:</strong> Catat 1x di tab <code>PayLater / Credit Card</code> agar jatuh tempo bulan depan &amp; batas aman 35% langsung tercatat.</li>
+            <li><strong>Tgl 15/16 &amp; 25 (Cek Cutoff):</strong> Sebelum checkout barang besar, pakai <code>Safe-Spend Simulator</code> supaya tahu jatuh di tagihan bulan mana.</li>
+            <li><strong>Hari Gajian &amp; Akhir Siklus:</strong> Buka <code>/payday-wizard</code> (<em>Payday &amp; Closing</em>) -> sahkan pemasukan gaji &amp; konfirmasi deposit tabungan -> lunasi pos rutin -> tutup periode (<em>Close Period</em>) agar tabungan bersih tersimpan.</li>
           </ul>
         </div>
         <div class="card">
-          <h3>Kamus Singkat Istilah & Pintasan Keyboard</h3>
+          <h3>Kamus Singkat Istilah &amp; Pintasan Keyboard</h3>
           <table class="mini-tbl">
-            <tr><td class="mono k">Flexible Surplus</td><td>Sisa gaji bebas pakai setelah utang, tagihan, living & Core Savings beres.</td></tr>
+            <tr><td class="mono k">Discretionary</td><td>Sisa gaji bebas pakai setelah utang, tagihan, dana hidup &amp; Core Savings beres.</td></tr>
             <tr><td class="mono k">Emergency Buffer</td><td>Cadangan darurat mini aktif di dalam siklus berjalan.</td></tr>
-            <tr><td class="mono k">Cycle Budget Used</td><td>Persen kas hidup terpakai vs persen hari siklus berjalan (tahan Sync).</td></tr>
-            <tr><td class="mono k">Unpaid Bills</td><td>Uang pos rutin yang masih mengendap di bank sebelum dibayar.</td></tr>
+            <tr><td class="mono k">Cycle Budget Used</td><td>Persen kas hidup terpakai vs persen hari siklus berjalan.</td></tr>
+            <tr><td class="mono k">Unsettled Bills</td><td>Sisa tagihan/pos rutin yang masih berada di rekening sebelum dibayar.</td></tr>
             <tr><td class="mono k">Temporary Advance</td><td>Dana pinjam sementara dari Core Savings untuk menutup kurang kas.</td></tr>
-            <tr><td class="mono k">N / Ctrl+K</td><td>Fokus catat pengeluaran / Buka Command Search & Smart Entry.</td></tr>
+            <tr><td class="mono k">N / Ctrl+K</td><td>Fokus catat pengeluaran / Buka Command Search &amp; Smart Entry.</td></tr>
             <tr><td class="mono k">Alt+M / Alt+H / [</td><td>Buka Marquee AI / Sembunyikan saldo / Lipat menu Sidebar.</td></tr>
           </table>
         </div>
@@ -1091,21 +1077,21 @@ function buildGabrielPages(lang: GuideLang): GuideBookSpec {
         <div class="card">
           <h3>Practical 2-Minute Weekly Workflow</h3>
           <ul>
-            <li><strong>Every 2-3 Days (60 Seconds):</strong> Open your bank app -> type real cash balance into <code>Cash Rp</code> -> hit <strong>Sync</strong>. Watch <code>Cycle Budget Used</code> against the elapsed day marker.</li>
-            <li><strong>On Credit / PayLater Purchases:</strong> Log once in <code>Record Expense</code> (PayLater / Credit Card tab) or batch-import weekly via <code>/import</code> so future due cycles and 35% limits update immediately.</li>
-            <li><strong>Before Big Purchases:</strong> Run <code>Safe-Spend Simulator</code> around cutoff days (15th/16th & 25th) to decide whether waiting shifts the bill a month forward.</li>
-            <li><strong>On Payday & Cycle End:</strong> Open <code>/payday-wizard</code> to confirm salary payout, settle bills, and click <code>Close Period</code> to lock history cleanly.</li>
+            <li><strong>Every 2-3 Days (60 Seconds):</strong> Open your bank app -> click <strong>Update Bank Balance</strong> on Overview -> hit <strong>Sync Balance</strong>. Review <code>Cycle Budget Used</code> and <code>Daily Average</code> against the elapsed marker.</li>
+            <li><strong>On Credit / PayLater Purchases:</strong> Log once in <code>Record Expense</code> (PayLater / Credit Card tab) or import KlikBCA/myBCA statements weekly via <code>/import</code> so future due cycles update immediately.</li>
+            <li><strong>Before Big Purchases:</strong> Run <code>Safe-Spend Simulator</code> around cutoff days (15th/16th &amp; 25th) to decide whether waiting shifts the bill a month forward.</li>
+            <li><strong>On Payday &amp; Cycle End:</strong> Open <code>/payday-wizard</code> (<em>Payday &amp; Closing</em>) to confirm payout, record savings deposit persistently, settle bills, and lock the finished cycle.</li>
           </ul>
         </div>
         <div class="card">
           <h3>A-Z Glossary & Keyboard Shortcuts</h3>
           <table class="mini-tbl">
-            <tr><td class="mono k">Flexible Surplus</td><td>Free cash leftover after debt, routine bills, living & Core Savings are funded.</td></tr>
+            <tr><td class="mono k">Discretionary</td><td>Free cash leftover after debt, routine bills, living &amp; Core Savings are funded.</td></tr>
             <tr><td class="mono k">Emergency Buffer</td><td>Active-cycle shock reserve shielding daily cash from surprise minor costs.</td></tr>
-            <tr><td class="mono k">Cycle Budget Used</td><td>% of living budget spent vs % of cycle days elapsed (works seamlessly with Sync).</td></tr>
-            <tr><td class="mono k">Unpaid Bills</td><td>Routine bill reserve still sitting inside your bank awaiting payment.</td></tr>
+            <tr><td class="mono k">Cycle Budget Used</td><td>% of spending budget used vs % of cycle days elapsed.</td></tr>
+            <tr><td class="mono k">Unsettled Bills</td><td>Routine bill reserve still sitting inside your bank awaiting payment.</td></tr>
             <tr><td class="mono k">Temporary Advance</td><td>Short-term cash borrowed from your savings pockets with scheduled payback.</td></tr>
-            <tr><td class="mono k">N / Ctrl+K</td><td>Focus Record Expense / Open Global Command Search & quick entry.</td></tr>
+            <tr><td class="mono k">N / Ctrl+K</td><td>Focus Record Expense / Open Global Command Search &amp; quick entry.</td></tr>
             <tr><td class="mono k">Alt+M / Alt+H / [</td><td>Toggle Marquee AI Drawer / Toggle Balance Privacy / Collapse Sidebar.</td></tr>
           </table>
         </div>
@@ -1125,11 +1111,11 @@ function buildGabrielPages(lang: GuideLang): GuideBookSpec {
     eyebrow: isId ? "Dokumentasi Sistem Keuangan Pribadi · Edisi Utama" : "Personal Finance Operating System · Flagship Reference",
     title: isId ? "Panduan Lengkap Sunday Funday ERP" : "Sunday Funday ERP User Manual",
     subtitle: isId
-      ? "Referensi menyeluruh seluruh fitur, logika siklus gajian, manajemen utang & tabungan, asisten AI Marquee, hingga kendali Superadmin."
-      : "End-to-end documentation covering paycycle logic, zero-friction wallet syncing, cutoff routing, scenario testing, Marquee AI, and Superadmin controls.",
+      ? "Referensi menyeluruh seluruh fitur, logika siklus gajian, Benefit by GreatDay, Bank Balance Sync, impor KlikBCA, hingga kendali Superadmin."
+      : "End-to-end documentation covering paycycle logic, Bank Balance Sync, Benefit by GreatDay payroll deductions, KlikBCA CSV import, and Superadmin controls.",
     editionBadge: isId ? "Edisi Khusus Gabriel + Superadmin" : "Gabriel Bespoke + Superadmin Edition",
     audienceLabel: isId ? "Gabriel (Bespoke Client) & Superadmin" : "Gabriel (Bespoke Client) & Platform Admin",
-    versionLabel: "v2.8 · Nov 2026 · ID/EN",
+    versionLabel: "v2.9 · Nov 2026 · ID/EN",
     sheetsHtml: [],
   };
   spec.sheetsHtml = [buildCoverSheet(spec), ...pageBodies];
@@ -1142,27 +1128,27 @@ function buildStandardPages(lang: GuideLang): GuideBookSpec {
 
   const toc: TocEntry[] = isId
     ? [
-        { num: "01", title: "Cara Pakai Anti-Ribet & Sistem Waterfall", desc: "Siklus gajian, Core Savings, Flexible Surplus, Emergency Buffer", page: 3 },
+        { num: "01", title: "Cara Pakai Anti-Ribet & Sistem Waterfall", desc: "Siklus gajian, Core Savings, Discretionary, Emergency Buffer", page: 3 },
         { num: "02", title: "Aktivasi Password Baru, Keamanan PIN & Privasi", desc: "Login pertama (/change-password), lupa sandi, Sidebar Alt+H", page: 4 },
-        { num: "03", title: "Overview Kolom 1: Safe-to-Spend & Wallet Sync", desc: "Cycle Budget Used, Avg Burn, Expected Bank vs Guard/Sync", page: 5 },
-        { num: "04", title: "Overview Kolom 2 & 3: Pos Kustom & Catat Cepat", desc: "Tambah/ubah pos rutin, Mix 4 Pos, Record Expense, Checklist", page: 6 },
-        { num: "05", title: "Transactions Ledger, Payday Wizard & Bills Calendar", desc: "Filter buku transaksi, ekspor Excel, ritual gaji & titik kas terendah", page: 7 },
-        { num: "06", title: "Income & Cash Flow, Budgets & Statement Import", desc: "Atur pemasukan, simulasi amplop & Rollover, impor mutasi", page: 8 },
+        { num: "03", title: "Overview Kolom 1: Spending Balance & Bank Sync", desc: "Days to Payday, Daily Average, Bank Balance Sync", page: 5 },
+        { num: "04", title: "Overview Kolom 2 & 3: Pos Kustom & Catat Cepat", desc: "Tambah/ubah pos rutin, Bank / QRIS, Record Expense", page: 6 },
+        { num: "05", title: "Transactions Ledger, Payday & Closing & Calendar", desc: "Filter buku transaksi, ekspor Excel, titik kas terendah", page: 7 },
+        { num: "06", title: "Income & Cash Flow, Budgets & Impor Mutasi", desc: "Potongan langsung gaji, Rollover amplop, KlikBCA CSV", page: 8 },
         { num: "07", title: "Installments & Bills (Cutoff & Debt Matrix)", desc: "Aturan cutoff kartu/PayLater, Matrix 12 bulan & Payoff Optimizer", page: 9 },
         { num: "08", title: "Accounts & Goals, Wishlist & Scenario Planner", desc: "Kantong tabungan, simulasi wishlist vs jam kerja, Go Stress Test", page: 10 },
-        { num: "09", title: "Analytics, Reports, Subscriptions, Marquee & Preferences", desc: "Laporan XLSX/PDF, Promo Kill-Switch, AI Co-Pilot & Setup Wizard", page: 11 },
+        { num: "09", title: "Analytics, Reports, Subscriptions & Preferences", desc: "Laporan XLSX/PDF, Renewal Alerts, AI Co-Pilot & Setup", page: 11 },
         { num: "10", title: "Playbook 2 Menit/Minggu, Glosarium & Shortcuts", desc: "Kebiasaan ringan tanpa mencatat tiap kopi + kamus istilah", page: 12 },
       ]
     : [
-        { num: "01", title: "Two-Minute Workflow & Waterfall System", desc: "Paycycle rhythm, Core Savings, Flexible Surplus, Buffer", page: 3 },
+        { num: "01", title: "Two-Minute Workflow & Waterfall System", desc: "Paycycle rhythm, Core Savings, Discretionary, Buffer", page: 3 },
         { num: "02", title: "First-Login Password Setup, PIN & Privacy", desc: "Mandatory password rotation, Forgot/Reset, Alt+H Privacy", page: 4 },
-        { num: "03", title: "Overview Col 1: Safe-to-Spend & Wallet Sync", desc: "Cycle Budget Used, Avg Burn, Guard vs Sync checkpointing", page: 5 },
-        { num: "04", title: "Overview Col 2 & 3: Custom Categories & Expense Log", desc: "Add/rename routine bills, Allocation Mix, Cash/Credit logging", page: 6 },
-        { num: "05", title: "Transactions Ledger, Payday Wizard & Bills Calendar", desc: "Ledger filtering/edits, payday closing, Lowest Cash Point", page: 7 },
-        { num: "06", title: "Income & Cash Flow, Budgets & Statement Import", desc: "Income entries, envelope rollover rules, batch statement import", page: 8 },
+        { num: "03", title: "Overview Col 1: Spending Balance & Bank Sync", desc: "Days to Payday, Daily Average, Bank Balance Sync", page: 5 },
+        { num: "04", title: "Overview Col 2 & 3: Custom Categories & Expense Log", desc: "Add/rename routine bills, Allocation Mix, Bank / QRIS", page: 6 },
+        { num: "05", title: "Transactions Ledger, Payday & Closing & Calendar", desc: "Ledger filtering/edits, savings confirm, Lowest Cash Point", page: 7 },
+        { num: "06", title: "Income & Cash Flow, Budgets & Statement Import", desc: "Direct deductions, rollover rules, KlikBCA CSV import", page: 8 },
         { num: "07", title: "Installments & Bills (Cutoffs & Matrix)", desc: "Configurable cutoff routing, 12-Month Matrix & Safe-Spend", page: 9 },
         { num: "08", title: "Accounts & Goals, Wishlist & Scenario Planner", desc: "Savings goals, wishlist work-hour check, Monte Carlo lab", page: 10 },
-        { num: "09", title: "Analytics, Reports, Subscriptions, Marquee & Preferences", desc: "XLSX/PDF exports, Kill-Switch, Marquee AI & Setup Wizard", page: 11 },
+        { num: "09", title: "Analytics, Reports, Subscriptions & Preferences", desc: "XLSX/PDF exports, Renewal Notices, Marquee AI & Setup", page: 11 },
         { num: "10", title: "2-Minute Routine Playbook, Glossary & Shortcuts", desc: "Stress-free habit loop, A-Z definitions & keyboard keys", page: 12 },
       ];
 
@@ -1174,8 +1160,8 @@ function buildStandardPages(lang: GuideLang): GuideBookSpec {
       toc,
       isId ? "Cara Termudah Pakai Aplikasi Ini (Tanpa Catat Setiap Jajan)" : "The Easiest Way to Use Sunday Funday (Without Logging Every Coffee)",
       isId
-        ? "Anda sama sekali tidak harus menginput setiap pengeluaran kecil seperti kopi atau parkir setiap hari. Catat saja tagihan rutin dan cicilan Anda, lalu 2 atau 3 hari sekali buka aplikasi bank Anda, masukkan total saldo real ke kolom Cash Rp di Wallet Reconciliation, dan klik Sync. Sistem langsung menyesuaikan Cycle Budget Used, rata-rata belanja harian, dan sisa jajan aman Anda."
-        : "You never have to type in every small coffee or snack each day. Record recurring bills and credit installments once, then every 2 or 3 days enter your real bank/wallet balance into Wallet Reconciliation and click Sync. The dashboard automatically accounts for unrecorded spend and updates Cycle Budget Used and Safe-to-Spend cleanly.",
+        ? "Anda sama sekali tidak harus menginput setiap pengeluaran kecil seperti kopi atau parkir setiap hari. Catat saja tagihan rutin dan cicilan Anda, lalu 2 atau 3 hari sekali buka aplikasi bank Anda, klik Update Bank Balance di kartu Spending Balance, masukkan saldo rekening aktual, dan klik Sync Balance."
+        : "You never have to type in every small coffee or snack each day. Record recurring bills and credit installments once (or import CSV statements), then open your bank app every few days, click Update Bank Balance on Overview, and hit Sync Balance.",
     ),
   );
 
@@ -1191,7 +1177,7 @@ function buildStandardPages(lang: GuideLang): GuideBookSpec {
           <p>Pos tabungan prioritas yang langsung diisi segera setelah kewajiban cicilan, tagihan rutin bulanan, dan dana hidup harian terpenuhi. Terlindungi dari belanja impulsif.</p>
         </div>
         <div class="card">
-          <h3>Flexible Surplus (Surplus Fleksibel)</h3>
+          <h3>Discretionary (Dana Bebas)</h3>
           <p>Uang ekstra tersisa sesudah seluruh tagihan, dana makan/hidup, dan target Core Savings aman 100%. Bisa dipakai bebas untuk self-reward, hiburan, atau ditabung ekstra saat tutup siklus.</p>
         </div>
         <div class="card">
@@ -1200,7 +1186,7 @@ function buildStandardPages(lang: GuideLang): GuideBookSpec {
         </div>
         <div class="card">
           <h3>Budget Shortfall (Jika Pemasukan Sedang Ketat)</h3>
-          <p>Saat total target melebihi pemasukan siklus ini, <em>Core Savings</em> dan <em>Flexible Surplus</em> otomatis turun ke Rp 0 lebih dulu (<em>Proportional Living Cash Law</em>) agar dana hidup harian tetap positif.</p>
+          <p>Saat total target melebihi pemasukan siklus ini, <em>Core Savings</em> dan <em>Discretionary</em> otomatis turun ke Rp 0 lebih dulu agar dana hidup harian tetap positif secara proporsional.</p>
         </div>
       </div>`
       : `
@@ -1210,11 +1196,11 @@ function buildStandardPages(lang: GuideLang): GuideBookSpec {
       <div class="two-col">
         <div class="card">
           <h3>Core Savings</h3>
-          <p>Your protected monthly savings goal allocated immediately after upcoming credit bills, routine quotas, and Daily Living cash are covered.</p>
+          <p>Your protected monthly savings goal allocated immediately after upcoming credit bills, routine quotas, and Daily Spending Pool are covered.</p>
         </div>
         <div class="card">
-          <h3>Flexible Surplus</h3>
-          <p>True disposable surplus remaining only after fixed bills, living cash, and your Core Savings target are 100% funded. Spend it freely on rewards or transfer it into savings at period close.</p>
+          <h3>Discretionary</h3>
+          <p>True disposable surplus remaining only after fixed bills, daily spending budget, and your Core Savings target are 100% funded. Spend it freely on rewards or transfer it into savings at period close.</p>
         </div>
         <div class="card">
           <h3>Emergency Buffer & Temporary Savings Advance</h3>
@@ -1222,7 +1208,7 @@ function buildStandardPages(lang: GuideLang): GuideBookSpec {
         </div>
         <div class="card">
           <h3>Budget Shortfall Protection</h3>
-          <p>If planned allocations exceed net income in a cycle, Core Savings and Flexible Surplus compress to Rp 0 first so your Daily Living cash pool remains positive proportionally.</p>
+          <p>If planned allocations exceed net income in a cycle, Core Savings and Discretionary compress to Rp 0 first so your Daily Spending Pool remains positive proportionally.</p>
         </div>
       </div>`,
   );
@@ -1278,46 +1264,44 @@ function buildStandardPages(lang: GuideLang): GuideBookSpec {
   sheets.push(
     isId
       ? `
-      <h2 class="chapter-title">03 · Overview Kolom 1: Safe-to-Spend & Wallet Sync</h2>
-      <p class="chapter-sub">Cara membaca batas belanja aman harian dan menyinkronkan saldo bank tanpa catat transaksi kecil.</p>
+      <h2 class="chapter-title">03 · Overview Kolom 1: Spending Balance &amp; Bank Balance Sync</h2>
+      <p class="chapter-sub">Cara membaca batas belanja harian dan menyinkronkan saldo bank tanpa catat transaksi kecil.</p>
       ${renderWalletSyncDiagramSvg("id")}
       <div class="two-col">
         <div class="card">
-          <h3>Metrik Pacing & Proyeksi</h3>
+          <h3>Spending Balance &amp; Days to Payday</h3>
           <ul>
-            <li><strong>Safe-to-Spend Today:</strong> Batas belanja harian agar dana hidup cukup sampai gajian berikutnya.</li>
-            <li><strong>Weighted 1.5x vs Flat Daily:</strong> Mode <em>Weighted 1.5x</em> memberi ruang akhir pekan lebih lega 1,5x dibanding hari kerja.</li>
-            <li><strong>Cycle Budget Used:</strong> Progress bar ganda yang membandingkan <code>% anggaran terpakai</code> dengan garis penanda vertikal <code>% hari berjalan</code>. Selalu akurat baik dari entri manual maupun Wallet Sync.</li>
-            <li><strong>Avg Daily Burn & Projected Cycle-End:</strong> Laju rata-rata keluar per hari dibandingkan target baseline dan proyeksi sisa/kelebihan di akhir siklus.</li>
+            <li><strong>Spending Balance:</strong> Batas belanja harian agar dana hidup cukup sampai H-1 gajian (bawaan <em>Flat Daily</em>, atau pilih <em>Weekend 1.5x</em>).</li>
+            <li><strong>Cycle Budget Used:</strong> Progress bar ganda yang membandingkan <code>% anggaran terpakai</code> dengan garis penanda waktu berjalan.</li>
+            <li><strong>Daily Average &amp; Unsettled Cycle Bills:</strong> Rata-rata belanja per hari dibanding target awal dan total tagihan rutin yang masih harus dibayar.</li>
           </ul>
         </div>
         <div class="card">
-          <h3>Wallet Reconciliation (Sync 10 Detik)</h3>
+          <h3>Bank Balance Sync</h3>
           <ul>
-            <li><strong>Living Cash + Unpaid Bills = Expected Bank:</strong> Saldo kas hidup ditambah sisa dana tagihan rutin yang masih tersimpan di rekening Anda.</li>
-            <li><strong>Guard vs Sync:</strong> Ketik saldo rekening aktual Anda di <code>Cash Rp</code>. Pilih mode perbandingan (<em>Total Bank</em> atau <em>Living Cash Only</em>). Klik <strong>Guard</strong> sekadar cek keamanan tanpa mengubah buku kas, atau klik <strong>Sync</strong> untuk langsung menyesuaikan saldo sistem ke saldo bank nyata lewat satu entri checkpoint (dilengkapi tombol <strong>Undo</strong>).</li>
+            <li><strong>Expected Balance:</strong> Satu saldo utuh rekening Anda saat ini (mencakup dana jajan plus sisa tagihan rutin belum lunas).</li>
+            <li><strong>Update Bank Balance &amp; Import Statement:</strong> Klik <strong>Update Bank Balance</strong> lalu tekan <strong>Sync Balance</strong> agar selisih masuk ke <strong>Balance History</strong> (dengan tombol <strong>Undo</strong>), atau langsung buka <code>/import</code>.</li>
           </ul>
         </div>
       </div>`
       : `
-      <h2 class="chapter-title">03 · Overview Col 1: Safe-to-Spend & Wallet Sync</h2>
-      <p class="chapter-sub">Daily spending guidance and 10-second bank reconciliation with zero micro-logging fatigue.</p>
+      <h2 class="chapter-title">03 · Overview Col 1: Spending Balance &amp; Bank Balance Sync</h2>
+      <p class="chapter-sub">Daily spending guidance and streamlined bank balance sync with zero micro-logging fatigue.</p>
       ${renderWalletSyncDiagramSvg("en")}
       <div class="two-col">
         <div class="card">
-          <h3>Pacing Metrics & Projections</h3>
+          <h3>Spending Balance, Pacing Mode &amp; Daily Average</h3>
           <ul>
-            <li><strong>Safe-to-Spend Today:</strong> Recommended daily spending limit through the end of the current paycycle.</li>
-            <li><strong>Weighted 1.5x vs Flat Daily:</strong> Allocates 1.5x daily allowance on weekends versus weekdays, or splits cash flatly.</li>
-            <li><strong>Cycle Budget Used:</strong> Dual-indicator progress bar comparing <code>% budget used</code> directly against <code>% cycle time elapsed</code> (vertical tick marker). Stays accurate from both itemized entries and Wallet Sync.</li>
-            <li><strong>Avg Daily Burn & Projected Cycle-End:</strong> Live average daily burn vs baseline target and projected cycle-end variance.</li>
+            <li><strong>Spending Balance &amp; Days to Payday:</strong> Recommended daily spending limit through the day before next payday (<em>Flat Daily</em> by default, or optional <em>Weekend 1.5x</em>).</li>
+            <li><strong>Cycle Budget Used:</strong> Compares <code>% budget used</code> directly against <code>% cycle time elapsed</code> cleanly.</li>
+            <li><strong>Daily Average &amp; Unsettled Cycle Bills:</strong> Actual daily spend rate vs target alongside any pending routine bills still reserved in bank.</li>
           </ul>
         </div>
         <div class="card">
-          <h3>Wallet Reconciliation (Guard vs Sync)</h3>
+          <h3>Bank Balance Sync &amp; Balance History</h3>
           <ul>
-            <li><strong>Expected Bank Formula:</strong> Sums Remaining Living Cash plus any Unpaid Routine Bill reserves still sitting in your account.</li>
-            <li><strong>Guard vs Sync:</strong> Type your real bank total into <code>Cash Rp</code>. Choose <em>Total Bank</em> or <em>Living Cash Only</em> comparison. Use <strong>Guard</strong> for a read-only Survival Guard check, or <strong>Sync</strong> to record one Balance Checkpoint reconciling any unlogged spend (with <strong>Undo</strong> on the latest checkpoint).</li>
+            <li><strong>Expected Balance:</strong> Unified figure showing what your bank balance should hold today (including unpaid routine bill reserves).</li>
+            <li><strong>Update Bank Balance &amp; Import Statement:</strong> Expand <strong>Update Bank Balance</strong> to check coverage or hit <strong>Sync Balance</strong> to record adjustments in <strong>Balance History</strong> (with <strong>Undo</strong>).</li>
           </ul>
         </div>
       </div>`,
@@ -1326,44 +1310,44 @@ function buildStandardPages(lang: GuideLang): GuideBookSpec {
   sheets.push(
     isId
       ? `
-      <h2 class="chapter-title">04 · Overview Kolom 2 & Kolom 3 (Pos Kustom & Catat Pengeluaran)</h2>
-      <p class="chapter-sub">Menyesuaikan kategori rutin sesuai gaya hidup Anda sendiri dan mencatat belanja tunai maupun kredit.</p>
+      <h2 class="chapter-title">04 · Overview Kolom 2 &amp; Kolom 3 (Pos Kustom &amp; Catat Pengeluaran)</h2>
+      <p class="chapter-sub">Menyesuaikan kategori rutin sesuai gaya hidup Anda sendiri dan mencatat belanja Bank / QRIS maupun kredit.</p>
       <div class="two-col">
         <div class="card">
-          <h3>Kolom 2: Living & Routine Bills Kustom</h3>
+          <h3>Kolom 2: Living &amp; Routine Bills Kustom</h3>
           <ul>
             <li><strong>Pos Rutin Dinamis:</strong> Di edisi Standar, Anda bisa menambah kategori sendiri lewat <strong>+ Add Routine Category</strong>, mengganti namanya (ikon pensil), maupun menghapus pos kustom yang tidak dipakai lagi.</li>
-            <li><strong>Aksi Cepat per Pos:</strong> Gunakan <strong>Pay Full</strong> (lunas tunai), <strong>Roll to PayLater</strong> (pindah ke tagihan kredit bulan depan), atau <strong>Log Partial</strong> (bayar sebagian).</li>
-            <li><strong>Cycle Allocation Mix:</strong> Bar 4 segmen memetakan porsi pengeluaran tetap, kas hidup harian, tabungan utama, serta surplus/buffer beserta tautan ke <em>Budgets & Envelopes</em> dan <em>Bills & Recurring</em>.</li>
+            <li><strong>Aksi Cepat per Pos:</strong> Gunakan <strong>Pay Full</strong>, <strong>Roll to PayLater</strong> (pindah ke tagihan kredit bulan depan), atau <strong>Log Partial</strong> (bayar sebagian).</li>
+            <li><strong>Cycle Allocation Mix:</strong> Bar 4 segmen memetakan porsi pengeluaran tetap, kas hidup harian, tabungan utama, serta discretionary &amp; buffer.</li>
           </ul>
         </div>
         <div class="card">
-          <h3>Kolom 3: Core Savings, Surplus & Record Expense (N)</h3>
+          <h3>Kolom 3: Core Savings, Discretionary &amp; Record Expense (N)</h3>
           <ul>
-            <li><strong>Core Savings & Surplus:</strong> Pantau target tabungan utama dan sisa <em>Flexible Surplus</em> + <em>Emergency Buffer</em> Anda.</li>
-            <li><strong>Mode Record Expense:</strong> <em>Daily Spend</em> (kas harian), <em>Routine Bill</em> (pos rutin pilihan Anda), dan <em>Refund / Split</em> (mencatat penggantian patungan teman langsung memulihkan kuota harian).</li>
-            <li><strong>Tunai / PayLater / Credit Card:</strong> Pilih metode bayar, tenor, tanggal beli di kalender gelap <em>ErpDatePicker</em>, dan target <code>Billing Cycle</code> (otomatis cutoff atau pilih manual) dengan pratinjau biaya dalam jam kerja.</li>
+            <li><strong>Core Savings &amp; Discretionary:</strong> Pantau target tabungan utama dan sisa <em>Discretionary</em> + <em>Emergency Buffer</em> Anda (dapat disembunyikan di Preferences).</li>
+            <li><strong>Mode Record Expense:</strong> <em>Daily Spend</em>, <em>Routine Bill</em>, dan <em>Refund / Split</em> (patungan teman langsung memulihkan jatah belanja harian).</li>
+            <li><strong>Bank / QRIS / PayLater / Credit Card:</strong> Pilih metode bayar, tenor, tanggal beli di kalender gelap <em>ErpDatePicker</em>, dan target <code>Billing Cycle</code> dengan pratinjau biaya dalam jam kerja.</li>
           </ul>
         </div>
       </div>`
       : `
-      <h2 class="chapter-title">04 · Overview Col 2 & Col 3 (Custom Categories & Expense Entry)</h2>
-      <p class="chapter-sub">Personalizing routine envelopes, reviewing cycle allocation mix, and recording cash or credit entries.</p>
+      <h2 class="chapter-title">04 · Overview Col 2 &amp; Col 3 (Custom Categories &amp; Expense Entry)</h2>
+      <p class="chapter-sub">Personalizing routine envelopes, reviewing cycle allocation mix, and recording Bank / QRIS or credit entries.</p>
       <div class="two-col">
         <div class="card">
-          <h3>Col 2: Custom Living & Routine Envelopes</h3>
+          <h3>Col 2: Custom Living &amp; Routine Envelopes</h3>
           <ul>
             <li><strong>Manage Categories Dynamically:</strong> Add your own custom expense categories via <strong>+ Add Routine Category</strong>, rename labels inline, or remove unused custom pockets cleanly.</li>
             <li><strong>One-Click Settlement Actions:</strong> Pay remaining quota with <strong>Pay Full</strong>, defer onto the debt schedule with <strong>Roll to PayLater</strong>, or record partial payments via <strong>Log Partial</strong>.</li>
-            <li><strong>Cycle Allocation Mix:</strong> Summarizes your cycle paycheck split across Fixed Bills & Debt, Daily Living Pool, Core Savings, and Surplus & Buffer.</li>
+            <li><strong>Cycle Allocation Mix:</strong> Summarizes your cycle paycheck split across Fixed Bills &amp; Debt, Daily Living Pool, Core Savings, and Surplus &amp; Buffer.</li>
           </ul>
         </div>
         <div class="card">
-          <h3>Col 3: Core Savings, Surplus & Record Expense (Key N)</h3>
+          <h3>Col 3: Core Savings, Discretionary &amp; Record Expense (Key N)</h3>
           <ul>
-            <li><strong>Savings & Buffer Cards:</strong> Show real-time funded Core Savings and Flexible Surplus + Emergency Buffer targets.</li>
+            <li><strong>Savings &amp; Discretionary Cards:</strong> Show real-time funded Core Savings and Discretionary + Emergency Buffer (visibility configurable in Preferences).</li>
             <li><strong>Expense Modes:</strong> Log <em>Daily Spend</em>, <em>Routine Bill</em> (from your custom routine list), or <em>Refund / Split</em> when splitting shared bills with friends.</li>
-            <li><strong>Payment Methods:</strong> Switch cleanly between <em>Living Cash</em>, <em>PayLater</em>, and <em>Credit Card</em> with Tenor buttons, dark <em>ErpDatePicker</em> calendar, <em>Billing Cycle</em> selector, and work-hour conversion.</li>
+            <li><strong>Payment Methods:</strong> Switch cleanly between <em>Bank / QRIS</em>, <em>PayLater</em>, and <em>Credit Card</em> with Tenor buttons, dark <em>ErpDatePicker</em> calendar, <em>Billing Cycle</em> selector, and work-hour conversion.</li>
           </ul>
         </div>
       </div>`,
@@ -1372,40 +1356,40 @@ function buildStandardPages(lang: GuideLang): GuideBookSpec {
   sheets.push(
     isId
       ? `
-      <h2 class="chapter-title">05 · Transactions Ledger, Payday Wizard & Bills Calendar</h2>
-      <p class="chapter-sub">Kelola seluruh histori transaksi di satu buku besar, jalankan ritual gajian, dan pantau kalender tagihan.</p>
+      <h2 class="chapter-title">05 · Transactions Ledger, Payday &amp; Closing &amp; Cash Calendar</h2>
+      <p class="chapter-sub">Kelola seluruh histori transaksi di satu buku besar, jalankan penutupan gaji persisten, dan pantau kalender tagihan.</p>
       <div class="stack">
         <div class="card">
           <h3>Transactions Ledger (<code>/ledger</code> — Khusus Edisi Standar)</h3>
-          <p>Menampilkan daftar transaksi lengkap untuk periode terpilih beserta pencarian teks, filter tipe (<em>All Activity</em>, <em>Inflows</em>, <em>Daily Spend</em>, <em>Bills</em>), aksi edit nominal/tanggal/pos (memakai <em>ErpDatePicker</em>), hapus baris, serta tombol ekspor transaksi ke Excel maupun akses cepat ke rekonsiliasi kas.</p>
+          <p>Menampilkan daftar transaksi lengkap untuk periode terpilih beserta pencarian teks, filter tipe (<em>All Activity</em>, <em>Inflows</em>, <em>Daily Spend</em>, <em>Bills</em>), aksi edit nominal/tanggal/pos (memakai <em>ErpDatePicker</em>), hapus baris, serta tombol ekspor transaksi ke Excel maupun akses cepat ke rekonsiliasi saldo bank.</p>
         </div>
         <div class="two-col">
           <div class="card">
-            <h3>Payday & Closing Wizard (<code>/payday-wizard</code>)</h3>
-            <p>Checklist terstruktur setiap hari gajian dan saat menutup bulan. Mengonfirmasi tanggal masuk gaji aktual, memverifikasi kecukupan kas untuk seluruh tagihan jatuh tempo, dan mengunci siklus yang telah selesai menjadi <code>LOCKED</code> agar riwayat masa lalu aman dari edit tak sengaja.</p>
+            <h3>Payday &amp; Closing (<code>/payday-wizard</code>)</h3>
+            <p>Checklist 4-langkah saat gajian &amp; akhir siklus. Mengonfirmasi tanggal gaji, memverifikasi kelunasan tagihan, mengunci siklus selesai (<code>LOCKED</code>), serta mencatat konfirmasi transfer Core Savings secara persisten (<code>LIQUID_CASH</code> sebagai bawaan bila investasi eksternal nonaktif).</p>
           </div>
           <div class="card">
-            <h3>Bills & Recurring / Cash Radar (<code>/calendar</code>)</h3>
-            <p>Menampilkan garis waktu proyeksi kas harian dan menyorot <strong>Lowest Cash Point</strong> (hari dengan saldo kas paling ketat) supaya Anda bisa mengatur tempo transaksi sebelum tanggal gajian berikutnya tiba.</p>
+            <h3>Bills &amp; Cash Calendar (<code>/calendar</code>)</h3>
+            <p>Menampilkan garis waktu proyeksi kas harian dan menyorot <strong>Lowest Cash Point</strong> (hari dengan saldo paling ketat) supaya Anda bisa mengatur tempo transaksi sebelum tanggal gajian berikutnya tiba.</p>
           </div>
         </div>
       </div>`
       : `
-      <h2 class="chapter-title">05 · Transactions Ledger, Payday Wizard & Bills Calendar</h2>
-      <p class="chapter-sub">Full transaction management, guided payday activation, and daily liquidity calendar tracking.</p>
+      <h2 class="chapter-title">05 · Transactions Ledger, Payday &amp; Closing &amp; Bills Calendar</h2>
+      <p class="chapter-sub">Full transaction management, persistent payday closing, and daily liquidity calendar tracking.</p>
       <div class="stack">
         <div class="card">
           <h3>Transactions Ledger (<code>/ledger</code> — Standard Workspace)</h3>
-          <p>Browse every inflow, deduction, bill settlement, and wallet checkpoint in the selected period. Supports instant search, category/source filters, inline edits (via custom <em>ErpDatePicker</em> and bucket selectors) while the cycle is open, and Excel ledger export.</p>
+          <p>Browse every inflow, deduction, bill settlement, and balance adjustment in the selected period. Supports instant search, category/source filters, inline edits (via custom <em>ErpDatePicker</em> and bucket selectors) while the cycle is open, and Excel ledger export.</p>
         </div>
         <div class="two-col">
           <div class="card">
-            <h3>Payday & Closing Wizard (<code>/payday-wizard</code>)</h3>
-            <p>Interactive checklist validating your paycheck payout date, reviewing chronological upcoming due bills, confirming cash coverage, and cleanly locking completed cycles into read-only history.</p>
+            <h3>Payday &amp; Closing (<code>/payday-wizard</code>)</h3>
+            <p>Interactive 4-step checklist validating payout date, locking finished cycles, settling bills, and persisting <strong>Confirm Savings Deposit</strong> cleanly across reloads.</p>
           </div>
           <div class="card">
-            <h3>Bills & Recurring Calendar (<code>/calendar</code>)</h3>
-            <p>Day-by-day liquidity radar highlighting your <strong>Lowest Cash Point</strong> and itemized maturing obligations across the full paycycle window.</p>
+            <h3>Cash Calendar (<code>/calendar</code>)</h3>
+            <p>Day-by-day liquidity calendar highlighting your <strong>Lowest Cash Point</strong> and itemized maturing obligations across the full paycycle window.</p>
           </div>
         </div>
       </div>`,
@@ -1414,50 +1398,50 @@ function buildStandardPages(lang: GuideLang): GuideBookSpec {
   sheets.push(
     isId
       ? `
-      <h2 class="chapter-title">06 · Income & Cash Flow, Budgets & Statement Import</h2>
-      <p class="chapter-sub">Mengatur sumber pemasukan, simulasi anggaran & rollover amplop, serta impor mutasi bank sekaligus.</p>
+      <h2 class="chapter-title">06 · Income &amp; Cash Flow, Budgets &amp; Safe Statement Import</h2>
+      <p class="chapter-sub">Mengatur gaji &amp; potongan langsung slip, simulasi amplop, serta impor CSV KlikBCA &amp; tempel myBCA/Permata.</p>
       <div class="two-col">
         <div class="card">
-          <h3>Income & Cash Flow (<code>/payroll</code>)</h3>
+          <h3>Income &amp; Cash Flow (<code>/payroll</code>)</h3>
           <ul>
-            <li>Atur gaji pokok, hari kerja/penyesuaian, potongan, bonus/THR, serta tanggal masuk gaji aktual agar batas hari siklus akurat.</li>
-            <li>Simulasi pembagian tagihan hari gajian dan hitung upah bersih per jam kerja (memasukkan durasi perjalanan kerja bila diisi).</li>
+            <li>Atur gaji pokok, penyesuaian, potongan langsung slip (mis. kasbon/salary advance), bonus/THR kondisional, dan tanggal masuk gaji aktual.</li>
+            <li>Simulasi pembagian tagihan hari gajian dan hitung upah bersih per jam kerja (opsional jam komuter).</li>
           </ul>
         </div>
         <div class="card">
-          <h3>Budgets & Envelopes (<code>/allocations</code>)</h3>
+          <h3>Budgets &amp; Envelopes (<code>/allocations</code>)</h3>
           <ul>
             <li>Uji skenario perubahan kuota makan harian maupun tabungan sebelum menekan <strong>Apply Quota</strong>.</li>
-            <li>Pilih kebijakan akhir bulan tiap pos rutin (sisa amplop disapu otomatis ke Core Savings atau dibiarkan) dan jadwalkan dana berkala (<em>Periodic Bill Set-Asides</em>).</li>
+            <li>Pilih kebijakan akhir bulan tiap pos rutin (<em>Sweep Unspent to Core Savings</em> atau simpan) dan jadwalkan dana berkala.</li>
           </ul>
         </div>
       </div>
       <div class="card">
-        <h3>Statement Import (<code>/import</code>)</h3>
-        <p>Tempel salinan baris mutasi PayLater atau kartu kredit, klik <strong>Parse & Auto-Route</strong> agar mesin Go otomatis merutekan ke periode jatuh tempo berdasarkan tanggal cutoff instrumen Anda dan menyaring duplikat. Baris yang mengarah ke bulan yang sudah <em>LOCKED</em> aman digeser otomatis ke periode terbuka terawal sebelum Anda klik <strong>Commit Selected Rows</strong>.</p>
+        <h3>Safe Statement Import (<code>/import</code>)</h3>
+        <p>Unggah CSV ekspor resmi KlikBCA (<code>.csv</code> / <code>.txt</code> maks 2 MB / 500 baris) atau tempel mutasi myBCA/Permata/PayLater tanpa login bank. Baris <code>CR</code> (pemasukan) dan kolom <code>Saldo</code> otomatis dilewati, angka desimal <code>48,000.00 DB</code> dibaca presisi, nomor rekening 10-16 digit disamarkan menjadi <code>****XXXX</code>, dan baris bulan <code>LOCKED</code> digeser maju sebelum disimpan.</p>
       </div>`
       : `
-      <h2 class="chapter-title">06 · Income & Cash Flow, Budgets & Statement Import</h2>
-      <p class="chapter-sub">Configuring inflows, simulating envelope budgets, and importing multi-line statements safely.</p>
+      <h2 class="chapter-title">06 · Income &amp; Cash Flow, Budgets &amp; Safe Statement Import</h2>
+      <p class="chapter-sub">Configuring inflows &amp; direct payroll deductions, simulating budgets, and importing KlikBCA/myBCA statements safely.</p>
       <div class="two-col">
         <div class="card">
-          <h3>Income & Cash Flow (<code>/payroll</code>)</h3>
+          <h3>Income &amp; Cash Flow (<code>/payroll</code>)</h3>
           <ul>
-            <li>Configure monthly base income, adjustments, deductions, bonuses/THR modes, and confirmed payout date to anchor cycle start/end boundaries.</li>
+            <li>Configure monthly base income, pre-net or direct post-net payroll deductions (such as early salary advances), optional holiday bonus settings, and confirmed payout date.</li>
             <li>Compute true net hourly wage to evaluate purchases in real work hours.</li>
           </ul>
         </div>
         <div class="card">
-          <h3>Budgets & Envelopes (<code>/allocations</code>)</h3>
+          <h3>Budgets &amp; Envelopes (<code>/allocations</code>)</h3>
           <ul>
-            <li>Interactive quota simulator showing live impact on Projected Savings, Surplus, and any budget shortfall before applying changes.</li>
+            <li>Interactive quota simulator showing live impact on Projected Savings, Discretionary, and any budget shortfall before applying changes.</li>
             <li>Set envelope rollover behavior (sweep unspent amounts to Core Savings or keep) and create monthly reserves for periodic multi-month bills.</li>
           </ul>
         </div>
       </div>
       <div class="card">
-        <h3>Statement Import (<code>/import</code>)</h3>
-        <p>Paste raw statement text, run <strong>Parse & Auto-Route</strong> to let the Go reconciler route lines across cutoffs and deduplicate entries, verify automatically advanced rows away from locked periods, and commit checked items atomically.</p>
+        <h3>Safe Statement Import (<code>/import</code>)</h3>
+        <p>Upload KlikBCA CSV exports or paste myBCA / Permata / PayLater lines safely without sharing bank credentials (up to 2 MB / 500 rows). Credit (<code>CR</code>) inflows and trailing <code>Saldo</code> columns are ignored, <code>48,000.00 DB</code> decimals parse cleanly, 10 to 16 digit account numbers mask into <code>****XXXX</code>, and locked-period rows shift forward automatically.</p>
       </div>`,
   );
 
@@ -1532,7 +1516,7 @@ function buildStandardPages(lang: GuideLang): GuideBookSpec {
         </div>
         <div class="card">
           <h3>Scenario & Goal Planner (<code>/scenarios</code>)</h3>
-          <p>Uji skenario <em>what-if</em> selama 12 bulan ke depan memakai tuas tabungan ekstra, bonus, penghematan living, atau simulasi guncangan biaya <code>+15% Burn Shock</code>. Mesin Go menjalankan simulasi <strong>Monte Carlo Stress Test</strong> (tingkat ketahanan kas 12 bulan) dan menampilkan kurva perbandingan kekayaan bersih antara <em>Baseline</em> vs <em>Simulated</em>.</p>
+          <p>Uji skenario <em>what-if</em> selama 12 bulan ke depan memakai tuas tabungan ekstra, bonus, penghematan living, atau simulasi guncangan biaya <code>+15% Expense Shock</code>. Mesin Go menjalankan simulasi <strong>Monte Carlo Stress Test</strong> (tingkat ketahanan kas 12 bulan) dan menampilkan kurva perbandingan kekayaan bersih antara <em>Baseline</em> vs <em>Simulated</em>.</p>
         </div>
       </div>`
       : `
@@ -1557,7 +1541,7 @@ function buildStandardPages(lang: GuideLang): GuideBookSpec {
         </div>
         <div class="card">
           <h3>Scenario & Goal Planner (<code>/scenarios</code>)</h3>
-          <p>Model 12-month projections using adjustments for extra savings, bonuses, living changes, debt prepayments, or expense shocks (with 1-click <em>Debt-Free Sprint</em>, <em>Bonus Prepayment</em>, and <em>+15% Burn Shock</em> presets). Powered by the Go <strong>Monte Carlo Cashflow Stress Test</strong> and Surplus Allocation Frontier.</p>
+          <p>Model 12-month projections using adjustments for extra savings, bonuses, living changes, debt prepayments, or expense shocks (with 1-click <em>Debt-Free Sprint</em>, <em>Bonus Prepayment</em>, and <em>+15% Expense Shock</em> presets). Powered by the Go <strong>Monte Carlo Cashflow Stress Test</strong> and Surplus Allocation Frontier.</p>
         </div>
       </div>`,
   );
@@ -1565,44 +1549,44 @@ function buildStandardPages(lang: GuideLang): GuideBookSpec {
   sheets.push(
     isId
       ? `
-      <h2 class="chapter-title">09 · Analytics, Reports, Subscriptions, Marquee AI & Preferences</h2>
+      <h2 class="chapter-title">09 · Analytics, Reports, Subscriptions, Marquee AI &amp; Preferences</h2>
       <p class="chapter-sub">Ekspor laporan, pengaman langganan promo, asisten AI, serta personalisasi lengkap untuk workspace Anda.</p>
       <div class="two-col">
         <div class="card">
-          <h3>Analytics, Reports & Promo Kill-Switch</h3>
+          <h3>Analytics, Reports &amp; Renewal Alerts</h3>
           <ul>
-            <li><strong>Spending & Trend Review (<code>/analytics</code>):</strong> Analisis perubahan belanja bulanan, tren disiplin, dan deteksi lonjakan pasca-cutoff.</li>
-            <li><strong>Reports & Trends (<code>/reports</code>):</strong> Diagram alokasi dana, proyeksi 3 bulan, ekspor <strong>Excel (.xlsx)</strong>, <strong>Print / Save PDF</strong>, dan kirim email laporan.</li>
-            <li><strong>Subscriptions (<code>/subscriptions</code>):</strong> Kelola langganan berulang plus aktifkan <em>Promo Kill-Switch</em> untuk memperingatkan sebelum tarif promo berakhir dan naik harga.</li>
+            <li><strong>Spending &amp; Trend Review (<code>/analytics</code>):</strong> Analisis perubahan belanja bulanan, tren disiplin, dan deteksi lonjakan pasca-cutoff.</li>
+            <li><strong>Reports &amp; Trends (<code>/reports</code>):</strong> Diagram alokasi dana, proyeksi 3 bulan, ekspor <strong>Excel (.xlsx)</strong>, <strong>Print / Save PDF</strong>, dan kirim email laporan.</li>
+            <li><strong>Subscriptions (<code>/subscriptions</code>):</strong> Kelola langganan berulang plus aktifkan <em>Renewal Notices</em> untuk memperingatkan sebelum tarif promo berakhir dan naik harga.</li>
           </ul>
         </div>
         <div class="card">
-          <h3>Marquee AI Co-Pilot & Preferences Studio</h3>
+          <h3>Marquee AI Co-Pilot &amp; Preferences Studio</h3>
           <ul>
             <li><strong>Marquee AI (Orb / <code>Alt+M</code> / <code>/marquee</code>):</strong> Tanya kondisi saldo, uji simulasi cutoff, atau catat belanja lewat chat EN/ID/ZH dengan konfirmasi kartu 1-klik yang aman.</li>
-            <li><strong>Preferences (<code>/preferences</code>):</strong> Atur formula gajian/prioritas, cutoff metode bayar, template pos, kunci AI pribadi (terenkripsi AES-256-GCM), notifikasi email, serta backup JSON akun Anda sendiri.</li>
-            <li><strong>Setup Wizard & Request Rule:</strong> Luncurkan wizard pengaturan cepat 60 detik atau kirim permintaan fitur/rule khusus ke administrator.</li>
+            <li><strong>Preferences (<code>/preferences</code>):</strong> Atur formula gajian/prioritas, template potongan slip, mode THR &amp; Pacing Overview, cutoff metode bayar, kunci AI pribadi (AES-256-GCM), notifikasi email, serta backup JSON akun Anda sendiri.</li>
+            <li><strong>Workspace Setup &amp; Request Rule:</strong> Jalankan panduan pengaturan cepat 60 detik atau kirim permintaan rule khusus ke administrator.</li>
           </ul>
         </div>
       </div>`
       : `
-      <h2 class="chapter-title">09 · Analytics, Reports, Subscriptions, Marquee AI & Preferences</h2>
+      <h2 class="chapter-title">09 · Analytics, Reports, Subscriptions, Marquee AI &amp; Preferences</h2>
       <p class="chapter-sub">Reporting exports, renewal alerts, AI quick capture, and full workspace customization.</p>
       <div class="two-col">
         <div class="card">
-          <h3>Analytics, Reports & Subscriptions</h3>
+          <h3>Analytics, Reports &amp; Subscriptions</h3>
           <ul>
-            <li><strong>Spending & Trend Review (<code>/analytics</code>):</strong> Tracks month-over-month spending velocity, discipline score, and anomaly alerts.</li>
-            <li><strong>Reports & Trends (<code>/reports</code>):</strong> Visual allocation donut, 3-month liquidity forecast, <strong>Excel (.xlsx)</strong> export, <strong>Print / Save PDF</strong>, and email delivery.</li>
-            <li><strong>Subscriptions & Kill-Switch (<code>/subscriptions</code>):</strong> Tracks recurring plans and warns you days before promotional pricing auto-renews at higher standard rates.</li>
+            <li><strong>Spending &amp; Trend Review (<code>/analytics</code>):</strong> Tracks month-over-month spending velocity, discipline score, and anomaly alerts.</li>
+            <li><strong>Reports &amp; Trends (<code>/reports</code>):</strong> Visual allocation donut, 3-month liquidity forecast, <strong>Excel (.xlsx)</strong> export, <strong>Print / Save PDF</strong>, and email delivery.</li>
+            <li><strong>Subscriptions &amp; Renewal Notices (<code>/subscriptions</code>):</strong> Tracks recurring plans and warns you days before promotional pricing auto-renews at higher standard rates.</li>
           </ul>
         </div>
         <div class="card">
-          <h3>Marquee AI Co-Pilot & Preferences</h3>
+          <h3>Marquee AI Co-Pilot &amp; Preferences</h3>
           <ul>
             <li><strong>Marquee AI (Orb / <code>Alt+M</code> / <code>/marquee</code>):</strong> Context-aware financial assistant using deterministic backend tools and safe 1-click preview confirmation before any write.</li>
-            <li><strong>Preferences (<code>/preferences</code>):</strong> 6-tab studio to tune paycycle rules, custom instrument cutoffs, routine templates, display/module toggles, AES-256-GCM AI keys, email alerts, and JSON backup/restore.</li>
-            <li><strong>Setup Wizard & Request Rule:</strong> Re-run the 60-second setup wizard anytime or submit custom rule requests to your platform admin.</li>
+            <li><strong>Preferences (<code>/preferences</code>):</strong> 6-tab studio to tune paycycle rules, direct payroll deduction templates, conditional THR &amp; Overview defaults, custom cutoffs, AES-256-GCM AI keys, email alerts, and JSON backup/restore.</li>
+            <li><strong>Workspace Setup &amp; Request Rule:</strong> Re-run the 60-second setup anytime or submit custom rule requests to your platform admin.</li>
           </ul>
         </div>
       </div>`,
@@ -1611,49 +1595,49 @@ function buildStandardPages(lang: GuideLang): GuideBookSpec {
   sheets.push(
     isId
       ? `
-      <h2 class="chapter-title">10 · Playbook 2 Menit/Minggu, Kamus Istilah & Shortcuts</h2>
+      <h2 class="chapter-title">10 · Playbook 2 Menit/Minggu, Kamus Istilah &amp; Shortcuts</h2>
       <p class="chapter-sub">Rutinitas paling ringan menjaga keuangan tetap terkendali tanpa lelah mencatat setiap jajan.</p>
       <div class="two-col">
         <div class="card">
           <h3>Playbook Hemat Waktu</h3>
           <ul>
-            <li><strong>2-3 Hari Sekali (1 Menit):</strong> Cek total rekening/e-wallet jajan -> masukkan ke <code>Cash Rp</code> -> tekan <strong>Sync</strong>.</li>
-            <li><strong>Belanja Cicilan / Kredit:</strong> Catat 1x di <code>Record Expense</code> atau tempel daftar akhir minggu ke <code>/import</code>.</li>
-            <li><strong>Setiap Hari Gajian:</strong> Buka <code>/payday-wizard</code> -> sahkan tanggal gaji cair -> cek daftar tagihan bulan berjalan -> tutup periode sebelumnya agar history bersih.</li>
+            <li><strong>2-3 Hari Sekali (1 Menit):</strong> Cek total rekening/e-wallet jajan -> klik <strong>Update Bank Balance</strong> -> tekan <strong>Sync Balance</strong>.</li>
+            <li><strong>Belanja Cicilan / Kredit:</strong> Catat 1x di <code>Record Expense</code> atau unggah CSV/tempel mutasi ke <code>/import</code>.</li>
+            <li><strong>Setiap Hari Gajian:</strong> Buka <code>/payday-wizard</code> (<em>Payday &amp; Closing</em>) -> sahkan tanggal gaji cair &amp; konfirmasi deposit tabungan -> tutup periode sebelumnya agar history bersih.</li>
           </ul>
         </div>
         <div class="card">
-          <h3>Glosarium Istilah & Shortcut Keyboard</h3>
+          <h3>Glosarium Istilah &amp; Shortcut Keyboard</h3>
           <table class="mini-tbl">
-            <tr><td class="mono k">Flexible Surplus</td><td>Dana sisa bersih setelah tagihan, hidup harian, dan tabungan utama lunas.</td></tr>
+            <tr><td class="mono k">Discretionary</td><td>Dana sisa bersih setelah tagihan, hidup harian, dan tabungan utama lunas.</td></tr>
             <tr><td class="mono k">Emergency Buffer</td><td>Penyangga tak terduga aktif selama siklus berjalan.</td></tr>
-            <tr><td class="mono k">Cycle Budget Used</td><td>Persentase dana hidup terpakai vs hari siklus berjalan (sinkron via Sync).</td></tr>
-            <tr><td class="mono k">Unpaid Bills</td><td>Dana tagihan/pos rutin yang masih berada di rekening sebelum dibayar.</td></tr>
+            <tr><td class="mono k">Cycle Budget Used</td><td>Persentase dana hidup terpakai vs hari siklus berjalan.</td></tr>
+            <tr><td class="mono k">Unsettled Bills</td><td>Dana tagihan/pos rutin yang masih berada di rekening sebelum dibayar.</td></tr>
             <tr><td class="mono k">Temporary Advance</td><td>Pinjaman sementara dari kantong tabungan saat kas menipis.</td></tr>
-            <tr><td class="mono k">N / Ctrl+K</td><td>Fokus input Record Expense / Buka Command Search & Smart Entry.</td></tr>
+            <tr><td class="mono k">N / Ctrl+K</td><td>Fokus input Record Expense / Buka Command Search &amp; Smart Entry.</td></tr>
             <tr><td class="mono k">Alt+M / Alt+H / [</td><td>Buka Marquee AI / Masking saldo / Lipat Sidebar kiri.</td></tr>
           </table>
         </div>
       </div>`
       : `
-      <h2 class="chapter-title">10 · Two-Minute Weekly Routine, Glossary & Shortcuts</h2>
+      <h2 class="chapter-title">10 · Two-Minute Weekly Routine, Glossary &amp; Shortcuts</h2>
       <p class="chapter-sub">How to stay completely on top of cashflow in minutes per week without manual receipt fatigue.</p>
       <div class="two-col">
         <div class="card">
           <h3>Two-Minute Routine Playbook</h3>
           <ul>
-            <li><strong>Every 2-3 Days (60 Seconds):</strong> Enter your actual bank balance into <code>Cash Rp</code> on Overview and hit <strong>Sync</strong>. Review <code>Cycle Budget Used</code> vs elapsed timeline.</li>
-            <li><strong>Credit / PayLater Activity:</strong> Log purchases once via <code>Record Expense</code> or import statement lines weekly on <code>/import</code>.</li>
-            <li><strong>On Payday:</strong> Run <code>/payday-wizard</code> to confirm salary date, fund obligations, and close completed cycles.</li>
+            <li><strong>Every 2-3 Days (60 Seconds):</strong> Click <strong>Update Bank Balance</strong> on Overview, type your real total, and hit <strong>Sync Balance</strong>. Review <code>Cycle Budget Used</code> vs elapsed timeline.</li>
+            <li><strong>Credit / PayLater Activity:</strong> Log purchases once via <code>Record Expense</code> or import KlikBCA/myBCA lines weekly on <code>/import</code>.</li>
+            <li><strong>On Payday:</strong> Run <code>/payday-wizard</code> (<em>Payday &amp; Closing</em>) to confirm salary date, confirm deposit, settle obligations, and close completed cycles.</li>
           </ul>
         </div>
         <div class="card">
-          <h3>Glossary & Keyboard Shortcuts</h3>
+          <h3>Glossary &amp; Keyboard Shortcuts</h3>
           <table class="mini-tbl">
-            <tr><td class="mono k">Flexible Surplus</td><td>Leftover disposable funds once bills, living cash & Core Savings are funded.</td></tr>
+            <tr><td class="mono k">Discretionary</td><td>Leftover disposable funds once bills, spending pool &amp; Core Savings are funded.</td></tr>
             <tr><td class="mono k">Emergency Buffer</td><td>Mid-cycle reserve absorbing minor surprise outlays.</td></tr>
-            <tr><td class="mono k">Cycle Budget Used</td><td>% of living budget spent vs % of cycle elapsed (synced automatically).</td></tr>
-            <tr><td class="mono k">Unpaid Bills</td><td>Routine reserve still resting inside your bank waiting for settlement.</td></tr>
+            <tr><td class="mono k">Cycle Budget Used</td><td>% of spending budget used vs % of cycle elapsed.</td></tr>
+            <tr><td class="mono k">Unsettled Bills</td><td>Routine reserve still resting inside your bank waiting for settlement.</td></tr>
             <tr><td class="mono k">Temporary Advance</td><td>Cash drawn temporarily from savings pockets with tracked payback.</td></tr>
             <tr><td class="mono k">N / Ctrl+K</td><td>Jump to Record Expense / Open Global Command Search.</td></tr>
             <tr><td class="mono k">Alt+M / Alt+H / [</td><td>Toggle Marquee AI / Toggle Privacy Masking / Collapse Sidebar.</td></tr>
@@ -1679,7 +1663,7 @@ function buildStandardPages(lang: GuideLang): GuideBookSpec {
       : "Complete end-to-end guide to zero-friction Wallet Syncing, custom budgets, cutoff routing, savings goals, wishlist simulations, and Marquee AI.",
     editionBadge: isId ? "Edisi Pengguna Standar" : "Standard Client Edition",
     audienceLabel: isId ? "Pengguna Standar (Standard General)" : "Standard General Workspace Users",
-    versionLabel: "v2.8 · Nov 2026 · ID/EN",
+    versionLabel: "v2.9 · Nov 2026 · ID/EN",
     sheetsHtml: [],
   };
   spec.sheetsHtml = [buildCoverSheet(spec), ...pageBodies];

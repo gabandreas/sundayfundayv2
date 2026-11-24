@@ -70,31 +70,31 @@ const GUIDE_CONTENT: Record<LocaleCode, LocalizedGuideContent> = {
             formula: "Disposable Pool = Total Pool Income - Total Debt & Bills - Routine Quotas - Daily Living Allocation",
           },
           {
-            heading: "Core Savings Reserve & Flexible Surplus",
-            body: "Remaining surplus fills Core Savings Reserve first up to your target cap, then spills into Flexible Surplus. Locked or manual-override cycles keep historical living and savings caps fixed across automated recalculations.",
+            heading: "Core Savings Reserve & Discretionary",
+            body: "Remaining surplus fills Core Savings Reserve first up to your target cap, then spills into Discretionary. Locked or manual-override cycles keep historical living and savings caps fixed across automated recalculations.",
           },
         ],
       },
       {
         id: "daily-operations",
         code: "02",
-        title: "Daily Operations: Log Expense vs Sync Balance",
-        summary: "Choosing between real-time transaction logging and fast end-of-day wallet checkpoints.",
+        title: "Daily Operations: Log Expense vs Bank Balance Sync",
+        summary: "Choosing between real-time transaction logging and fast bank balance updates.",
         targetHref: "/",
         targetLabel: "Open Overview",
         blocks: [
           {
             heading: "Log Expense (Itemized Entry)",
-            body: "Use Log Expense whenever you want an explicit ledger row (category, merchant, note) deducted directly from the active cycle's Remaining Living Cash.",
+            body: "Use Log Expense whenever you want an explicit ledger row (category, merchant, note) deducted directly from the active cycle's Remaining Spending Balance.",
           },
           {
-            heading: "10-Second Sync Balance Checkpoint",
-            body: "Compare your actual physical + bank wallet cash against system Remaining Living Cash. If actual cash is lower, a single Balance Checkpoint deduction reconciles the gap without inventing false itemized receipts.",
-            formula: "Adjustment = System Remaining Living Cash - Actual Wallet Cash",
+            heading: "Bank Balance Sync",
+            body: "Compare your actual bank balance against your system Remaining Spending Balance. If actual balance is lower, a single Balance Adjustment reconciles the gap without inventing false itemized receipts.",
+            formula: "Adjustment = System Remaining Balance - Actual Bank Balance",
           },
           {
             heading: "Invariant Guarantee",
-            body: "Sync Balance never alters Core Savings Reserve or Flexible Surplus, and under manual-override cycles anchors directly on your set daily operational pool.",
+            body: "Sync Balance never alters Core Savings Reserve or Discretionary funds, and under manual-override cycles anchors directly on your set daily operational pool.",
           },
         ],
       },
@@ -135,7 +135,7 @@ const GUIDE_CONTENT: Record<LocaleCode, LocalizedGuideContent> = {
           },
           {
             heading: "Wishlist Affordability Comparator",
-            body: "Test any saved Wishlist item or custom amount side-by-side across Cash (Flexible Surplus), PayLater (1x/3x/6x), and Credit Card (3x/6x/12x) using before/after cutoff timing to preview resulting Debt-to-Income Ratio.",
+            body: "Test any saved Wishlist item or custom amount side-by-side across Cash (Discretionary), PayLater (1x/3x/6x), and Credit Card (3x/6x/12x) using before/after cutoff timing to preview resulting Debt-to-Income Ratio.",
           },
           {
             heading: "4-Sheet Excel & A4 PDF Statements",
@@ -164,7 +164,7 @@ const GUIDE_CONTENT: Record<LocaleCode, LocalizedGuideContent> = {
       {
         id: "marquee-wizard-radar",
         code: "06",
-        title: "Payday Wizard, Cash Radar & Marquee AI (Alt+M)",
+        title: "Payday & Closing, Cash Calendar & Marquee (Alt+M)",
         summary: "4-step monthly closing checklist, Lowest Cash Point calendar, debt payoff optimizer, and AI assistant.",
         targetHref: "/marquee",
         targetLabel: "Open Marquee AI",
@@ -174,8 +174,8 @@ const GUIDE_CONTENT: Record<LocaleCode, LocalizedGuideContent> = {
             body: "The ERP automatically opens on your earliest open draft cycle, skipping closed cycles. Before payday arrives, Daily Pacing enters PRE_PAYDAY (Day 0 + countdown), transitions to ACTIVE during the window, and settles after cycle end.",
           },
           {
-            heading: "Payday Wizard (/payday-wizard) & Cash Radar (/calendar)",
-            body: "Run the 4-step payday checklist each month to confirm working days, close the prior cycle, settle scheduled bills, and confirm Core Savings deposits. Use Cash Radar to inspect your Lowest Cash Point date before next payday.",
+            heading: "Payday & Closing (/payday-wizard) & Cash Calendar (/calendar)",
+            body: "Run the 4-step payday checklist each month to confirm working days, close the prior cycle, settle scheduled bills, and confirm Core Savings deposits. Use Cash Calendar to inspect your Lowest Cash Point date before next payday.",
           },
           {
             heading: "Marquee AI Co-Pilot (Alt+M) & Webhook",
@@ -339,7 +339,7 @@ const GUIDE_CONTENT: Record<LocaleCode, LocalizedGuideContent> = {
       {
         id: "marquee-wizard-radar",
         code: "06",
-        title: "Ritual Gaji, Radar Kas & Marquee AI (Alt+M)",
+        title: "Hari Gajian & Tutup Siklus, Kalender Arus Kas & Marquee (Alt+M)",
         summary: "Checklist tutup buku 4-langkah, kalender Titik Kas Terendah, prioritas bunga pinjaman, dan asisten AI.",
         targetHref: "/marquee",
         targetLabel: "Buka Marquee AI",
@@ -349,7 +349,7 @@ const GUIDE_CONTENT: Record<LocaleCode, LocalizedGuideContent> = {
             body: "Sistem otomatis membuka siklus DRAFT terawal setelah siklus sebelumnya dikunci. Sebelum gajian tiba status berada pada PRE_PAYDAY, lalu aktif saat siklus berjalan.",
           },
           {
-            heading: "Ritual Gaji (/payday-wizard) & Radar Kas (/calendar)",
+            heading: "Hari Gajian & Tutup Siklus (/payday-wizard) & Kalender Arus Kas (/calendar)",
             body: "Jalankan 4 langkah checklist bulanan untuk memverifikasi hari kerja, mengunci siklus sebelumnya, melunasi tagihan jatuh tempo, dan mengonfirmasi setoran tabungan.",
           },
           {
@@ -514,17 +514,17 @@ const GUIDE_CONTENT: Record<LocaleCode, LocalizedGuideContent> = {
       {
         id: "marquee-wizard-radar",
         code: "06",
-        title: "发薪向导、现金雷达与 Marquee AI 助手 (Alt+M)",
-        summary: "四步发薪结账清单、最低现金点日历与三层确定性财务 AI 助手。",
+        title: "发薪与结账、现金流日历与 Marquee 助手 (Alt+M)",
+        summary: "四步发薪结账清单、最低现金点日历与三层确定性财务助手。",
         targetHref: "/marquee",
-        targetLabel: "打开 Marquee AI",
+        targetLabel: "打开 Marquee",
         blocks: [
           {
             heading: "三态消费节奏与智能默认账期",
             body: "系统自动跳转至最早未锁定的草稿账期，在发薪前展示预备状态与倒计时。",
           },
           {
-            heading: "发薪向导 (/payday-wizard) 与现金雷达 (/calendar)",
+            heading: "发薪与结账 (/payday-wizard) 与现金流日历 (/calendar)",
             body: "每月按四步清单核对出勤天数、结转上一周期、清偿到期账单并确认储蓄划转。",
           },
           {

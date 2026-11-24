@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import {
   Check,
   Loader2,
@@ -27,6 +28,7 @@ import { formatRupiah, formatCurrencyInput } from "@/lib/utils";
 import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { usePeriod } from "@/context/PeriodContext";
+import { usePerspective } from "@/context/PerspectiveContext";
 
 interface AdaptiveDailyPacingCardProps {
   pacing: DailyPacing | null;
@@ -35,10 +37,6 @@ interface AdaptiveDailyPacingCardProps {
   isLocked: boolean;
   totalOperationalBudget: number;
   transactions?: Transaction[];
-}
-
-function formatIdr(amount: number): string {
-  return formatRupiah(amount);
 }
 
 function formatTimestamp(dateStr?: string | Date): string {
@@ -76,21 +74,26 @@ export function AdaptiveDailyPacingCard({
   const { isAmountsMasked } = usePrivacyMask();
   const { t } = useLanguage();
   const { revisionTick } = usePeriod();
+  const { studioConfig } = usePerspective();
   const formatIdr = (amount: number): string => formatRupiah(amount, isAmountsMasked);
+
+  const preferredWeighted =
+    studioConfig?.overviewPreferences?.defaultPacingMode === "WEIGHTED_1_5X";
 
   const remainingRoutineBillsPool =
     pacing?.fixedEssentialsRealization?.totalRemainingPool ?? 0;
   const remainingBudget = Math.max(
     0,
-    pacing?.remainingBudget ?? totalOperationalBudget
+    pacing?.remainingBudget ?? totalOperationalBudget,
   );
   const expectedTotalBankBalance = remainingBudget + remainingRoutineBillsPool;
 
-  const [isWeightedMode, setIsWeightedMode] = useState<boolean>(true);
+  const [isWeightedMode, setIsWeightedMode] = useState<boolean>(preferredWeighted);
+  const [showSyncPanel, setShowSyncPanel] = useState<boolean>(false);
   const [bankBalanceInput, setBankBalanceInput] = useState<string>("");
-  const [checkpointNote, setCheckpointNote] = useState<string>("");
+  const [balanceNote, setBalanceNote] = useState<string>("");
   const [includesRoutineBills, setIncludesRoutineBills] = useState<boolean>(
-    remainingRoutineBillsPool > 0
+    remainingRoutineBillsPool > 0,
   );
   const [isSubmittingSync, setIsSubmittingSync] = useState<boolean>(false);
   const [syncSuccess, setSyncSuccess] = useState<boolean>(false);
@@ -100,8 +103,18 @@ export function AdaptiveDailyPacingCard({
   const [isSavingGuard, setIsSavingGuard] = useState<boolean>(false);
 
   const [undoingTxId, setUndoingTxId] = useState<number | null>(null);
-  const [showAuditTrail, setShowAuditTrail] = useState<boolean>(false);
+  const [showBalanceHistory, setShowBalanceHistory] = useState<boolean>(false);
   const walletInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    setIsWeightedMode(
+      studioConfig?.overviewPreferences?.defaultPacingMode === "WEIGHTED_1_5X",
+    );
+  }, [studioConfig?.overviewPreferences?.defaultPacingMode]);
+
+  useEffect(() => {
+    setIncludesRoutineBills(remainingRoutineBillsPool > 0);
+  }, [remainingRoutineBillsPool]);
 
   useEffect(() => {
     let cancelled = false;
@@ -136,46 +149,37 @@ export function AdaptiveDailyPacingCard({
   const weekdayRate = pacing?.weekdaySafeRate ?? pacing?.safeToSpendToday ?? 0;
   const weekendRate =
     pacing?.weekendSafeRate ?? Math.round((pacing?.safeToSpendToday ?? 0) * 1.5);
-  const rollingEnvelope = pacing?.rollingWeeklyEnvelope ?? displaySafeToday * 7;
 
-  // Spike Detector Logic
-  const isSpike =
+  const isLargeAdjustment =
     balanceDiff !== null &&
     balanceDiff < 0 &&
     displaySafeToday > 0 &&
     Math.abs(balanceDiff) > 2 * displaySafeToday;
 
-  const spikeRatio =
+  const deviationRatio =
     balanceDiff !== null && displaySafeToday > 0
       ? (Math.abs(balanceDiff) / displaySafeToday).toFixed(1)
       : "1.0";
 
-  // Checkpoint Transactions in this Cycle
-  const checkpointTransactions = transactions
+  const balanceHistory = transactions
     .filter(
-      (t) =>
-        t.label?.includes("Balance Checkpoint") ||
-        t.label?.includes("Cash Balance Reconciliation") ||
-        t.label?.includes("Unitemized daily operational spend") ||
-        t.label?.includes("Operational wallet correction") ||
-        t.label?.includes("Operational Balance Correction")
+      (tx) =>
+        tx.label?.includes("Balance Checkpoint") ||
+        tx.label?.includes("Balance Adjustment") ||
+        tx.label?.includes("Cash Balance Reconciliation") ||
+        tx.label?.includes("Unitemized daily operational spend") ||
+        tx.label?.includes("Operational wallet correction") ||
+        tx.label?.includes("Operational Balance Correction"),
     )
     .sort(
       (a, b) =>
         new Date(b.createdAt || b.date).getTime() -
-        new Date(a.createdAt || a.date).getTime()
+        new Date(a.createdAt || a.date).getTime(),
     );
 
-  const spikesCount = checkpointTransactions.filter(
-    (t) =>
-      t.type === "DEDUCTION" &&
-      displaySafeToday > 0 &&
-      t.amount > 2 * displaySafeToday
-  ).length;
-
-  const netUnitemizedBurn = checkpointTransactions.reduce((acc, t) => {
-    if (t.type === "DEDUCTION") return acc + t.amount;
-    if (t.type === "INCOME") return acc - t.amount;
+  const netBalanceAdjustment = balanceHistory.reduce((acc, tx) => {
+    if (tx.type === "DEDUCTION") return acc + tx.amount;
+    if (tx.type === "INCOME") return acc - tx.amount;
     return acc;
   }, 0);
 
@@ -195,12 +199,12 @@ export function AdaptiveDailyPacingCard({
 
     const defaultNote =
       balanceDiff < 0
-        ? isSpike
-          ? `High Burn Spike (${spikeRatio}x daily limit)`
-          : "Unitemized daily operational spend"
-        : "Operational wallet correction";
+        ? isLargeAdjustment
+          ? `Balance Adjustment (${deviationRatio}x daily limit)`
+          : "Unitemized daily spend adjustment"
+        : "Operational balance adjustment";
 
-    const noteToSubmit = checkpointNote.trim() || defaultNote;
+    const noteToSubmit = balanceNote.trim() || defaultNote;
 
     try {
       const res = await executeCashReconciliation({
@@ -220,7 +224,7 @@ export function AdaptiveDailyPacingCard({
 
       setSyncSuccess(true);
       setBankBalanceInput("");
-      setCheckpointNote("");
+      setBalanceNote("");
       setTimeout(() => setSyncSuccess(false), 2500);
     } catch (err: any) {
       setSyncError(err.message || "Failed to synchronize balance");
@@ -229,7 +233,7 @@ export function AdaptiveDailyPacingCard({
     }
   };
 
-  const handleUndoCheckpoint = async (txId: number) => {
+  const handleUndoAdjustment = async (txId: number) => {
     if (isLocked || undoingTxId !== null) return;
 
     setUndoingTxId(txId);
@@ -238,12 +242,12 @@ export function AdaptiveDailyPacingCard({
     try {
       const res = await deleteFinanceTransaction(txId);
       if (!res.success) {
-        setSyncError(res.error || "Failed to undo balance checkpoint");
+        setSyncError(res.error || "Failed to undo balance adjustment");
         setUndoingTxId(null);
         return;
       }
     } catch (err: any) {
-      setSyncError(err.message || "Failed to undo checkpoint");
+      setSyncError(err.message || "Failed to undo balance adjustment");
     } finally {
       setUndoingTxId(null);
     }
@@ -261,11 +265,11 @@ export function AdaptiveDailyPacingCard({
         ? walletGuardStatus?.settlementSummary.bankHoldNeeded ?? remainingRoutineBillsPool
         : 0,
       persist: true,
-      note: checkpointNote.trim() || undefined,
+      note: balanceNote.trim() || undefined,
     });
     setIsSavingGuard(false);
     if (!res) {
-      setSyncError("Failed to save wallet check-in.");
+      setSyncError("Failed to save bank balance check-in.");
       return;
     }
     setWalletGuardStatus(res);
@@ -279,15 +283,11 @@ export function AdaptiveDailyPacingCard({
   const daysUntilStart = pacing?.daysUntilCycleStart ?? 0;
   const paceDeltaRp = pacing?.paceDeltaRp ?? 0;
 
-  // Derived cycle telemetry strictly from existing snapshot/pacing inputs (updates cleanly from both manual spend and wallet balance syncs)
   const cycleDaysTotal = pacing?.daysInCycle ?? 30;
   const elapsedDays = Math.max(1, pacing?.currentDayIndex ?? 1);
   const totalSpentCycle = pacing?.totalDailySpent ?? 0;
   const cycleBudgetTotal = pacing?.totalOperationalBudget ?? totalOperationalBudget ?? 0;
-  const avgDailyBurn = isPrePayday ? 0 : Math.round(totalSpentCycle / elapsedDays);
-  const projectedCycleEndRemaining = isPrePayday
-    ? cycleBudgetTotal
-    : Math.round(cycleBudgetTotal - avgDailyBurn * cycleDaysTotal);
+  const dailyAverageSpend = isPrePayday ? 0 : Math.round(totalSpentCycle / elapsedDays);
   const cycleUsedPct =
     cycleBudgetTotal > 0 ? Math.round((totalSpentCycle / cycleBudgetTotal) * 100) : 0;
   const cycleUsedBarPct = Math.min(100, Math.max(0, cycleUsedPct));
@@ -296,7 +296,7 @@ export function AdaptiveDailyPacingCard({
     : isCompletedCycle
     ? 100
     : Math.min(100, Math.round((elapsedDays / Math.max(1, cycleDaysTotal)) * 100));
-  const isBurnAheadOfSchedule = !isPrePayday && cycleUsedPct > cycleElapsedPct + 2;
+  const isPaceAheadOfSchedule = !isPrePayday && cycleUsedPct > cycleElapsedPct + 2;
   const cyclePaydayFormatted = pacing?.cycleStartDate
     ? new Date(`${pacing.cycleStartDate}T12:00:00Z`).toLocaleDateString("en-GB", {
         day: "numeric",
@@ -328,8 +328,8 @@ export function AdaptiveDailyPacingCard({
 
   return (
     <div className="rounded-lg border border-border bg-surface p-5 flex flex-col justify-between h-full space-y-4">
-      {/* Top Header & Pacing Mode Toggle */}
       <div>
+        {/* Header & Pacing Mode Selector */}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-[11px] font-semibold text-text-tertiary font-sans">
@@ -341,16 +341,16 @@ export function AdaptiveDailyPacingCard({
             </span>
             <span
               className={`whitespace-nowrap text-[10px] font-mono px-2 py-0.5 rounded font-semibold border ${
- isPrePayday
- ?"bg-surface-subtle text-text-secondary border-border"
- : isCompletedCycle
- ?"bg-surface-subtle text-text-tertiary border-border-subtle"
- : statusVariant ==="urgency"
- ?"bg-urgency/15 text-urgency border-urgency/30"
- : statusVariant ==="caution"
- ?"bg-caution/15 text-caution border-caution/30"
- :"bg-positive/15 text-positive border-positive/30"
- }`}
+                isPrePayday
+                  ? "bg-surface-subtle text-text-secondary border-border"
+                  : isCompletedCycle
+                  ? "bg-surface-subtle text-text-tertiary border-border-subtle"
+                  : statusVariant === "urgency"
+                  ? "bg-urgency/15 text-urgency border-urgency/30"
+                  : statusVariant === "caution"
+                  ? "bg-caution/15 text-caution border-caution/30"
+                  : "bg-positive/15 text-positive border-positive/30"
+              }`}
             >
               {statusLabel}
             </span>
@@ -368,19 +368,7 @@ export function AdaptiveDailyPacingCard({
             )}
           </div>
 
-          {/* Mode Switcher */}
           <div className="inline-flex items-center p-0.5 rounded bg-surface-subtle border border-border-subtle text-[10px] font-medium font-sans">
-            <button
-              type="button"
-              onClick={() => setIsWeightedMode(true)}
-              className={`px-2 py-1 rounded transition-colors cursor-pointer ${
-                isWeightedMode
-                  ? "bg-surface-elevated text-text-primary shadow-xs font-semibold"
-                  : "text-text-tertiary hover:text-text-secondary"
-              }`}
-            >
-              Weighted 1.5x
-            </button>
             <button
               type="button"
               onClick={() => setIsWeightedMode(false)}
@@ -392,11 +380,22 @@ export function AdaptiveDailyPacingCard({
             >
               Flat Daily
             </button>
+            <button
+              type="button"
+              onClick={() => setIsWeightedMode(true)}
+              className={`px-2 py-1 rounded transition-colors cursor-pointer ${
+                isWeightedMode
+                  ? "bg-surface-elevated text-text-primary shadow-xs font-semibold"
+                  : "text-text-tertiary hover:text-text-secondary"
+              }`}
+            >
+              Weekend 1.5x
+            </button>
           </div>
         </div>
 
-        {/* Centerpiece Number (Newsreader Serif Display Signature) */}
-        <div className="mt-2">
+        {/* Centerpiece Balance Display */}
+        <div className="mt-2.5">
           <div className="whitespace-nowrap inline-flex items-baseline gap-2">
             <div className="font-serif text-[42px] leading-tight font-normal tracking-tight text-text-primary tabular-nums whitespace-nowrap">
               {isPrePayday
@@ -443,17 +442,16 @@ export function AdaptiveDailyPacingCard({
                 {formatIdr(pacing?.totalDailySpent ?? 0)} spent · Starts{" "}
                 <strong className="text-text-secondary font-mono">{cyclePaydayFormatted || "on payday"}</strong> ·{" "}
                 {t("overview.projectedDailyRate")}:{" "}
-                <strong className="text-text-secondary font-mono">{formatIdr(weekdayRate)}/day</strong> weekday /{" "}
-                <strong className="text-text-secondary font-mono">{formatIdr(weekendRate)}/day</strong> weekend
+                <strong className="text-text-secondary font-mono">{formatIdr(pacing?.baselineDailyRate ?? 0)}/day</strong>
               </span>
             ) : isCompletedCycle ? (
               <span>
-                Final remaining operational balance ({pacing?.daysInCycle ?? 30} of {pacing?.daysInCycle ?? 30} days completed)
+                Final remaining balance ({pacing?.daysInCycle ?? 30} of {pacing?.daysInCycle ?? 30} days completed)
               </span>
             ) : isWeightedMode ? (
               pacing?.isWeekendToday ? (
                 <span>
-                  Sat–Sun rate:{" "}
+                  Sat-Sun allowance:{" "}
                   <strong className="text-text-secondary font-mono">
                     {formatIdr(weekendRate)}/day
                   </strong>{" "}
@@ -461,20 +459,19 @@ export function AdaptiveDailyPacingCard({
                 </span>
               ) : (
                 <span>
-                  Mon–Fri rate:{" "}
+                  Mon-Fri allowance:{" "}
                   <strong className="text-text-secondary font-mono">
                     {formatIdr(weekdayRate)}/day
                   </strong>{" "}
-                  (standard weekday)
+                  (weekday weight)
                 </span>
               )
             ) : (
               <span>
-                Target:{" "}
+                Daily allowance today · Target:{" "}
                 <strong className="text-text-secondary font-mono">
                   {formatIdr(pacing?.baselineDailyRate ?? 0)}/day
-                </strong>{" "}
-                (flat baseline)
+                </strong>
               </span>
             )}
           </div>
@@ -488,45 +485,41 @@ export function AdaptiveDailyPacingCard({
             </span>
             <button
               type="button"
-              onClick={() => walletInputRef.current?.focus()}
+              onClick={() => {
+                setShowSyncPanel(true);
+                setTimeout(() => walletInputRef.current?.focus(), 20);
+              }}
               className="font-mono text-[10px] text-accent hover:underline shrink-0 cursor-pointer"
             >
-              Wallet Check-In -&gt;
+              Update Bank Balance
             </button>
           </div>
         )}
 
-        {/* 3 Runway Metric Strip */}
-        <div className="grid grid-cols-3 divide-x divide-border-subtle border-y border-border-subtle py-2.5 mt-3">
-          <div className="pr-2 min-w-0 overflow-hidden">
-            <span className="text-[11px] text-text-tertiary font-sans block truncate">
-              {t("overview.weekdayRate")}
-            </span>
-            <span className="erp-tabular-currency text-xs font-semibold text-text-primary mt-0.5 flex flex-wrap items-baseline gap-x-0.5 leading-tight">
-              <span>{formatIdr(weekdayRate)}</span>
-              <span className="text-[10px] font-normal text-text-tertiary">{t("overview.perDay")}</span>
-            </span>
-          </div>
+        {/* Optional Weekend Split Strip (shown strictly when Weekend 1.5x mode is active) */}
+        {isWeightedMode && (
+          <div className="grid grid-cols-2 divide-x divide-border-subtle border-y border-border-subtle py-2.5 mt-3">
+            <div className="pr-2 min-w-0 overflow-hidden">
+              <span className="text-[11px] text-text-tertiary font-sans block truncate">
+                {t("overview.weekdayRate")}
+              </span>
+              <span className="erp-tabular-currency text-xs font-semibold text-text-primary mt-0.5 flex flex-wrap items-baseline gap-x-0.5 leading-tight">
+                <span>{formatIdr(weekdayRate)}</span>
+                <span className="text-[10px] font-normal text-text-tertiary">{t("overview.perDay")}</span>
+              </span>
+            </div>
 
-          <div className="px-2 min-w-0 overflow-hidden">
-            <span className="text-[11px] text-text-tertiary font-sans block truncate">
-              {t("overview.weekendRate")}
-            </span>
-            <span className="erp-tabular-currency text-xs font-semibold text-text-primary mt-0.5 flex flex-wrap items-baseline gap-x-0.5 leading-tight">
-              <span>{formatIdr(weekendRate)}</span>
-              <span className="text-[10px] font-normal text-text-tertiary">{t("overview.perDay")}</span>
-            </span>
+            <div className="pl-2 min-w-0 overflow-hidden">
+              <span className="text-[11px] text-text-tertiary font-sans block truncate">
+                {t("overview.weekendRate")}
+              </span>
+              <span className="erp-tabular-currency text-xs font-semibold text-text-primary mt-0.5 flex flex-wrap items-baseline gap-x-0.5 leading-tight">
+                <span>{formatIdr(weekendRate)}</span>
+                <span className="text-[10px] font-normal text-text-tertiary">{t("overview.perDay")}</span>
+              </span>
+            </div>
           </div>
-
-          <div className="pl-2 min-w-0 overflow-hidden">
-            <span className="text-[11px] text-text-tertiary font-sans block truncate">
-              7-Day Runway
-            </span>
-            <span className="erp-tabular-currency text-xs font-semibold text-accent mt-0.5 block truncate">
-              {formatIdr(rollingEnvelope)}
-            </span>
-          </div>
-        </div>
+        )}
 
         {/* MiniTrendChart */}
         <div className="mt-2.5">
@@ -542,7 +535,7 @@ export function AdaptiveDailyPacingCard({
           />
         </div>
 
-        {/* Budget & Spend Summary */}
+        {/* Cycle Spend & Remaining Summary */}
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-sans text-text-secondary pt-1.5">
           <span className="inline-flex items-baseline gap-1 whitespace-nowrap">
             <span>{t("overview.spentLabel")}:</span>
@@ -558,7 +551,7 @@ export function AdaptiveDailyPacingCard({
           </span>
         </div>
 
-        {/* Cycle Pace & Burn Forecast (Works zero-friction with both manual logs and Wallet Sync) */}
+        {/* Cycle Budget Pace & Unsettled Bills */}
         <div
           data-testid="cycle-pace-breakdown"
           className="mt-3.5 pt-3.5 border-t border-border-subtle space-y-2.5"
@@ -583,7 +576,7 @@ export function AdaptiveDailyPacingCard({
                     ? "bg-border-strong"
                     : cycleUsedPct >= 100
                     ? "bg-urgency"
-                    : isBurnAheadOfSchedule
+                    : isPaceAheadOfSchedule
                     ? "bg-caution"
                     : "bg-delta-positive"
                 }`}
@@ -603,12 +596,12 @@ export function AdaptiveDailyPacingCard({
           </div>
 
           <div className="grid grid-cols-2 gap-3 pt-1">
-            <div className="min-w-0">
+            <div className="pr-2 min-w-0 overflow-hidden">
               <span className="text-[11px] text-text-tertiary font-sans block truncate">
                 {t("overview.avgDailyBurn")}
               </span>
               <span className="erp-tabular-currency text-xs font-semibold text-text-primary mt-0.5 flex flex-wrap items-baseline gap-x-0.5 leading-tight">
-                <span>{formatIdr(avgDailyBurn)}</span>
+                <span>{formatIdr(dailyAverageSpend)}</span>
                 <span className="text-[10px] font-normal text-text-tertiary">{t("overview.perDay")}</span>
               </span>
               <span className="text-[10px] font-mono text-text-tertiary truncate block">
@@ -616,84 +609,72 @@ export function AdaptiveDailyPacingCard({
               </span>
             </div>
 
-            <div className="min-w-0 text-right">
+            <div className="min-w-0 text-right overflow-hidden">
               <span className="text-[11px] text-text-tertiary font-sans block truncate">
                 {t("overview.projectedCycleEnd")}
               </span>
               <span
                 className={`erp-tabular-currency text-xs font-semibold mt-0.5 block ${
-                  projectedCycleEndRemaining >= 0 ? "text-delta-positive" : "text-caution"
+                  remainingRoutineBillsPool > 0 ? "text-caution" : "text-delta-positive"
                 }`}
               >
-                {projectedCycleEndRemaining >= 0
-                  ? `+${formatIdr(projectedCycleEndRemaining)}`
-                  : `-${formatIdr(Math.abs(projectedCycleEndRemaining))}`}
+                {remainingRoutineBillsPool > 0
+                  ? formatIdr(remainingRoutineBillsPool)
+                  : "All settled"}
               </span>
               <span className="text-[10px] font-sans text-text-tertiary truncate block">
-                {t("overview.atCurrentPace")}
+                {remainingRoutineBillsPool > 0
+                  ? t("overview.atCurrentPace")
+                  : "no pending routine bills"}
               </span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Wallet & Spendable Cash Reconciliation */}
+      {/* Unified Bank Balance Sync */}
       <div className="pt-3.5 border-t border-border-subtle space-y-2.5">
-        <div className="flex items-center justify-between">
-          <span className="text-[11px] font-semibold text-text-tertiary font-sans">
-            Wallet Reconciliation
-          </span>
-        </div>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="min-w-0">
+            <span className="text-[11px] font-semibold text-text-tertiary font-sans block">
+              {t("overview.checkpointTitle")}
+            </span>
+            <div className="flex flex-wrap items-baseline gap-x-2 mt-0.5">
+              <span className="erp-tabular-currency text-sm font-semibold text-text-primary">
+                {formatIdr(expectedTotalBankBalance)}
+              </span>
+              {remainingRoutineBillsPool > 0 && (
+                <span className="text-[10px] font-sans text-text-tertiary">
+                  includes {formatIdr(remainingRoutineBillsPool)} for bills
+                </span>
+              )}
+            </div>
+          </div>
 
-        {/* Expected Bank Decomposition Strip */}
-        <div className="grid grid-cols-3 divide-x divide-border-subtle py-2 border-y border-border-subtle text-[11px]">
-          <div className="pr-2 min-w-0">
-            <span className="text-text-tertiary block font-sans truncate">Living Cash</span>
-            <span className="erp-tabular-currency font-semibold text-text-primary mt-0.5 block">
-              {formatIdr(remainingBudget)}
-            </span>
-          </div>
-          <div className="px-2 min-w-0">
-            <span className="text-text-tertiary block font-sans truncate">+ Unpaid Bills</span>
-            <span className="erp-tabular-currency font-semibold text-delta-positive mt-0.5 block">
-              {formatIdr(remainingRoutineBillsPool)}
-            </span>
-          </div>
-          <div className="pl-2 text-right min-w-0">
-            <span className="text-text-tertiary block font-sans truncate">Expected Bank</span>
-            <span className="erp-tabular-currency font-semibold text-text-primary mt-0.5 block">
-              {formatIdr(expectedTotalBankBalance)}
-            </span>
+          <div className="flex items-center gap-2 shrink-0">
+            {!isLocked && (
+              <button
+                type="button"
+                onClick={() => {
+                  const next = !showSyncPanel;
+                  setShowSyncPanel(next);
+                  if (next) {
+                    setTimeout(() => walletInputRef.current?.focus(), 20);
+                  }
+                }}
+                className="px-2.5 py-1 rounded text-[11px] font-sans font-medium border border-border bg-canvas text-text-primary hover:bg-surface-hover transition-colors cursor-pointer whitespace-nowrap"
+              >
+                {showSyncPanel ? "Close" : "Update Bank Balance"}
+              </button>
+            )}
+            <Link
+              href="/import"
+              className="text-[11px] font-sans text-text-secondary hover:text-text-primary hover:underline whitespace-nowrap"
+            >
+              Import Statement
+            </Link>
           </div>
         </div>
-
-        {/* Comparison Mode Toggle */}
-        {remainingRoutineBillsPool > 0 && (
-          <div className="grid grid-cols-2 gap-1 p-0.5 rounded bg-surface-subtle border border-border-subtle text-[10px] font-sans">
-            <button
-              type="button"
-              onClick={() => setIncludesRoutineBills(true)}
-              className={`px-2 py-1 rounded transition-colors cursor-pointer truncate ${
-                includesRoutineBills
-                  ? "bg-surface-hover text-text-primary font-medium"
-                  : "text-text-tertiary hover:text-text-secondary"
-              }`}
-            >
-              Total Bank ({formatIdr(expectedTotalBankBalance).replace("Rp ", "")})
-            </button>
-            <button
-              type="button"
-              onClick={() => setIncludesRoutineBills(false)}
-              className={`px-2 py-1 rounded transition-colors cursor-pointer truncate ${
-                !includesRoutineBills
-                  ? "bg-surface-hover text-text-primary font-medium"
-                  : "text-text-tertiary hover:text-text-secondary"
-              }`}
-            >
-              Living Cash Only ({formatIdr(remainingBudget).replace("Rp ", "")})
-            </button>
-          </div>
-        )}
 
         {syncError && (
           <div className="p-2 rounded bg-urgency/10 border border-urgency/30 text-urgency text-[11px]">
@@ -701,76 +682,157 @@ export function AdaptiveDailyPacingCard({
           </div>
         )}
 
-        <div className="flex items-center gap-2">
-          {/* Bank balance input */}
-          <div className="flex-1 min-w-0">
-            <input
-              ref={walletInputRef}
-              type="text"
-              disabled={isLocked || isSubmittingSync}
-              value={bankBalanceInput}
-              onChange={(e) => setBankBalanceInput(formatCurrencyInput(e.target.value))}
-              placeholder={
-                includesRoutineBills ? "Bank Rp" : "Cash Rp"
-              }
-              className={`w-full px-2.5 py-1.5 rounded bg-surface-subtle border font-mono text-xs text-text-primary placeholder:text-text-tertiary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 disabled:opacity-50 ${
-                isSpike
-                  ? "border-caution focus:border-caution"
-                  : "border-border-default focus:border-text-secondary"
-              }`}
-            />
-          </div>
+        {showSyncPanel && (
+          <div className="p-3 rounded border border-border-subtle bg-canvas/50 space-y-2.5">
+            {remainingRoutineBillsPool > 0 && (
+              <div className="grid grid-cols-2 gap-1 p-0.5 rounded bg-surface-subtle border border-border-subtle text-[10px] font-sans">
+                <button
+                  type="button"
+                  onClick={() => setIncludesRoutineBills(true)}
+                  className={`px-2 py-1 rounded transition-colors cursor-pointer truncate ${
+                    includesRoutineBills
+                      ? "bg-surface-hover text-text-primary font-medium"
+                      : "text-text-tertiary hover:text-text-secondary"
+                  }`}
+                >
+                  Total Bank ({formatIdr(expectedTotalBankBalance).replace("Rp ", "")})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIncludesRoutineBills(false)}
+                  className={`px-2 py-1 rounded transition-colors cursor-pointer truncate ${
+                    !includesRoutineBills
+                      ? "bg-surface-hover text-text-primary font-medium"
+                      : "text-text-tertiary hover:text-text-secondary"
+                  }`}
+                >
+                  Spending Only ({formatIdr(remainingBudget).replace("Rp ", "")})
+                </button>
+              </div>
+            )}
 
-          {/* Sync & Wallet Guard Check-In Buttons */}
-          <div className="flex items-center gap-1.5 shrink-0">
-            <button
-              type="button"
-              disabled={isLocked || isSavingGuard || parsedBankBalance === null}
-              onClick={handleSaveWalletCheckIn}
-              title="Persist actual wallet check-in for Survival Guard tracking"
-              className="px-2.5 py-1.5 rounded text-[11px] font-mono border border-border-default bg-canvas text-text-secondary hover:text-text-primary hover:border-text-secondary transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1 whitespace-nowrap shrink-0"
-            >
-              <ShieldCheck className="w-3 h-3" />
-              {isSavingGuard ? "..." : "Guard"}
-            </button>
-            <button
-              type="button"
-              disabled={
-                isLocked ||
-                isSubmittingSync ||
-                parsedBankBalance === null ||
-                balanceDiff === null ||
-                balanceDiff === 0
-              }
-              onClick={handleSyncWallet}
-              className="justify-center px-2.5 py-1.5 rounded text-xs font-medium bg-surface-hover border border-border-default text-text-primary hover:border-text-secondary transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1.5 whitespace-nowrap shrink-0"
-            >
-              {isSubmittingSync ? (
-                <>
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                  Syncing
-                </>
-              ) : syncSuccess ? (
-                <>
-                  <Check className="w-3 h-3 text-delta-positive" />
-                  Synced
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="w-3 h-3" />
-                  {t("overview.syncBalance")}
-                </>
-              )}
-            </button>
-          </div>
-        </div>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 min-w-0">
+                <input
+                  ref={walletInputRef}
+                  type="text"
+                  disabled={isLocked || isSubmittingSync}
+                  value={bankBalanceInput}
+                  onChange={(e) => setBankBalanceInput(formatCurrencyInput(e.target.value))}
+                  placeholder={includesRoutineBills ? "Actual bank balance (Rp)" : "Available spend balance (Rp)"}
+                  className={`w-full px-2.5 py-1.5 rounded bg-surface-subtle border font-mono text-xs text-text-primary placeholder:text-text-tertiary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 disabled:opacity-50 ${
+                    isLargeAdjustment
+                      ? "border-caution focus:border-caution"
+                      : "border-border-default focus:border-text-secondary"
+                  }`}
+                />
+              </div>
 
-        {/* Persisted Real-Time Survival Guard Strip */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  disabled={isLocked || isSavingGuard || parsedBankBalance === null}
+                  onClick={handleSaveWalletCheckIn}
+                  title="Verify bank balance against unpaid cycle bills"
+                  className="px-2.5 py-1.5 rounded text-[11px] font-mono border border-border-default bg-canvas text-text-secondary hover:text-text-primary hover:border-text-secondary transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1 whitespace-nowrap shrink-0"
+                >
+                  <ShieldCheck className="w-3 h-3" />
+                  {isSavingGuard ? "..." : "Check"}
+                </button>
+                <button
+                  type="button"
+                  disabled={
+                    isLocked ||
+                    isSubmittingSync ||
+                    parsedBankBalance === null ||
+                    balanceDiff === null ||
+                    balanceDiff === 0
+                  }
+                  onClick={handleSyncWallet}
+                  className="justify-center px-2.5 py-1.5 rounded text-xs font-medium bg-surface-hover border border-border-default text-text-primary hover:border-text-secondary transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1.5 whitespace-nowrap shrink-0"
+                >
+                  {isSubmittingSync ? (
+                    <>
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      Syncing
+                    </>
+                  ) : syncSuccess ? (
+                    <>
+                      <Check className="w-3 h-3 text-delta-positive" />
+                      Synced
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="w-3 h-3" />
+                      {t("overview.syncBalance")}
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {balanceDiff !== null && effectiveActualCash !== null && (
+              <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] px-2 py-1.5 rounded bg-surface-subtle/60 border border-border-subtle">
+                <span className="font-mono text-text-secondary tabular-nums">
+                  Updated Spending Pool:{" "}
+                  <strong className="text-text-primary">{formatIdr(effectiveActualCash)}</strong>
+                </span>
+                <span
+                  className={`font-mono text-[10px] px-2 py-0.5 rounded font-medium tabular-nums inline-flex items-center gap-1 ${
+                    balanceDiff === 0
+                      ? "bg-delta-positive/10 text-delta-positive border border-delta-positive/30"
+                      : isLargeAdjustment
+                      ? "bg-urgency/15 text-urgency border border-urgency/30"
+                      : balanceDiff < 0
+                      ? "bg-caution/10 text-caution border border-caution/30"
+                      : "bg-delta-positive/10 text-delta-positive border border-delta-positive/30"
+                  }`}
+                >
+                  {balanceDiff === 0 ? (
+                    "Matches ledger (Rp 0 diff)"
+                  ) : isLargeAdjustment ? (
+                    <>
+                      <AlertTriangle className="w-3 h-3" />
+                      Large adjustment ({deviationRatio}x · {formatIdr(balanceDiff)})
+                    </>
+                  ) : balanceDiff < 0 ? (
+                    <>
+                      <ArrowDownRight className="w-3 h-3" />
+                      {formatIdr(balanceDiff)}
+                    </>
+                  ) : (
+                    <>
+                      <ArrowUpRight className="w-3 h-3" />
+                      +{formatIdr(balanceDiff)}
+                    </>
+                  )}
+                </span>
+              </div>
+            )}
+
+            {balanceDiff !== null && balanceDiff !== 0 && (
+              <div>
+                <input
+                  type="text"
+                  value={balanceNote}
+                  onChange={(e) => setBalanceNote(e.target.value)}
+                  placeholder={
+                    balanceDiff < 0
+                      ? "Optional note (e.g. Unlogged coffee, transport, transfer)"
+                      : "Reason for upward adjustment (e.g. Refund, top-up)"
+                  }
+                  className="w-full px-2.5 py-1.5 rounded bg-surface-subtle border border-border text-xs text-text-primary placeholder:text-text-tertiary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-text-secondary"
+                />
+              </div>
+            )}
+          </div>
+        )}
+
         {walletGuardStatus?.guard && (
           <div className="p-2.5 rounded border border-border-subtle bg-canvas/70 space-y-1 text-[11px] font-mono tabular-nums">
             <div className="flex items-center justify-between gap-2">
               <span className="text-text-tertiary">
-                Free Cash: <strong className="text-text-primary">{formatIdr(walletGuardStatus.guard.freeSpendableCash)}</strong>
+                Available After Bills: <strong className="text-text-primary">{formatIdr(walletGuardStatus.guard.freeSpendableCash)}</strong>
               </span>
               <span
                 className={`px-1.5 py-0.5 rounded text-[10px] font-sans font-medium ${
@@ -782,7 +844,7 @@ export function AdaptiveDailyPacingCard({
                 }`}
               >
                 {walletGuardStatus.guard.guardStatus === "SURVIVAL_GUARD"
-                  ? "Survival Guard"
+                  ? "Reserve Tight"
                   : walletGuardStatus.guard.guardStatus === "WATCH"
                     ? "Watch"
                     : "Safe"}
@@ -794,84 +856,21 @@ export function AdaptiveDailyPacingCard({
           </div>
         )}
 
-        {/* Live Variance & Post-Sync Preview */}
-        {balanceDiff !== null && effectiveActualCash !== null && (
-          <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] px-2 py-1.5 rounded bg-surface-subtle/60 border border-border-subtle">
-            <span className="font-mono text-text-secondary tabular-nums">
-              New Living Cash:{" "}
-              <strong className="text-text-primary">{formatIdr(effectiveActualCash)}</strong>
-            </span>
-            <span
-              className={`font-mono text-[10px] px-2 py-0.5 rounded font-medium tabular-nums inline-flex items-center gap-1 ${
-                balanceDiff === 0
-                  ? "bg-delta-positive/10 text-delta-positive border border-delta-positive/30"
-                  : isSpike
-                  ? "bg-urgency/15 text-urgency border border-urgency/30"
-                  : balanceDiff < 0
-                  ? "bg-caution/10 text-caution border border-caution/30"
-                  : "bg-delta-positive/10 text-delta-positive border border-delta-positive/30"
-              }`}
-            >
-              {balanceDiff === 0 ? (
-                "Matches System (Rp 0 diff)"
-              ) : isSpike ? (
-                <>
-                  <AlertTriangle className="w-3 h-3" />
-                  Spike ({spikeRatio}x limit · {formatIdr(balanceDiff)})
-                </>
-              ) : balanceDiff < 0 ? (
-                <>
-                  <ArrowDownRight className="w-3 h-3" />
-                  {formatIdr(balanceDiff)}
-                </>
-              ) : (
-                <>
-                  <ArrowUpRight className="w-3 h-3" />
-                  +{formatIdr(balanceDiff)}
-                </>
-              )}
-            </span>
-          </div>
-        )}
-
-        {/* Context-Aware Note Input for Spike or Correction */}
-        {balanceDiff !== null && balanceDiff !== 0 && (
-          <div className="pt-1">
-            <input
-              type="text"
-              value={checkpointNote}
-              onChange={(e) => setCheckpointNote(e.target.value)}
-              placeholder={
-                isSpike
-                  ? "What caused this spike? (e.g. Futsal, Weekend Hangout, GrabFood)..."
-                  : balanceDiff > 0
-                  ? "Reason for upward adjustment (e.g. Typo fix, Refund, Transfer in)..."
-                  : "Optional note (e.g. Unrecorded coffee / snacks)..."
-              }
-              className={`w-full px-2.5 py-1.5 rounded bg-surface-subtle border text-xs text-text-primary placeholder:text-text-tertiary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 ${
-                isSpike
-                  ? "border-caution focus:border-caution"
-                  : "border-border focus:border-text-secondary"
-              }`}
-            />
-          </div>
-        )}
-
-        {/* Collapsible Checkpoint & Burn Audit Trail */}
+        {/* Collapsible Balance History */}
         <div className="pt-2 border-t border-border-subtle/70">
           <button
             type="button"
-            onClick={() => setShowAuditTrail((prev) => !prev)}
+            onClick={() => setShowBalanceHistory((prev) => !prev)}
             className="w-full flex items-center justify-between text-[11px] text-text-tertiary hover:text-text-secondary transition-colors cursor-pointer py-1"
           >
             <span className="font-sans font-medium">
-              Checkpoint & Burn Audit Trail ({checkpointTransactions.length})
+              Balance History ({balanceHistory.length})
             </span>
             <div className="flex items-center gap-1">
               <span className="font-mono text-[10px]">
-                Burn: {formatIdr(netUnitemizedBurn)}
+                Adjustments: {formatIdr(netBalanceAdjustment)}
               </span>
-              {showAuditTrail ? (
+              {showBalanceHistory ? (
                 <ChevronUp className="w-3.5 h-3.5" />
               ) : (
                 <ChevronDown className="w-3.5 h-3.5" />
@@ -879,29 +878,19 @@ export function AdaptiveDailyPacingCard({
             </div>
           </button>
 
-          {showAuditTrail && (
+          {showBalanceHistory && (
             <div className="mt-2 space-y-2 pt-1 border-t border-border-subtle/50 text-[11px]">
-              <div className="text-[10px] text-text-tertiary font-mono flex items-center justify-between">
-                <span>Checkpoints: {checkpointTransactions.length}</span>
-                <span>Spikes (&gt;2x): {spikesCount}</span>
-                <span>Net Burn: {formatIdr(netUnitemizedBurn)}</span>
-              </div>
-
-              {checkpointTransactions.length === 0 ? (
+              {balanceHistory.length === 0 ? (
                 <div className="text-[11px] text-text-tertiary py-2 text-center font-sans">
-                  No balance checkpoints recorded this cycle.
+                  No balance adjustments recorded this cycle.
                 </div>
               ) : (
                 <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                  {checkpointTransactions.map((tx, idx) => {
-                    const isTxSpike =
-                      tx.type === "DEDUCTION" &&
-                      displaySafeToday > 0 &&
-                      tx.amount > 2 * displaySafeToday;
+                  {balanceHistory.map((tx, idx) => {
                     const cleanNote = tx.label
                       .replace(/^Balance Checkpoint:\s*/i, "")
+                      .replace(/^Balance Adjustment:\s*/i, "")
                       .replace(/^Cash Balance Reconciliation:\s*/i, "");
-
                     const isMostRecent = idx === 0;
 
                     return (
@@ -914,20 +903,8 @@ export function AdaptiveDailyPacingCard({
                             <span className="font-mono text-[10px] text-text-tertiary">
                               {formatTimestamp(tx.createdAt || tx.date)}
                             </span>
-                            <span
-                              className={`text-[9px] font-mono px-1.5 py-0.2 rounded font-medium ${
-                                isTxSpike
-                                  ? "bg-urgency/15 text-urgency border border-urgency/30"
-                                  : tx.type === "DEDUCTION"
-                                  ? "bg-surface text-text-secondary border border-border"
-                                  : "bg-positive/15 text-positive border border-positive/30"
-                              }`}
-                            >
-                              {isTxSpike
-                                ? `Spike (${(tx.amount / (displaySafeToday || 1)).toFixed(1)}x)`
-                                : tx.type === "DEDUCTION"
-                                ? "Normal"
-                                : "Correction"}
+                            <span className="text-[9px] font-mono px-1.5 py-0.2 rounded font-medium bg-surface text-text-secondary border border-border">
+                              {tx.type === "DEDUCTION" ? "Outflow" : "Inflow"}
                             </span>
                           </div>
                           <div className="text-[11px] text-text-primary truncate font-sans mt-0.5">
@@ -951,8 +928,8 @@ export function AdaptiveDailyPacingCard({
                             <button
                               type="button"
                               disabled={undoingTxId === tx.id}
-                              onClick={() => handleUndoCheckpoint(tx.id)}
-                              title="Undo last checkpoint"
+                              onClick={() => handleUndoAdjustment(tx.id)}
+                              title="Undo last adjustment"
                               className="px-1.5 py-0.5 rounded text-[10px] font-mono border border-border hover:border-urgency text-text-tertiary hover:text-urgency transition-colors inline-flex items-center gap-1 cursor-pointer disabled:opacity-40"
                             >
                               {undoingTxId === tx.id ? (

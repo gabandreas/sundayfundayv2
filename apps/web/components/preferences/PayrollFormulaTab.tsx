@@ -1,14 +1,26 @@
 "use strict";
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   GlobalConfig,
+  OverviewPreferencesConfig,
+  PayrollAdjustmentCalcType,
+  PayrollAdjustmentStage,
+  PayrollAdjustmentTemplateDto,
   PayrollComponentRule,
   PayrollFormulaType,
+  ThrConfig,
+  createPayrollTemplateApi,
+  deletePayrollTemplateApi,
+  fetchPayrollTemplatesApi,
   updateGlobalConfig,
+  updatePayrollTemplateApi,
+  updateStudioConfigApi,
 } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
+import { ErpDatePicker } from "@/components/primitives/ErpDatePicker";
+import { useToast } from "@/context/ToastContext";
 
 interface PayrollFormulaTabProps {
   config: GlobalConfig;
@@ -50,10 +62,11 @@ const DEFAULT_PAYROLL_RULES: PayrollComponentRule[] = [
 ];
 
 export function PayrollFormulaTab({ config }: PayrollFormulaTabProps) {
-  const [baseSalary, setBaseSalary] = useState<number>(config.baseSalary || 5891000);
-  const [dailyAllowance, setDailyAllowance] = useState<number>(config.dailyAllowance || 20000);
-  const [laptopAllowance, setLaptopAllowance] = useState<number>(config.laptopAllowance || 250000);
-  const [payrollPayoutDay, setPayrollPayoutDay] = useState<number>(config.payrollPayoutDay || 25);
+  const { toast } = useToast();
+  const [baseSalary, setBaseSalary] = useState<number>(config.baseSalary ?? 0);
+  const [dailyAllowance, setDailyAllowance] = useState<number>(config.dailyAllowance ?? 0);
+  const [laptopAllowance, setLaptopAllowance] = useState<number>(config.laptopAllowance ?? 0);
+  const [payrollPayoutDay, setPayrollPayoutDay] = useState<number>(config.payrollPayoutDay ?? 25);
 
   const initialRules: PayrollComponentRule[] =
     config.payrollRules && config.payrollRules.length > 0
@@ -65,6 +78,64 @@ export function PayrollFormulaTab({ config }: PayrollFormulaTabProps) {
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(
     null
   );
+
+  // Recurring & Direct Payroll Adjustment Templates (PostgreSQL table)
+  const [templates, setTemplates] = useState<PayrollAdjustmentTemplateDto[]>(
+    config.payrollAdjustmentTemplates ?? [],
+  );
+  const [isAddingTpl, setIsAddingTpl] = useState(false);
+  const [tplLabel, setTplLabel] = useState("");
+  const [tplStage, setTplStage] = useState<PayrollAdjustmentStage>("POST_NET_DEDUCTION");
+  const [tplCalcType, setTplCalcType] = useState<PayrollAdjustmentCalcType>("FIXED");
+  const [tplAmount, setTplAmount] = useState<number>(0);
+  const [tplRecurring, setTplRecurring] = useState<boolean>(true);
+  const [tplNotes, setTplNotes] = useState<string>("");
+  const [isMutatingTpl, setIsMutatingTpl] = useState(false);
+
+  // Conditional Holiday Bonus (THR) & Overview Preferences (studioConfig)
+  const existingThr: ThrConfig = config.studioConfig?.thrConfig ?? {
+    enabled: true,
+    label: "THR / Holiday Bonus",
+    payoutMonth: 12,
+    calculationMode: "EXACT_DAYS_365",
+    includeFixedAllowances: false,
+  };
+  const [thrEnabled, setThrEnabled] = useState<boolean>(existingThr.enabled ?? true);
+  const [thrLabel, setThrLabel] = useState<string>(existingThr.label ?? "THR / Holiday Bonus");
+  const [thrPayoutMonth, setThrPayoutMonth] = useState<number>(existingThr.payoutMonth ?? 12);
+  const [thrCalcMode, setThrCalcMode] = useState<NonNullable<ThrConfig["calculationMode"]>>(
+    existingThr.calculationMode ?? "EXACT_DAYS_365",
+  );
+  const [thrJoinDateIso, setThrJoinDateIso] = useState<string>(existingThr.joinDateIso ?? "");
+  const [thrHolidayDateIso, setThrHolidayDateIso] = useState<string>(existingThr.holidayDateIso ?? "");
+  const [thrIncludeFixed, setThrIncludeFixed] = useState<boolean>(
+    existingThr.includeFixedAllowances ?? false,
+  );
+
+  const existingOverviewPrefs: OverviewPreferencesConfig =
+    config.studioConfig?.overviewPreferences ?? {
+      defaultPacingMode: "FLAT",
+      showDiscretionaryCard: true,
+    };
+  const [defaultPacingMode, setDefaultPacingMode] = useState<"FLAT" | "WEIGHTED_1_5X">(
+    existingOverviewPrefs.defaultPacingMode ?? "FLAT",
+  );
+  const [showDiscretionaryCard, setShowDiscretionaryCard] = useState<boolean>(
+    existingOverviewPrefs.showDiscretionaryCard ?? true,
+  );
+  const [isSavingPrefs, setIsSavingPrefs] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    fetchPayrollTemplatesApi().then((list) => {
+      if (active && Array.isArray(list) && list.length > 0) {
+        setTemplates(list);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // New rule form modal/inline
   const [isAddingRule, setIsAddingRule] = useState(false);
@@ -120,20 +191,127 @@ export function PayrollFormulaTab({ config }: PayrollFormulaTabProps) {
         payrollRulesJson: rules,
       });
       if (res.success) {
-        setFeedback({
-          type: "success",
-          message: "Payroll formula configuration saved successfully.",
-        });
+        const msg = "Payroll formula configuration saved successfully.";
+        setFeedback({ type: "success", message: msg });
+        toast({ title: "Payroll Saved", description: msg, variant: "success" });
       } else {
-        setFeedback({
-          type: "error",
-          message: res.error || "Failed to save payroll configuration.",
-        });
+        const err = res.error || "Failed to save payroll configuration.";
+        setFeedback({ type: "error", message: err });
+        toast({ title: "Save Failed", description: err, variant: "error" });
       }
     } catch (e: any) {
-      setFeedback({ type: "error", message: e.message || "Network error" });
+      const err = e.message || "Network error";
+      setFeedback({ type: "error", message: err });
+      toast({ title: "Save Failed", description: err, variant: "error" });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleCreateTemplate = async () => {
+    if (!tplLabel.trim() || isMutatingTpl) return;
+    setIsMutatingTpl(true);
+    const res = await createPayrollTemplateApi({
+      label: tplLabel.trim(),
+      stage: tplStage,
+      calcType: tplCalcType,
+      defaultAmount: Math.max(0, Number(tplAmount) || 0),
+      isRecurring: tplRecurring,
+      isActive: true,
+      notes: tplNotes.trim() || undefined,
+    });
+    setIsMutatingTpl(false);
+    if (res.success && res.data) {
+      setTemplates((prev) => [...prev, res.data!]);
+      setTplLabel("");
+      setTplAmount(0);
+      setTplNotes("");
+      setIsAddingTpl(false);
+      toast({
+        title: "Payroll Template Saved",
+        description: `Created "${res.data.label}".`,
+        variant: "success",
+      });
+    } else {
+      toast({
+        title: "Template Failed",
+        description: res.error || "Failed to create template.",
+        variant: "error",
+      });
+    }
+  };
+
+  const handleToggleTemplateField = async (
+    tpl: PayrollAdjustmentTemplateDto,
+    field: "isActive" | "isRecurring",
+  ) => {
+    if (isMutatingTpl) return;
+    setIsMutatingTpl(true);
+    const nextVal = !tpl[field];
+    const res = await updatePayrollTemplateApi(tpl.id, { [field]: nextVal });
+    setIsMutatingTpl(false);
+    if (res.success && res.data) {
+      setTemplates((prev) => prev.map((item) => (item.id === tpl.id ? res.data! : item)));
+    } else {
+      toast({
+        title: "Update Failed",
+        description: res.error || "Failed to update template.",
+        variant: "error",
+      });
+    }
+  };
+
+  const handleDeleteTemplate = async (tpl: PayrollAdjustmentTemplateDto) => {
+    if (isMutatingTpl) return;
+    setIsMutatingTpl(true);
+    const res = await deletePayrollTemplateApi(tpl.id);
+    setIsMutatingTpl(false);
+    if (res.success) {
+      setTemplates((prev) => prev.filter((item) => item.id !== tpl.id));
+      toast({
+        title: "Template Deleted",
+        description: `Removed "${tpl.label}".`,
+        variant: "info",
+      });
+    } else {
+      toast({
+        title: "Delete Failed",
+        description: res.error || "Failed to delete template.",
+        variant: "error",
+      });
+    }
+  };
+
+  const handleSaveModulePreferences = async () => {
+    setIsSavingPrefs(true);
+    const updated = await updateStudioConfigApi({
+      thrConfig: {
+        enabled: thrEnabled,
+        label: thrLabel.trim() || "THR / Holiday Bonus",
+        payoutMonth: Math.min(12, Math.max(1, Number(thrPayoutMonth) || 12)),
+        calculationMode: thrCalcMode,
+        joinDateIso: thrJoinDateIso.trim() || undefined,
+        holidayDateIso: thrHolidayDateIso.trim() || undefined,
+        includeFixedAllowances: thrIncludeFixed,
+      },
+      overviewPreferences: {
+        defaultPacingMode,
+        showDiscretionaryCard,
+      },
+    });
+    setIsSavingPrefs(false);
+    if (updated) {
+      toast({
+        title: "Preferences Updated",
+        description: "Saved Holiday Bonus (THR) and Overview display settings.",
+        variant: "success",
+      });
+    } else {
+      toast({
+        title: "Save Failed",
+        description: "Unable to save module preferences.",
+        variant: "error",
+      });
     }
   };
 
@@ -403,6 +581,322 @@ export function PayrollFormulaTab({ config }: PayrollFormulaTabProps) {
             className="px-4 py-2 bg-[#282e3d] hover:bg-[#343b4e] text-text-primary font-medium rounded text-xs border border-[#3b4356] transition-colors disabled:opacity-50"
           >
             {isSaving ? "Saving..." : "Save Payroll Formulas"}
+          </button>
+        </div>
+      </div>
+
+      {/* Direct Payroll Deductions & Adjustment Templates */}
+      <div className="rounded-lg border border-[#282e3d] bg-[#161922] p-5 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="text-sm font-semibold text-text-primary tracking-tight">
+              Direct Payroll Deductions &amp; Employer Templates
+            </h2>
+            <p className="text-xs text-text-tertiary mt-0.5">
+              Define recurring salary advance clawbacks, post-net deductions (such as Benefit by GreatDay), or custom employer stipends without changing core code.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsAddingTpl((prev) => !prev)}
+            className="px-2.5 py-1.5 bg-[#1f2430] hover:bg-[#282e3d] text-text-primary rounded text-xs border border-[#282e3d] transition-colors cursor-pointer"
+          >
+            {isAddingTpl ? "Close Form" : "+ Add Direct Deduction Template"}
+          </button>
+        </div>
+
+        {isAddingTpl && (
+          <div className="p-3.5 rounded border border-[#282e3d] bg-[#0c0e14] space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div>
+                <label className="block text-[10px] text-text-tertiary mb-1">Label</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Benefit by GreatDay: Cash Advance Repayment"
+                  value={tplLabel}
+                  onChange={(e) => setTplLabel(e.target.value)}
+                  className="w-full px-2 py-1 bg-[#161922] border border-[#282e3d] rounded text-xs text-text-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] text-text-tertiary mb-1">Payroll Stage</label>
+                <select
+                  value={tplStage}
+                  onChange={(e) => setTplStage(e.target.value as PayrollAdjustmentStage)}
+                  className="w-full px-2 py-1 bg-[#161922] border border-[#282e3d] rounded text-xs text-text-primary"
+                >
+                  <option value="POST_NET_DEDUCTION">Direct Deduction (Post-Net)</option>
+                  <option value="PRE_NET_DEDUCTION">Pre-Net Deduction</option>
+                  <option value="PRE_NET_EARNING">Pre-Net Earning (+)</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] text-text-tertiary mb-1">Calculation Type</label>
+                <select
+                  value={tplCalcType}
+                  onChange={(e) => setTplCalcType(e.target.value as PayrollAdjustmentCalcType)}
+                  className="w-full px-2 py-1 bg-[#161922] border border-[#282e3d] rounded text-xs text-text-primary"
+                >
+                  <option value="FIXED">Fixed Nominal (Rp)</option>
+                  <option value="PERCENT_OF_BASE">% of Base Salary</option>
+                  <option value="PER_WORKING_DAY">Per Working Day</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] text-text-tertiary mb-1">Default Amount / Rate</label>
+                <input
+                  type="number"
+                  value={tplAmount}
+                  onChange={(e) => setTplAmount(Number(e.target.value))}
+                  className="w-full px-2 py-1 bg-[#161922] border border-[#282e3d] rounded text-xs font-mono text-text-primary"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-center">
+              <input
+                type="text"
+                placeholder="Optional note (e.g. Deducted directly before bank transfer)"
+                value={tplNotes}
+                onChange={(e) => setTplNotes(e.target.value)}
+                className="w-full px-2 py-1 bg-[#161922] border border-[#282e3d] rounded text-xs text-text-primary"
+              />
+              <div className="flex items-center justify-between gap-3">
+                <label className="inline-flex items-center gap-2 text-xs text-text-secondary cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={tplRecurring}
+                    onChange={(e) => setTplRecurring(e.target.checked)}
+                    className="rounded border-[#282e3d]"
+                  />
+                  <span>Auto-seed on new draft months</span>
+                </label>
+                <button
+                  type="button"
+                  disabled={isMutatingTpl || !tplLabel.trim()}
+                  onClick={() => void handleCreateTemplate()}
+                  className="px-3 py-1 bg-accent-primary text-[#0c0e14] font-medium rounded text-xs hover:opacity-90 disabled:opacity-40 cursor-pointer"
+                >
+                  Save Template
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {templates.length === 0 ? (
+          <div className="text-xs text-text-tertiary py-3">
+            No custom payroll templates configured yet.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-[#282e3d] text-text-tertiary text-[10px]">
+                  <th className="py-2 px-3">Active</th>
+                  <th className="py-2 px-3">Template Label</th>
+                  <th className="py-2 px-3">Stage</th>
+                  <th className="py-2 px-3">Default</th>
+                  <th className="py-2 px-3">Auto-Seed</th>
+                  <th className="py-2 px-3 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#282e3d]">
+                {templates.map((tpl) => (
+                  <tr key={tpl.id} className={tpl.isActive ? "" : "opacity-50"}>
+                    <td className="py-2.5 px-3">
+                      <button
+                        type="button"
+                        disabled={isMutatingTpl}
+                        onClick={() => void handleToggleTemplateField(tpl, "isActive")}
+                        className={`px-2 py-0.5 rounded text-[10px] font-mono border cursor-pointer ${
+                          tpl.isActive
+                            ? "bg-[#16231c] border-[#204e35] text-[#4ade80]"
+                            : "bg-[#1f2430] border-[#282e3d] text-text-tertiary"
+                        }`}
+                      >
+                        {tpl.isActive ? "Active" : "Paused"}
+                      </button>
+                    </td>
+                    <td className="py-2.5 px-3">
+                      <div className="font-medium text-text-primary">{tpl.label}</div>
+                      {tpl.notes && <div className="text-[10px] text-text-tertiary">{tpl.notes}</div>}
+                    </td>
+                    <td className="py-2.5 px-3 font-mono text-[11px] text-text-secondary">
+                      {tpl.stage === "POST_NET_DEDUCTION"
+                        ? "Direct Deduction (Post-Net)"
+                        : tpl.stage === "PRE_NET_DEDUCTION"
+                          ? "Pre-Net Deduction"
+                          : "Pre-Net Earning"}
+                    </td>
+                    <td className="py-2.5 px-3 font-mono text-text-primary tabular-nums">
+                      {tpl.calcType === "PERCENT_OF_BASE"
+                        ? `${tpl.defaultAmount}%`
+                        : tpl.calcType === "PER_WORKING_DAY"
+                          ? `${formatRupiah(tpl.defaultAmount)}/d`
+                          : formatRupiah(tpl.defaultAmount)}
+                    </td>
+                    <td className="py-2.5 px-3">
+                      <button
+                        type="button"
+                        disabled={isMutatingTpl}
+                        onClick={() => void handleToggleTemplateField(tpl, "isRecurring")}
+                        className="px-2 py-0.5 rounded text-[10px] font-mono border border-[#282e3d] bg-[#0c0e14] text-text-secondary cursor-pointer"
+                      >
+                        {tpl.isRecurring ? "Recurring" : "Manual Only"}
+                      </button>
+                    </td>
+                    <td className="py-2.5 px-3 text-right">
+                      <button
+                        type="button"
+                        disabled={isMutatingTpl}
+                        onClick={() => void handleDeleteTemplate(tpl)}
+                        className="text-rose-400 hover:text-rose-300 text-xs cursor-pointer"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Holiday Bonus (THR) & Overview Preferences */}
+      <div className="rounded-lg border border-[#282e3d] bg-[#161922] p-5 space-y-5">
+        <div>
+          <h2 className="text-sm font-semibold text-text-primary tracking-tight">
+            Seasonal Bonus (THR) &amp; Overview Preferences
+          </h2>
+          <p className="text-xs text-text-tertiary mt-0.5">
+            Control when the holiday bonus estimator appears and choose your default daily pacing display on Overview.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="space-y-2">
+            <label className="inline-flex items-center gap-2 text-xs text-text-primary font-medium cursor-pointer">
+              <input
+                type="checkbox"
+                checked={thrEnabled}
+                onChange={(e) => setThrEnabled(e.target.checked)}
+                className="rounded border-[#282e3d]"
+              />
+              <span>Enable Holiday Bonus (THR) Estimator</span>
+            </label>
+            <input
+              type="text"
+              value={thrLabel}
+              onChange={(e) => setThrLabel(e.target.value)}
+              placeholder="Holiday Bonus (THR)"
+              className="w-full px-2.5 py-1.5 bg-[#0c0e14] border border-[#282e3d] rounded text-xs text-text-primary"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] text-text-tertiary mb-1.5">
+              Expected Payout Month
+            </label>
+            <select
+              value={thrPayoutMonth}
+              onChange={(e) => setThrPayoutMonth(Number(e.target.value))}
+              className="w-full px-2.5 py-1.5 bg-[#0c0e14] border border-[#282e3d] rounded text-xs text-text-primary"
+            >
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((m) => (
+                <option key={m} value={m}>
+                  Month {m}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[11px] text-text-tertiary mb-1.5">
+              Proration Formula Mode
+            </label>
+            <select
+              value={thrCalcMode}
+              onChange={(e) =>
+                setThrCalcMode(e.target.value as NonNullable<ThrConfig["calculationMode"]>)
+              }
+              className="w-full px-2.5 py-1.5 bg-[#0c0e14] border border-[#282e3d] rounded text-xs text-text-primary"
+            >
+              <option value="EXACT_DAYS_365">Exact Service Days / 365</option>
+              <option value="STATUTORY_MONTHS_12">Completed Months / 12</option>
+              <option value="FULL_MONTH">Full 1 Month Base</option>
+              <option value="MANUAL">Manual Entry Only</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+          <div>
+            <label className="block text-[11px] text-text-tertiary mb-1.5">
+              Employment Start Date (Optional)
+            </label>
+            <ErpDatePicker
+              value={thrJoinDateIso}
+              onChange={setThrJoinDateIso}
+              ariaLabel="Employment Start Date"
+            />
+          </div>
+          <div>
+            <label className="block text-[11px] text-text-tertiary mb-1.5">
+              Holiday Cutoff Date (Optional)
+            </label>
+            <ErpDatePicker
+              value={thrHolidayDateIso}
+              onChange={setThrHolidayDateIso}
+              ariaLabel="Holiday Cutoff Date"
+            />
+          </div>
+          <label className="inline-flex items-center gap-2 text-xs text-text-secondary pb-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={thrIncludeFixed}
+              onChange={(e) => setThrIncludeFixed(e.target.checked)}
+              className="rounded border-[#282e3d]"
+            />
+            <span>Include fixed allowances in THR base</span>
+          </label>
+        </div>
+
+        <div className="pt-4 border-t border-[#282e3d] grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+          <div>
+            <label className="block text-[11px] text-text-tertiary mb-1.5">
+              Default Overview Spending Pace Mode
+            </label>
+            <select
+              value={defaultPacingMode}
+              onChange={(e) =>
+                setDefaultPacingMode(e.target.value as "FLAT" | "WEIGHTED_1_5X")
+              }
+              className="w-full px-2.5 py-1.5 bg-[#0c0e14] border border-[#282e3d] rounded text-xs text-text-primary"
+            >
+              <option value="FLAT">Flat Daily Rate (Recommended)</option>
+              <option value="WEIGHTED_1_5X">Weekend 1.5x Split</option>
+            </select>
+          </div>
+          <label className="inline-flex items-center gap-2 text-xs text-text-secondary md:pt-5 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={showDiscretionaryCard}
+              onChange={(e) => setShowDiscretionaryCard(e.target.checked)}
+              className="rounded border-[#282e3d]"
+            />
+            <span>Show Discretionary &amp; Reserve card on Overview</span>
+          </label>
+        </div>
+
+        <div className="flex justify-end">
+          <button
+            type="button"
+            disabled={isSavingPrefs}
+            onClick={() => void handleSaveModulePreferences()}
+            className="px-4 py-2 bg-[#282e3d] hover:bg-[#343b4e] text-text-primary font-medium rounded text-xs border border-[#3b4356] transition-colors disabled:opacity-50 cursor-pointer"
+          >
+            {isSavingPrefs ? "Saving..." : "Save THR & Overview Preferences"}
           </button>
         </div>
       </div>

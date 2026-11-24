@@ -8,6 +8,8 @@ import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 interface PayrollCashflowHighlightsProps {
   finalTotalIncome: number;
   netSalaryIncome: number;
+  bankTakeHomeSalary?: number;
+  directPayrollDeductions?: number;
   extraIncome: number;
   thrAmount?: number;
   bonusAmount?: number;
@@ -18,6 +20,8 @@ interface PayrollCashflowHighlightsProps {
 export function PayrollCashflowHighlights({
   finalTotalIncome,
   netSalaryIncome,
+  bankTakeHomeSalary,
+  directPayrollDeductions = 0,
   extraIncome,
   thrAmount = 0,
   bonusAmount = 0,
@@ -27,37 +31,47 @@ export function PayrollCashflowHighlights({
   const { isAmountsMasked } = usePrivacyMask();
   const supplementalTotal = Math.round((thrAmount || 0) + (bonusAmount || 0) + (extraIncome || 0));
   const hasThrOrBonus = !isStandardMode && (thrAmount > 0 || bonusAmount > 0);
+  const hasDirectDeductions = directPayrollDeductions > 0;
+  const displayedNetTakeHome = bankTakeHomeSalary ?? netSalaryIncome;
 
   return (
     <div className="grid grid-cols-12 gap-4">
       {/* Centerpiece: Final Total Income */}
       <div className={isStandardMode ? "col-span-4" : "col-span-4"}>
         <MetricCard
-          label={isStandardMode ? "Monthly Total Income" : "Final Total Income"}
+          label={isStandardMode ? "Monthly Total Income" : "Total Cycle Inflow"}
           amount={finalTotalIncome}
           value={formatRupiah(finalTotalIncome, isAmountsMasked)}
           hasCurrency={true}
           footer={
             isStandardMode
               ? "Base monthly income + extra inflows"
-              : "Net distributed salary + bonuses + THR + windfall"
+              : "Bank transfer + bonuses + holiday allowance + extra"
           }
           isCenterpiece={true}
           statusVariant="default"
         />
       </div>
 
-      {/* Net Distributed Base */}
+      {/* Transferred to Bank / Slip Net Pay */}
       <div className={isStandardMode ? "col-span-4" : "col-span-3"}>
         <MetricCard
-          label={isStandardMode ? "Base Monthly Income" : "Net Distributed Salary"}
-          amount={netSalaryIncome}
-          value={formatRupiah(netSalaryIncome, isAmountsMasked)}
+          label={
+            isStandardMode
+              ? "Base Monthly Income"
+              : hasDirectDeductions
+                ? "Transferred to Bank"
+                : "Slip Net Pay"
+          }
+          amount={displayedNetTakeHome}
+          value={formatRupiah(displayedNetTakeHome, isAmountsMasked)}
           hasCurrency={true}
           footer={
             isStandardMode
               ? "Recurring fixed base income"
-              : "Base payroll + daily allowances - BPJS"
+              : hasDirectDeductions
+                ? `Slip Net ${formatRupiah(netSalaryIncome, isAmountsMasked)} · -${formatRupiah(directPayrollDeductions, isAmountsMasked)} direct deductions`
+                : "Base salary + allowances - statutory deductions"
           }
           statusVariant="default"
         />

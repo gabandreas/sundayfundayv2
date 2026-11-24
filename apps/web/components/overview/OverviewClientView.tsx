@@ -213,10 +213,10 @@ export function OverviewClientView({
       {/* Compact Shortfall Notice (single-line strip only when deficitUncovered > 0) */}
       <DeficitAlert deficitUncovered={deficitUncovered} month={month} year={year} />
 
-      {/* Subscription Kill-Switch Alert Banner (rendered strictly when action is required) */}
+      {/* Renewal Notice Alert Banner (rendered strictly when action is required) */}
       <SubscriptionKillSwitchBanner initialData={killSwitches} />
 
-      {/* SECTION 1: 3-COLUMN COMMAND COCKPIT OR SIMPLE CLARITY MODE */}
+      {/* SECTION 1: ASYMMETRIC OVERVIEW WORKSPACE */}
       <OverviewDensityWrapper
         snapshot={snapshot}
         pacing={pacing}
@@ -231,9 +231,9 @@ export function OverviewClientView({
             Monthly Budget Overview
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
-            {/* 1. Safe-to-Spend & 10-Second Balance Checkpoint */}
-            <div className="order-1 lg:col-span-4 flex flex-col">
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.22fr)_minmax(0,1fr)_minmax(0,1fr)] gap-5 items-stretch">
+            {/* 1. Spending Balance & Bank Balance Sync */}
+            <div className="order-1 flex flex-col">
               <AdaptiveDailyPacingCard
                 pacing={pacing}
                 month={month}
@@ -248,8 +248,8 @@ export function OverviewClientView({
               />
             </div>
 
-            {/* 2. Record Expense Quick Logger */}
-            <div className="order-2 lg:order-3 lg:col-span-4 flex flex-col">
+            {/* 2. Quick Actions, Savings & Optional Discretionary */}
+            <div className="order-2 lg:order-3 flex flex-col">
               <div className="hidden lg:flex flex-col gap-3">
                 <CoreSavingsCard snapshot={snapshot} isLocked={isLocked} />
                 <SelfRewardBufferCard snapshot={snapshot} isLocked={isLocked} />
@@ -271,7 +271,7 @@ export function OverviewClientView({
             </div>
 
             {/* 3. Routine Bills & Living Pool Quota */}
-            <div className="order-3 lg:order-2 lg:col-span-4 flex flex-col">
+            <div className="order-3 lg:order-2 flex flex-col">
               <RoutineBillsQuotaCard
                 snapshot={snapshot}
                 pacing={pacing}

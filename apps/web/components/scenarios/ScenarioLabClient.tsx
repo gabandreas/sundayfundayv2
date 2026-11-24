@@ -233,7 +233,7 @@ export function ScenarioLabClient({
               onClick={() => applyPreset("shock")}
               className="erp-btn-secondary px-2.5 py-1.5 rounded text-xs font-medium cursor-pointer"
             >
-              +15% Burn Shock
+              +15% Expense Shock
             </button>
             <button
               type="button"

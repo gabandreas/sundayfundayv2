@@ -22,7 +22,7 @@ export function CoreSavingsCard({ snapshot, isLocked }: CoreSavingsCardProps) {
   const { studioConfig } = usePerspective();
   const { toast } = useToast();
   const savingsTierLabel = resolvePriorityTierLabel(studioConfig, "SAVINGS", "Core Savings");
-  const surplusTierLabel = resolvePriorityTierLabel(studioConfig, "DISCRETIONARY", "Flexible Surplus");
+  const surplusTierLabel = resolvePriorityTierLabel(studioConfig, "DISCRETIONARY", "Discretionary");
   const actualSavings = snapshot?.actualSavings ?? 0;
   const targetSavings = snapshot?.savings ?? 0;
   const progressPercent =
@@ -228,7 +228,7 @@ export function CoreSavingsCard({ snapshot, isLocked }: CoreSavingsCardProps) {
                     className="w-full bg-surface-subtle border border-border rounded px-2 py-1.5 text-xs font-mono text-text-primary"
                   >
                     <option value="SELF_REWARD">{surplusTierLabel}</option>
-                    <option value="LIVING_CASH">Daily Living Cash</option>
+                    <option value="LIVING_CASH">Daily Spending Pool</option>
                   </select>
                 </div>
 

@@ -98,7 +98,7 @@ const COPY = {
     subtitle:
       "Consolidated ledger of recurring card subscriptions, one-off AI and software charges, routine category envelopes, and billing cycle cutoffs.",
     addAction: "Add Charge / Subscription",
-    killSwitchLink: "Kill-Switch & SMTP Panel",
+    killSwitchLink: "Renewal Alerts & SMTP",
     monthlyRecurringLabel: "Active Monthly Recurring",
     monthlyRecurringSub: "CC recurring + fixed routine envelopes",
     annualizedLabel: "Annualized Run-Rate",
@@ -114,7 +114,7 @@ const COPY = {
     colMode: "Mode",
     colBilling: "Billing Period",
     colAmount: "Amount",
-    colKillSwitch: "Kill-Switch Guard",
+    colKillSwitch: "Renewal Guard",
     colAction: "Control",
     routineHeading: "Fixed Monthly Routine Envelopes",
     routineManage: "Edit Routine Quotas",
@@ -125,7 +125,7 @@ const COPY = {
     subtitle:
       "Daftar terpusat untuk langganan kartu kredit rutin, tagihan AI/digital sekali bayar, kuota rutin bulanan, dan jadwal tanggal cetak tagihan.",
     addAction: "Tambah Tagihan / Langganan",
-    killSwitchLink: "Panel Kill-Switch & SMTP",
+    killSwitchLink: "Panel Pengingat & SMTP",
     monthlyRecurringLabel: "Beban Rutin Bulanan Aktif",
     monthlyRecurringSub: "Langganan KK aktif + kuota rutin tetap",
     annualizedLabel: "Proyeksi Tahunan (12 Bulan)",
@@ -141,7 +141,7 @@ const COPY = {
     colMode: "Tipe",
     colBilling: "Periode Tagihan",
     colAmount: "Nominal",
-    colKillSwitch: "Penjaga Kill-Switch",
+    colKillSwitch: "Pengingat Perpanjangan",
     colAction: "Kontrol",
     routineHeading: "Amplop Kuota Rutin Bulanan",
     routineManage: "Ubah Kuota Rutin",
@@ -152,7 +152,7 @@ const COPY = {
     subtitle:
       "é›†ä¸­ç®¡ç†ä¿¡ç”¨å¡å®šæœŸè®¢é˜…ã€ä¸€æ¬¡æ€§ AI ä¸Žæ•°å­—æœåŠ¡è´¦å•ã€æ¯æœˆå›ºå®šä¾‹è¡Œé¢åº¦ä»¥åŠè´¦å•æ—¥ä¸Žè¿˜æ¬¾æ—¥å€’è®¡æ—¶ã€‚",
     addAction: "æ–°å¢žè´¦å• / è®¢é˜…",
-    killSwitchLink: "Kill-Switch ä¸Žé‚®ä»¶é¢æ¿",
+    killSwitchLink: "续费提醒与邮件面板",
     monthlyRecurringLabel: "å½“å‰æ¯æœˆå›ºå®šä¸Žè®¢é˜…æ”¯å‡º",
     monthlyRecurringSub: "æ´»è·ƒä¿¡ç”¨å¡è®¢é˜… + ä¾‹è¡Œå›ºå®šé¢åº¦",
     annualizedLabel: "å¹´åº¦é¢„æµ‹æ”¯å‡º (12ä¸ªæœˆ)",
@@ -168,7 +168,7 @@ const COPY = {
     colMode: "æ¨¡å¼",
     colBilling: "è´¦å•å‘¨æœŸ",
     colAmount: "é‡‘é¢",
-    colKillSwitch: "Kill-Switch é¢„è­¦",
+    colKillSwitch: "续费提醒",
     colAction: "æ“ä½œ",
     routineHeading: "æ¯æœˆå›ºå®šä¾‹è¡Œé¢„ç®—é¢åº¦",
     routineManage: "ç¼–è¾‘ä¾‹è¡Œé¢åº¦",
@@ -514,7 +514,7 @@ export function SubscriptionsStudio({
       return;
     }
     if (formChargeType === "RECURRING" && armKillSwitch && !promoEndDate) {
-      setFormError("Promo end date is required when arming a Kill-Switch guard.");
+      setFormError("Promo end date is required when setting a renewal alert.");
       return;
     }
 
@@ -673,7 +673,7 @@ export function SubscriptionsStudio({
           </div>
         </section>
 
-        {/* Card C: Billing Cutoff Countdowns & Kill-Switch Exposure */}
+        {/* Card C: Billing Cutoff Countdowns & Renewal Alert Exposure */}
         <section className="col-span-3 rounded-lg border border-border bg-surface p-5 flex flex-col justify-between">
           <div>
             <div className="text-[11px] font-mono text-text-tertiary">
@@ -1116,7 +1116,7 @@ export function SubscriptionsStudio({
                   checked={armKillSwitch}
                   onChange={(e) => setArmKillSwitch(e.target.checked)}
                 />
-                Arm Promo Kill-Switch Deadline Guard
+                Set Promo Renewal Alert Deadline
               </label>
 
               {armKillSwitch && (

@@ -16,7 +16,7 @@ import {
   RebalanceSavingsDto,
   SavingsTransactionType,
 } from './dto/create-savings-transaction.dto';
-import { formatPeriodVaultLabel } from './savings.utils';
+import { formatPeriodVaultLabel, extractPeriodTagFromLabel } from './savings.utils';
 import { getPayrollPeriodForDate } from '../calculator/pacing';
 import { resolveStudioConfig, SavingsPocketConfig } from '../config/studio.defaults';
 import { SaveSavingsPocketsDto } from './dto/savings-pockets.dto';
@@ -193,13 +193,45 @@ export class SavingsService {
       throw new BadRequestException('Deposit amount must be greater than Rp 0');
     }
 
-    const instrumentType =
+    const existingTxs = await this.prisma.savingsManualTransaction.findMany({
+      where: { userId },
+      orderBy: { id: 'asc' },
+    });
+    const periodMatches = existingTxs.filter((tx) => {
+      if ((tx.amount ?? 0) <= 0) return false;
+      const tag = extractPeriodTagFromLabel(tx.label);
+      return tag?.month === month && tag?.year === year;
+    });
+    const confirmedSum = periodMatches.reduce(
+      (sum, tx) => sum + Math.round(Number(tx.amount) || 0),
+      0,
+    );
+    if (periodMatches.length > 0 && confirmedSum >= Math.round(dto.amount)) {
+      const latest = periodMatches[periodMatches.length - 1];
+      return {
+        ...latest,
+        alreadyConfirmed: true,
+        confirmedAmount: confirmedSum,
+        transaction: latest,
+      };
+    }
+
+    const cfg = this.prisma.globalConfig
+      ? await this.prisma.globalConfig.findFirst({ where: { userId } })
+      : null;
+    const studioCfg = resolveStudioConfig(userId, cfg?.formulaParamsJson, cfg);
+    const requestedInstrument =
       dto.instrumentType ??
       (dto.destination === 'INVESTMENT_RDPU'
         ? SavingsInstrumentType.INVESTMENT_RDPU
         : SavingsInstrumentType.LIQUID_CASH);
+    const instrumentType =
+      requestedInstrument === SavingsInstrumentType.INVESTMENT_RDPU &&
+      studioCfg.enableExternalAssetPortfolio
+        ? SavingsInstrumentType.INVESTMENT_RDPU
+        : SavingsInstrumentType.LIQUID_CASH;
 
-    return this.createTransaction(
+    const created = await this.createTransaction(
       {
         type: SavingsTransactionType.TOPUP,
         amount: dto.amount,
@@ -211,6 +243,13 @@ export class SavingsService {
       },
       userId,
     );
+
+    return {
+      ...created,
+      alreadyConfirmed: false,
+      confirmedAmount: created.amount,
+      transaction: created,
+    };
   }
 
   // -------------------------------------------------------------------------

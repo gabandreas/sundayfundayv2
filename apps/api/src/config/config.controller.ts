@@ -16,6 +16,10 @@ import { UpsertGlobalConfigDto } from './dto/upsert-global-config.dto';
 import { SimulateRulesDto } from './dto/simulate-rules.dto';
 import { CreateCustomRequestDto } from './dto/create-custom-request.dto';
 import { UpdateCustomRequestDto } from './dto/update-custom-request.dto';
+import {
+  CreatePayrollTemplateDto,
+  UpdatePayrollTemplateDto,
+} from './dto/payroll-template.dto';
 import { getUserIdOrThrow } from '../auth/auth.utils';
 import { PlatformOwnerGuard } from '../auth/roles.guard';
 
@@ -140,5 +144,43 @@ export class ConfigController {
   removeRoutineCategory(@Param('id') id: string, @Req() req?: any) {
     const userId = getUserIdOrThrow(req);
     return this.configService.removeRoutineCategory(id, userId);
+  }
+
+  // ─────────────────────────────────────────────
+  // Modular Payroll Adjustment Templates
+  // ─────────────────────────────────────────────
+
+  @Get('payroll-templates')
+  listPayrollTemplates(@Req() req?: any) {
+    const userId = getUserIdOrThrow(req);
+    return this.configService.listPayrollTemplates(userId);
+  }
+
+  @Post('payroll-templates')
+  createPayrollTemplate(
+    @Body() dto: CreatePayrollTemplateDto,
+    @Req() req?: any,
+  ) {
+    const userId = getUserIdOrThrow(req);
+    return this.configService.createPayrollTemplate(dto, userId);
+  }
+
+  @Patch('payroll-templates/:id')
+  updatePayrollTemplate(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdatePayrollTemplateDto,
+    @Req() req?: any,
+  ) {
+    const userId = getUserIdOrThrow(req);
+    return this.configService.updatePayrollTemplate(id, dto, userId);
+  }
+
+  @Delete('payroll-templates/:id')
+  deletePayrollTemplate(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req?: any,
+  ) {
+    const userId = getUserIdOrThrow(req);
+    return this.configService.deletePayrollTemplate(id, userId);
   }
 }

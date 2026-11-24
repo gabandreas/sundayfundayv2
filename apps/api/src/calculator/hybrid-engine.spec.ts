@@ -441,6 +441,27 @@ describe('Hybrid Engine (Go <-> TypeScript Parity & Financial Precision)', () =>
     expect(lrcGo.rows[1].targetPeriodCode).toBe('11/2026');
     expect(lrcGo.rows[1].advancedFromLocked).toBe(true);
 
+    // KlikBCA RFC-4180 CSV + CR skip + account masking parity between Go and TS
+    const klikBcaReq = {
+      defaultMethod: 'CASH',
+      anchorDay: 27,
+      defaultYear: 2026,
+      rawText: [
+        'No. Rekening,"1234567890"',
+        'Tanggal Transaksi,Keterangan,Cabang,Jumlah,Saldo',
+        '\'18/11,"TRSF E-BANKING DB\n18/11 QRIS KOPI KENANGAN REK 9955278221",0000,"48,000.00 DB","1,250,000.00"',
+        '\'25/11,"TRSF E-BANKING CR 25/11 GAJI PERMATA",0000,"5,543,500.00 CR","6,793,500.00"',
+        'Saldo Akhir,"6,793,500.00"',
+      ].join('\n'),
+    };
+    const { engineSource: kbSrc, ...kbGo } = await bridge.parseStatementBatch(klikBcaReq);
+    expect(kbSrc).toBe('GO_BINARY');
+    expect(kbGo).toEqual(parseStatementBatchTs(klikBcaReq));
+    expect(kbGo.parsedCount).toBe(1);
+    expect(kbGo.skippedCreditCount).toBe(1);
+    expect(kbGo.rows[0].amountRp).toBe(48000);
+    expect(kbGo.rows[0].description).not.toContain('9955278221');
+
     // Same-month banking clamp on Feb 2027 corporate payroll (Feb 25 Thu + 2 wd clamps inside Feb -> Fri Feb 26, not Mar 01)
     const febClampReq = {
       month: 2,

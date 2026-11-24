@@ -1,8 +1,10 @@
 import React from "react";
 import {
   fetchDefaultActivePeriod,
+  fetchGlobalConfig,
   fetchLineItems,
   fetchPayroll,
+  fetchSavingsOverview,
   fetchSnapshot,
 } from "@/lib/api";
 import { getDefaultPayrollPeriod } from "@/lib/utils";
@@ -30,11 +32,13 @@ export default async function PaydayWizardPage({ searchParams }: PaydayWizardPag
 
   const prev = getPreviousPeriod(month, year);
 
-  const [snapshot, prevSnapshot, payroll, lineItems] = await Promise.all([
+  const [snapshot, prevSnapshot, payroll, lineItems, savingsOverview, config] = await Promise.all([
     fetchSnapshot(month, year),
     fetchSnapshot(prev.month, prev.year),
     fetchPayroll(month, year),
     fetchLineItems({ month, year }),
+    fetchSavingsOverview(),
+    fetchGlobalConfig(),
   ]);
 
   return (
@@ -46,6 +50,8 @@ export default async function PaydayWizardPage({ searchParams }: PaydayWizardPag
         prevSnapshot,
         payroll,
         lineItems: Array.isArray(lineItems) ? lineItems : [],
+        savingsOverview,
+        config,
       }}
     />
   );

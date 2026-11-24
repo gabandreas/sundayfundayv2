@@ -86,12 +86,12 @@ async function main() {
     assert.equal(Math.round(novPacing.totalDailySpent), 1620316, '11/2026 pacing totalDailySpent must be 1,620,316 (with Nov 22 Rp 140k + Nov 23 Rp 60k cash syncs)');
     assert.equal(Math.round(novPacing.remainingBudget), 100000, '11/2026 pacing remainingBudget must be Rp 100,000');
 
-    // Upcoming period (22 Nov 2026): 12/2026 (27 Nov – 27 Dec 2026, PRE_PAYDAY Day 0, starts in 5 days) with Natal THR H-7 Dec 18
-    assert.equal(Math.round(dec26?.finalTotalIncome ?? -1), 9737425, '12/2026 finalTotalIncome (Salary + Natal THR 3,833,425) must be 9,737,425');
+    // Upcoming period (22 Nov 2026): 12/2026 (27 Nov – 27 Dec 2026, PRE_PAYDAY Day 0, starts in 5 days) with Natal THR H-7 Dec 18 & Nov 25 Benefit EWA (-Rp 360.500)
+    assert.equal(Math.round(dec26?.finalTotalIncome ?? -1), 9376925, '12/2026 finalTotalIncome (Bank Salary 5,543,500 + Natal THR 3,833,425) must be 9,376,925');
     assert.equal(Math.round(dec26?.totalDeductions ?? -1), 4189341, '12/2026 Total Debt (with Nov 23 Americano & Dunhill Rp 52k + Cigar Rp 27k routed to 12/2026) must be 4,189,341');
     assert.equal(Math.round(dec26?.actualDailyOperational ?? -1), 1500000, '12/2026 actualDailyOperational must be 1,500,000');
     assert.equal(Math.round(dec26?.actualSavings ?? -1), 1000000, '12/2026 P1 must be 1,000,000 funded with Natal THR');
-    assert.equal(Math.round(dec26?.selfReward ?? -1), 2748084, '12/2026 P2 must be 2,748,084');
+    assert.equal(Math.round(dec26?.selfReward ?? -1), 2387584, '12/2026 P2 must be 2,387,584');
     assert.equal(Math.round(dec26?.deficitUncovered ?? -1), 0, '12/2026 deficitUncovered must be 0 with Natal THR');
 
     const decPacing = await financeSelectors.getPacing(
@@ -284,13 +284,13 @@ async function main() {
     assert.equal(creditDec.isSafeCeilingExceeded, false, '12/2026 isSafeCeilingExceeded must be false with Natal THR & CC #31 deleted');
     assert.equal(
       creditDec.ceilingBreakdown.recommendedSafeCombinedCeiling,
-      7267455,
-      `12/2026 Safe Ceiling must be Rp 7,267,455, got ${creditDec.ceilingBreakdown.recommendedSafeCombinedCeiling}`,
+      6906955,
+      `12/2026 Safe Ceiling must be Rp 6,906,955, got ${creditDec.ceilingBreakdown.recommendedSafeCombinedCeiling}`,
     );
     assert.equal(creditDec.maturityMonth, 12, '12/2026 credit usage card must map directly to 12/2026 maturity');
     assert.equal(creditDec.maturityYear, 2026, '12/2026 credit usage maturity year must be 2026');
     console.log(
-      `  PASS: 12/2026 Safe Ceiling = Rp 7,267,455, isSafeCeilingExceeded = ${creditDec.isSafeCeilingExceeded}, Maturity = 12/2026.`,
+      `  PASS: 12/2026 Safe Ceiling = Rp 6,906,955, isSafeCeilingExceeded = ${creditDec.isSafeCeilingExceeded}, Maturity = 12/2026.`,
     );
 
     // 6. Verify Debt Optimizer excludes P1_VAULT_REFUND & matches exact SPinjam unlocks
@@ -363,7 +363,7 @@ async function main() {
       1,
     );
     assert.equal(formulaRes.evaluation.allValid, true);
-    assert.equal(formulaRes.evaluation.results.tenPctIncome.valueRp, 973743);
+    assert.equal(formulaRes.evaluation.results.tenPctIncome.valueRp, 937693);
     console.log('  PASS: Reconciler locks 10/2026 safely into 11/2026 & Formula DSL evaluates accurately.');
 
     // 9. Verify Dynamic Milestone Progression in 03/2027 (SPINJAM_ZERO -> PAYLATER_INSTALLMENTS_ZERO)
@@ -457,8 +457,8 @@ async function main() {
     );
     assert.equal(
       timelineDec26.baseline.paycheckAmount + timelineDec26.baseline.thrAmount,
-      9737425,
-      `12/2026 combined Salary + Natal THR must equal 9,737,425 without double counting, got ${timelineDec26.baseline.paycheckAmount} + ${timelineDec26.baseline.thrAmount}`,
+      9376925,
+      `12/2026 combined Bank Paycheck + Natal THR must equal 9,376,925 without double counting, got ${timelineDec26.baseline.paycheckAmount} + ${timelineDec26.baseline.thrAmount}`,
     );
     const timelineJan27 = await financeSelectors.simulateTimelineForUser(
       { month: 1, year: 2027 },
@@ -469,7 +469,7 @@ async function main() {
       5941000,
       `01/2027 Salary (THR moved to 12/2026) must equal 5,941,000, got ${timelineJan27.baseline.paycheckAmount} + ${timelineJan27.baseline.thrAmount}`,
     );
-    console.log('  PASS: 02/2027 funding payday = 2027-01-27, 12/2026 timeline inflows = Rp 9,737,425, 01/2027 = Rp 5,941,000.');
+    console.log('  PASS: 02/2027 funding payday = 2027-01-27, 12/2026 timeline inflows = Rp 9,376,925, 01/2027 = Rp 5,941,000.');
 
     console.log('\n=== ALL 11 ZERO-DEFECT VERIFICATION CHECKS PASSED ===');
   } finally {

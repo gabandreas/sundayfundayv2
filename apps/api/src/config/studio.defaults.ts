@@ -151,6 +151,21 @@ export interface PrivacyPreferencesConfig {
   requirePasswordToReveal: boolean;
 }
 
+export interface ThrConfig {
+  enabled: boolean;
+  label: string;
+  joinDateIso: string;
+  holidayDateIso: string;
+  payoutMonth: number;
+  calculationMode: 'FULL_BASE' | 'PRORATED_CALENDAR_DAYS' | 'PRORATED_MONTHS' | 'CUSTOM';
+  includeFixedAllowances: boolean;
+}
+
+export interface OverviewPreferencesConfig {
+  defaultPacingMode: 'FLAT' | 'WEIGHTED_1_5X';
+  showDiscretionaryCard: boolean;
+}
+
 export interface ModularStudioConfig {
   enableExternalAssetPortfolio: boolean;
   actualP1VaultBalanceRp?: number | null;
@@ -163,6 +178,8 @@ export interface ModularStudioConfig {
   savingsPockets: SavingsPocketConfig[];
   displayPreferences: DisplayPreferencesConfig;
   privacyPreferences: PrivacyPreferencesConfig;
+  thrConfig: ThrConfig;
+  overviewPreferences: OverviewPreferencesConfig;
 }
 
 const FABRICATED_U1_ASSET_IDS = new Set([
@@ -632,7 +649,7 @@ export function buildDefaultStudioConfig(
       },
       {
         key: 'DISCRETIONARY',
-        label: 'Flexible Surplus',
+        label: 'Discretionary',
         order: 2,
         enabled: true,
       },
@@ -675,6 +692,19 @@ export function buildDefaultStudioConfig(
     privacyPreferences: {
       maskBalancesByDefault: true,
       requirePasswordToReveal: true,
+    },
+    thrConfig: {
+      enabled: isBespokeOwner,
+      label: 'THR & Religious Holiday Bonus',
+      joinDateIso: isBespokeOwner ? '2026-04-06' : '',
+      holidayDateIso: isBespokeOwner ? '2026-12-25' : '',
+      payoutMonth: 12,
+      calculationMode: 'PRORATED_CALENDAR_DAYS',
+      includeFixedAllowances: false,
+    },
+    overviewPreferences: {
+      defaultPacingMode: 'FLAT',
+      showDiscretionaryCard: true,
     },
   };
 }
@@ -887,6 +917,48 @@ export function resolveStudioConfig(
         typeof raw?.privacyPreferences?.requirePasswordToReveal === 'boolean'
           ? raw.privacyPreferences.requirePasswordToReveal
           : defaults.privacyPreferences.requirePasswordToReveal,
+    },
+    thrConfig: {
+      enabled:
+        typeof raw?.thrConfig?.enabled === 'boolean'
+          ? raw.thrConfig.enabled
+          : defaults.thrConfig.enabled,
+      label: String(raw?.thrConfig?.label || defaults.thrConfig.label),
+      joinDateIso:
+        typeof raw?.thrConfig?.joinDateIso === 'string'
+          ? raw.thrConfig.joinDateIso
+          : defaults.thrConfig.joinDateIso,
+      holidayDateIso:
+        typeof raw?.thrConfig?.holidayDateIso === 'string'
+          ? raw.thrConfig.holidayDateIso
+          : defaults.thrConfig.holidayDateIso,
+      payoutMonth:
+        Number.isFinite(Number(raw?.thrConfig?.payoutMonth)) &&
+        Number(raw.thrConfig.payoutMonth) >= 1 &&
+        Number(raw.thrConfig.payoutMonth) <= 12
+          ? Math.round(Number(raw.thrConfig.payoutMonth))
+          : defaults.thrConfig.payoutMonth,
+      calculationMode:
+        raw?.thrConfig?.calculationMode === 'FULL_BASE' ||
+        raw?.thrConfig?.calculationMode === 'PRORATED_CALENDAR_DAYS' ||
+        raw?.thrConfig?.calculationMode === 'PRORATED_MONTHS' ||
+        raw?.thrConfig?.calculationMode === 'CUSTOM'
+          ? raw.thrConfig.calculationMode
+          : defaults.thrConfig.calculationMode,
+      includeFixedAllowances:
+        typeof raw?.thrConfig?.includeFixedAllowances === 'boolean'
+          ? raw.thrConfig.includeFixedAllowances
+          : defaults.thrConfig.includeFixedAllowances,
+    },
+    overviewPreferences: {
+      defaultPacingMode:
+        raw?.overviewPreferences?.defaultPacingMode === 'WEIGHTED_1_5X'
+          ? 'WEIGHTED_1_5X'
+          : defaults.overviewPreferences.defaultPacingMode,
+      showDiscretionaryCard:
+        typeof raw?.overviewPreferences?.showDiscretionaryCard === 'boolean'
+          ? raw.overviewPreferences.showDiscretionaryCard
+          : defaults.overviewPreferences.showDiscretionaryCard,
     },
   };
 }

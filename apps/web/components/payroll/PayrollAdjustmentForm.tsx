@@ -1,10 +1,19 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Check } from "lucide-react";
-import { updateSnapshot } from "@/lib/api";
+import { Check, Plus, Trash2 } from "lucide-react";
+import {
+  PayrollAdjustmentStage,
+  PayrollAdjustmentTemplateDto,
+  PayrollPeriodAdjustmentDto,
+  ThrConfig,
+  addSnapshotPayrollAdjustmentApi,
+  deleteSnapshotPayrollAdjustmentApi,
+  updateSnapshot,
+} from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
 import { ErpDatePicker } from "@/components/primitives/ErpDatePicker";
+import { useToast } from "@/context/ToastContext";
 
 interface PayrollAdjustmentFormProps {
   snapshotId: number;
@@ -19,9 +28,19 @@ interface PayrollAdjustmentFormProps {
   initialThrAmount?: number;
   baseSalary?: number;
   initialPayrollPayoutDate?: string | null;
+  thrConfig?: ThrConfig | null;
+  templates?: PayrollAdjustmentTemplateDto[];
+  periodAdjustments?: PayrollPeriodAdjustmentDto[];
+  onAdjusted?: () => void;
 }
 
 type ThrMode = "NO_THR" | "PRORATED" | "FULL_THR" | "CUSTOM";
+
+const STAGE_BADGE_LABELS: Record<PayrollAdjustmentStage, string> = {
+  POST_NET_DEDUCTION: "Direct Deduction (Post-Net)",
+  PRE_NET_DEDUCTION: "Pre-Net Deduction",
+  PRE_NET_EARNING: "Pre-Net Earning",
+};
 
 export function PayrollAdjustmentForm({
   snapshotId,
@@ -36,20 +55,27 @@ export function PayrollAdjustmentForm({
   initialThrAmount = 0,
   baseSalary = 5300000,
   initialPayrollPayoutDate,
+  thrConfig,
+  templates = [],
+  periodAdjustments = [],
+  onAdjusted,
 }: PayrollAdjustmentFormProps) {
+  const { toast } = useToast();
   const [totalWorkingDays, setTotalWorkingDays] = useState(initialWorkingDays.toString());
   const [salaryAdjustment, setSalaryAdjustment] = useState(initialSalaryAdjustment.toString());
   const [cafeteriaDeduction, setCafeteriaDeduction] = useState(initialCafeteriaDeduction.toString());
   const [bonusAmount, setBonusAmount] = useState(initialBonusAmount.toString());
 
-  // Detect initial THR mode
+  const thrEnabledInConfig = thrConfig?.enabled ?? true;
+  const thrPayoutMonth = thrConfig?.payoutMonth ?? 12;
+
   const getInitialThrMode = (): ThrMode => {
     if (initialThrAmount > 0) {
-      if (month === 12 && Math.abs(initialThrAmount - 3899917) < 100) {
-        return "PRORATED";
-      }
       if (Math.abs(initialThrAmount - baseSalary) < 100) {
         return "FULL_THR";
+      }
+      if (month === thrPayoutMonth && thrEnabledInConfig) {
+        return "PRORATED";
       }
       return "CUSTOM";
     }
@@ -60,10 +86,25 @@ export function PayrollAdjustmentForm({
   };
 
   const [thrMode, setThrMode] = useState<ThrMode>(getInitialThrMode());
-  const [tenureMonths, setTenureMonths] = useState<string>(month === 12 ? "8.83" : "8");
+  const [tenureMonths, setTenureMonths] = useState<string>(
+    initialThrAmount > 0 && baseSalary > 0
+      ? String(Math.round((initialThrAmount / baseSalary) * 12 * 100) / 100)
+      : "12",
+  );
   const [customThrAmount, setCustomThrAmount] = useState<string>(
     initialThrAmount > 0 ? initialThrAmount.toString() : ""
   );
+  const [showThrControls, setShowThrControls] = useState<boolean>(
+    thrEnabledInConfig && (month === thrPayoutMonth || hasThr || initialThrAmount > 0),
+  );
+
+  // Per-period custom adjustments & direct payroll deductions
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
+  const [adjStage, setAdjStage] = useState<PayrollAdjustmentStage>("POST_NET_DEDUCTION");
+  const [adjLabel, setAdjLabel] = useState<string>("");
+  const [adjAmount, setAdjAmount] = useState<string>("");
+  const [adjNotes, setAdjNotes] = useState<string>("");
+  const [isMutatingAdj, setIsMutatingAdj] = useState<boolean>(false);
 
   const [payrollPayoutDate, setPayrollPayoutDate] = useState(
     initialPayrollPayoutDate ? initialPayrollPayoutDate.slice(0, 10) : ""
@@ -199,6 +240,12 @@ export function PayrollAdjustmentForm({
       const res = await updateSnapshot(snapshotId, payload);
       if (res) {
         setIsSuccess(true);
+        toast({
+          title: "Payroll Updated",
+          description: `Saved parameters for ${month}/${year}.`,
+          variant: "success",
+        });
+        onAdjusted?.();
         setTimeout(() => setIsSuccess(false), 2000);
       } else {
         setFieldErrors({ general: "Failed to update payroll parameters." });
@@ -207,6 +254,83 @@ export function PayrollAdjustmentForm({
       setFieldErrors({ general: "An unexpected error occurred." });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleSelectTemplate = (templateIdStr: string) => {
+    setSelectedTemplateId(templateIdStr);
+    const tpl = templates.find((t) => String(t.id) === templateIdStr);
+    if (!tpl) return;
+    setAdjStage(tpl.stage);
+    setAdjLabel(tpl.label);
+    const computedAmt =
+      tpl.calcType === "PERCENT_OF_BASE"
+        ? Math.round((effectiveBase * tpl.defaultAmount) / 100)
+        : tpl.calcType === "PER_WORKING_DAY"
+          ? Math.round((parseInt(totalWorkingDays, 10) || 0) * tpl.defaultAmount)
+          : Math.round(tpl.defaultAmount);
+    setAdjAmount(computedAmt > 0 ? String(computedAmt) : "");
+    setAdjNotes(tpl.notes ?? "");
+  };
+
+  const handleAddAdjustment = async () => {
+    if (isLocked || isMutatingAdj) return;
+    const numericAmt = Math.round(Number(adjAmount) || 0);
+    if (!adjLabel.trim() || numericAmt <= 0) {
+      toast({
+        title: "Invalid Adjustment",
+        description: "Enter a label and an amount greater than Rp 0.",
+        variant: "error",
+      });
+      return;
+    }
+    setIsMutatingAdj(true);
+    const res = await addSnapshotPayrollAdjustmentApi(snapshotId, {
+      templateId: selectedTemplateId ? Number(selectedTemplateId) : undefined,
+      label: adjLabel.trim(),
+      stage: adjStage,
+      amount: numericAmt,
+      notes: adjNotes.trim() || undefined,
+    });
+    setIsMutatingAdj(false);
+    if (res.success) {
+      setSelectedTemplateId("");
+      setAdjLabel("");
+      setAdjAmount("");
+      setAdjNotes("");
+      toast({
+        title: "Payroll Deduction Recorded",
+        description: `Added "${adjLabel.trim()}" (${formatRupiah(numericAmt)}) to ${month}/${year}.`,
+        variant: "success",
+      });
+      onAdjusted?.();
+    } else {
+      toast({
+        title: "Failed to Add Item",
+        description: res.error || "Unable to save payroll adjustment.",
+        variant: "error",
+      });
+    }
+  };
+
+  const handleDeleteAdjustment = async (adjId: number, label: string) => {
+    if (isLocked || isMutatingAdj) return;
+    setIsMutatingAdj(true);
+    const res = await deleteSnapshotPayrollAdjustmentApi(snapshotId, adjId);
+    setIsMutatingAdj(false);
+    if (res.success) {
+      toast({
+        title: "Adjustment Removed",
+        description: `Removed "${label}" from ${month}/${year}.`,
+        variant: "info",
+      });
+      onAdjusted?.();
+    } else {
+      toast({
+        title: "Delete Failed",
+        description: res.error || "Unable to delete payroll adjustment.",
+        variant: "error",
+      });
     }
   };
 
@@ -348,15 +472,33 @@ export function PayrollAdjustmentForm({
           </div>
         </div>
 
-        {/* THR ENGINE: MODE SELECTOR & CONFIGURATION */}
+        {/* THR / HOLIDAY BONUS SECTION (CONDITIONAL) */}
+        {!showThrControls ? (
+          <div className="flex items-center justify-between px-3 py-2 rounded border border-border-subtle bg-surface-subtle text-xs">
+            <span className="text-text-tertiary">
+              {thrEnabledInConfig
+                ? `${thrConfig?.label || "Holiday Bonus (THR)"} is inactive for month ${month}.`
+                : "Holiday Bonus (THR) is disabled in Preferences."}
+            </span>
+            {thrEnabledInConfig && !isLocked && (
+              <button
+                type="button"
+                onClick={() => setShowThrControls(true)}
+                className="font-mono text-[11px] text-accent hover:underline cursor-pointer"
+              >
+                Adjust {thrConfig?.label || "THR"}
+              </button>
+            )}
+          </div>
+        ) : (
         <div className="p-3.5 rounded border border-border-subtle bg-surface-subtle space-y-3">
           <div className="flex items-center justify-between">
             <div>
               <span className="text-xs font-sans font-medium text-text-primary block">
-                THR (Tunjangan Hari Raya) Engine
+                {thrConfig?.label || "Holiday Bonus (THR)"}
               </span>
               <span className="text-[11px] font-sans text-text-tertiary">
-                Annual holiday allowance calculation mode
+                Seasonal allowance calculation mode
               </span>
             </div>
             <span className="font-mono text-xs font-semibold text-text-primary tabular-nums">
@@ -474,6 +616,7 @@ export function PayrollAdjustmentForm({
             </div>
           )}
         </div>
+        )}
 
         {/* General Error Message */}
         {fieldErrors.general && (
@@ -502,6 +645,157 @@ export function PayrollAdjustmentForm({
           </button>
         )}
       </form>
+
+      {/* DIRECT PAYROLL DEDUCTIONS & CUSTOM ADJUSTMENTS */}
+      <div className="pt-4 border-t border-border-subtle space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-xs font-semibold font-sans text-text-primary">
+              Direct Payroll Deductions &amp; Custom Items
+            </h3>
+            <p className="text-[11px] font-sans text-text-tertiary">
+              Post-net deductions (e.g. early salary advance, loan clawback) or custom allowances for {month}/{year}.
+            </p>
+          </div>
+          <span className="font-mono text-[11px] text-text-tertiary">
+            {periodAdjustments.length} item{periodAdjustments.length === 1 ? "" : "s"}
+          </span>
+        </div>
+
+        {periodAdjustments.length > 0 && (
+          <div className="space-y-1.5">
+            {periodAdjustments.map((adj) => (
+              <div
+                key={adj.id}
+                className="flex items-center justify-between gap-2 px-3 py-2 rounded border border-border-subtle bg-surface-subtle text-xs"
+              >
+                <div className="min-w-0">
+                  <div className="font-medium text-text-primary truncate">{adj.label}</div>
+                  <div className="text-[10px] font-mono text-text-tertiary">
+                    {STAGE_BADGE_LABELS[adj.stage]}
+                    {adj.notes ? ` · ${adj.notes}` : ""}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span
+                    className={`font-mono font-semibold tabular-nums ${
+                      adj.stage === "PRE_NET_EARNING" ? "text-delta-positive" : "text-delta-negative"
+                    }`}
+                  >
+                    {adj.stage === "PRE_NET_EARNING" ? "+" : "-"}
+                    {formatRupiah(adj.amount)}
+                  </span>
+                  {!isLocked && (
+                    <button
+                      type="button"
+                      disabled={isMutatingAdj}
+                      onClick={() => void handleDeleteAdjustment(adj.id, adj.label)}
+                      title={`Remove ${adj.label}`}
+                      className="p-1 rounded text-text-tertiary hover:text-delta-negative hover:bg-canvas transition-colors cursor-pointer disabled:opacity-40"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {!isLocked && (
+          <div className="p-3 rounded border border-border-subtle bg-canvas/60 space-y-2.5">
+            {templates.length > 0 && (
+              <div>
+                <label className="block text-[10px] font-mono text-text-tertiary mb-1">
+                  Quick-Fill from Saved Payroll Template
+                </label>
+                <select
+                  value={selectedTemplateId}
+                  onChange={(e) => handleSelectTemplate(e.target.value)}
+                  className="w-full px-2.5 py-1.5 rounded bg-surface-subtle border border-border-subtle text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
+                >
+                  <option value="">Custom one-off item...</option>
+                  {templates
+                    .filter((tpl) => tpl.isActive)
+                    .map((tpl) => (
+                      <option key={tpl.id} value={String(tpl.id)}>
+                        {tpl.label} ({STAGE_BADGE_LABELS[tpl.stage]})
+                      </option>
+                    ))}
+                </select>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div>
+                <label className="block text-[10px] font-mono text-text-tertiary mb-1">
+                  Stage
+                </label>
+                <select
+                  value={adjStage}
+                  onChange={(e) => setAdjStage(e.target.value as PayrollAdjustmentStage)}
+                  className="w-full px-2.5 py-1.5 rounded bg-surface-subtle border border-border-subtle text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
+                >
+                  <option value="POST_NET_DEDUCTION">Direct Deduction (Post-Net)</option>
+                  <option value="PRE_NET_DEDUCTION">Pre-Net Deduction</option>
+                  <option value="PRE_NET_EARNING">Pre-Net Earning (+)</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] font-mono text-text-tertiary mb-1">
+                  Amount (Rp)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  step={500}
+                  placeholder="e.g. 350000"
+                  value={adjAmount}
+                  onChange={(e) => setAdjAmount(e.target.value)}
+                  className="w-full px-2.5 py-1.5 rounded bg-surface-subtle border border-border-subtle font-mono text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div>
+                <label className="block text-[10px] font-mono text-text-tertiary mb-1">
+                  Label
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Early Salary Advance Repayment"
+                  value={adjLabel}
+                  onChange={(e) => setAdjLabel(e.target.value)}
+                  className="w-full px-2.5 py-1.5 rounded bg-surface-subtle border border-border-subtle text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-mono text-text-tertiary mb-1">
+                  Optional Note
+                </label>
+                <input
+                  type="text"
+                  placeholder="Reference / slip line"
+                  value={adjNotes}
+                  onChange={(e) => setAdjNotes(e.target.value)}
+                  className="w-full px-2.5 py-1.5 rounded bg-surface-subtle border border-border-subtle text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
+                />
+              </div>
+            </div>
+
+            <button
+              type="button"
+              disabled={isMutatingAdj || !adjLabel.trim() || !(Number(adjAmount) > 0)}
+              onClick={() => void handleAddAdjustment()}
+              className="w-full py-1.5 px-3 rounded border border-border bg-surface hover:bg-surface-hover text-xs font-mono text-text-primary disabled:opacity-40 cursor-pointer flex items-center justify-center gap-1.5"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>{isMutatingAdj ? "Saving Item..." : "Add Payroll Adjustment"}</span>
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -293,4 +293,77 @@ describe('payroll calculator', () => {
       expect(customPayroll.netBasePayroll).toBe(5388000);
     });
   });
+
+  describe('Modular Period Adjustments & Post-Net Direct Payroll Deductions (Benefit by GreatDay)', () => {
+    it('keeps 0 adjustments byte-identical while deducting POST_NET_DEDUCTION only from bankTakeHomeSalary & finalTotalIncome', () => {
+      const noAdj = calculatePayroll({
+        baseSalary: 5300000,
+        totalWorkingDays: 21,
+        dailyAllowance: 25000,
+        cafeteriaDeduction: 12000,
+        thrAmount: 3833425,
+        laptopAllowance: 250000,
+        bpjsRate: 0.03,
+      });
+      expect(noAdj.netSalaryIncome).toBe(5904000);
+      expect(noAdj.directPayrollDeductions).toBe(0);
+      expect(noAdj.bankTakeHomeSalary).toBe(5904000);
+      expect(noAdj.finalTotalIncome).toBe(9737425);
+
+      const withBenefit = calculatePayroll({
+        baseSalary: 5300000,
+        totalWorkingDays: 21,
+        dailyAllowance: 25000,
+        cafeteriaDeduction: 12000,
+        thrAmount: 3833425,
+        laptopAllowance: 250000,
+        bpjsRate: 0.03,
+        customAdjustments: [
+          {
+            id: 1,
+            label: 'Benefit Deduction for Cash Advance Repayment',
+            stage: 'POST_NET_DEDUCTION',
+            amount: 350000,
+          },
+          {
+            id: 2,
+            label: 'Benefit Deduction for Monthly Fee',
+            stage: 'POST_NET_DEDUCTION',
+            amount: 10500,
+          },
+        ],
+      });
+
+      // Slip Net Pay matches IDR 5,904,000.00 verbatim
+      expect(withBenefit.netSalaryIncome).toBe(5904000);
+      expect(withBenefit.directPayrollDeductions).toBe(360500);
+      // Permata Transfer matches IDR 5,543,500.00 verbatim
+      expect(withBenefit.bankTakeHomeSalary).toBe(5543500);
+      expect(withBenefit.finalTotalIncome).toBe(9376925);
+    });
+
+    it('applies PRE_NET_EARNING and PRE_NET_DEDUCTION before computing netSalaryIncome and POST_NET_DEDUCTION', () => {
+      const result = calculatePayroll({
+        baseSalary: 5300000,
+        totalWorkingDays: 20,
+        dailyAllowance: 25000,
+        laptopAllowance: 250000,
+        bpjsRate: 0.03,
+        customAdjustments: [
+          { label: 'Overtime Allowance', stage: 'PRE_NET_EARNING', amount: 200000 },
+          { label: 'Medical Copay', stage: 'PRE_NET_DEDUCTION', amount: 50000 },
+          { label: 'GreatDay Advance', stage: 'POST_NET_DEDUCTION', amount: 300000 },
+        ],
+      });
+
+      // Base Net = 5,300,000 - 159,000 + 250,000 + 500,000 = 5,891,000
+      // + 200,000 - 50,000 = 6,041,000
+      expect(result.customPayrollAdditions).toBe(200000);
+      expect(result.customPayrollDeductions).toBe(50000);
+      expect(result.netSalaryIncome).toBe(6041000);
+      expect(result.directPayrollDeductions).toBe(300000);
+      expect(result.bankTakeHomeSalary).toBe(5741000);
+      expect(result.finalTotalIncome).toBe(5741000);
+    });
+  });
 });

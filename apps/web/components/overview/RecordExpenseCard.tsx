@@ -323,7 +323,7 @@ export function RecordExpenseCard({
                 <div className="grid grid-cols-3 gap-1 p-0.5 rounded bg-surface-subtle border border-border-subtle">
                   {(
                     [
-                      { id: "CASH", label: "Living Cash" },
+                      { id: "CASH", label: "Bank / QRIS" },
                       { id: "PAYLATER", label: "PayLater" },
                       { id: "CC", label: "Credit Card" },
                     ] as const

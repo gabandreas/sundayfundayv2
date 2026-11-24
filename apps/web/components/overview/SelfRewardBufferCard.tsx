@@ -20,11 +20,16 @@ export function SelfRewardBufferCard({
   const { isAmountsMasked } = usePrivacyMask();
   const { t } = useLanguage();
   const { studioConfig } = usePerspective();
-  const surplusTierLabel = resolvePriorityTierLabel(studioConfig, "DISCRETIONARY", "Flexible Surplus");
+  const surplusTierLabel = resolvePriorityTierLabel(studioConfig, "DISCRETIONARY", "Discretionary");
+  const showDiscretionary = studioConfig?.overviewPreferences?.showDiscretionaryCard ?? true;
   const actualSelfReward = snapshot?.selfReward ?? 0;
   const targetSelfReward = snapshot?.selfRewardTarget ?? 0;
   const bufferPocket = snapshot?.bufferPocket ?? 0;
   const isSqueezed = actualSelfReward === 0 && targetSelfReward > 0;
+
+  if (!showDiscretionary && actualSelfReward === 0 && bufferPocket === 0) {
+    return null;
+  }
 
   return (
     <div className="rounded-lg border border-border bg-surface p-4 flex flex-col justify-between space-y-3">
@@ -40,7 +45,7 @@ export function SelfRewardBufferCard({
         </div>
 
         <div className="space-y-2.5 pt-1">
-          {/* Flexible Surplus */}
+          {/* Discretionary */}
           <div className="flex items-center justify-between">
             <div>
               <span className="text-text-secondary text-xs font-sans block">

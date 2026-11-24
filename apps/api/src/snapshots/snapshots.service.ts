@@ -21,8 +21,10 @@ import {
   AuditSeverity,
   BudgetRevisionCategory,
   LiabilityCategory,
+  PayrollAdjustmentStage,
 } from '@prisma/client';
 import { BorrowFromP1Dto } from './dto/borrow-p1.dto';
+import { CreatePayrollPeriodAdjustmentDto } from './dto/payroll-period-adjustment.dto';
 import {
   calculatePayroll,
   sumExtraIncome,
@@ -120,7 +122,7 @@ export class SnapshotsService {
         throw new BadRequestException('Cannot recalculate a locked snapshot');
       }
 
-      const [config, transactions] = await Promise.all([
+      const [config, transactions, periodAdjustments] = await Promise.all([
         (async () => {
           return (
             (await tx.globalConfig.findUnique({ where: { userId: snapshot.userId } })) ||
@@ -130,7 +132,21 @@ export class SnapshotsService {
         tx.transaction.findMany({
           where: { snapshotId },
         }),
+        tx.payrollPeriodAdjustment
+          ? tx.payrollPeriodAdjustment.findMany({
+              where: { snapshotId },
+              orderBy: { id: 'asc' },
+            })
+          : Promise.resolve([]),
       ]);
+      const customAdjustments = (periodAdjustments ?? []).map((adj) => ({
+        id: adj.id,
+        templateId: adj.templateId,
+        label: adj.label,
+        stage: adj.stage,
+        amount: adj.amount,
+        notes: adj.notes,
+      }));
       if (!config) {
         throw new BadRequestException(
           'Global configuration has not been initialized',
@@ -230,6 +246,7 @@ export class SnapshotsService {
         extraIncome,
         laptopAllowance: pcCfg.laptopAllowanceRp ?? config.laptopAllowance,
         bpjsRate: (pcCfg.bpjsRatePercent ?? 3) / 100,
+        customAdjustments,
       });
 
       const fixedTargets = {
@@ -287,6 +304,7 @@ export class SnapshotsService {
         totalCreditBills,
         totalDeductions,
         payrollRules: modularRules.payrollRules,
+        customAdjustments,
         allocationBuckets: modularRules.allocationBuckets,
         surplusSplitRules: modularRules.surplusSplitRules,
         financialPolicy: modularRules.financialPolicy,
@@ -307,6 +325,9 @@ export class SnapshotsService {
         where: { id: snapshotId },
         data: {
           netSalaryIncome: modularResult.payroll.netSalaryIncome,
+          directPayrollDeductions: modularResult.payroll.directPayrollDeductions,
+          customPayrollAdditions: modularResult.payroll.customPayrollAdditions,
+          customPayrollDeductions: modularResult.payroll.customPayrollDeductions,
           extraIncome: payroll.extraIncome,
           finalTotalIncome: modularResult.payroll.finalTotalIncome,
           totalDeductions,
@@ -337,7 +358,10 @@ export class SnapshotsService {
           budgetRevisions: {
             orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
           },
-        },
+          ...(tx.payrollPeriodAdjustment
+            ? { payrollPeriodAdjustments: { orderBy: { id: 'asc' } } }
+            : {}),
+        } as any,
       });
     };
 
@@ -941,9 +965,17 @@ export class SnapshotsService {
       throw new BadRequestException('Global configuration has not been initialized');
     }
 
-    const transactions = await this.prisma.transaction.findMany({
-      where: { snapshotId },
-    });
+    const [transactions, periodAdjustments] = await Promise.all([
+      this.prisma.transaction.findMany({
+        where: { snapshotId },
+      }),
+      this.prisma.payrollPeriodAdjustment
+        ? this.prisma.payrollPeriodAdjustment.findMany({
+            where: { snapshotId },
+            orderBy: { id: 'asc' },
+          })
+        : Promise.resolve([]),
+    ]);
 
     const extraIncome = sumExtraIncome(transactions);
 
@@ -965,6 +997,14 @@ export class SnapshotsService {
       extraIncome,
       laptopAllowance: pcCfg.laptopAllowanceRp ?? config.laptopAllowance,
       bpjsRate: (pcCfg.bpjsRatePercent ?? 3) / 100,
+      customAdjustments: periodAdjustments.map((adj) => ({
+        id: adj.id,
+        templateId: adj.templateId,
+        label: adj.label,
+        stage: adj.stage,
+        amount: adj.amount,
+        notes: adj.notes,
+      })),
     });
 
     const hypotheticalDailyOperational =
@@ -1354,5 +1394,117 @@ export class SnapshotsService {
     });
 
     return result;
+  }
+
+  async listPayrollAdjustments(snapshotId: number, userId: number = 1) {
+    const snapshot = await this.prisma.monthlySnapshot.findUnique({
+      where: { id: snapshotId },
+      select: { id: true, userId: true },
+    });
+    if (!snapshot) {
+      throw new NotFoundException(`Snapshot #${snapshotId} not found`);
+    }
+    if (snapshot.userId !== userId) {
+      throw new ForbiddenException(`Access denied to snapshot #${snapshotId}`);
+    }
+    return this.prisma.payrollPeriodAdjustment.findMany({
+      where: { snapshotId, userId },
+      orderBy: { id: 'asc' },
+    });
+  }
+
+  async addPayrollAdjustment(
+    snapshotId: number,
+    dto: CreatePayrollPeriodAdjustmentDto,
+    userId: number = 1,
+  ) {
+    const label = String(dto.label || '').trim();
+    const amount = Math.round(Number(dto.amount) || 0);
+    if (!label) {
+      throw new BadRequestException('Adjustment label is required');
+    }
+    if (amount <= 0) {
+      throw new BadRequestException('Adjustment amount must be greater than Rp 0');
+    }
+
+    const updatedSnapshot = await this.prisma.$transaction(
+      async (tx) => {
+        await this.assertSnapshotUnlocked(snapshotId, tx, userId);
+
+        let templateId: number | null = null;
+        if (dto.templateId !== undefined && dto.templateId !== null) {
+          const tpl = await tx.payrollAdjustmentTemplate.findFirst({
+            where: { id: dto.templateId, userId },
+          });
+          if (!tpl) {
+            throw new NotFoundException(`Payroll template #${dto.templateId} not found`);
+          }
+          templateId = tpl.id;
+        }
+
+        await tx.payrollPeriodAdjustment.create({
+          data: {
+            userId,
+            snapshotId,
+            templateId,
+            label,
+            stage: dto.stage as PayrollAdjustmentStage,
+            amount,
+            notes: dto.notes?.trim() || null,
+          },
+        });
+
+        return this.recalculateSnapshot(snapshotId, tx, userId);
+      },
+      { maxWait: 10000, timeout: 25000 },
+    );
+
+    await this.auditLogService.record({
+      action: 'PAYROLL_ADJUSTMENT_ADDED',
+      category: AuditCategory.BUDGET,
+      summary: `Added payroll ${dto.stage}: ${label} (Rp ${amount.toLocaleString('id-ID')})`,
+      month: updatedSnapshot.month,
+      year: updatedSnapshot.year,
+      severity: AuditSeverity.ADJUSTMENT,
+    });
+
+    return updatedSnapshot;
+  }
+
+  async deletePayrollAdjustment(
+    snapshotId: number,
+    adjId: number,
+    userId: number = 1,
+  ) {
+    const updatedSnapshot = await this.prisma.$transaction(
+      async (tx) => {
+        await this.assertSnapshotUnlocked(snapshotId, tx, userId);
+
+        const existing = await tx.payrollPeriodAdjustment.findFirst({
+          where: { id: adjId, snapshotId, userId },
+        });
+        if (!existing) {
+          throw new NotFoundException(`Payroll adjustment #${adjId} not found`);
+        }
+
+        await tx.payrollPeriodAdjustment.delete({
+          where: { id: existing.id },
+        });
+
+        return this.recalculateSnapshot(snapshotId, tx, userId);
+      },
+      { maxWait: 10000, timeout: 25000 },
+    );
+
+    await this.auditLogService.record({
+      action: 'PAYROLL_ADJUSTMENT_DELETED',
+      category: AuditCategory.BUDGET,
+      summary: `Removed payroll adjustment #${adjId}`,
+      month: updatedSnapshot.month,
+      year: updatedSnapshot.year,
+      severity: AuditSeverity.ADJUSTMENT,
+    });
+
+    return updatedSnapshot;
   }
 }

@@ -130,14 +130,14 @@ export function LedgerSummaryStrip({ transactions, snapshot }: LedgerSummaryStri
       {/* Burn Velocity & Bucket Utilization Strip */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="rounded border border-border-subtle bg-surface-subtle px-3.5 py-2.5 flex items-center justify-between text-xs">
-          <span className="text-text-tertiary font-sans">Daily Living Burn</span>
+          <span className="text-text-tertiary font-sans">Daily Spending Used</span>
           <span className="font-mono tabular-nums text-text-primary">
             {formatRupiah(manualDailySpend, isAmountsMasked)}{" "}
             <span className="text-text-tertiary">/ {formatRupiah(dailyBudgetTarget, isAmountsMasked)}</span>
           </span>
         </div>
         <div className="rounded border border-border-subtle bg-surface-subtle px-3.5 py-2.5 flex items-center justify-between text-xs">
-          <span className="text-text-tertiary font-sans">Remaining Living Cash</span>
+          <span className="text-text-tertiary font-sans">Remaining Spending Balance</span>
           <span className="font-mono tabular-nums font-medium text-delta-positive">
             {formatRupiah(remainingLiving, isAmountsMasked)}
           </span>

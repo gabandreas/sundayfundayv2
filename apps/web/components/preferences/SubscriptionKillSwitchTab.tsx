@@ -66,7 +66,7 @@ function formatFormalDaysRemaining(daysLeft: number | null | undefined): string 
 function buildGoogleCalendarUrl(item: KillSwitchItem): string | null {
   if (!item.promoEndDate) return null;
   const { startUtc, endUtc, deadlineStr } = getHMinus3Dates(item.promoEndDate);
-  const title = `[Kill-Switch] Subscription Cancellation Deadline: ${item.label}`;
+  const title = `[Renewal Notice] Subscription Cancellation Deadline: ${item.label}`;
   const normalPrice = (item.postPromoNormalAmount || item.amount).toLocaleString("id-ID");
   const details =
     `Notice: Cancel ${item.label} prior to ${deadlineStr} to avoid automatic renewal at the standard rate of Rp ${normalPrice}/month.\n\n` +
@@ -84,14 +84,14 @@ function downloadIcsFile(item: KillSwitchItem) {
   if (!item.promoEndDate) return;
   const { startUtc, endUtc, deadlineStr } = getHMinus3Dates(item.promoEndDate);
   const normalPrice = (item.postPromoNormalAmount || item.amount).toLocaleString("id-ID");
-  const summary = `[Kill-Switch] Subscription Cancellation: ${item.label}`;
+  const summary = `[Renewal Notice] Subscription Cancellation: ${item.label}`;
   const description =
     `Promotional period expires ${deadlineStr}. Cancel before cutoff to prevent standard billing at Rp ${normalPrice}/mo. Portal: ${item.providerCancelUrl || "Provider Account Settings"}`;
 
   const icsLines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//Sunday Funday ERP//Kill-Switch Guard//EN",
+    "PRODID:-//Sunday Funday ERP//Renewal Alert//EN",
     "BEGIN:VEVENT",
     `UID:killswitch-${item.id}@sundayfunday-erp.local`,
     `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, "").split(".")[0]}Z`,
@@ -160,7 +160,7 @@ export function SubscriptionKillSwitchTab({
   const [loading, setLoading] = useState(initialKillSwitches === undefined);
   const [data, setData] = useState<KillSwitchResponse | null>(initialKillSwitches ?? null);
 
-  // Global Kill-Switch Guard Settings
+  // Global Renewal Alert Guard Settings
   const [bannerEnabled, setBannerEnabled] = useState(
     initialKillSwitches?.config.killSwitchBannerEnabled ??
       config.killSwitchBannerEnabled ??
@@ -470,12 +470,12 @@ export function SubscriptionKillSwitchTab({
         </div>
       </div>
 
-      {/* Global Kill-Switch Threshold Configuration */}
+      {/* Global Renewal Alert Threshold Configuration */}
       <div className="rounded-lg border border-border bg-surface p-5">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h2 className="text-sm font-semibold font-sans text-text-primary">
-              Kill-Switch Alert Window &amp; Banner Policy
+              Renewal Alert Window &amp; Banner Policy
             </h2>
             <p className="text-xs font-sans text-text-tertiary mt-0.5">
               Escalates monitored trials and promotional charges onto the Overview banner prior to automatic provider renewal.
@@ -529,7 +529,7 @@ export function SubscriptionKillSwitchTab({
         <div className="px-5 py-3.5 border-b border-border-subtle flex flex-wrap items-center justify-between gap-3 bg-surface-subtle/40">
           <div>
             <h2 className="text-sm font-semibold font-sans text-text-primary">
-              Promotional &amp; Auto-Renew Kill-Switch Watchlist
+              Promotional &amp; Auto-Renew Watchlist
             </h2>
             <p className="text-xs font-sans text-text-tertiary mt-0.5">
               Review upcoming expiration cutoffs, inspect generated cancellation notices, or record provider confirmation.
@@ -552,7 +552,7 @@ export function SubscriptionKillSwitchTab({
           </div>
         ) : items.length === 0 ? (
           <div className="p-8 text-center text-xs font-sans text-text-tertiary">
-            No promotional trials or auto-renew subscriptions are currently armed for Kill-Switch tracking.
+            No promotional trials or auto-renew subscriptions are currently armed for renewal tracking.
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -804,7 +804,7 @@ export function SubscriptionKillSwitchTab({
         />
       )}
 
-      {/* Native <dialog>: Add / Edit Kill-Switch Form */}
+      {/* Native <dialog>: Add / Edit Renewal Alert Form */}
       <dialog
         ref={formDialogRef}
         aria-labelledby="ks-form-dialog-title"
@@ -939,7 +939,7 @@ export function SubscriptionKillSwitchTab({
                 ? "Saving..."
                 : editingItem
                   ? "Update Subscription"
-                  : "Arm Kill-Switch"}
+                  : "Set Renewal Alert"}
             </button>
           </div>
         </form>

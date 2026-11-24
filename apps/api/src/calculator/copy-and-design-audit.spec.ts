@@ -943,7 +943,7 @@ describe('System-Wide Anti-AI-Slop Visual Design, Temporal Chart Axis & Human Co
       'utf8',
     );
     expect(pacingCardSrc).toContain('data-testid="cycle-pace-breakdown"');
-    expect(pacingCardSrc).toContain('avgDailyBurn');
+    expect(pacingCardSrc).toContain('dailyAverageSpend');
     expect(pacingCardSrc).toContain('cycleUsedPct');
     expect(pacingCardSrc).toContain('cycleElapsedPct');
     expect(pacingCardSrc).toContain('overview.cycleBudgetUsed');
@@ -965,5 +965,61 @@ describe('System-Wide Anti-AI-Slop Visual Design, Temporal Chart Axis & Human Co
       'utf8',
     );
     expect(routineCardSrc).toContain('data-testid="cycle-allocation-mix"');
+  });
+
+  it('enforces anti-slop Overview, Payday & Closing, Payroll modularity, and zero AI jargon across EN/ID/ZH', () => {
+    const webAllFiles = [
+      ...collectFiles(path.join(WEB_DIR, 'app'), ['.ts', '.tsx', '.css']),
+      ...collectFiles(path.join(WEB_DIR, 'components'), ['.ts', '.tsx']),
+      ...collectFiles(path.join(WEB_DIR, 'context'), ['.ts', '.tsx']),
+      ...collectFiles(path.join(WEB_DIR, 'lib'), ['.ts', '.tsx']),
+    ];
+
+    const slopCopyPatterns = [
+      /7-Day Runway/,
+      /Projected Cycle-End/,
+      /Avg Daily Burn/,
+      /Payday & Closing Wizard/,
+      /Setup Wizard/,
+      /Cash Radar/,
+      /Kill-Switch/,
+      /Checkpoint & Burn/,
+      /Living Cash/,
+      /Expected Bank/,
+      /Flexible Surplus/,
+      /Ritual Gaji/,
+      /Radar Kas/,
+      /\bBurn:/,
+    ];
+
+    for (const file of webAllFiles) {
+      const content = fs.readFileSync(file, 'utf8');
+      const rel = path.relative(REPO_ROOT, file).replace(/\\/g, '/');
+      for (const rx of slopCopyPatterns) {
+        expect({ file: rel, match: content.match(rx)?.[0] ?? null }).toEqual({
+          file: rel,
+          match: null,
+        });
+      }
+    }
+
+    const thrCardSrc = fs.readFileSync(
+      path.join(WEB_DIR, 'components', 'payroll', 'ThrBonusEstimatorCard.tsx'),
+      'utf8',
+    );
+    expect(thrCardSrc).not.toContain('2026-04-06');
+    expect(thrCardSrc).not.toContain('264/365');
+    expect(thrCardSrc).not.toContain('8/12 Mo Floor');
+    expect(thrCardSrc).not.toContain('Laptop Allowance');
+
+    const paydayClientSrc = fs.readFileSync(
+      path.join(WEB_DIR, 'components', 'payday', 'PaydayWizardClient.tsx'),
+      'utf8',
+    );
+    expect(paydayClientSrc).not.toContain('instrumentType: "INVESTMENT_RDPU"');
+    expect(paydayClientSrc).toContain('accumulationLedger');
+
+    const globalsCss = fs.readFileSync(path.join(WEB_DIR, 'app', 'globals.css'), 'utf8');
+    expect(globalsCss).toMatch(/\.erp-toast-viewport:is\(:popover-open,[^)]*\)\s*\{\s*display:\s*block;/);
   });
 });

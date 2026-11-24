@@ -200,16 +200,82 @@ export function PayrollStatementTable({ payroll }: PayrollStatementTableProps) {
           </>
         )}
 
-        {/* SUB-TOTAL: Net Distributed Salary */}
-        <div className="pt-2">
-          <StatementLineItem
-            label="Net Distributed Salary"
-            note="Distributed to primary checking account"
-            amount={formatRp(payroll.netSalaryIncome)}
-            type="subtotal"
-            highlight={true}
-          />
-        </div>
+        {/* SUB-TOTAL: Slip Net Pay */}
+        {(() => {
+          const customList = payroll.customAdjustments ?? [];
+          const preNetItems = customList.filter(
+            (item) => item.stage === "PRE_NET_EARNING" || item.stage === "PRE_NET_DEDUCTION",
+          );
+          const postNetItems = customList.filter(
+            (item) => item.stage === "POST_NET_DEDUCTION",
+          );
+          const directDeductions = payroll.directPayrollDeductions ?? 0;
+          const bankTakeHome =
+            payroll.bankTakeHomeSalary ?? Math.max(0, payroll.netSalaryIncome - directDeductions);
+
+          return (
+            <>
+              {preNetItems.map((item, idx) => (
+                <StatementLineItem
+                  key={`prenet-${item.id ?? idx}`}
+                  label={item.label}
+                  note={item.notes ?? undefined}
+                  amount={
+                    item.stage === "PRE_NET_EARNING"
+                      ? `+${formatRp(item.amount)}`
+                      : `-${formatRp(item.amount)}`
+                  }
+                  type={item.stage === "PRE_NET_EARNING" ? "allowance" : "deduction"}
+                />
+              ))}
+
+              <div className="pt-2">
+                <StatementLineItem
+                  label="Slip Net Pay"
+                  note="Regular payslip net before direct post-net payroll deductions"
+                  amount={formatRp(payroll.netSalaryIncome)}
+                  type="subtotal"
+                  highlight={true}
+                />
+              </div>
+
+              {(postNetItems.length > 0 || directDeductions > 0) && (
+                <>
+                  <div className="text-[10px] font-mono text-text-tertiary pt-3 pb-1">
+                    Direct Payroll Deductions
+                  </div>
+                  {postNetItems.length > 0 ? (
+                    postNetItems.map((item, idx) => (
+                      <StatementLineItem
+                        key={`postnet-${item.id ?? idx}`}
+                        label={item.label}
+                        note={item.notes ?? "Deducted directly at payroll disbursement"}
+                        amount={`-${formatRp(item.amount)}`}
+                        type="deduction"
+                      />
+                    ))
+                  ) : (
+                    <StatementLineItem
+                      label="Direct Payroll Deductions"
+                      note="Deducted directly from payslip before bank transfer"
+                      amount={`-${formatRp(directDeductions)}`}
+                      type="deduction"
+                    />
+                  )}
+                  <div className="pt-1.5">
+                    <StatementLineItem
+                      label="Transferred to Bank"
+                      note="Net regular salary credited to bank account"
+                      amount={formatRp(bankTakeHome)}
+                      type="subtotal"
+                      highlight={true}
+                    />
+                  </div>
+                </>
+              )}
+            </>
+          );
+        })()}
 
         {/* SECTION: Supplemental & Windfall Income */}
         {(payroll.bonusAmount > 0 || payroll.thrAmount > 0 || payroll.extraIncome > 0) && (
@@ -226,16 +292,16 @@ export function PayrollStatementTable({ payroll }: PayrollStatementTableProps) {
             )}
             {payroll.thrAmount > 0 && (
               <StatementLineItem
-                label="Tunjangan Hari Raya (THR)"
-                note="Pro-rated religious holiday allowance"
+                label="Holiday Bonus (THR)"
+                note="Seasonal allowance included in cycle bank inflow"
                 amount={`+${formatRp(payroll.thrAmount)}`}
                 type="allowance"
               />
             )}
             {payroll.extraIncome > 0 && (
               <StatementLineItem
-                label="Extra / Windfall Income"
-                note="Logged freelance, dividends, or other receipts"
+                label="Extra / Other Income"
+                note="Logged side income, refunds, or other bank receipts"
                 amount={`+${formatRp(payroll.extraIncome)}`}
                 type="allowance"
               />
@@ -243,11 +309,11 @@ export function PayrollStatementTable({ payroll }: PayrollStatementTableProps) {
           </>
         )}
 
-        {/* GRAND TOTAL: Final Total Income */}
+        {/* GRAND TOTAL: Total Cycle Inflow */}
         <div className="pt-3">
           <StatementLineItem
-            label="Final Total Take-Home Cashflow"
-            note="Net distributed salary + bonus + THR + windfall"
+            label="Total Cycle Inflow"
+            note="Transferred to bank + bonus + holiday allowance + extra income"
             amount={formatRp(payroll.finalTotalIncome)}
             type="total"
             highlight={true}

@@ -168,7 +168,7 @@ const FORMULA_META: Array<{
   {
     key: "waterfallAllocationFormula",
     title: "Waterfall Distributable Pool",
-    description: "Income left for Core Savings Reserve and Flexible Surplus after essentials and debt.",
+    description: "Income left for Core Savings Reserve and Discretionary after essentials and debt.",
     unit: "RP",
   },
   {

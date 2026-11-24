@@ -599,6 +599,7 @@ dialog.marquee-drawer::backdrop {
 }
 
 .erp-toast-viewport:is(:popover-open, .\:popover-open) {
+  display: block;
   opacity: 1;
   transform: translateY(0);
 }

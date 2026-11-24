@@ -58,7 +58,7 @@ export function ReportsSpendingBreakdown({
     },
     {
       key: "surplus",
-      label: "Flexible Surplus",
+      label: "Discretionary",
       amount: surplusAmt,
       color: "#38BDF8",
       detail: surplusAmt > 0 ? "Unallocated discretionary cashflow" : "Absorbed by debt & savings priority",

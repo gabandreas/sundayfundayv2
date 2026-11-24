@@ -67,7 +67,7 @@ export function PerspectiveSwitcher() {
             title="Launch 60-Second Onboarding Wizard"
           >
             <SlidersHorizontal className="w-3.5 h-3.5" />
-            <span>Setup Wizard</span>
+            <span>Workspace Setup</span>
           </button>
 
           <button

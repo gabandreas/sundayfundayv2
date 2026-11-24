@@ -196,6 +196,20 @@ export function calculateWorkingDaysForConsumptionPeriod(
   return calculateWorkingDaysForPeriod(prevMonth, prevYear, customHolidays, windowOptions);
 }
 
+export type PayrollAdjustmentStageType =
+  | 'PRE_NET_EARNING'
+  | 'PRE_NET_DEDUCTION'
+  | 'POST_NET_DEDUCTION';
+
+export interface PayrollAdjustmentItem {
+  id?: number;
+  templateId?: number | null;
+  label: string;
+  stage: PayrollAdjustmentStageType;
+  amount: number;
+  notes?: string | null;
+}
+
 export interface PayrollInput {
   baseSalary: number;
   salaryAdjustment?: number;
@@ -207,6 +221,7 @@ export interface PayrollInput {
   extraIncome?: number;
   laptopAllowance?: number;
   bpjsRate?: number;
+  customAdjustments?: PayrollAdjustmentItem[];
 }
 
 export interface PayrollResult {
@@ -220,6 +235,11 @@ export interface PayrollResult {
   dailyAllowance: number;
   totalDailyAllowance: number;
   netSalaryIncome: number;
+  customPayrollAdditions: number;
+  customPayrollDeductions: number;
+  directPayrollDeductions: number;
+  bankTakeHomeSalary: number;
+  customAdjustments: PayrollAdjustmentItem[];
   extraIncome: number;
   finalTotalIncome: number;
   thrAmount: number;
@@ -300,6 +320,31 @@ export function calculatePayroll(input: PayrollInput): PayrollResult {
   const laptopAllowance = input.laptopAllowance ?? DEFAULT_LAPTOP_ALLOWANCE;
   const bpjsRate = input.bpjsRate ?? DEFAULT_BPJS_RATE;
 
+  const normalizedAdjustments: PayrollAdjustmentItem[] = Array.isArray(
+    input.customAdjustments,
+  )
+    ? input.customAdjustments
+        .map((adj) => ({
+          id: adj.id,
+          templateId: adj.templateId ?? null,
+          label: String(adj.label || '').trim(),
+          stage: adj.stage,
+          amount: Math.max(0, Math.round(Number(adj.amount) || 0)),
+          notes: adj.notes ?? null,
+        }))
+        .filter((adj) => adj.amount > 0 && adj.label.length > 0)
+    : [];
+
+  const customPayrollAdditions = normalizedAdjustments
+    .filter((a) => a.stage === 'PRE_NET_EARNING')
+    .reduce((sum, a) => sum + a.amount, 0);
+  const customPayrollDeductions = normalizedAdjustments
+    .filter((a) => a.stage === 'PRE_NET_DEDUCTION')
+    .reduce((sum, a) => sum + a.amount, 0);
+  const directPayrollDeductions = normalizedAdjustments
+    .filter((a) => a.stage === 'POST_NET_DEDUCTION')
+    .reduce((sum, a) => sum + a.amount, 0);
+
   const adjustedBaseSalary = calculateAdjustedBaseSalary(
     input.baseSalary,
     salaryAdjustment,
@@ -315,12 +360,16 @@ export function calculatePayroll(input: PayrollInput): PayrollResult {
     input.dailyAllowance,
   );
   const netSalaryIncome = calculateNetSalaryIncome(
-    netBasePayroll,
+    netBasePayroll + customPayrollAdditions,
     totalDailyAllowance,
-    cafeteriaDeduction,
+    cafeteriaDeduction + customPayrollDeductions,
+  );
+  const bankTakeHomeSalary = Math.max(
+    0,
+    netSalaryIncome - directPayrollDeductions,
   );
   const finalTotalIncome = calculateFinalTotalIncome(
-    netSalaryIncome,
+    bankTakeHomeSalary,
     thrAmount,
     bonusAmount,
     extraIncome,
@@ -337,6 +386,11 @@ export function calculatePayroll(input: PayrollInput): PayrollResult {
     dailyAllowance: input.dailyAllowance,
     totalDailyAllowance,
     netSalaryIncome,
+    customPayrollAdditions,
+    customPayrollDeductions,
+    directPayrollDeductions,
+    bankTakeHomeSalary,
+    customAdjustments: normalizedAdjustments,
     extraIncome,
     finalTotalIncome,
     thrAmount,

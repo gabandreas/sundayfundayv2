@@ -122,7 +122,7 @@ export function CategoryDistributionPanel({
             </div>
             <div>
               <span className="text-[10px] font-sans text-text-tertiary block">
-                Retained Savings + Flexible Surplus
+                Retained Savings + Discretionary
               </span>
               <span className="font-mono text-xs font-medium text-delta-positive tabular-nums">
                 {formatRp(kpis.totalRetainedAndSurplusAcrossPeriods)}
@@ -219,7 +219,7 @@ export function CategoryDistributionPanel({
                 <th className="py-2.5 px-1.5 text-right">Liabilities & Debt</th>
                 <th className="py-2.5 px-1.5 text-right">Op. & Fixed</th>
                 <th className="py-2.5 px-1.5 text-right">Core Savings</th>
-                <th className="py-2.5 px-1.5 text-right">Flexible Surplus</th>
+                <th className="py-2.5 px-1.5 text-right">Discretionary</th>
                 <th className="py-2.5 px-1.5 text-right">Debt %</th>
                 <th className="py-2.5 pl-1.5 pr-4 text-right">Save %</th>
               </tr>

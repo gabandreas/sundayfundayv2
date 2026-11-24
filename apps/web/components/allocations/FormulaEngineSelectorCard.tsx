@@ -16,7 +16,7 @@ const FORMULA_ENGINES: Array<{
     title: "Debt-First Waterfall",
     badge: "CANONICAL DEFAULT",
     description:
-      "Mandatory Bills & Routine Envelopes + Daily Living upfront, then Core Savings Reserve, then Flexible Surplus.",
+      "Mandatory Bills & Routine Envelopes + Daily Living upfront, then Core Savings Reserve, then Discretionary.",
   },
   {
     key: "SAVINGS_FIRST_LOCK",

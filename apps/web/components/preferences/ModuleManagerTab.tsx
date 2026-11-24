@@ -101,7 +101,7 @@ export function ModuleManagerTab({ config }: ModuleManagerTabProps) {
             onClick={() => setIsOnboardingOpen(true)}
             className="px-3 py-1.5 text-xs font-medium rounded border border-border-strong bg-surface-subtle text-text-primary hover:bg-surface transition-colors"
           >
-            Launch Workspace Setup Wizard
+            Launch Workspace Setup
           </button>
         </div>
 

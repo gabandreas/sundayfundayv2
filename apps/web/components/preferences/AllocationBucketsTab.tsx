@@ -88,7 +88,7 @@ const DEFAULT_ALLOCATION_BUCKETS: AllocationBucketRule[] = [
   },
   {
     id: "self_reward",
-    label: "Flexible Surplus",
+    label: "Discretionary",
     group: "SELF_REWARD_P2",
     priorityTier: 2,
     formulaType: "REMAINDER_OVERFLOW",
@@ -368,7 +368,7 @@ export function AllocationBucketsTab({
                   <option value="DAILY_OPERATIONAL">Daily Operational</option>
                   <option value="BUFFER">Buffer</option>
                   <option value="SAVINGS_P1">Core Savings</option>
-                  <option value="SELF_REWARD_P2">Flexible Surplus</option>
+                  <option value="SELF_REWARD_P2">Discretionary</option>
                 </select>
               </div>
               <div>
