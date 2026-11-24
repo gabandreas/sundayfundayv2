@@ -346,7 +346,7 @@ export function AllocationBucketsTab({
                   placeholder="e.g. Gym Membership"
                   value={newBucketLabel}
                   onChange={(e) => setNewBucketLabel(e.target.value)}
-                  className="w-full px-2 py-1 bg-[#161922] border border-[#282e3d] rounded text-xs text-text-primary focus:outline-none"
+                  className="w-full px-2 py-1 bg-[#161922] border border-[#282e3d] rounded text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                 />
               </div>
               <div>
@@ -354,7 +354,7 @@ export function AllocationBucketsTab({
                 <select
                   value={newBucketGroup}
                   onChange={(e) => setNewBucketGroup(e.target.value as any)}
-                  className="w-full px-2 py-1 bg-[#161922] border border-[#282e3d] rounded text-xs text-text-primary focus:outline-none"
+                  className="w-full px-2 py-1 bg-[#161922] border border-[#282e3d] rounded text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                 >
                   <option value="FIXED_ESSENTIAL">Fixed Essential</option>
                   <option value="DAILY_OPERATIONAL">Daily Operational</option>
@@ -368,7 +368,7 @@ export function AllocationBucketsTab({
                 <select
                   value={newBucketTier}
                   onChange={(e) => setNewBucketTier(Number(e.target.value))}
-                  className="w-full px-2 py-1 bg-[#161922] border border-[#282e3d] rounded text-xs text-text-primary focus:outline-none"
+                  className="w-full px-2 py-1 bg-[#161922] border border-[#282e3d] rounded text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                 >
                   <option value={0}>Tier 0: Upfront Essential</option>
                   <option value={1}>Tier 1: Core Savings</option>
@@ -380,7 +380,7 @@ export function AllocationBucketsTab({
                 <select
                   value={newBucketFormula}
                   onChange={(e) => setNewBucketFormula(e.target.value as any)}
-                  className="w-full px-2 py-1 bg-[#161922] border border-[#282e3d] rounded text-xs text-text-primary focus:outline-none"
+                  className="w-full px-2 py-1 bg-[#161922] border border-[#282e3d] rounded text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                 >
                   <option value="FIXED_AMOUNT">Fixed Nominal (Rp)</option>
                   <option value="PERCENT_OF_NET_INCOME">% of Net Income</option>
@@ -395,7 +395,7 @@ export function AllocationBucketsTab({
                   type="number"
                   value={newBucketValue}
                   onChange={(e) => setNewBucketValue(Number(e.target.value))}
-                  className="w-full px-2 py-1 bg-[#161922] border border-[#282e3d] rounded text-xs font-mono text-text-primary focus:outline-none"
+                  className="w-full px-2 py-1 bg-[#161922] border border-[#282e3d] rounded text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                 />
               </div>
             </div>
@@ -461,7 +461,7 @@ export function AllocationBucketsTab({
                         type="text"
                         value={bucket.label}
                         onChange={(e) => handleUpdateBucketField(realIdx, "label", e.target.value)}
-                        className="bg-transparent border-b border-transparent hover:border-[#282e3d] focus:border-accent-primary px-1 py-0.5 text-xs text-text-primary focus:outline-none w-full"
+                        className="bg-transparent border-b border-transparent hover:border-[#282e3d] focus:border-accent-primary px-1 py-0.5 text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 w-full"
                       />
                     </td>
                     <td className="py-2.5 px-3 text-text-tertiary text-[11px] font-mono">
@@ -473,7 +473,7 @@ export function AllocationBucketsTab({
                         onChange={(e) =>
                           handleUpdateBucketField(realIdx, "formulaType", e.target.value)
                         }
-                        className="bg-[#0c0e14] border border-[#282e3d] rounded px-1.5 py-0.5 text-[11px] text-text-secondary focus:outline-none"
+                        className="bg-[#0c0e14] border border-[#282e3d] rounded px-1.5 py-0.5 text-[11px] text-text-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                       >
                         <option value="FIXED_AMOUNT">Fixed Nominal</option>
                         <option value="PERCENT_OF_NET_INCOME">% of Net Income</option>
@@ -490,7 +490,7 @@ export function AllocationBucketsTab({
                           onChange={(e) =>
                             handleUpdateBucketField(realIdx, "value", Number(e.target.value))
                           }
-                          className="w-24 px-1.5 py-0.5 bg-[#0c0e14] border border-[#282e3d] rounded text-xs font-mono text-text-primary focus:outline-none"
+                          className="w-24 px-1.5 py-0.5 bg-[#0c0e14] border border-[#282e3d] rounded text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                         />
                         <span className="text-[10px] text-text-tertiary font-mono">
                           {bucket.formulaType.includes("PERCENT")
@@ -515,7 +515,7 @@ export function AllocationBucketsTab({
                               e.target.value ? Number(e.target.value) : undefined
                             )
                           }
-                          className="w-16 px-1 py-0.5 bg-[#0c0e14] border border-[#282e3d] rounded text-[11px] font-mono text-text-primary focus:outline-none"
+                          className="w-16 px-1 py-0.5 bg-[#0c0e14] border border-[#282e3d] rounded text-[11px] font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                         />
                         <span>Max:</span>
                         <input
@@ -529,7 +529,7 @@ export function AllocationBucketsTab({
                               e.target.value ? Number(e.target.value) : undefined
                             )
                           }
-                          className="w-16 px-1 py-0.5 bg-[#0c0e14] border border-[#282e3d] rounded text-[11px] font-mono text-text-primary focus:outline-none"
+                          className="w-16 px-1 py-0.5 bg-[#0c0e14] border border-[#282e3d] rounded text-[11px] font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                         />
                       </div>
                     </td>
@@ -600,7 +600,7 @@ export function AllocationBucketsTab({
                       onChange={(e) =>
                         handleUpdateSplitPercent(split.bucketId, Number(e.target.value))
                       }
-                      className="w-16 px-2 py-1 bg-[#161922] border border-[#282e3d] rounded text-xs font-mono text-text-primary text-right focus:outline-none"
+                      className="w-16 px-2 py-1 bg-[#161922] border border-[#282e3d] rounded text-xs font-mono text-text-primary text-right focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                     />
                     <span className="text-xs text-text-tertiary">%</span>
                   </div>

@@ -313,7 +313,7 @@ export function MonthYearSwitcher() {
                   <select
                     value={newMonth}
                     onChange={(e) => setNewMonth(parseInt(e.target.value, 10))}
-                    className="w-full bg-surface-subtle border border-border rounded px-2.5 py-1.5 text-xs text-text-primary font-sans focus:outline-none"
+                    className="w-full bg-surface-subtle border border-border rounded px-2.5 py-1.5 text-xs text-text-primary font-sans focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                   >
                     {MONTH_SHORT.map((m, idx) => (
                       <option key={m} value={idx + 1}>
@@ -330,7 +330,7 @@ export function MonthYearSwitcher() {
                   <select
                     value={newYear}
                     onChange={(e) => setNewYear(parseInt(e.target.value, 10))}
-                    className="w-full bg-surface-subtle border border-border rounded px-2.5 py-1.5 text-xs font-mono tabular-nums text-text-primary focus:outline-none"
+                    className="w-full bg-surface-subtle border border-border rounded px-2.5 py-1.5 text-xs font-mono tabular-nums text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                   >
                     {availableYears.map((y) => (
                       <option key={y} value={y}>

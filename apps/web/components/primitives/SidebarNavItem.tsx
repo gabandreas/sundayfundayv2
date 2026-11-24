@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import Link from "next/link";
 import { LucideIcon } from "lucide-react";
 
@@ -9,6 +9,7 @@ export interface SidebarNavItemProps {
   href: string;
   icon: LucideIcon;
   isActive?: boolean;
+  collapsed?: boolean;
   badge?: string;
   badgeVariant?: "neutral" | "caution" | "urgency";
   className?: string;
@@ -20,52 +21,48 @@ export function SidebarNavItem({
   href,
   icon: Icon,
   isActive = false,
+  collapsed = false,
   badge,
   badgeVariant = "neutral",
   className = "",
   onClick,
 }: SidebarNavItemProps) {
-  const [isClicked, setIsClicked] = useState(false);
-
   const badgeStyles = {
     neutral: "bg-surface-subtle text-text-tertiary border-border-subtle",
     caution: "bg-[rgba(229,155,44,0.12)] text-caution border-[rgba(229,155,44,0.3)]",
     urgency: "bg-[rgba(255,56,56,0.14)] text-urgency border-[rgba(255,56,56,0.35)]",
   };
 
-  const handleClick = () => {
-    setIsClicked(true);
-    setTimeout(() => setIsClicked(false), 300);
-    onClick?.();
-  };
-
   return (
     <Link
       href={href}
       prefetch={true}
-      onClick={handleClick}
-      className={`group flex items-center justify-between px-3 py-2 rounded-md text-xs font-medium transition-all duration-100 cursor-pointer select-none active:scale-[0.97] ${
+      onClick={onClick}
+      aria-current={isActive ? "page" : undefined}
+      title={collapsed ? label : undefined}
+      aria-label={collapsed ? label : undefined}
+      className={`group relative flex items-center rounded-md text-xs font-medium transition-colors duration-150 cursor-pointer select-none ${
+        collapsed ? "justify-center h-9 w-9 mx-auto px-0" : "justify-between px-3 py-1.5"
+      } ${
         isActive
-          ? "bg-surface-active text-text-primary shadow-xs font-semibold"
-          : isClicked
-          ? "bg-surface-active/60 text-text-primary"
-          : "text-text-secondary hover:text-text-primary hover:bg-surface-hover/70"
+          ? "bg-surface-active text-text-primary font-semibold border-l-2 border-accent"
+          : "text-text-secondary hover:text-text-primary hover:bg-surface-hover/70 border-l-2 border-transparent"
       } ${className}`}
     >
-      <div className="flex items-center gap-2.5 min-w-0">
-        {/* Direct, unadorned icon — strictly NO pastel circular background */}
+      <div className={`flex items-center min-w-0 ${collapsed ? "" : "gap-2.5"}`}>
         <Icon
+          aria-hidden="true"
           className={`w-4 h-4 shrink-0 transition-colors ${
-            isActive || isClicked
-              ? "text-text-primary"
+            isActive
+              ? "text-accent"
               : "text-text-tertiary group-hover:text-text-secondary"
           }`}
           strokeWidth={1.8}
         />
-        <span className="truncate">{label}</span>
+        {!collapsed && <span className="truncate">{label}</span>}
       </div>
 
-      {badge && (
+      {!collapsed && badge && (
         <span
           className={`px-1.5 py-0.5 text-[10px] font-mono font-medium rounded border ${
             badgeStyles[badgeVariant]

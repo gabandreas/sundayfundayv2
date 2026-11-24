@@ -101,7 +101,7 @@ export function PriorityTiersEditor({ initialConfig }: { initialConfig?: Modular
                     prev.map((row, i) => (i === idx ? { ...row, label: e.target.value } : row)),
                   );
                 }}
-                className="w-full max-w-sm px-2.5 py-1.5 rounded bg-surface border border-border text-xs text-text-primary focus:outline-none focus:border-accent"
+                className="w-full max-w-sm px-2.5 py-1.5 rounded bg-surface border border-border text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-accent"
               />
             </div>
 

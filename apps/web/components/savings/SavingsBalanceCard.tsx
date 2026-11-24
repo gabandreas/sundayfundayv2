@@ -205,7 +205,7 @@ export function SavingsBalanceCard({ vault }: SavingsBalanceCardProps) {
                 Sub-Allocation Instrument Rebalance
               </h4>
               <p className="text-[11px] text-text-secondary mt-0.5">
-                Atomically shift capital between Liquid Emergency Cash and Investment — RDPU without altering total savings reserve.
+                Atomically shift capital between Liquid Emergency Cash and Investment · RDPU without altering total savings reserve.
               </p>
             </div>
             <button
@@ -227,7 +227,7 @@ export function SavingsBalanceCard({ vault }: SavingsBalanceCardProps) {
                 onChange={(e) =>
                   setDirection(e.target.value as "CASH_TO_RDPU" | "RDPU_TO_CASH")
                 }
-                className="w-full px-2.5 py-1.5 rounded bg-surface-subtle border border-border text-xs text-text-primary font-sans focus:outline-none focus:border-border-strong"
+                className="w-full px-2.5 py-1.5 rounded bg-surface-subtle border border-border text-xs text-text-primary font-sans focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
               >
                 <option value="CASH_TO_RDPU">Liquid Cash → Investment RDPU</option>
                 <option value="RDPU_TO_CASH">Investment RDPU → Liquid Cash</option>
@@ -243,7 +243,7 @@ export function SavingsBalanceCard({ vault }: SavingsBalanceCardProps) {
                 placeholder="e.g. 500.000"
                 value={amount}
                 onChange={(e) => setAmount(formatCurrencyInput(e.target.value))}
-                className="w-full px-2.5 py-1.5 rounded bg-surface-subtle border border-border text-xs font-mono tabular-nums text-text-primary focus:outline-none focus:border-border-strong"
+                className="w-full px-2.5 py-1.5 rounded bg-surface-subtle border border-border text-xs font-mono tabular-nums text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
               />
             </div>
 
@@ -256,7 +256,7 @@ export function SavingsBalanceCard({ vault }: SavingsBalanceCardProps) {
                 placeholder="e.g. Monthly yield rebalance"
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                className="w-full px-2.5 py-1.5 rounded bg-surface-subtle border border-border text-xs text-text-primary font-sans focus:outline-none focus:border-border-strong"
+                className="w-full px-2.5 py-1.5 rounded bg-surface-subtle border border-border text-xs text-text-primary font-sans focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
               />
             </div>
 

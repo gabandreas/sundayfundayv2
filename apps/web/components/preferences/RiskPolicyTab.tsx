@@ -178,7 +178,7 @@ export function RiskPolicyTab({ config }: RiskPolicyTabProps) {
                 max={100}
                 value={optimalDebtRatio}
                 onChange={(e) => setOptimalDebtRatio(Number(e.target.value))}
-                className="w-full px-3 py-1.5 bg-[#0c0e14] border border-[#282e3d] rounded text-xs font-mono text-text-primary focus:outline-none focus:border-accent-primary"
+                className="w-full px-3 py-1.5 bg-[#0c0e14] border border-[#282e3d] rounded text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-accent-primary"
               />
               <span className="text-xs text-text-tertiary font-mono">%</span>
             </div>
@@ -196,7 +196,7 @@ export function RiskPolicyTab({ config }: RiskPolicyTabProps) {
                 max={100}
                 value={maxSafeDebtRatio}
                 onChange={(e) => setMaxSafeDebtRatio(Number(e.target.value))}
-                className="w-full px-3 py-1.5 bg-[#0c0e14] border border-[#282e3d] rounded text-xs font-mono text-text-primary focus:outline-none focus:border-accent-primary"
+                className="w-full px-3 py-1.5 bg-[#0c0e14] border border-[#282e3d] rounded text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-accent-primary"
               />
               <span className="text-xs text-text-tertiary font-mono">%</span>
             </div>
@@ -214,7 +214,7 @@ export function RiskPolicyTab({ config }: RiskPolicyTabProps) {
                 max={100}
                 value={targetSavingsRate}
                 onChange={(e) => setTargetSavingsRate(Number(e.target.value))}
-                className="w-full px-3 py-1.5 bg-[#0c0e14] border border-[#282e3d] rounded text-xs font-mono text-text-primary focus:outline-none focus:border-accent-primary"
+                className="w-full px-3 py-1.5 bg-[#0c0e14] border border-[#282e3d] rounded text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-accent-primary"
               />
               <span className="text-xs text-text-tertiary font-mono">%</span>
             </div>
@@ -231,7 +231,7 @@ export function RiskPolicyTab({ config }: RiskPolicyTabProps) {
                 type="number"
                 value={criticalFloorRp}
                 onChange={(e) => setCriticalFloorRp(Number(e.target.value))}
-                className="w-full pl-8 pr-3 py-1.5 bg-[#0c0e14] border border-[#282e3d] rounded text-xs font-mono text-text-primary focus:outline-none focus:border-accent-primary"
+                className="w-full pl-8 pr-3 py-1.5 bg-[#0c0e14] border border-[#282e3d] rounded text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-accent-primary"
               />
             </div>
             <p className="text-[10px] text-text-tertiary mt-1 font-mono">
@@ -248,7 +248,7 @@ export function RiskPolicyTab({ config }: RiskPolicyTabProps) {
               value={milestonesStr}
               onChange={(e) => setMilestonesStr(e.target.value)}
               placeholder="e.g. 3, 6, 12"
-              className="w-full px-3 py-1.5 bg-[#0c0e14] border border-[#282e3d] rounded text-xs font-mono text-text-primary focus:outline-none focus:border-accent-primary"
+              className="w-full px-3 py-1.5 bg-[#0c0e14] border border-[#282e3d] rounded text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-accent-primary"
             />
             <p className="text-[10px] text-text-tertiary mt-1">
               Comma-separated target milestone months for emergency runway evaluation
@@ -277,7 +277,7 @@ export function RiskPolicyTab({ config }: RiskPolicyTabProps) {
                 type="number"
                 value={bankCreditLimit}
                 onChange={(e) => setBankCreditLimit(Number(e.target.value))}
-                className="w-full pl-8 pr-3 py-1.5 bg-[#0c0e14] border border-[#282e3d] rounded text-xs font-mono text-text-primary focus:outline-none focus:border-accent-primary"
+                className="w-full pl-8 pr-3 py-1.5 bg-[#0c0e14] border border-[#282e3d] rounded text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-accent-primary"
               />
             </div>
             <p className="text-[10px] text-text-tertiary mt-1 font-mono">
@@ -295,7 +295,7 @@ export function RiskPolicyTab({ config }: RiskPolicyTabProps) {
                 type="number"
                 value={ccUsageLimit}
                 onChange={(e) => setCcUsageLimit(Number(e.target.value))}
-                className="w-full pl-8 pr-3 py-1.5 bg-[#0c0e14] border border-[#282e3d] rounded text-xs font-mono text-text-primary focus:outline-none focus:border-accent-primary"
+                className="w-full pl-8 pr-3 py-1.5 bg-[#0c0e14] border border-[#282e3d] rounded text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-accent-primary"
               />
             </div>
             <p className="text-[10px] text-text-tertiary mt-1 font-mono">
@@ -313,7 +313,7 @@ export function RiskPolicyTab({ config }: RiskPolicyTabProps) {
                 type="number"
                 value={paylaterUsageLimit}
                 onChange={(e) => setPaylaterUsageLimit(Number(e.target.value))}
-                className="w-full pl-8 pr-3 py-1.5 bg-[#0c0e14] border border-[#282e3d] rounded text-xs font-mono text-text-primary focus:outline-none focus:border-accent-primary"
+                className="w-full pl-8 pr-3 py-1.5 bg-[#0c0e14] border border-[#282e3d] rounded text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-accent-primary"
               />
             </div>
             <p className="text-[10px] text-text-tertiary mt-1 font-mono">
@@ -395,7 +395,7 @@ export function RiskPolicyTab({ config }: RiskPolicyTabProps) {
               type="number"
               value={autoCloseAfterDays}
               onChange={(e) => setAutoCloseAfterDays(Math.max(1, parseInt(e.target.value, 10) || 14))}
-              className="w-full px-3 py-1.5 bg-[#0c0e14] border border-[#282e3d] rounded text-xs font-mono text-text-primary focus:outline-none focus:border-accent-primary"
+              className="w-full px-3 py-1.5 bg-[#0c0e14] border border-[#282e3d] rounded text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-accent-primary"
             />
             <p className="text-[10px] text-text-tertiary mt-1">
               Days after cycle end date before status flips to LOCKED (default: 14)

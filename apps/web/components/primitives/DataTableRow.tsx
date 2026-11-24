@@ -120,11 +120,11 @@ export function DataTableRow({
 }
 
 export function DataTableHeader({
-  dateLabel = "DATE",
-  titleLabel = "DESCRIPTION",
-  categoryLabel = "CATEGORY",
-  statusLabel = "STATUS",
-  amountLabel = "AMOUNT",
+  dateLabel = "Date",
+  titleLabel = "Description",
+  categoryLabel = "Category",
+  statusLabel = "Status",
+  amountLabel = "Amount",
   className = "",
 }: {
   dateLabel?: string;
@@ -136,7 +136,7 @@ export function DataTableHeader({
 }) {
   return (
     <div
-      className={`flex items-center justify-between py-2 px-3 border-b border-border text-[10px] font-mono font-semibold text-text-tertiary bg-surface-subtle/50 ${className}`}
+      className={`flex items-center justify-between py-2 px-3 border-b border-border text-[11px] font-sans font-medium text-text-tertiary bg-surface-subtle/50 ${className}`}
     >
       <div className="w-20 sm:w-24 shrink-0">{dateLabel}</div>
       <div className="flex-1 min-w-0 pr-2 sm:pr-4">{titleLabel}</div>

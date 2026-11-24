@@ -721,4 +721,123 @@ describe('System-Wide Anti-AI-Slop Visual Design, Temporal Chart Axis & Human Co
     expect(scenariosSrc).toContain('Monte Carlo');
     expect(scenariosSrc).toContain('Surplus Allocation Frontier');
   });
+
+  it('enforces DESIGN.md craft rules: motion tokens, Frequency Gate on Ctrl+K, focus-visible parity, zero prose em-dashes, streamlined navigation, and compact DeficitAlert', () => {
+    const designDocPath = path.join(REPO_ROOT, 'DESIGN.md');
+    expect(fs.existsSync(designDocPath)).toBe(true);
+    const designDoc = fs.readFileSync(designDocPath, 'utf8');
+    expect(designDoc).toContain('--ease-out-quint');
+    expect(designDoc).toContain('One Signal Per State');
+    expect(designDoc).toContain('Frequency Gate');
+
+    const globalsSrc = fs.readFileSync(path.join(WEB_DIR, 'app', 'globals.css'), 'utf8');
+    expect(globalsSrc).toContain('--ease-out-quint');
+    expect(globalsSrc).toContain(':focus-visible');
+    expect(globalsSrc).toContain('transform-origin: top right');
+    expect(globalsSrc).toContain(':is(:popover-open, .\\:popover-open)');
+
+    const appShellSrc = fs.readFileSync(
+      path.join(WEB_DIR, 'components', 'shell', 'AppShell.tsx'),
+      'utf8',
+    );
+    expect(appShellSrc).toContain('href="#main-content"');
+    expect(appShellSrc).toContain('id="main-content"');
+
+    const sidebarSrc = fs.readFileSync(
+      path.join(WEB_DIR, 'components', 'shell', 'Sidebar.tsx'),
+      'utf8',
+    );
+    expect(sidebarSrc).toContain('data-testid="sidebar-collapse-toggle"');
+    expect(sidebarSrc).toContain('<nav');
+    expect(sidebarSrc).toContain('aria-label="Primary"');
+    expect(sidebarSrc).not.toContain('Personal Workspace');
+    expect(sidebarSrc).not.toContain('sub-modules`');
+
+    const sidebarNavItemSrc = fs.readFileSync(
+      path.join(WEB_DIR, 'components', 'primitives', 'SidebarNavItem.tsx'),
+      'utf8',
+    );
+    expect(sidebarNavItemSrc).toContain('aria-current={isActive ? "page" : undefined}');
+
+    const searchModalSrc = fs.readFileSync(
+      path.join(WEB_DIR, 'components', 'shell', 'GlobalSearchModal.tsx'),
+      'utf8',
+    );
+    expect(searchModalSrc).not.toContain('animate-in');
+    expect(searchModalSrc).not.toContain('zoom-in-95');
+
+    const deficitSrc = fs.readFileSync(
+      path.join(WEB_DIR, 'components', 'overview', 'DeficitAlert.tsx'),
+      'utf8',
+    );
+    expect(deficitSrc).toContain('/allocations');
+    expect(deficitSrc.match(/formatRupiah\(deficitUncovered/g)?.length ?? 0).toBe(1);
+    expect(deficitSrc).not.toContain('flex items-start gap-3.5');
+
+    const overviewClientSrc = fs.readFileSync(
+      path.join(WEB_DIR, 'components', 'overview', 'OverviewClientView.tsx'),
+      'utf8',
+    );
+    expect(overviewClientSrc).not.toContain('Automatic recalculation enabled');
+
+    const scenariosSrc = fs.readFileSync(
+      path.join(WEB_DIR, 'components', 'scenarios', 'ScenarioLabClient.tsx'),
+      'utf8',
+    );
+    expect(scenariosSrc).toContain('xl:grid-cols-3');
+    expect(scenariosSrc).toContain('emergencyMonthsToTarget >= 999');
+
+    const adminSrc = fs.readFileSync(
+      path.join(WEB_DIR, 'app', 'admin', 'page.tsx'),
+      'utf8',
+    );
+    expect(adminSrc).not.toContain('"PERMISSIVE"');
+    expect(adminSrc).not.toContain('"STRICT"');
+
+    // Enforce zero bare outline-none without focus replacement and zero prose em-dashes across app/components
+    const tsxFiles = [
+      ...collectFiles(path.join(WEB_DIR, 'app'), ['.tsx']),
+      ...collectFiles(path.join(WEB_DIR, 'components'), ['.tsx']),
+    ];
+    for (const file of tsxFiles) {
+      const rel = path.relative(REPO_ROOT, file);
+      const lines = fs.readFileSync(file, 'utf8').split(/\r?\n/);
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const trimmed = line.trim();
+        if (trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('/*')) {
+          continue;
+        }
+        if (/outline-none|focus:outline-none|focus:outline-hidden/.test(line)) {
+          const hasFocusReplacement =
+            /focus-visible:ring|focus:ring|focus-visible:outline|focus-within:ring/.test(line) ||
+            trimmed.includes('id="main-content"');
+          expect({ file: `${rel}:${i + 1}`, bareOutlineNone: !hasFocusReplacement }).toEqual({
+            file: `${rel}:${i + 1}`,
+            bareOutlineNone: false,
+          });
+        }
+        if (line.includes(' — ')) {
+          expect({ file: `${rel}:${i + 1}`, hasProseEmDash: true }).toEqual({
+            file: `${rel}:${i + 1}`,
+            hasProseEmDash: false,
+          });
+        }
+      }
+    }
+
+    const langSrc = fs.readFileSync(path.join(WEB_DIR, 'context', 'LanguageContext.tsx'), 'utf8');
+    expect(langSrc).not.toContain(' — ');
+
+    // SAST hygiene: zero dynamic new Function() in client utils & parameterized metadata SQL in SqlStudioService
+    const webUtilsSrc = fs.readFileSync(path.join(WEB_DIR, 'lib', 'utils.ts'), 'utf8');
+    expect(webUtilsSrc).not.toContain('new Function(');
+
+    const sqlStudioSrc = fs.readFileSync(
+      path.join(API_SRC_DIR, 'admin', 'sql-studio', 'sql-studio.service.ts'),
+      'utf8',
+    );
+    expect(sqlStudioSrc).not.toContain("table_name = '${tableName}'");
+    expect(sqlStudioSrc).not.toContain("ILIKE '%${s}%'");
+  });
 });

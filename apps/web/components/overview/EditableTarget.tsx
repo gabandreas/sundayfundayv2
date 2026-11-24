@@ -42,7 +42,7 @@ export function EditableTarget({
         onClick={() => setIsModalOpen(true)}
         title={
           isLocked
-            ? "Period is finalized — budget revisions disabled"
+            ? "Period is finalized (budget revisions disabled)"
             : `Revise ${categoryLabel} target`
         }
         aria-label={`Revise ${categoryLabel} target`}

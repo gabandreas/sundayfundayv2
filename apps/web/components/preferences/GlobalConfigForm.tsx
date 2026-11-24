@@ -226,7 +226,7 @@ export function GlobalConfigForm({ initialConfig }: GlobalConfigFormProps) {
               value={formData.baseSalary}
               onChange={(e) => handleChange("baseSalary", e.target.value)}
               disabled={isSubmitting}
-              className="w-full bg-surface-subtle border border-border-subtle focus:border-border-strong text-text-primary font-mono text-sm px-3 py-2 rounded outline-none tabular-nums"
+              className="w-full bg-surface-subtle border border-border-subtle focus:border-border-strong text-text-primary font-mono text-sm px-3 py-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 tabular-nums"
             />
             <div className="flex items-center justify-between mt-1">
               <span className="text-[11px] font-mono text-text-tertiary tabular-nums">
@@ -249,7 +249,7 @@ export function GlobalConfigForm({ initialConfig }: GlobalConfigFormProps) {
               value={formData.dailyAllowance}
               onChange={(e) => handleChange("dailyAllowance", e.target.value)}
               disabled={isSubmitting}
-              className="w-full bg-surface-subtle border border-border-subtle focus:border-border-strong text-text-primary font-mono text-sm px-3 py-2 rounded outline-none tabular-nums"
+              className="w-full bg-surface-subtle border border-border-subtle focus:border-border-strong text-text-primary font-mono text-sm px-3 py-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 tabular-nums"
             />
             <div className="flex items-center justify-between mt-1">
               <span className="text-[11px] font-mono text-text-tertiary tabular-nums">
@@ -272,7 +272,7 @@ export function GlobalConfigForm({ initialConfig }: GlobalConfigFormProps) {
               value={formData.laptopAllowance}
               onChange={(e) => handleChange("laptopAllowance", e.target.value)}
               disabled={isSubmitting}
-              className="w-full bg-surface-subtle border border-border-subtle focus:border-border-strong text-text-primary font-mono text-sm px-3 py-2 rounded outline-none tabular-nums"
+              className="w-full bg-surface-subtle border border-border-subtle focus:border-border-strong text-text-primary font-mono text-sm px-3 py-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 tabular-nums"
             />
             <div className="flex items-center justify-between mt-1">
               <span className="text-[11px] font-mono text-text-tertiary tabular-nums">
@@ -297,11 +297,11 @@ export function GlobalConfigForm({ initialConfig }: GlobalConfigFormProps) {
               value={formData.payrollPayoutDay}
               onChange={(e) => handleChange("payrollPayoutDay", e.target.value)}
               disabled={isSubmitting}
-              className="w-full bg-surface-subtle border border-border-subtle focus:border-border-strong text-text-primary font-mono text-sm px-3 py-2 rounded outline-none tabular-nums"
+              className="w-full bg-surface-subtle border border-border-subtle focus:border-border-strong text-text-primary font-mono text-sm px-3 py-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 tabular-nums"
             />
             <div className="flex flex-col mt-1">
               <span className="text-[10px] font-sans text-text-tertiary leading-tight">
-                Used only to mark payday on the pacing chart — does not affect any calculation
+                Used only to mark payday on the pacing chart; does not affect any calculation
               </span>
               {fieldErrors.payrollPayoutDay && (
                 <span className="text-[11px] font-sans text-delta-negative mt-0.5">{fieldErrors.payrollPayoutDay}</span>
@@ -336,7 +336,7 @@ export function GlobalConfigForm({ initialConfig }: GlobalConfigFormProps) {
                   value={formData.dailyOperational}
                   onChange={(e) => handleChange("dailyOperational", e.target.value)}
                   disabled={isSubmitting}
-                  className="w-full bg-surface-subtle border border-border-subtle focus:border-border-strong text-text-primary font-mono text-sm px-3 py-2 rounded outline-none tabular-nums"
+                  className="w-full bg-surface-subtle border border-border-subtle focus:border-border-strong text-text-primary font-mono text-sm px-3 py-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 tabular-nums"
                 />
               </div>
               <div className="text-right shrink-0">
@@ -364,7 +364,7 @@ export function GlobalConfigForm({ initialConfig }: GlobalConfigFormProps) {
               value={formData.transport}
               onChange={(e) => handleChange("transport", e.target.value)}
               disabled={isSubmitting}
-              className="w-full bg-surface-subtle border border-border-subtle focus:border-border-strong text-text-primary font-mono text-sm px-3 py-2 rounded outline-none tabular-nums"
+              className="w-full bg-surface-subtle border border-border-subtle focus:border-border-strong text-text-primary font-mono text-sm px-3 py-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 tabular-nums"
             />
             <div className="flex items-center justify-between mt-1">
               <span className="text-[11px] font-mono text-text-tertiary tabular-nums">
@@ -387,7 +387,7 @@ export function GlobalConfigForm({ initialConfig }: GlobalConfigFormProps) {
               value={formData.internet}
               onChange={(e) => handleChange("internet", e.target.value)}
               disabled={isSubmitting}
-              className="w-full bg-surface-subtle border border-border-subtle focus:border-border-strong text-text-primary font-mono text-sm px-3 py-2 rounded outline-none tabular-nums"
+              className="w-full bg-surface-subtle border border-border-subtle focus:border-border-strong text-text-primary font-mono text-sm px-3 py-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 tabular-nums"
             />
             <div className="flex items-center justify-between mt-1">
               <span className="text-[11px] font-mono text-text-tertiary tabular-nums">
@@ -410,7 +410,7 @@ export function GlobalConfigForm({ initialConfig }: GlobalConfigFormProps) {
               value={formData.vape}
               onChange={(e) => handleChange("vape", e.target.value)}
               disabled={isSubmitting}
-              className="w-full bg-surface-subtle border border-border-subtle focus:border-border-strong text-text-primary font-mono text-sm px-3 py-2 rounded outline-none tabular-nums"
+              className="w-full bg-surface-subtle border border-border-subtle focus:border-border-strong text-text-primary font-mono text-sm px-3 py-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 tabular-nums"
             />
             <div className="flex items-center justify-between mt-1">
               <span className="text-[11px] font-mono text-text-tertiary tabular-nums">
@@ -433,7 +433,7 @@ export function GlobalConfigForm({ initialConfig }: GlobalConfigFormProps) {
               value={formData.haircut}
               onChange={(e) => handleChange("haircut", e.target.value)}
               disabled={isSubmitting}
-              className="w-full bg-surface-subtle border border-border-subtle focus:border-border-strong text-text-primary font-mono text-sm px-3 py-2 rounded outline-none tabular-nums"
+              className="w-full bg-surface-subtle border border-border-subtle focus:border-border-strong text-text-primary font-mono text-sm px-3 py-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 tabular-nums"
             />
             <div className="flex items-center justify-between mt-1">
               <span className="text-[11px] font-mono text-text-tertiary tabular-nums">
@@ -456,7 +456,7 @@ export function GlobalConfigForm({ initialConfig }: GlobalConfigFormProps) {
               value={formData.baseSavings}
               onChange={(e) => handleChange("baseSavings", e.target.value)}
               disabled={isSubmitting}
-              className="w-full bg-surface-subtle border border-border-subtle focus:border-border-strong text-text-primary font-mono text-sm px-3 py-2 rounded outline-none tabular-nums"
+              className="w-full bg-surface-subtle border border-border-subtle focus:border-border-strong text-text-primary font-mono text-sm px-3 py-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 tabular-nums"
             />
             <div className="flex items-center justify-between mt-1">
               <span className="text-[11px] font-mono text-text-tertiary tabular-nums">
@@ -493,7 +493,7 @@ export function GlobalConfigForm({ initialConfig }: GlobalConfigFormProps) {
               value={formData.creditLimit}
               onChange={(e) => handleChange("creditLimit", e.target.value)}
               disabled={isSubmitting}
-              className="w-full bg-surface-subtle border border-border-subtle focus:border-border-strong text-text-primary font-mono text-sm px-3 py-2 rounded outline-none tabular-nums"
+              className="w-full bg-surface-subtle border border-border-subtle focus:border-border-strong text-text-primary font-mono text-sm px-3 py-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 tabular-nums"
             />
             <div className="flex items-center justify-between mt-1">
               <span className="text-[11px] font-mono text-text-tertiary tabular-nums">
@@ -518,7 +518,7 @@ export function GlobalConfigForm({ initialConfig }: GlobalConfigFormProps) {
               value={formData.creditStatementDay}
               onChange={(e) => handleChange("creditStatementDay", e.target.value)}
               disabled={isSubmitting}
-              className="w-full bg-surface-subtle border border-border-subtle focus:border-border-strong text-text-primary font-mono text-sm px-3 py-2 rounded outline-none tabular-nums"
+              className="w-full bg-surface-subtle border border-border-subtle focus:border-border-strong text-text-primary font-mono text-sm px-3 py-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 tabular-nums"
             />
             <div className="flex items-center justify-between mt-1">
               <span className="text-[11px] font-sans text-text-tertiary">
@@ -543,7 +543,7 @@ export function GlobalConfigForm({ initialConfig }: GlobalConfigFormProps) {
               value={formData.creditDueDay}
               onChange={(e) => handleChange("creditDueDay", e.target.value)}
               disabled={isSubmitting}
-              className="w-full bg-surface-subtle border border-border-subtle focus:border-border-strong text-text-primary font-mono text-sm px-3 py-2 rounded outline-none tabular-nums"
+              className="w-full bg-surface-subtle border border-border-subtle focus:border-border-strong text-text-primary font-mono text-sm px-3 py-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 tabular-nums"
             />
             <div className="flex items-center justify-between mt-1">
               <span className="text-[11px] font-sans text-text-tertiary">
@@ -569,7 +569,7 @@ export function GlobalConfigForm({ initialConfig }: GlobalConfigFormProps) {
               value={formData.ccUsageLimit}
               onChange={(e) => handleChange("ccUsageLimit", e.target.value)}
               disabled={isSubmitting}
-              className="w-full bg-surface-subtle border border-border-subtle focus:border-border-strong text-text-primary font-mono text-sm px-3 py-2 rounded outline-none tabular-nums"
+              className="w-full bg-surface-subtle border border-border-subtle focus:border-border-strong text-text-primary font-mono text-sm px-3 py-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 tabular-nums"
             />
             <div className="flex items-center justify-between mt-1">
               <span className="text-[11px] font-mono text-text-tertiary tabular-nums">
@@ -592,7 +592,7 @@ export function GlobalConfigForm({ initialConfig }: GlobalConfigFormProps) {
               value={formData.paylaterUsageLimit}
               onChange={(e) => handleChange("paylaterUsageLimit", e.target.value)}
               disabled={isSubmitting}
-              className="w-full bg-surface-subtle border border-border-subtle focus:border-border-strong text-text-primary font-mono text-sm px-3 py-2 rounded outline-none tabular-nums"
+              className="w-full bg-surface-subtle border border-border-subtle focus:border-border-strong text-text-primary font-mono text-sm px-3 py-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 tabular-nums"
             />
             <div className="flex items-center justify-between mt-1">
               <span className="text-[11px] font-mono text-text-tertiary tabular-nums">

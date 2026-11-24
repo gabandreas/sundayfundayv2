@@ -323,19 +323,19 @@ export function RoutineBillsQuotaCard({
   return (
     <div className="rounded-lg border border-border bg-surface p-5 flex flex-col justify-between h-full">
       <div>
-        {/* Header — Plain-English Financial Terminology */}
-        <div className="flex items-center justify-between gap-2 mb-2">
+        {/* Header */}
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
           <span className="text-[11px] font-semibold text-text-tertiary font-sans">
             {t("overview.routineBills")}
           </span>
-          <span className="text-[10px] font-mono text-accent tabular-nums font-medium">
+          <span className="text-[11px] erp-tabular-currency text-accent font-medium">
             {t("overview.remainingBillsQuota")}: {formatIdr(totalRoutinePoolRemaining)}
           </span>
         </div>
 
         <div className="flex flex-wrap items-baseline justify-between gap-2 my-1">
           <div className="flex items-center gap-2">
-            <span className="font-mono text-[24px] font-semibold leading-none tracking-tight text-text-primary tabular-nums whitespace-nowrap">
+            <span className="erp-tabular-currency text-[24px] font-semibold leading-none tracking-tight text-text-primary">
               {formatIdr(baselineTotal)}
             </span>
           </div>
@@ -350,16 +350,16 @@ export function RoutineBillsQuotaCard({
           </div>
         )}
 
-        {/* Categories Breakdown with 1-Click Quota Pills */}
-        <div className="mt-4 pt-3 border-t border-border-subtle space-y-3.5">
-          {/* Daily Food & Living Budget (Top Line Item) */}
-          <div className="p-2.5 rounded bg-surface-subtle border border-border-subtle space-y-1">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-[10px] text-text-tertiary font-semibold font-sans">
+        {/* Categories Breakdown */}
+        <div className="mt-4 pt-3 border-t border-border-subtle space-y-3">
+          {/* Daily Food & Living Budget */}
+          <div className="pb-3 border-b border-border-subtle space-y-1">
+            <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+              <span className="text-[11px] text-text-secondary font-medium font-sans min-w-0 truncate">
                 {t("overview.dailyFoodLiving")}
               </span>
               <div className="flex items-center gap-1.5 shrink-0">
-                <span className="font-mono text-xs font-semibold tabular-nums text-text-primary inline-flex items-center gap-1.5 whitespace-nowrap">
+                <span className="erp-tabular-currency text-xs font-semibold text-text-primary inline-flex items-center gap-1.5">
                   {formatIdr(snapshot?.dailyOperational ?? 0)}
                   {snapshot &&
                     snapshot.dailyOperational > 0 &&
@@ -369,7 +369,7 @@ export function RoutineBillsQuotaCard({
                       title={`${t("overview.fundedOfTarget")}: ${formatIdr(
                         snapshot.actualDailyOperational ?? 0
                       )} / ${formatIdr(snapshot.dailyOperational)}`}
-                      className="whitespace-nowrap shrink-0 text-[9px] font-mono px-1.5 py-0.5 rounded border border-[rgba(229,155,44,0.30)] text-caution bg-[rgba(229,155,44,0.08)] font-normal"
+                      className="whitespace-nowrap shrink-0 text-[10px] font-mono px-1.5 py-0.5 rounded border border-[rgba(229,155,44,0.30)] text-caution bg-[rgba(229,155,44,0.08)] font-normal"
                     >
                       {(snapshot.actualDailyOperational ?? 0) > 0
                         ? t("overview.partiallyFunded")
@@ -389,7 +389,7 @@ export function RoutineBillsQuotaCard({
                 )}
               </div>
             </div>
-            <div className="text-[10px] text-text-tertiary font-sans tabular-nums">
+            <div className="text-[11px] text-text-tertiary font-sans tabular-nums">
               {snapshot &&
               snapshot.dailyOperational > 0 &&
               (snapshot.actualDailyOperational ?? snapshot.dailyOperational) <
@@ -401,8 +401,8 @@ export function RoutineBillsQuotaCard({
             </div>
           </div>
 
-          {/* Active Fixed Essential Categories with Quota Progress & 1-Click Presets */}
-          <div className="space-y-3">
+          {/* Active Fixed Essential Categories */}
+          <div className="divide-y divide-border-subtle">
             {activeCategories.map((cat) => {
               const realItem = pacing?.fixedEssentialsRealization?.items.find(
                 (i) => i.category === cat.key
@@ -425,15 +425,13 @@ export function RoutineBillsQuotaCard({
               return (
                 <div
                   key={cat.key}
-                  className={`p-2.5 rounded transition-colors ${
-                    isUnbudgeted
-                      ? "erp-callout-caution"
-                      : "border bg-surface-subtle/50 border-border-subtle"
+                  className={`py-2.5 first:pt-0 last:pb-0 transition-colors ${
+                    isUnbudgeted ? "pl-2 border-l-2 border-l-caution" : ""
                   }`}
                 >
                   {/* Category Top Info */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
+                  <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+                    <div className="flex items-center gap-1.5 min-w-0">
                       {renamingCategory === cat.key ? (
                         <div className="flex items-center gap-1">
                           <input
@@ -448,7 +446,7 @@ export function RoutineBillsQuotaCard({
                                 setRenamingCategory(null);
                               }
                             }}
-                            className="h-6 px-1.5 text-xs font-semibold rounded bg-surface border border-accent text-text-primary focus:outline-hidden"
+                            className="h-6 px-1.5 text-xs font-semibold rounded bg-surface border border-accent text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                             autoFocus
                           />
                           <button
@@ -511,10 +509,10 @@ export function RoutineBillsQuotaCard({
                       )}
                     </div>
 
-                    <div className="flex items-center gap-2 text-right shrink-0">
-                      <span className="font-mono text-xs tabular-nums text-text-primary whitespace-nowrap">
+                    <div className="flex items-center gap-1.5 text-right shrink-0">
+                      <span className="erp-tabular-currency text-xs text-text-primary">
                         {formatIdr(spent)}
-                        <span className="text-text-tertiary whitespace-nowrap"> / {formatIdr(target)}</span>
+                        <span className="text-text-tertiary"> / {formatIdr(target)}</span>
                       </span>
                     </div>
                   </div>
@@ -530,7 +528,7 @@ export function RoutineBillsQuotaCard({
                   </div>
 
                   {/* Sub-label: Remaining Pool / Unbudgeted Spend Callout */}
-                  <div className="flex items-center justify-between text-[11px] font-mono mt-1.5 text-text-tertiary">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono mt-1.5 text-text-tertiary">
                     {isUnbudgeted ? (
                       <span className="text-caution font-medium">
                         Unbudgeted Spend: {formatIdr(spent)} / Budget Rp 0 (Covered from Surplus)
@@ -541,7 +539,7 @@ export function RoutineBillsQuotaCard({
                           {remainingPool > 0 ? (
                             <span className="text-text-secondary">
                               Remaining:{" "}
-                              <strong className="font-medium text-text-primary tabular-nums">
+                              <strong className="font-medium text-text-primary erp-tabular-currency">
                                 {formatIdr(remainingPool)}
                               </strong>
                             </span>
@@ -570,7 +568,7 @@ export function RoutineBillsQuotaCard({
                           )}
                         </span>
                         {overage > 0 && (
-                          <span className="text-caution tabular-nums">
+                          <span className="text-caution erp-tabular-currency">
                             +{formatIdr(overage)} overage
                           </span>
                         )}
@@ -578,7 +576,7 @@ export function RoutineBillsQuotaCard({
                     )}
                   </div>
 
-                  {/* Clean Action Bar — shown when quota remains open; hidden on settled rows */}
+                  {/* Action Bar */}
                   {!isLocked && remainingPool > 0 && (
                     <div className="mt-2.5 flex flex-wrap items-center justify-between gap-1.5">
                       <div className="flex flex-wrap items-center gap-1.5">
@@ -664,7 +662,7 @@ export function RoutineBillsQuotaCard({
                           value={customAmount}
                           onChange={(e) => setCustomAmount(e.target.value)}
                           placeholder="Custom amount (IDR)"
-                          className="w-36 px-2 py-1 rounded bg-surface border border-border-default font-mono text-xs text-text-primary focus:outline-none focus:border-text-secondary"
+                          className="w-36 px-2 py-1 rounded bg-surface border border-border-default font-mono text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-text-secondary"
                           onKeyDown={(e) => {
                             if (e.key === "Enter") {
                               e.preventDefault();
@@ -724,14 +722,14 @@ export function RoutineBillsQuotaCard({
                       placeholder="Category name (e.g. Gym)"
                       value={newCategoryLabel}
                       onChange={(e) => setNewCategoryLabel(e.target.value)}
-                      className="px-2 py-1 rounded bg-surface border border-border text-xs font-sans text-text-primary focus:outline-none focus:border-accent"
+                      className="px-2 py-1 rounded bg-surface border border-border text-xs font-sans text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-accent"
                     />
                     <input
                       type="number"
                       placeholder="Monthly Target (IDR)"
                       value={newCategoryTarget}
                       onChange={(e) => setNewCategoryTarget(e.target.value)}
-                      className="px-2 py-1 rounded bg-surface border border-border text-xs font-mono tabular-nums text-text-primary focus:outline-none focus:border-accent"
+                      className="px-2 py-1 rounded bg-surface border border-border text-xs font-mono tabular-nums text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-accent"
                     />
                   </div>
                   <div className="flex items-center justify-end gap-1.5 pt-1">
@@ -812,7 +810,7 @@ export function RoutineBillsQuotaCard({
                               placeholder="Rp..."
                               value={customAmount}
                               onChange={(e) => setCustomAmount(e.target.value)}
-                              className="w-16 px-1.5 py-0.5 rounded bg-surface border border-border text-[10px] font-mono text-text-primary focus:outline-none"
+                              className="w-16 px-1.5 py-0.5 rounded bg-surface border border-border text-[10px] font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                               onKeyDown={(e) => {
                                 if (e.key === "Enter") {
                                   e.preventDefault();

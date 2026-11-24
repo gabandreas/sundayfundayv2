@@ -249,7 +249,7 @@ export function ManualSavingsForm({
                       : "bg-surface-subtle border-border-subtle text-text-tertiary hover:text-text-primary"
                   }`}
                 >
-                  Investment — RDPU
+                  Investment · RDPU
                 </button>
               </div>
             </div>
@@ -267,7 +267,7 @@ export function ManualSavingsForm({
                   value={amount ? formatRupiah(parseInt(amount, 10)) : ""}
                   onChange={handleAmountChange}
                   placeholder="Rp 0"
-                  className={`w-full px-3 py-2 rounded bg-surface-subtle border text-xs font-mono tabular-nums text-text-primary focus:outline-none ${
+                  className={`w-full px-3 py-2 rounded bg-surface-subtle border text-xs font-mono tabular-nums text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 ${
                     fieldErrors.amount
                       ? "border-urgency focus:border-urgency"
                       : "border-border focus:border-border-strong"
@@ -294,7 +294,7 @@ export function ManualSavingsForm({
                     setFieldErrors((prev) => ({ ...prev, date: undefined }));
                   }
                 }}
-                className={`w-full px-3 py-2 rounded bg-surface-subtle border text-xs font-mono text-text-primary focus:outline-none ${
+                className={`w-full px-3 py-2 rounded bg-surface-subtle border text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 ${
                   fieldErrors.date
                     ? "border-urgency focus:border-urgency"
                     : "border-border focus:border-border-strong"
@@ -323,7 +323,7 @@ export function ManualSavingsForm({
                 }
               }}
               placeholder="e.g. Monthly buffer allocation, Emergency medical deposit"
-              className={`w-full px-3 py-2 rounded bg-surface-subtle border text-xs font-sans text-text-primary focus:outline-none ${
+              className={`w-full px-3 py-2 rounded bg-surface-subtle border text-xs font-sans text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 ${
                 fieldErrors.label
                   ? "border-urgency focus:border-urgency"
                   : "border-border focus:border-border-strong"

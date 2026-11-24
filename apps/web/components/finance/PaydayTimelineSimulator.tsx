@@ -205,7 +205,7 @@ export function PaydayTimelineSimulator({ month, year }: PaydayTimelineSimulator
                   Net Remaining THR for Dec/Jan Cycle (12/2026)
                 </div>
                 <div className="text-xs font-sans text-text-secondary mt-0.5">
-                  Total Dec 18 THR ({formatRp(timeline.baseline.thrAmount)}) minus Dec 25 deferred SPayLater settlement ({formatRp(timeline.spaylaterRemainingAfterEarly)}) — no cross-cycle double counting.
+                  Total Dec 18 THR ({formatRp(timeline.baseline.thrAmount)}) minus Dec 25 deferred SPayLater settlement ({formatRp(timeline.spaylaterRemainingAfterEarly)}), with no cross-cycle double counting.
                 </div>
               </div>
               <div className="text-right">

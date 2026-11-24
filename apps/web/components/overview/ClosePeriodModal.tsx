@@ -449,7 +449,7 @@ export function ClosePeriodModal({
                       setPreset("CUSTOM");
                     }}
                     disabled={isClosing}
-                    className="w-full px-2.5 py-1.5 rounded bg-surface border border-border focus:border-accent text-xs font-mono tabular-nums text-text-primary outline-none"
+                    className="w-full px-2.5 py-1.5 rounded bg-surface border border-border focus:border-accent text-xs font-mono tabular-nums text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                   />
                 </div>
                 <div className="col-span-7">
@@ -462,7 +462,7 @@ export function ClosePeriodModal({
                     onChange={(e) => setVaultLabelInput(e.target.value)}
                     disabled={isClosing || parsedTopupPreview === 0}
                     placeholder={`Core Savings Transfer (${month}/${year})`}
-                    className="w-full px-2.5 py-1.5 rounded bg-surface border border-border focus:border-accent text-xs font-sans text-text-primary outline-none disabled:opacity-50"
+                    className="w-full px-2.5 py-1.5 rounded bg-surface border border-border focus:border-accent text-xs font-sans text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 disabled:opacity-50"
                   />
                 </div>
               </div>

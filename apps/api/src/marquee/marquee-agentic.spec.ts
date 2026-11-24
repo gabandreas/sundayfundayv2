@@ -233,33 +233,38 @@ describe('Workstream 2 — Marquee Agentic Co-Pilot Upgrade (TDD)', () => {
   });
 
   it('serves tenant-scoped UI context from GET /api/marquee/context with zero Gabriel prompts for Standard users', async () => {
+    const hydrator = new MarqueeContextHydrator(
+      {
+        monthlySnapshot: { findMany: jest.fn().mockResolvedValue([]) },
+        liabilityLineItem: { findMany: jest.fn().mockResolvedValue([]) },
+        transaction: { findMany: jest.fn().mockResolvedValue([]) },
+        creditCardTransaction: { findMany: jest.fn().mockResolvedValue([]) },
+        creditContract: { findMany: jest.fn().mockResolvedValue([]) },
+        wishlistItem: { findMany: jest.fn().mockResolvedValue([]) },
+        savingsGoal: { findMany: jest.fn().mockResolvedValue([]) },
+        globalConfig: { findFirst: jest.fn().mockResolvedValue({ userId: 4, profileMode: 'STANDARD_GENERAL' }) },
+      } as any,
+      { getDefaultActivePeriod: jest.fn().mockResolvedValue({ month: 11, year: 2026 }) } as any,
+      {
+        getPacing: jest.fn().mockResolvedValue({
+          cycleTemporalState: 'ACTIVE',
+          remainingBudget: 1_200_000,
+          weightedSafeToSpendToday: 120_000,
+          daysRemaining: 8,
+          cycleDateLabel: '1 Nov – 30 Nov 2026',
+        }),
+      } as any,
+      { getOverview: jest.fn().mockResolvedValue({ totalBalance: 5_000_000, rdpuBalance: 0 }) } as any,
+    );
+    const hydratedCtx = await hydrator.hydrateForUser(4, { month: 11, year: 2026, locale: 'en' });
+    expect(hydratedCtx.systemPrompt).toContain('tricolons');
+    expect(hydratedCtx.systemPrompt).toContain('em-dash');
+
     const svc = new MarqueeService(
       { globalConfig: { findFirst: jest.fn().mockResolvedValue({ userId: 4 }) } } as any,
       { getUserMemoryRules: jest.fn().mockResolvedValue([]) } as any,
       {} as any,
-      new MarqueeContextHydrator(
-        {
-          monthlySnapshot: { findMany: jest.fn().mockResolvedValue([]) },
-          liabilityLineItem: { findMany: jest.fn().mockResolvedValue([]) },
-          transaction: { findMany: jest.fn().mockResolvedValue([]) },
-          creditCardTransaction: { findMany: jest.fn().mockResolvedValue([]) },
-          creditContract: { findMany: jest.fn().mockResolvedValue([]) },
-          wishlistItem: { findMany: jest.fn().mockResolvedValue([]) },
-          savingsGoal: { findMany: jest.fn().mockResolvedValue([]) },
-          globalConfig: { findFirst: jest.fn().mockResolvedValue({ userId: 4, profileMode: 'STANDARD_GENERAL' }) },
-        } as any,
-        { getDefaultActivePeriod: jest.fn().mockResolvedValue({ month: 11, year: 2026 }) } as any,
-        {
-          getPacing: jest.fn().mockResolvedValue({
-            cycleTemporalState: 'ACTIVE',
-            remainingBudget: 1_200_000,
-            weightedSafeToSpendToday: 120_000,
-            daysRemaining: 8,
-            cycleDateLabel: '1 Nov – 30 Nov 2026',
-          }),
-        } as any,
-        { getOverview: jest.fn().mockResolvedValue({ totalBalance: 5_000_000, rdpuBalance: 0 }) } as any,
-      ),
+      hydrator,
     );
 
     const stdUiCtx = await svc.getHydratedUiContext(4, { month: 11, year: 2026, locale: 'en' });
@@ -267,5 +272,12 @@ describe('Workstream 2 — Marquee Agentic Co-Pilot Upgrade (TDD)', () => {
     expect(stdUiCtx.payoffMilestones).toEqual([]);
     const joined = JSON.stringify(stdUiCtx);
     expect(joined).not.toMatch(/Natal THR|SPayLater|SPinjam|Permata|JAN '27|8th.*11th.*17th/i);
+
+    const llmMetaRes: any = await svc.handleMcpRpc(4, { jsonrpc: '2.0', id: 10, method: 'tools/list' });
+    for (const toolDef of llmMetaRes.result.tools) {
+      expect(typeof toolDef.description).toBe('string');
+      expect(toolDef.description.length).toBeGreaterThanOrEqual(20);
+      expect(toolDef.inputSchema?.type).toBe('object');
+    }
   });
 });

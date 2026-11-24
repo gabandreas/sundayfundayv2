@@ -285,41 +285,50 @@ export class SqlStudioService {
     }
 
     // Get column metadata & primary key
-    const columns = await this.prisma.$queryRawUnsafe<any[]>(`
+    const columns = await this.prisma.$queryRawUnsafe<any[]>(
+      `
       SELECT column_name, data_type, is_nullable
       FROM information_schema.columns
-      WHERE table_schema = 'public' AND table_name = '${tableName}'
+      WHERE table_schema = 'public' AND table_name = $1
       ORDER BY ordinal_position;
-    `);
+    `,
+      tableName,
+    );
 
     const colNames = columns.map((c) => c.column_name);
 
-    const pkRows = await this.prisma.$queryRawUnsafe<any[]>(`
+    const pkRows = await this.prisma.$queryRawUnsafe<any[]>(
+      `
       SELECT kcu.column_name as pk_column
       FROM information_schema.table_constraints tc
       JOIN information_schema.key_column_usage kcu
         ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema
-      WHERE tc.constraint_type = 'PRIMARY KEY' 
-        AND tc.table_schema = 'public' 
-        AND tc.table_name = '${tableName}';
-    `);
+      WHERE tc.constraint_type = 'PRIMARY KEY'
+        AND tc.table_schema = 'public'
+        AND tc.table_name = $1;
+    `,
+      tableName,
+    );
 
     const primaryKey = pkRows[0]?.pk_column || (colNames.includes('id') ? 'id' : colNames[0]);
 
-    // Build WHERE clause
+    // Build parameterized WHERE clause
     const whereClauses: string[] = [];
+    const whereParams: any[] = [];
 
     if (query.userId !== undefined && colNames.includes('userId')) {
-      whereClauses.push(`"userId" = ${Number(query.userId)}`);
+      whereParams.push(Number(query.userId));
+      whereClauses.push(`"userId" = $${whereParams.length}`);
     }
 
     if (query.search && query.search.trim()) {
-      const s = query.search.trim().replace(/'/g, "''");
       const textCols = columns.filter((c) =>
         ['character varying', 'text', 'character'].includes(c.data_type)
       );
       if (textCols.length > 0) {
-        const searchOrs = textCols.map((c) => `"${c.column_name}"::text ILIKE '%${s}%'`);
+        whereParams.push(`%${query.search.trim()}%`);
+        const paramRef = `$${whereParams.length}`;
+        const searchOrs = textCols.map((c) => `"${c.column_name}"::text ILIKE ${paramRef}`);
         whereClauses.push(`(${searchOrs.join(' OR ')})`);
       }
     }
@@ -328,7 +337,8 @@ export class SqlStudioService {
 
     // Total count
     const countRes = await this.prisma.$queryRawUnsafe<any[]>(
-      `SELECT COUNT(*)::int AS count FROM "${tableName}" ${whereSql};`
+      `SELECT COUNT(*)::int AS count FROM "${tableName}" ${whereSql};`,
+      ...whereParams,
     );
     const totalRows = countRes[0]?.count ?? 0;
 
@@ -343,12 +353,15 @@ export class SqlStudioService {
     const limit = Math.max(1, Math.min(200, query.limit || 50));
     const offset = (page - 1) * limit;
 
-    const rows = await this.prisma.$queryRawUnsafe<any[]>(`
+    const rows = await this.prisma.$queryRawUnsafe<any[]>(
+      `
       SELECT * FROM "${tableName}"
       ${whereSql}
       ORDER BY "${orderByCol}" ${orderDir}
       LIMIT ${limit} OFFSET ${offset};
-    `);
+    `,
+      ...whereParams,
+    );
 
     return {
       tableName,
@@ -375,11 +388,14 @@ export class SqlStudioService {
       throw new NotFoundException(`Table "${tableName}" not found.`);
     }
 
-    const columns = await this.prisma.$queryRawUnsafe<any[]>(`
+    const columns = await this.prisma.$queryRawUnsafe<any[]>(
+      `
       SELECT column_name, data_type, column_default
       FROM information_schema.columns
-      WHERE table_schema = 'public' AND table_name = '${tableName}';
-    `);
+      WHERE table_schema = 'public' AND table_name = $1;
+    `,
+      tableName,
+    );
 
     const validColNames = new Set(columns.map((c) => c.column_name));
     const insertCols: string[] = [];
@@ -421,23 +437,29 @@ export class SqlStudioService {
       throw new NotFoundException(`Table "${tableName}" not found.`);
     }
 
-    const pkRows = await this.prisma.$queryRawUnsafe<any[]>(`
+    const pkRows = await this.prisma.$queryRawUnsafe<any[]>(
+      `
       SELECT kcu.column_name as pk_column
       FROM information_schema.table_constraints tc
       JOIN information_schema.key_column_usage kcu
         ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema
-      WHERE tc.constraint_type = 'PRIMARY KEY' 
-        AND tc.table_schema = 'public' 
-        AND tc.table_name = '${tableName}';
-    `);
+      WHERE tc.constraint_type = 'PRIMARY KEY'
+        AND tc.table_schema = 'public'
+        AND tc.table_name = $1;
+    `,
+      tableName,
+    );
 
     const primaryKey = pkRows[0]?.pk_column || 'id';
 
-    const columns = await this.prisma.$queryRawUnsafe<any[]>(`
+    const columns = await this.prisma.$queryRawUnsafe<any[]>(
+      `
       SELECT column_name
       FROM information_schema.columns
-      WHERE table_schema = 'public' AND table_name = '${tableName}';
-    `);
+      WHERE table_schema = 'public' AND table_name = $1;
+    `,
+      tableName,
+    );
     const validColNames = new Set(columns.map((c) => c.column_name));
 
     const setClauses: string[] = [];
@@ -480,15 +502,18 @@ export class SqlStudioService {
       throw new NotFoundException(`Table "${tableName}" not found.`);
     }
 
-    const pkRows = await this.prisma.$queryRawUnsafe<any[]>(`
+    const pkRows = await this.prisma.$queryRawUnsafe<any[]>(
+      `
       SELECT kcu.column_name as pk_column
       FROM information_schema.table_constraints tc
       JOIN information_schema.key_column_usage kcu
         ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema
-      WHERE tc.constraint_type = 'PRIMARY KEY' 
-        AND tc.table_schema = 'public' 
-        AND tc.table_name = '${tableName}';
-    `);
+      WHERE tc.constraint_type = 'PRIMARY KEY'
+        AND tc.table_schema = 'public'
+        AND tc.table_name = $1;
+    `,
+      tableName,
+    );
 
     const primaryKey = pkRows[0]?.pk_column || 'id';
     const parsedId = isNaN(Number(id)) ? id : Number(id);

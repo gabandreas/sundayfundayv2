@@ -216,12 +216,12 @@ export function SavingsClientView({
       {activeSub === "pockets" && (
         <div className="space-y-6">
           {/* Top Reserve & Reconciliation Strip */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="rounded-lg border border-border-default bg-surface p-3.5">
-              <span className="text-[10px] font-sans font-semibold text-text-tertiary block">
+          <div className="rounded-lg border border-border-default bg-surface grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 lg:divide-x divide-border-subtle">
+            <div className="p-3.5 min-w-0">
+              <span className="text-[11px] font-sans font-medium text-text-tertiary block">
                 Emergency Fund Pool
               </span>
-              <span className="font-mono text-lg font-semibold text-text-primary tabular-nums erp-tabular-currency mt-1 block">
+              <span className="font-mono text-lg font-semibold text-text-primary erp-tabular-currency mt-1 block">
                 {formatRupiah(activeVault.balance ?? 0, isAmountsMasked)}
               </span>
               <span className="text-[11px] font-sans text-text-tertiary mt-0.5 block">
@@ -229,11 +229,11 @@ export function SavingsClientView({
               </span>
             </div>
 
-            <div className="rounded-lg border border-border-default bg-surface p-3.5">
-              <span className="text-[10px] font-sans font-semibold text-text-tertiary block">
+            <div className="p-3.5 min-w-0">
+              <span className="text-[11px] font-sans font-medium text-text-tertiary block">
                 Active {savingsTierLabel} ({month}/{year})
               </span>
-              <span className="font-mono text-lg font-semibold text-delta-positive tabular-nums erp-tabular-currency mt-1 block">
+              <span className="font-mono text-lg font-semibold text-delta-positive erp-tabular-currency mt-1 block">
                 {formatRupiah(activePeriodP1, isAmountsMasked)}
               </span>
               <span className="text-[11px] font-sans text-text-tertiary mt-0.5 block">
@@ -241,11 +241,11 @@ export function SavingsClientView({
               </span>
             </div>
 
-            <div className="rounded-lg border border-border-default bg-surface p-3.5">
-              <span className="text-[10px] font-sans font-semibold text-text-tertiary block">
+            <div className="p-3.5 min-w-0">
+              <span className="text-[11px] font-sans font-medium text-text-tertiary block">
                 Scheduled Savings Repayments
               </span>
-              <span className="font-mono text-lg font-semibold text-caution tabular-nums erp-tabular-currency mt-1 block">
+              <span className="font-mono text-lg font-semibold text-caution erp-tabular-currency mt-1 block">
                 {formatRupiah(scheduledP1RefundTotal, isAmountsMasked)}
               </span>
               <span className="text-[11px] font-sans text-text-tertiary mt-0.5 block">
@@ -253,11 +253,11 @@ export function SavingsClientView({
               </span>
             </div>
 
-            <div className="rounded-lg border border-border-default bg-surface p-3.5">
-              <span className="text-[10px] font-sans font-semibold text-text-tertiary block">
+            <div className="p-3.5 min-w-0">
+              <span className="text-[11px] font-sans font-medium text-text-tertiary block">
                 Planned Savings Trajectory
               </span>
-              <span className="font-mono text-lg font-semibold text-text-primary tabular-nums erp-tabular-currency mt-1 block">
+              <span className="font-mono text-lg font-semibold text-text-primary erp-tabular-currency mt-1 block">
                 {formatRupiah(activeVault.overview?.kpi.totalPlanned2026P1 ?? 0, isAmountsMasked)}
               </span>
               <span className="text-[11px] font-sans text-text-tertiary mt-0.5 block">
@@ -297,7 +297,7 @@ export function SavingsClientView({
                 placeholder="Auto (from ledger)"
                 value={p1OverrideInput}
                 onChange={(e) => setP1OverrideInput(e.target.value)}
-                className="w-40 px-2.5 py-1.5 rounded bg-canvas border border-border text-xs font-mono text-text-primary tabular-nums focus:outline-none"
+                className="w-40 px-2.5 py-1.5 rounded bg-canvas border border-border text-xs font-mono text-text-primary tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
               />
               <button
                 type="button"

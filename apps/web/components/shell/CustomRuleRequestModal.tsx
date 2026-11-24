@@ -149,7 +149,7 @@ export function CustomRuleRequestModal() {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="e.g. Add 10% Withholding Tax deduction on freelance invoices"
-                className="w-full h-9 px-3 rounded border border-border bg-surface-subtle text-xs text-text-primary focus:border-accent focus:outline-hidden"
+                className="w-full h-9 px-3 rounded border border-border bg-surface-subtle text-xs text-text-primary focus:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                 required
               />
             </div>
@@ -162,7 +162,7 @@ export function CustomRuleRequestModal() {
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value as any)}
-                  className="w-full h-9 px-3 rounded border border-border bg-surface-subtle text-xs text-text-primary focus:border-accent focus:outline-hidden"
+                  className="w-full h-9 px-3 rounded border border-border bg-surface-subtle text-xs text-text-primary focus:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                 >
                   <option value="CUSTOM_PAYROLL_FORMULA">Custom Payroll Formula</option>
                   <option value="CUSTOM_WATERFALL_RULE">Waterfall Priority / Quota Rule</option>
@@ -178,7 +178,7 @@ export function CustomRuleRequestModal() {
                 <select
                   value={priority}
                   onChange={(e) => setPriority(e.target.value as any)}
-                  className="w-full h-9 px-3 rounded border border-border bg-surface-subtle text-xs text-text-primary focus:border-accent focus:outline-hidden"
+                  className="w-full h-9 px-3 rounded border border-border bg-surface-subtle text-xs text-text-primary focus:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                 >
                   <option value="NORMAL">Normal</option>
                   <option value="HIGH_BUSINESS_CRITICAL">High (Business Critical)</option>
@@ -195,7 +195,7 @@ export function CustomRuleRequestModal() {
                 onChange={(e) => setCurrentWorkflow(e.target.value)}
                 rows={2}
                 placeholder="Describe what you currently do manually or how the default system behaves..."
-                className="w-full p-2.5 rounded border border-border bg-surface-subtle text-xs text-text-primary focus:border-accent focus:outline-hidden resize-none"
+                className="w-full p-2.5 rounded border border-border bg-surface-subtle text-xs text-text-primary focus:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 resize-none"
               />
             </div>
 
@@ -208,7 +208,7 @@ export function CustomRuleRequestModal() {
                 onChange={(e) => setDesiredBehavior(e.target.value)}
                 rows={4}
                 placeholder="Detail exact math formulas, trigger rules, or database fields needed..."
-                className="w-full p-2.5 rounded border border-border bg-surface-subtle text-xs text-text-primary focus:border-accent focus:outline-hidden resize-none"
+                className="w-full p-2.5 rounded border border-border bg-surface-subtle text-xs text-text-primary focus:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 resize-none"
                 required
               />
             </div>

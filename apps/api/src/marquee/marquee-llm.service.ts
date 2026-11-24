@@ -90,22 +90,22 @@ export const MARQUEE_TOOL_DEFS = [
   {
     name: 'optimize_payday_thr_split',
     description:
-      'Recommend how to split a THR, religious holiday bonus, or payday surplus across shortfall coverage, P1 Core Vault, high-cost debt prepayment, and holiday living buffer.',
+      'Recommend how to split a THR bonus, holiday income, or payday surplus across shortfall coverage, Emergency Fund Reserve, debt prepayment, and holiday living budget (amounts in IDR).',
     parameters: {
       type: 'object',
       properties: {
-        bonusRp: { type: 'number', description: 'THR or bonus amount in Rupiah' },
+        bonusRp: { type: 'number', description: 'Bonus or extra inflow amount in IDR (integer)' },
       },
     },
   },
   {
     name: 'analyze_debt_burndown',
     description:
-      'Analyze active installment plans, remaining principal, monthly commitment, and payoff milestones (JAN 27, FEB 27 SPinjam freedom, SEP 27 final maturity).',
+      'Analyze active installment plans, remaining principal in IDR, monthly commitment, and upcoming debt payoff milestones.',
     parameters: {
       type: 'object',
       properties: {
-        lumpSumRp: { type: 'number' },
+        lumpSumRp: { type: 'number', description: 'Optional extra prepayment lump sum in IDR' },
       },
     },
   },
@@ -221,13 +221,18 @@ export const MARQUEE_TOOL_DEFS = [
   },
   {
     name: 'get_savings_and_goals',
-    description: 'Inspect P1 Core Savings vault balance (RDPU + liquid) and active goals.',
+    description: 'Inspect Emergency Fund Reserve balance (RDPU + liquid cash in IDR) and active savings goals.',
     parameters: { type: 'object', properties: {} },
   },
   {
     name: 'simulate_debt_payoff',
-    description: 'Simulate Snowball vs Avalanche early prepayment impact for a Rupiah lump sum.',
-    parameters: { type: 'object', properties: { lumpSumRp: { type: 'number' } } },
+    description: 'Simulate Snowball vs Avalanche early prepayment impact for a lump sum in IDR.',
+    parameters: {
+      type: 'object',
+      properties: {
+        lumpSumRp: { type: 'number', description: 'Prepayment lump sum in IDR (integer)' },
+      },
+    },
   },
   {
     name: 'manage_liability_item',
@@ -297,13 +302,13 @@ export const MARQUEE_TOOL_DEFS = [
   {
     name: 'run_what_if_scenario',
     description:
-      'Simulate a 12-month what-if scenario (extra monthly savings, bonus, or debt reduction) and return net worth delta.',
+      'Simulate a 12-month what-if scenario (extra monthly savings, bonus, or debt reduction in IDR) and return projected net worth delta.',
     parameters: {
       type: 'object',
       properties: {
-        extraMonthlySavingsRp: { type: 'number' },
-        oneTimeBonusRp: { type: 'number' },
-        reduceMonthlyDebtRp: { type: 'number' },
+        extraMonthlySavingsRp: { type: 'number', description: 'Extra monthly savings in IDR' },
+        oneTimeBonusRp: { type: 'number', description: 'One-time bonus inflow in IDR' },
+        reduceMonthlyDebtRp: { type: 'number', description: 'Monthly debt reduction in IDR' },
       },
     },
   },

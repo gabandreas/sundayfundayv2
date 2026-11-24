@@ -367,13 +367,13 @@ export function ScenarioLabClient({
 
         {/* Right 8 Cols: KPI Impact + SVG Comparison Chart */}
         <div className="xl:col-span-8 space-y-5">
-          {/* 4-Metric Impact Row */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="rounded-lg border border-border bg-surface p-3.5">
-              <span className="text-[10px] font-mono text-text-tertiary block">
+          {/* 4-Metric Impact Strip */}
+          <div className="rounded-lg border border-border bg-surface grid grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 lg:divide-x divide-border-subtle">
+            <div className="p-3.5 min-w-0">
+              <span className="text-[11px] font-sans text-text-tertiary block">
                 Baseline 12M Cash
               </span>
-              <span className="font-mono text-base font-semibold text-text-secondary mt-1 block erp-tabular-currency">
+              <span className="erp-tabular-currency text-base font-semibold text-text-secondary mt-1 block truncate">
                 {result ? formatRupiah(result.baseline.projected12MWealthRp, isAmountsMasked) : "—"}
               </span>
               <span className="text-[11px] text-text-tertiary mt-0.5 block">
@@ -381,11 +381,11 @@ export function ScenarioLabClient({
               </span>
             </div>
 
-            <div className="rounded-lg border border-border bg-surface p-3.5">
-              <span className="text-[10px] font-mono text-text-tertiary block">
+            <div className="p-3.5 min-w-0">
+              <span className="text-[11px] font-sans text-text-tertiary block">
                 Simulated 12M Cash
               </span>
-              <span className="font-serif text-xl text-text-primary mt-1 block erp-tabular-currency">
+              <span className="font-serif text-xl text-text-primary mt-1 block erp-tabular-currency truncate">
                 {result ? formatRupiah(result.simulated.projected12MWealthRp, isAmountsMasked) : "—"}
               </span>
               <span className="text-[11px] text-text-tertiary mt-0.5 block">
@@ -393,12 +393,12 @@ export function ScenarioLabClient({
               </span>
             </div>
 
-            <div className="rounded-lg border border-border bg-surface p-3.5">
-              <span className="text-[10px] font-mono text-text-tertiary block">
+            <div className="p-3.5 min-w-0">
+              <span className="text-[11px] font-sans text-text-tertiary block">
                 12-Month Delta
               </span>
               <span
-                className={`font-mono text-base font-semibold mt-1 block erp-tabular-currency ${
+                className={`erp-tabular-currency text-base font-semibold mt-1 block truncate ${
                   (result?.net12MDeltaRp ?? 0) >= 0 ? "text-delta-positive" : "text-delta-negative"
                 }`}
               >
@@ -414,8 +414,8 @@ export function ScenarioLabClient({
               </span>
             </div>
 
-            <div className="rounded-lg border border-border bg-surface p-3.5">
-              <span className="text-[10px] font-mono text-text-tertiary block">
+            <div className="p-3.5 min-w-0">
+              <span className="text-[11px] font-sans text-text-tertiary block">
                 Low-DSR (&lt;15%) Date
               </span>
               <span className="font-mono text-base font-semibold text-text-primary mt-1 block">
@@ -588,25 +588,25 @@ export function ScenarioLabClient({
           {result && result.debtStrategies.length > 0 && (
             <div className="rounded-lg border border-border bg-surface p-5 space-y-3">
               <div className="flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-delta-positive" />
+                <ShieldCheck className="w-4 h-4 text-delta-positive" aria-hidden="true" />
                 <h3 className="text-sm font-semibold text-text-primary">
                   Debt Prepayment Allocation Comparison
                 </h3>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 xl:grid-cols-3 divide-y xl:divide-y-0 xl:divide-x divide-border-subtle border-t border-border-subtle">
                 {result.debtStrategies.map((st) => (
                   <div
                     key={st.strategy}
-                    className="p-3.5 rounded border border-border-subtle bg-surface-subtle/40 space-y-1.5"
+                    className="py-3 xl:px-4 first:xl:pl-0 last:xl:pr-0 space-y-1.5"
                   >
-                    <div className="flex items-center justify-between text-xs font-semibold text-text-primary">
+                    <div className="flex items-center justify-between gap-2 text-xs font-semibold text-text-primary">
                       <span>{st.strategy}</span>
-                      <span className="font-mono text-delta-positive erp-tabular-currency">
+                      <span className="text-delta-positive erp-tabular-currency">
                         +{formatRupiah(st.immediateFreedMonthlyRp, isAmountsMasked)}/mo
                       </span>
                     </div>
                     <p className="text-[11px] text-text-tertiary leading-relaxed">{st.summary}</p>
-                    <div className="pt-1.5 border-t border-border-subtle flex items-center justify-between text-[11px] font-mono">
+                    <div className="pt-1.5 border-t border-border-subtle flex items-center justify-between gap-2 text-[11px] font-mono">
                       <span className="text-text-secondary">Interest Saved</span>
                       <span className="text-delta-positive font-semibold erp-tabular-currency">
                         {formatRupiah(st.estimatedInterestSavedRp, isAmountsMasked)} ({st.monthsShaved}m)
@@ -783,36 +783,36 @@ export function ScenarioLabClient({
 
           {/* Right Column: Confidence Metrics, Fan Chart & Optimizer Strategies */}
           <div className="lg:col-span-8 space-y-4">
-            {/* 4 Confidence KPI Tiles */}
-            <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-              <div className="rounded-lg border border-border bg-surface p-4">
+            {/* 4 Confidence KPI Strip */}
+            <div className="rounded-lg border border-border bg-surface grid grid-cols-2 xl:grid-cols-4 divide-y sm:divide-y-0 xl:divide-x divide-border-subtle">
+              <div className="p-4 min-w-0">
                 <div className="text-[11px] font-medium text-text-tertiary">12-Month Survival Rate</div>
                 <div className="font-serif text-[26px] font-normal text-delta-positive mt-1 tabular-nums leading-none">
                   {stressResult ? `${stressResult.monteCarlo.survivalProbabilityPct.toFixed(1)}%` : "—"}
                 </div>
-                <div className="text-[10px] text-text-tertiary mt-1">Positive liquid floor probability</div>
+                <div className="text-[11px] text-text-tertiary mt-1">Positive liquid floor probability</div>
               </div>
 
-              <div className="rounded-lg border border-border bg-surface p-4">
+              <div className="p-4 min-w-0">
                 <div className="text-[11px] font-medium text-text-tertiary">Emergency Target Hit</div>
                 <div className="font-mono text-xl font-semibold text-text-primary mt-1.5 tabular-nums leading-none">
                   {stressResult ? `${stressResult.monteCarlo.emergencyGoalProbabilityPct.toFixed(1)}%` : "—"}
                 </div>
-                <div className="text-[10px] text-text-tertiary mt-1.5">Reserve goal achieved in 12m</div>
+                <div className="text-[11px] text-text-tertiary mt-1.5">Reserve goal achieved in 12m</div>
               </div>
 
-              <div className="rounded-lg border border-border bg-surface p-4">
+              <div className="p-4 min-w-0">
                 <div className="text-[11px] font-medium text-text-tertiary">Median Ending Wealth (P50)</div>
-                <div className="font-mono text-lg font-semibold text-text-primary mt-1.5 erp-tabular-currency leading-none truncate">
+                <div className="erp-tabular-currency text-base font-semibold text-text-primary mt-1.5 leading-none truncate">
                   {stressResult ? formatRupiah(stressResult.monteCarlo.p50MedianEndingWealthRp, isAmountsMasked) : "—"}
                 </div>
-                <div className="text-[10px] text-text-tertiary mt-1.5">50th percentile outcome</div>
+                <div className="text-[11px] text-text-tertiary mt-1.5">50th percentile outcome</div>
               </div>
 
-              <div className="rounded-lg border border-border bg-surface p-4">
+              <div className="p-4 min-w-0">
                 <div className="text-[11px] font-medium text-text-tertiary">Worst-Case Cash Floor (P5)</div>
                 <div
-                  className={`font-mono text-lg font-semibold mt-1.5 erp-tabular-currency leading-none truncate ${
+                  className={`erp-tabular-currency text-base font-semibold mt-1.5 leading-none truncate ${
                     (stressResult?.monteCarlo.p5WorstCaseCashFloorRp ?? 0) < 0
                       ? "text-urgency"
                       : "text-caution"
@@ -820,7 +820,7 @@ export function ScenarioLabClient({
                 >
                   {stressResult ? formatRupiah(stressResult.monteCarlo.p5WorstCaseCashFloorRp, isAmountsMasked) : "—"}
                 </div>
-                <div className="text-[10px] text-text-tertiary mt-1.5">5th percentile liquidity stress</div>
+                <div className="text-[11px] text-text-tertiary mt-1.5">5th percentile liquidity stress</div>
               </div>
             </div>
 
@@ -996,55 +996,63 @@ export function ScenarioLabClient({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  {stressResult.optimizer.strategies.map((st) => (
-                    <div
-                      key={st.code}
-                      className="rounded border border-border-subtle bg-canvas/70 p-3.5 space-y-2.5 text-xs"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="font-semibold text-text-primary">{st.title}</div>
-                        <span className="text-[10px] font-mono text-delta-positive shrink-0">
-                          {st.debtMonthsShaved > 0 ? `-${st.debtMonthsShaved}m debt` : `${st.emergencyMonthsToTarget}m target`}
-                        </span>
-                      </div>
+                <div className="grid grid-cols-1 xl:grid-cols-3 divide-y xl:divide-y-0 xl:divide-x divide-border-subtle border-t border-border-subtle pt-1">
+                  {stressResult.optimizer.strategies.map((st) => {
+                    const horizonBadge =
+                      st.debtMonthsShaved > 0
+                        ? `-${st.debtMonthsShaved}m debt`
+                        : st.emergencyMonthsToTarget >= 999
+                          ? "No reserve pace"
+                          : `${st.emergencyMonthsToTarget}m reserve`;
+                    return (
+                      <div
+                        key={st.code}
+                        className="py-3.5 xl:px-4 first:xl:pl-0 last:xl:pr-0 space-y-2.5 text-xs min-w-0"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="font-semibold text-text-primary">{st.title}</div>
+                          <span className="text-[11px] font-mono text-delta-positive shrink-0 whitespace-nowrap">
+                            {horizonBadge}
+                          </span>
+                        </div>
 
-                      <div className="space-y-1 text-[11px] font-mono border-y border-border-subtle py-2">
-                        <div className="flex justify-between">
-                          <span className="text-text-tertiary">Debt Prepay</span>
-                          <span className="text-text-primary erp-tabular-currency">
-                            {formatRupiah(st.debtPrepaymentRp, isAmountsMasked)}
-                          </span>
+                        <div className="space-y-1.5 text-[11px] font-mono border-y border-border-subtle py-2">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-text-tertiary truncate">Debt Prepay</span>
+                            <span className="text-text-primary erp-tabular-currency">
+                              {formatRupiah(st.debtPrepaymentRp, isAmountsMasked)}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-text-tertiary truncate">Emergency Reserve</span>
+                            <span className="text-text-primary erp-tabular-currency">
+                              {formatRupiah(st.emergencyFundRp, isAmountsMasked)}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-text-tertiary truncate">Savings Goals</span>
+                            <span className="text-text-primary erp-tabular-currency">
+                              {formatRupiah(st.goalSavingsRp, isAmountsMasked)}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-text-tertiary truncate">Flexible Pool</span>
+                            <span className="text-text-primary erp-tabular-currency">
+                              {formatRupiah(st.flexibleRp, isAmountsMasked)}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-text-tertiary">Emergency Reserve</span>
-                          <span className="text-text-primary erp-tabular-currency">
-                            {formatRupiah(st.emergencyFundRp, isAmountsMasked)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-text-tertiary">Savings Goals</span>
-                          <span className="text-text-primary erp-tabular-currency">
-                            {formatRupiah(st.goalSavingsRp, isAmountsMasked)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-text-tertiary">Flexible Pool</span>
-                          <span className="text-text-primary erp-tabular-currency">
-                            {formatRupiah(st.flexibleRp, isAmountsMasked)}
-                          </span>
-                        </div>
-                      </div>
 
-                      <div className="flex items-center justify-between text-[11px] font-mono">
-                        <span className="text-text-tertiary">12M Projected Worth</span>
-                        <span className="font-semibold text-delta-positive erp-tabular-currency">
-                          {formatRupiah(st.projected12MNetWorthRp, isAmountsMasked)}
-                        </span>
+                        <div className="flex items-center justify-between gap-3 text-[11px] font-mono">
+                          <span className="text-text-tertiary">12M Projected Worth</span>
+                          <span className="font-semibold text-delta-positive erp-tabular-currency">
+                            {formatRupiah(st.projected12MNetWorthRp, isAmountsMasked)}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-text-tertiary leading-relaxed">{st.rationale}</p>
                       </div>
-                      <p className="text-[11px] text-text-tertiary leading-relaxed">{st.rationale}</p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}

@@ -184,7 +184,7 @@ function LoginForm() {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder={t("auth.usernamePlaceholder")}
-                  className="w-full pl-9 pr-3 py-2 text-xs rounded border border-border bg-surface-subtle text-text-primary focus:outline-none focus:border-border-strong font-mono"
+                  className="w-full pl-9 pr-3 py-2 text-xs rounded border border-border bg-surface-subtle text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong font-mono"
                 />
               </div>
             </div>
@@ -216,7 +216,7 @@ function LoginForm() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder={t("auth.passwordPlaceholder")}
-                  className="w-full pl-9 pr-10 py-2 text-xs rounded border border-border bg-surface-subtle text-text-primary focus:outline-none focus:border-border-strong font-sans"
+                  className="w-full pl-9 pr-10 py-2 text-xs rounded border border-border bg-surface-subtle text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong font-sans"
                 />
                 <button
                   type="button"
@@ -257,7 +257,7 @@ function LoginForm() {
                 value={securityPin}
                 onChange={(e) => setSecurityPin(e.target.value.replace(/\D/g, ""))}
                 placeholder="••••••"
-                className="w-full px-3 py-2 text-center tracking-[0.5em] text-sm font-mono rounded border border-border bg-surface text-text-primary focus:outline-none focus:border-border-strong"
+                className="w-full px-3 py-2 text-center tracking-[0.5em] text-sm font-mono rounded border border-border bg-surface text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
               />
               <p className="text-[11px] text-text-tertiary mt-1">
                 {t("auth.securityPinHint")}
@@ -278,7 +278,7 @@ function LoginForm() {
                 value={ipLabel}
                 onChange={(e) => setIpLabel(e.target.value)}
                 placeholder={t("auth.devicePlaceholder")}
-                className="w-full px-3 py-1.5 text-xs rounded border border-border bg-surface text-text-primary focus:outline-none focus:border-border-strong font-sans"
+                className="w-full px-3 py-1.5 text-xs rounded border border-border bg-surface text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong font-sans"
               />
             </div>
 

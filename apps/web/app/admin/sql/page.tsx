@@ -399,7 +399,7 @@ export default function SqlStudioPage() {
                 value={tableSearch}
                 onChange={(e) => setTableSearch(e.target.value)}
                 placeholder="Filter tables..."
-                className="w-full pl-8 pr-2.5 py-1 text-xs rounded border border-border bg-surface text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-border-strong font-mono"
+                className="w-full pl-8 pr-2.5 py-1 text-xs rounded border border-border bg-surface text-text-primary placeholder:text-text-tertiary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong font-mono"
               />
             </div>
           </div>
@@ -491,7 +491,7 @@ export default function SqlStudioPage() {
                       if (e.target.value) setSqlInput(e.target.value);
                     }}
                     defaultValue=""
-                    className="px-2.5 py-1 text-xs rounded border border-border bg-surface-subtle text-text-secondary hover:text-text-primary font-mono focus:outline-none cursor-pointer"
+                    className="px-2.5 py-1 text-xs rounded border border-border bg-surface-subtle text-text-secondary hover:text-text-primary font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 cursor-pointer"
                   >
                     <option value="" disabled>
                       Quick Presets...
@@ -599,7 +599,7 @@ export default function SqlStudioPage() {
                   value={sqlInput}
                   onChange={(e) => setSqlInput(e.target.value)}
                   placeholder="Enter raw SQL statement (e.g. SELECT * FROM &quot;User&quot;;)..."
-                  className="flex-1 w-full bg-transparent text-xs font-mono text-emerald-300 placeholder:text-text-tertiary focus:outline-none resize-none leading-relaxed"
+                  className="flex-1 w-full bg-transparent text-xs font-mono text-emerald-300 placeholder:text-text-tertiary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 resize-none leading-relaxed"
                   spellCheck={false}
                 />
                 <div className="flex items-center justify-between text-[11px] font-mono text-text-tertiary border-t border-slate-800/80 pt-1.5 mt-1">
@@ -757,7 +757,7 @@ export default function SqlStudioPage() {
                       value={userIdFilter}
                       onChange={(e) => setUserIdFilter(e.target.value)}
                       placeholder="All"
-                      className="w-16 px-2 py-0.5 text-xs rounded border border-border bg-surface text-text-primary font-mono focus:outline-none"
+                      className="w-16 px-2 py-0.5 text-xs rounded border border-border bg-surface text-text-primary font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                     />
                   </div>
 
@@ -769,7 +769,7 @@ export default function SqlStudioPage() {
                       value={recordSearch}
                       onChange={(e) => setRecordSearch(e.target.value)}
                       placeholder="Search text fields..."
-                      className="w-40 px-2 py-0.5 text-xs rounded border border-border bg-surface text-text-primary focus:outline-none"
+                      className="w-40 px-2 py-0.5 text-xs rounded border border-border bg-surface text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                     />
                   </div>
 
@@ -976,7 +976,7 @@ export default function SqlStudioPage() {
                         })
                       }
                       placeholder={col.isNullable ? "NULL" : "Required"}
-                      className="w-full px-3 py-1.5 text-xs rounded border border-border bg-surface-subtle text-text-primary font-mono focus:outline-none focus:border-border-strong disabled:opacity-50"
+                      className="w-full px-3 py-1.5 text-xs rounded border border-border bg-surface-subtle text-text-primary font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong disabled:opacity-50"
                     />
                   </div>
                 );

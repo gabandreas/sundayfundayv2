@@ -421,7 +421,7 @@ export function MarqueeCoPilotDrawer({ isOpen, onClose }: MarqueeCoPilotDrawerPr
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Ask or log expense (e.g. beli sate 55rb)..."
-          className="flex-1 bg-surface border border-border rounded px-3 py-2 text-xs text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-border-strong"
+          className="flex-1 bg-surface border border-border rounded px-3 py-2 text-xs text-text-primary placeholder:text-text-tertiary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
         />
         <button
           type="submit"

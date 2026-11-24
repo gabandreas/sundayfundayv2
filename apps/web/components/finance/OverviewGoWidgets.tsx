@@ -81,7 +81,7 @@ export function OverviewExecutiveRibbon({
             <HelpCircle className="w-3 h-3 text-text-tertiary/70" />
           </div>
           <div
-            className={`text-sm font-semibold font-mono tabular-nums ${
+            className={`text-sm font-semibold erp-tabular-currency ${
               networth.totalNetWorthRp >= 0 ? "text-delta-positive" : "text-delta-negative"
             }`}
           >
@@ -166,10 +166,10 @@ export function OverviewIntelligenceStrip({
         </div>
         <div className="space-y-1">
           <div className="flex items-baseline justify-between gap-4">
-            <div className="font-serif text-2xl text-text-primary tabular-nums">
+            <div className="font-serif text-2xl text-text-primary erp-tabular-currency">
               {formatRupiah(networth.totalAssetsRp, isAmountsMasked)}
             </div>
-            <span className="text-xs font-mono text-delta-negative tabular-nums">
+            <span className="text-xs erp-tabular-currency text-delta-negative">
               vs {formatRupiah(networth.totalUnpaidDebtRp, isAmountsMasked)} debt
             </span>
           </div>
@@ -248,7 +248,7 @@ export function OverviewIntelligenceStrip({
           <TrendingUp className="w-4 h-4 text-delta-positive" />
         </div>
         <div className="flex items-baseline justify-between gap-3">
-          <div className="font-mono text-xl font-semibold text-delta-positive tabular-nums">
+          <div className="erp-tabular-currency text-xl font-semibold text-delta-positive">
             {firstUnlock
               ? `+${formatRupiah(firstUnlock.freedMonthlyRp, isAmountsMasked)}/mo`
               : formatRupiah(0, isAmountsMasked)}

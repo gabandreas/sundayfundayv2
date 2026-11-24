@@ -108,7 +108,7 @@ export function FixedEssentialsTable({
             </span>
             <span className="text-[10px] text-text-tertiary block">
               {isDeficit
-                ? "Target need — Rp 0 funded in deficit"
+                ? "Target need (Rp 0 funded in deficit)"
                 : "Pacing consumption pool for everyday meals & transit"}
             </span>
           </div>

@@ -184,7 +184,7 @@ export function AddCardChargeForm({
                 }
               }}
               placeholder="e.g. Uniqlo Grand Indonesia"
-              className={`w-full bg-surface-subtle border rounded px-3 py-2 text-xs text-text-primary focus:outline-none ${
+              className={`w-full bg-surface-subtle border rounded px-3 py-2 text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 ${
                 fieldErrors.label
                   ? "border-urgency focus:border-urgency"
                   : "border-border focus:border-accent"
@@ -213,7 +213,7 @@ export function AddCardChargeForm({
                 }
               }}
               placeholder="850.000"
-              className={`w-full bg-surface-subtle border rounded px-3 py-2 text-xs font-mono text-text-primary text-right focus:outline-none tabular-nums ${
+              className={`w-full bg-surface-subtle border rounded px-3 py-2 text-xs font-mono text-text-primary text-right focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 tabular-nums ${
                 fieldErrors.amount
                   ? "border-urgency focus:border-urgency"
                   : "border-border focus:border-accent"
@@ -236,7 +236,7 @@ export function AddCardChargeForm({
             <select
               value={chargeType}
               onChange={(e) => setChargeType(e.target.value as any)}
-              className="w-full bg-surface-subtle border border-border rounded px-3 py-2 text-xs text-text-primary focus:outline-none focus:border-accent"
+              className="w-full bg-surface-subtle border border-border rounded px-3 py-2 text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-accent"
             >
               <option value="FULL">Full payment</option>
               <option value="INSTALLMENT">Installment (0%)</option>
@@ -253,7 +253,7 @@ export function AddCardChargeForm({
               <select
                 value={tenor}
                 onChange={(e) => setTenor(e.target.value)}
-                className="w-full bg-surface-subtle border border-border rounded px-3 py-2 text-xs font-mono text-text-primary focus:outline-none focus:border-accent"
+                className="w-full bg-surface-subtle border border-border rounded px-3 py-2 text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-accent"
               >
                 <option value="3">3 mo</option>
                 <option value="6">6 mo</option>
@@ -271,7 +271,7 @@ export function AddCardChargeForm({
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="w-full bg-surface-subtle border border-border rounded px-3 py-2 text-xs text-text-primary focus:outline-none focus:border-accent"
+              className="w-full bg-surface-subtle border border-border rounded px-3 py-2 text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-accent"
             >
               <option value="Shopping">Shopping</option>
               <option value="Electronics">Electronics</option>
@@ -292,7 +292,7 @@ export function AddCardChargeForm({
               value={transactionDate}
               onChange={(e) => setTransactionDate(e.target.value)}
               required
-              className="w-full bg-surface-subtle border border-border rounded px-3 py-2 text-xs font-mono text-text-primary focus:outline-none focus:border-accent"
+              className="w-full bg-surface-subtle border border-border rounded px-3 py-2 text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-accent"
             />
           </div>
         </div>
@@ -398,7 +398,7 @@ export function AddCardChargeForm({
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="e.g. Promo diskon 10%, cicilan BCA 0%"
-            className="w-full bg-surface-subtle border border-border rounded px-3 py-2 text-xs text-text-primary focus:outline-none focus:border-accent"
+            className="w-full bg-surface-subtle border border-border rounded px-3 py-2 text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-accent"
           />
         </div>
 

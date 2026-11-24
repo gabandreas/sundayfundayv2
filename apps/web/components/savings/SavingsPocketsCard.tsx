@@ -276,7 +276,7 @@ export function SavingsPocketsCard({
                     type="text"
                     value={pocket.name}
                     onChange={(e) => updatePocket(idx, { name: e.target.value })}
-                    className="w-full px-2.5 py-1.5 rounded bg-surface border border-border text-xs text-text-primary focus:outline-none focus:border-accent"
+                    className="w-full px-2.5 py-1.5 rounded bg-surface border border-border text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-accent"
                   />
                 </div>
 
@@ -291,7 +291,7 @@ export function SavingsPocketsCard({
                         category: e.target.value as SavingsPocketConfig["category"],
                       })
                     }
-                    className="w-full px-2 py-1.5 rounded bg-surface border border-border text-xs text-text-primary focus:outline-none focus:border-accent"
+                    className="w-full px-2 py-1.5 rounded bg-surface border border-border text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-accent"
                   >
                     {POCKET_CATEGORY_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>
@@ -328,7 +328,7 @@ export function SavingsPocketsCard({
                     onChange={(e) =>
                       updatePocket(idx, { allocatedRp: parseCurrencyInput(e.target.value) })
                     }
-                    className="w-full px-2.5 py-1.5 rounded bg-surface border border-border text-xs font-mono erp-tabular-currency text-text-primary focus:outline-none focus:border-accent"
+                    className="w-full px-2.5 py-1.5 rounded bg-surface border border-border text-xs font-mono erp-tabular-currency text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-accent"
                   />
                 </div>
 
@@ -348,7 +348,7 @@ export function SavingsPocketsCard({
                     onChange={(e) =>
                       updatePocket(idx, { targetRp: parseCurrencyInput(e.target.value) })
                     }
-                    className="w-full px-2.5 py-1.5 rounded bg-surface border border-border text-xs font-mono erp-tabular-currency text-text-primary focus:outline-none focus:border-accent"
+                    className="w-full px-2.5 py-1.5 rounded bg-surface border border-border text-xs font-mono erp-tabular-currency text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-accent"
                   />
                 </div>
 

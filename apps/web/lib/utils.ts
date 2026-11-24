@@ -87,10 +87,184 @@ function addMonthsClient(month: number, year: number, offset: number): { month: 
   };
 }
 
+interface CutoffTok {
+  kind: "EOF" | "NUM" | "IDENT" | "OP" | "LPAREN" | "RPAREN" | "COMMA";
+  text: string;
+  num?: number;
+}
+
+function tokenizeSafeCutoffExpr(expr: string): CutoffTok[] {
+  const out: CutoffTok[] = [];
+  let i = 0;
+  const n = expr.length;
+  while (i < n) {
+    const ch = expr[i];
+    if (/\s/.test(ch)) {
+      i++;
+      continue;
+    }
+    if (ch === "(") {
+      out.push({ kind: "LPAREN", text: "(" });
+      i++;
+    } else if (ch === ")") {
+      out.push({ kind: "RPAREN", text: ")" });
+      i++;
+    } else if (ch === ",") {
+      out.push({ kind: "COMMA", text: "," });
+      i++;
+    } else if (/[<>!]/.test(ch)) {
+      if (i + 1 < n && expr[i + 1] === "=") {
+        out.push({ kind: "OP", text: ch + "=" });
+        i += 2;
+      } else if (ch === "!") {
+        throw new Error("unexpected !");
+      } else {
+        out.push({ kind: "OP", text: ch });
+        i++;
+      }
+    } else if (ch === "=" && i + 1 < n && expr[i + 1] === "=") {
+      out.push({ kind: "OP", text: "==" });
+      i += 2;
+    } else if ("+-*/".includes(ch)) {
+      out.push({ kind: "OP", text: ch });
+      i++;
+    } else if (/[0-9.]/.test(ch)) {
+      const start = i;
+      while (i < n && /[0-9.]/.test(expr[i])) i++;
+      const num = Number(expr.slice(start, i));
+      if (!Number.isFinite(num)) throw new Error("invalid number");
+      out.push({ kind: "NUM", text: expr.slice(start, i), num });
+    } else if (/[A-Za-z_]/.test(ch)) {
+      const start = i;
+      while (i < n && /[A-Za-z0-9_]/.test(expr[i])) i++;
+      out.push({ kind: "IDENT", text: expr.slice(start, i).toUpperCase() });
+    } else {
+      throw new Error(`unexpected char ${ch}`);
+    }
+  }
+  out.push({ kind: "EOF", text: "" });
+  return out;
+}
+
+function evalSafeCutoffExpression(expr: string): number {
+  const tokens = tokenizeSafeCutoffExpr(expr);
+  let pos = 0;
+  const peek = (): CutoffTok => tokens[pos] ?? { kind: "EOF", text: "" };
+  const next = (): CutoffTok => tokens[pos++] ?? { kind: "EOF", text: "" };
+
+  const parsePrimary = (): number => {
+    const tok = next();
+    if (tok.kind === "NUM") return tok.num ?? 0;
+    if (tok.kind === "IDENT") {
+      if (next().kind !== "LPAREN") throw new Error(`unexpected ident ${tok.text}`);
+      const args: number[] = [];
+      if (peek().kind !== "RPAREN") {
+        while (true) {
+          args.push(parseComparison());
+          if (peek().kind === "COMMA") {
+            next();
+            continue;
+          }
+          break;
+        }
+      }
+      if (next().kind !== "RPAREN") throw new Error(`missing ) after ${tok.text}`);
+      switch (tok.text) {
+        case "MIN":
+          return Math.min(...args);
+        case "MAX":
+          return Math.max(...args);
+        case "CLAMP":
+          return Math.max(args[1] ?? 0, Math.min(args[2] ?? 0, args[0] ?? 0));
+        case "FLOOR":
+          return Math.floor(args[0] ?? 0);
+        case "CEIL":
+          return Math.ceil(args[0] ?? 0);
+        case "ROUND": {
+          const s = Math.pow(10, args[1] ?? 0);
+          return Math.round((args[0] ?? 0) * s) / s;
+        }
+        case "IF":
+          return (args[0] ?? 0) !== 0 ? (args[1] ?? 0) : (args[2] ?? 0);
+        default:
+          throw new Error(`unsupported function ${tok.text}`);
+      }
+    }
+    if (tok.kind === "LPAREN") {
+      const val = parseComparison();
+      if (next().kind !== "RPAREN") throw new Error("missing )");
+      return val;
+    }
+    throw new Error(`unexpected token ${tok.text}`);
+  };
+
+  const parseUnary = (): number => {
+    const p = peek();
+    if (p.kind === "OP" && p.text === "+") {
+      next();
+      return parseUnary();
+    }
+    if (p.kind === "OP" && p.text === "-") {
+      next();
+      return -parseUnary();
+    }
+    return parsePrimary();
+  };
+
+  const parseMulDiv = (): number => {
+    let left = parseUnary();
+    while (peek().kind === "OP" && (peek().text === "*" || peek().text === "/")) {
+      const op = next().text;
+      const right = parseUnary();
+      if (op === "*") left *= right;
+      else {
+        if (right === 0) throw new Error("division by zero");
+        left /= right;
+      }
+    }
+    return left;
+  };
+
+  const parseAddSub = (): number => {
+    let left = parseMulDiv();
+    while (peek().kind === "OP" && (peek().text === "+" || peek().text === "-")) {
+      const op = next().text;
+      const right = parseMulDiv();
+      left = op === "+" ? left + right : left - right;
+    }
+    return left;
+  };
+
+  const parseComparison = (): number => {
+    let left = parseAddSub();
+    while (
+      peek().kind === "OP" &&
+      ["<", ">", "<=", ">=", "==", "!="].includes(peek().text)
+    ) {
+      const op = next().text;
+      const right = parseAddSub();
+      if (op === "<") left = left < right ? 1 : 0;
+      else if (op === ">") left = left > right ? 1 : 0;
+      else if (op === "<=") left = left <= right ? 1 : 0;
+      else if (op === ">=") left = left >= right ? 1 : 0;
+      else if (op === "==") left = Math.abs(left - right) < 1e-9 ? 1 : 0;
+      else left = Math.abs(left - right) >= 1e-9 ? 1 : 0;
+    }
+    return left;
+  };
+
+  const value = parseComparison();
+  if (peek().kind !== "EOF" || !Number.isFinite(value)) {
+    throw new Error("invalid expression");
+  }
+  return value;
+}
+
 /**
  * Evaluates a modular instrument cutoff expression client-side (supporting DAYS_IN_MONTH,
  * TX_DAY, TX_MONTH, TX_YEAR, IS_LEAP_YEAR, DUE_DAY, PAYDAY_DAY, MIN, MAX, CLAMP, FLOOR, CEIL, ROUND, IF)
- * and clamps the resulting cutoff day cleanly into [1, daysInMonth(month, year)] for Feb 28/29 safety.
+ * using a zero-eval recursive-descent parser and clamps the resulting cutoff day cleanly into
+ * [1, daysInMonth(month, year)] for Feb 28/29 safety.
  */
 export function resolveInstrumentCutoffDayClient(
   inst: ClientInstrumentRuleLike | undefined,
@@ -127,27 +301,7 @@ export function resolveInstrumentCutoffDayClient(
     return Math.max(1, Math.min(dim, fallbackRaw));
   }
   try {
-    const MIN = (...a: number[]) => Math.min(...a);
-    const MAX = (...a: number[]) => Math.max(...a);
-    const CLAMP = (x: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, x));
-    const FLOOR = (x: number) => Math.floor(x);
-    const CEIL = (x: number) => Math.ceil(x);
-    const ROUND = (x: number, d = 0) => {
-      const s = Math.pow(10, d);
-      return Math.round(x * s) / s;
-    };
-    const IF = (c: number, t: number, e: number) => (c ? t : e);
-    const fn = new Function(
-      "MIN",
-      "MAX",
-      "CLAMP",
-      "FLOOR",
-      "CEIL",
-      "ROUND",
-      "IF",
-      `return (${normalized});`,
-    );
-    const res = Number(fn(MIN, MAX, CLAMP, FLOOR, CEIL, ROUND, IF));
+    const res = evalSafeCutoffExpression(normalized);
     if (!Number.isFinite(res)) return Math.max(1, Math.min(dim, fallbackRaw));
     return Math.max(1, Math.min(dim, Math.round(res)));
   } catch {
@@ -535,7 +689,7 @@ export function getSavingsVaultLabels(
   }
   return {
     liquid: "Liquid Emergency Cash",
-    investment: "Investment — RDPU",
+    investment: "Investment · RDPU",
   };
 }
 

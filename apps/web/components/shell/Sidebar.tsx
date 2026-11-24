@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
@@ -23,7 +23,6 @@ import {
   FileSpreadsheet,
   Repeat,
   Sliders,
-  ChevronRight,
   TrendingDown,
   Bookmark,
   Compass,
@@ -32,10 +31,11 @@ import {
   ListChecks,
   FileUp,
   FlaskConical,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import { SidebarNavItem } from "@/components/primitives/SidebarNavItem";
 import { BrandMark } from "@/components/primitives/BrandMark";
-import { MarqueeMark } from "@/components/primitives/MarqueeMark";
 
 interface SubModuleDef {
   key: string;
@@ -51,7 +51,6 @@ interface RouteItem {
   icon: typeof LayoutDashboard;
   moduleKey?: ModuleKey;
   standardOnly?: boolean;
-  subModules?: SubModuleDef[];
 }
 
 export const SUBMODULES_BY_ROUTE: Record<string, SubModuleDef[]> = {
@@ -122,7 +121,6 @@ const PRIMARY_ROUTES: RouteItem[] = [
     href: "/payroll",
     icon: Wallet,
     moduleKey: "corporate_payroll",
-    subModules: SUBMODULES_BY_ROUTE["/payroll"],
   },
   {
     labelKey: "nav.allocations",
@@ -130,14 +128,12 @@ const PRIMARY_ROUTES: RouteItem[] = [
     href: "/allocations",
     icon: ArrowDownNarrowWide,
     moduleKey: "allocations",
-    subModules: SUBMODULES_BY_ROUTE["/allocations"],
   },
   {
     labelKey: "nav.credit",
     href: "/credit",
     icon: CreditCard,
     moduleKey: "credit_liabilities",
-    subModules: SUBMODULES_BY_ROUTE["/credit"],
   },
   {
     labelKey: "nav.savings",
@@ -145,7 +141,6 @@ const PRIMARY_ROUTES: RouteItem[] = [
     href: "/savings",
     icon: PiggyBank,
     moduleKey: "savings_vault",
-    subModules: SUBMODULES_BY_ROUTE["/savings"],
   },
   {
     labelKey: "nav.import",
@@ -175,7 +170,6 @@ const ANALYSIS_ROUTES: RouteItem[] = [
     href: "/reports",
     icon: FileSpreadsheet,
     moduleKey: "executive_reports",
-    subModules: SUBMODULES_BY_ROUTE["/reports"],
   },
 ];
 
@@ -189,51 +183,23 @@ const SHORTCUT_ICONS: Record<string, typeof LayoutDashboard> = {
   PiggyBank,
 };
 
-export function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
+export function Sidebar({
+  onNavigate,
+  collapsed = false,
+  onToggleCollapse,
+}: {
+  onNavigate?: () => void;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
+} = {}) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { user } = useAuth();
-  const { isModuleEnabled, isBespokeWorkspace, uiDensityMode, studioConfig } = usePerspective();
+  const { isModuleEnabled, isBespokeWorkspace, studioConfig } = usePerspective();
   const { t } = useLanguage();
   const { month, year } = usePeriod();
 
-  const [liveSub, setLiveSub] = useState<string>("");
-  const [expandedRoutes, setExpandedRoutes] = useState<Record<string, boolean>>({});
-
-  // Track URL sub / tab + custom events for <15ms sub switching
-  useEffect(() => {
-    const syncFromUrl = () => {
-      const params =
-        typeof window !== "undefined"
-          ? new URLSearchParams(window.location.search)
-          : searchParams;
-      const raw = params.get("sub") || params.get("tab") || "";
-      setLiveSub(raw);
-    };
-    syncFromUrl();
-    if (typeof window !== "undefined") {
-      window.addEventListener("popstate", syncFromUrl);
-      return () => window.removeEventListener("popstate", syncFromUrl);
-    }
-  }, [searchParams, pathname]);
-
-  useEffect(() => {
-    if (SUBMODULES_BY_ROUTE[pathname]) {
-      setExpandedRoutes((prev) => ({ ...prev, [pathname]: true }));
-    }
-  }, [pathname]);
-
-  useEffect(() => {
-    const onSubEvent = (e: Event) => {
-      const detail = (e as CustomEvent<{ sub?: string; pathname?: string }>).detail;
-      if (detail?.sub) {
-        setLiveSub(detail.sub);
-      }
-    };
-    window.addEventListener("erp:sub-change", onSubEvent);
-    return () => window.removeEventListener("erp:sub-change", onSubEvent);
-  }, []);
-
+  const liveSub = searchParams.get("sub") || searchParams.get("tab") || "";
   const navCfg = studioConfig?.sidebarNavigationConfig;
   const overrides = navCfg?.moduleOverrides ?? {};
   const customShortcuts = navCfg?.customShortcuts ?? [];
@@ -275,11 +241,6 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
       labelKey: "nav.preferences",
       href: "/preferences",
       icon: Sliders,
-      subModules: isBespokeWorkspace
-        ? SUBMODULES_BY_ROUTE["/preferences"]
-        : SUBMODULES_BY_ROUTE["/preferences"]
-            .filter((s) => s.key !== "formula")
-            .map((s) => ({ ...s, defaultSub: s.key === "display" })),
     },
     ...(user?.role === "SUPERADMIN"
       ? [{ labelKey: "nav.admin" as TranslationKey, href: "/admin", icon: ShieldCheck }]
@@ -299,116 +260,19 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
     return pathname === href || pathname.startsWith(`${href}/`);
   };
 
-  const resolveActiveSubKey = (routeHref: string, subs: SubModuleDef[]): string => {
-    if (pathname !== routeHref) return "";
-    if (liveSub) {
-      const direct = subs.find((s) => s.key === liveSub || s.aliases?.includes(liveSub));
-      if (direct) return direct.key;
-    }
-    return subs.find((s) => s.defaultSub)?.key ?? subs[0]?.key ?? "";
-  };
-
   const renderRouteGroup = (routes: RouteItem[], sectionShortcuts: CustomSidebarShortcut[]) => (
     <div className="space-y-0.5">
-      {routes.map((route) => {
-        const active = isRouteActive(route.href);
-        const subs =
-          !isBespokeWorkspace && route.href === "/payroll" && !isModuleEnabled("corporate_payroll")
-            ? undefined
-            : route.subModules;
-        const label = getRouteLabel(route);
-
-        if (!subs || subs.length === 0) {
-          return (
-            <SidebarNavItem
-              key={route.href}
-              label={label}
-              href={getHrefWithParams(route.href)}
-              icon={route.icon}
-              isActive={active}
-              onClick={onNavigate}
-            />
-          );
-        }
-
-        const isExpanded = Boolean(expandedRoutes[route.href] ?? active);
-        const activeSubKey = resolveActiveSubKey(route.href, subs);
-        const Icon = route.icon;
-
-        return (
-          <div key={route.href} className="space-y-0.5">
-            <div className="flex items-center">
-              <Link
-                href={getHrefWithParams(route.href)}
-                prefetch={true}
-                onClick={() => {
-                  setExpandedRoutes((prev) => ({ ...prev, [route.href]: true }));
-                  onNavigate?.();
-                }}
-                className={`group flex-1 flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium transition-colors min-w-0 ${
-                  active
-                    ? "bg-surface-active text-text-primary font-semibold"
-                    : "text-text-secondary hover:text-text-primary hover:bg-surface-hover/70"
-                }`}
-              >
-                <Icon
-                  className={`w-4 h-4 shrink-0 ${
-                    active ? "text-text-primary" : "text-text-tertiary group-hover:text-text-secondary"
-                  }`}
-                  strokeWidth={1.8}
-                />
-                <span className="truncate">{label}</span>
-              </Link>
-              <button
-                type="button"
-                aria-label={`Toggle ${label} sub-modules`}
-                onClick={() =>
-                  setExpandedRoutes((prev) => ({
-                    ...prev,
-                    [route.href]: !(prev[route.href] ?? active),
-                  }))
-                }
-                className="p-1.5 mr-0.5 rounded text-text-tertiary hover:text-text-primary hover:bg-surface-hover transition-transform cursor-pointer"
-              >
-                <ChevronRight
-                  className={`w-3.5 h-3.5 transition-transform duration-150 ${
-                    isExpanded ? "rotate-90" : ""
-                  }`}
-                />
-              </button>
-            </div>
-
-            {isExpanded && (
-              <div className="ml-4 pl-2.5 border-l border-border-subtle space-y-0.5 py-0.5">
-                {subs.map((sub) => {
-                  const subActive = active && activeSubKey === sub.key;
-                  return (
-                    <Link
-                      key={sub.key}
-                      href={getHrefWithParams(route.href, sub.key)}
-                      prefetch={true}
-                      onClick={(e) => {
-                        if (pathname === route.href) {
-                          e.preventDefault();
-                          syncSubInUrl(sub.key, route.href);
-                        }
-                        onNavigate?.();
-                      }}
-                      className={`block px-2.5 py-1.5 rounded text-[11px] font-sans transition-colors truncate ${
-                        subActive
-                          ? "bg-surface-active/80 text-text-primary font-medium"
-                          : "text-text-tertiary hover:text-text-secondary hover:bg-surface-hover/50"
-                      }`}
-                    >
-                      {t(sub.labelKey)}
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        );
-      })}
+      {routes.map((route) => (
+        <SidebarNavItem
+          key={route.href}
+          label={getRouteLabel(route)}
+          href={getHrefWithParams(route.href)}
+          icon={route.icon}
+          isActive={isRouteActive(route.href)}
+          collapsed={collapsed}
+          onClick={onNavigate}
+        />
+      ))}
 
       {sectionShortcuts.map((sc) => {
         const ScIcon = SHORTCUT_ICONS[sc.icon] || Bookmark;
@@ -425,6 +289,8 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
             key={sc.id}
             href={href}
             prefetch={true}
+            aria-current={isCurrentShortcut ? "page" : undefined}
+            title={collapsed ? sc.label : undefined}
             onClick={(e) => {
               if (pathname === baseTarget && targetSub) {
                 e.preventDefault();
@@ -432,14 +298,16 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
               }
               onNavigate?.();
             }}
-            className={`group flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium transition-colors ${
+            className={`group flex items-center rounded-md text-xs font-medium transition-colors ${
+              collapsed ? "justify-center h-9 w-9 mx-auto px-0" : "gap-2.5 px-3 py-1.5"
+            } ${
               isCurrentShortcut
-                ? "bg-surface-active text-text-primary font-semibold"
-                : "text-text-secondary hover:text-text-primary hover:bg-surface-hover/70"
+                ? "bg-surface-active text-text-primary font-semibold border-l-2 border-accent"
+                : "text-text-secondary hover:text-text-primary hover:bg-surface-hover/70 border-l-2 border-transparent"
             }`}
           >
-            <ScIcon className="w-4 h-4 shrink-0 text-accent" strokeWidth={1.8} />
-            <span className="truncate">{sc.label}</span>
+            <ScIcon className="w-4 h-4 shrink-0 text-accent" strokeWidth={1.8} aria-hidden="true" />
+            {!collapsed && <span className="truncate">{sc.label}</span>}
           </Link>
         );
       })}
@@ -447,49 +315,57 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
   );
 
   return (
-    <aside className="w-64 h-screen bg-surface-subtle border-r border-border flex flex-col justify-between shrink-0 select-none">
-      {/* Top Section: App Branding & Navigation Links */}
+    <aside
+      className={`erp-sidebar-rail h-screen bg-surface-subtle border-r border-border-subtle flex flex-col justify-between shrink-0 select-none transition-[width] duration-150 ease-out ${
+        collapsed ? "w-[60px]" : "w-full"
+      }`}
+    >
       <div className="flex flex-col min-h-0 flex-1">
-        {/* Brand Header */}
-        <div className="px-4 py-4 border-b border-border-subtle">
-          <div className="flex items-center gap-2.5">
-            <BrandMark size={22} className="shrink-0" />
-            <div className="min-w-0">
-              <div className="font-sans text-sm font-semibold tracking-tight text-text-primary truncate">
+        {/* Brand Header aligned with 48px AppHeader hairline */}
+        <div
+          className={`h-12 border-b border-border-subtle flex items-center shrink-0 ${
+            collapsed ? "justify-center px-2" : "justify-between px-3.5"
+          }`}
+        >
+          <Link
+            href={getHrefWithParams("/")}
+            className="flex items-center gap-2.5 min-w-0 rounded"
+            title={t("app.title")}
+          >
+            <BrandMark size={20} className="shrink-0" />
+            {!collapsed && (
+              <span className="font-sans text-[13px] font-semibold tracking-tight text-text-primary truncate">
                 {t("app.title")}
-              </div>
-              <div className="text-[11px] text-text-tertiary font-sans mt-0.5 flex items-center justify-between gap-2">
-                <span className="truncate">{t("app.subtitle")}</span>
-                {uiDensityMode === "SIMPLE_CLARITY" && (
-                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded border border-border text-text-secondary shrink-0">
-                    Simple
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
+              </span>
+            )}
+          </Link>
         </div>
 
-        {/* Scrollable Navigation Sections */}
-        <div className="flex-1 overflow-y-auto px-3 py-3 space-y-5">
-          {/* Main Financial Modules */}
+        {/* Single Semantic Navigation Landmark */}
+        <nav
+          aria-label="Primary"
+          className={`flex-1 overflow-y-auto py-3 ${collapsed ? "px-1.5 space-y-3" : "px-2.5 space-y-4"}`}
+        >
           <div>
-            <div className="px-3 pb-1.5 text-[10px] font-sans font-semibold text-text-tertiary">
-              {t("nav.section.engine")}
-            </div>
+            {!collapsed && (
+              <div className="px-3 pb-1 text-[11px] font-sans font-medium text-text-tertiary">
+                {t("nav.section.engine")}
+              </div>
+            )}
             {renderRouteGroup(
               visiblePrimaryRoutes,
               customShortcuts.filter((s) => s.sectionGroup === "FINANCIAL_ENGINE"),
             )}
           </div>
 
-          {/* Analysis & Simulation */}
           {(visibleAnalysisRoutes.length > 0 ||
             customShortcuts.some((s) => s.sectionGroup === "AUDIT_DECISION")) && (
-            <div>
-              <div className="px-3 pb-1.5 text-[10px] font-sans font-semibold text-text-tertiary">
-                {t("nav.section.audit")}
-              </div>
+            <div className={collapsed ? "pt-2 border-t border-border-subtle" : ""}>
+              {!collapsed && (
+                <div className="px-3 pb-1 text-[11px] font-sans font-medium text-text-tertiary">
+                  {t("nav.section.audit")}
+                </div>
+              )}
               {renderRouteGroup(
                 visibleAnalysisRoutes,
                 customShortcuts.filter((s) => s.sectionGroup === "AUDIT_DECISION"),
@@ -497,34 +373,58 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
             </div>
           )}
 
-          {/* System & Configuration */}
-          <div>
-            <div className="px-3 pb-1.5 text-[10px] font-sans font-semibold text-text-tertiary">
-              {t("nav.section.system")}
-            </div>
+          <div className={collapsed ? "pt-2 border-t border-border-subtle" : ""}>
+            {!collapsed && (
+              <div className="px-3 pb-1 text-[11px] font-sans font-medium text-text-tertiary">
+                {t("nav.section.system")}
+              </div>
+            )}
             {renderRouteGroup(
               systemRoutes,
               customShortcuts.filter((s) => s.sectionGroup === "SYSTEM"),
             )}
           </div>
-        </div>
+        </nav>
 
-        {/* Mobile Language Switcher inside Drawer + Bottom Module Manager Shortcut */}
-        <div className="sm:hidden px-4 py-2.5 border-t border-border-subtle flex items-center justify-between">
-          <span className="text-[11px] font-mono text-text-tertiary">Locale</span>
-          <LanguageSwitcher compact />
-        </div>
-        <div className="px-4 py-3 border-t border-border-subtle flex items-center justify-between text-[11px] text-text-tertiary">
-          <span className="truncate font-mono text-[10px]">
-            {isBespokeWorkspace ? "Personal Workspace" : "Standard Workspace"}
-          </span>
-          <Link
-            href="/preferences?sub=navigation"
-            onClick={onNavigate}
-            className="text-text-secondary hover:text-text-primary underline underline-offset-2 shrink-0 ml-2"
-          >
-            {t("nav.modules")}
-          </Link>
+        {/* Mobile Locale Switcher */}
+        {!collapsed && (
+          <div className="sm:hidden px-3.5 py-2 border-t border-border-subtle flex items-center justify-between">
+            <span className="text-[11px] font-mono text-text-tertiary">Locale</span>
+            <LanguageSwitcher compact />
+          </div>
+        )}
+
+        {/* Restrained Sidebar Footer: Module Link + Collapse Toggle */}
+        <div
+          className={`h-10 border-t border-border-subtle flex items-center shrink-0 ${
+            collapsed ? "justify-center px-1" : "justify-between px-3"
+          }`}
+        >
+          {!collapsed && (
+            <Link
+              href="/preferences?sub=navigation"
+              onClick={onNavigate}
+              className="text-[11px] font-sans text-text-tertiary hover:text-text-primary transition-colors truncate"
+            >
+              {t("nav.modules")}
+            </Link>
+          )}
+          {onToggleCollapse && (
+            <button
+              type="button"
+              data-testid="sidebar-collapse-toggle"
+              onClick={onToggleCollapse}
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              title={collapsed ? "Expand sidebar ([)" : "Collapse sidebar ([)"}
+              className="p-1.5 rounded text-text-tertiary hover:text-text-primary hover:bg-surface-hover transition-colors cursor-pointer"
+            >
+              {collapsed ? (
+                <PanelLeftOpen className="w-3.5 h-3.5" aria-hidden="true" />
+              ) : (
+                <PanelLeftClose className="w-3.5 h-3.5" aria-hidden="true" />
+              )}
+            </button>
+          )}
         </div>
       </div>
     </aside>

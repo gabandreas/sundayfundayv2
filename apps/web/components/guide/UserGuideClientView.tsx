@@ -689,7 +689,7 @@ export function UserGuideClientView({ month, year }: { month: number; year: numb
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder={content.searchPlaceholder}
-          className="w-full pl-10 pr-4 py-2.5 rounded-md bg-surface border border-border text-xs font-sans text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-accent/60"
+          className="w-full pl-10 pr-4 py-2.5 rounded-md bg-surface border border-border text-xs font-sans text-text-primary placeholder:text-text-tertiary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-accent/60"
         />
       </div>
 

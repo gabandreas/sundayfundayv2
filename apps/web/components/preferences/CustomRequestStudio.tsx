@@ -267,7 +267,7 @@ export function CustomRequestStudio({ initialRequests }: CustomRequestStudioProp
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="e.g. Freelance Withholding Tax 2.5% deduction on variable invoice intake"
-                className="w-full h-9 px-3 rounded border border-border bg-surface-subtle text-xs text-text-primary focus:border-accent focus:outline-hidden"
+                className="w-full h-9 px-3 rounded border border-border bg-surface-subtle text-xs text-text-primary focus:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                 required
               />
             </div>
@@ -280,7 +280,7 @@ export function CustomRequestStudio({ initialRequests }: CustomRequestStudioProp
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value as any)}
-                  className="w-full h-9 px-3 rounded border border-border bg-surface-subtle text-xs text-text-primary focus:border-accent focus:outline-hidden"
+                  className="w-full h-9 px-3 rounded border border-border bg-surface-subtle text-xs text-text-primary focus:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                 >
                   <option value="CUSTOM_PAYROLL_FORMULA">Custom Payroll Formula</option>
                   <option value="CUSTOM_WATERFALL_RULE">Waterfall Priority / Quota Rule</option>
@@ -296,7 +296,7 @@ export function CustomRequestStudio({ initialRequests }: CustomRequestStudioProp
                 <select
                   value={priority}
                   onChange={(e) => setPriority(e.target.value as any)}
-                  className="w-full h-9 px-3 rounded border border-border bg-surface-subtle text-xs text-text-primary focus:border-accent focus:outline-hidden"
+                  className="w-full h-9 px-3 rounded border border-border bg-surface-subtle text-xs text-text-primary focus:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                 >
                   <option value="NORMAL">Normal Priority</option>
                   <option value="HIGH_BUSINESS_CRITICAL">High (Business Critical)</option>
@@ -313,7 +313,7 @@ export function CustomRequestStudio({ initialRequests }: CustomRequestStudioProp
                 value={currentWorkflow}
                 onChange={(e) => setCurrentWorkflow(e.target.value)}
                 placeholder="e.g. Standard mode currently splits evenly across days without accounting for project retainer"
-                className="w-full h-9 px-3 rounded border border-border bg-surface-subtle text-xs text-text-primary focus:border-accent focus:outline-hidden"
+                className="w-full h-9 px-3 rounded border border-border bg-surface-subtle text-xs text-text-primary focus:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
               />
             </div>
 
@@ -326,7 +326,7 @@ export function CustomRequestStudio({ initialRequests }: CustomRequestStudioProp
                 onChange={(e) => setDesiredBehavior(e.target.value)}
                 rows={3}
                 placeholder="Detail exact math formulas, condition rules, or UI requirements..."
-                className="w-full p-2.5 rounded border border-border bg-surface-subtle text-xs text-text-primary focus:border-accent focus:outline-hidden resize-none"
+                className="w-full p-2.5 rounded border border-border bg-surface-subtle text-xs text-text-primary focus:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 resize-none"
                 required
               />
             </div>
@@ -465,7 +465,7 @@ export function CustomRequestStudio({ initialRequests }: CustomRequestStudioProp
                               [req.id]: { ...edit, status: e.target.value as any },
                             }))
                           }
-                          className="w-full h-8 px-2 rounded border border-border bg-surface text-xs text-text-primary focus:border-accent focus:outline-hidden"
+                          className="w-full h-8 px-2 rounded border border-border bg-surface text-xs text-text-primary focus:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                         >
                           <option value="SUBMITTED">SUBMITTED</option>
                           <option value="IN_REVIEW">IN REVIEW</option>
@@ -488,7 +488,7 @@ export function CustomRequestStudio({ initialRequests }: CustomRequestStudioProp
                             }))
                           }
                           placeholder="e.g. 500000"
-                          className="w-full h-8 px-2 rounded border border-border bg-surface text-xs font-mono text-text-primary focus:border-accent focus:outline-hidden tabular-nums"
+                          className="w-full h-8 px-2 rounded border border-border bg-surface text-xs font-mono text-text-primary focus:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 tabular-nums"
                         />
                       </div>
 
@@ -506,7 +506,7 @@ export function CustomRequestStudio({ initialRequests }: CustomRequestStudioProp
                             }))
                           }
                           placeholder="Response notes or planned release..."
-                          className="w-full h-8 px-2 rounded border border-border bg-surface text-xs text-text-primary focus:border-accent focus:outline-hidden"
+                          className="w-full h-8 px-2 rounded border border-border bg-surface text-xs text-text-primary focus:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                         />
                       </div>
 

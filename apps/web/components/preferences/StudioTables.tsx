@@ -969,7 +969,7 @@ export function InstrumentsTableCard({ initialConfig }: { initialConfig?: Modula
                       next[idx] = { ...row, name: e.target.value };
                       setRows(next);
                     }}
-                    className="w-full bg-surface border border-border rounded px-2.5 py-1.5 text-xs text-text-primary focus:outline-none focus:border-border-strong"
+                    className="w-full bg-surface border border-border rounded px-2.5 py-1.5 text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
                   />
                 </label>
 
@@ -1079,7 +1079,7 @@ export function InstrumentsTableCard({ initialConfig }: { initialConfig?: Modula
                           setRows(next);
                         }}
                         placeholder="DAYS_IN_MONTH - 15"
-                        className="w-full bg-surface border border-border rounded px-2.5 py-1.5 font-mono text-[11px] text-text-primary focus:outline-none focus:border-border-strong"
+                        className="w-full bg-surface border border-border rounded px-2.5 py-1.5 font-mono text-[11px] text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
                       />
                       <div className="flex gap-1.5 pt-0.5">
                         <button

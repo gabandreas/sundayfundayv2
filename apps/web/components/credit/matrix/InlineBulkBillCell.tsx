@@ -180,7 +180,7 @@ export function InlineBulkBillCell({
           onBlur={handleBlur}
           placeholder="+92000 or total"
           title="Enter exact total or +delta / -delta expression (Enter to save, Esc to cancel)"
-          className={`w-full bg-surface-subtle border rounded px-1.5 py-0.5 text-right font-mono text-[11px] text-text-primary focus:outline-none tabular-nums ${
+          className={`w-full bg-surface-subtle border rounded px-1.5 py-0.5 text-right font-mono text-[11px] text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 tabular-nums ${
             isOverConfiguredLimit || isOverSafeHeadroom
               ? "border-delta-negative"
               : "border-accent"

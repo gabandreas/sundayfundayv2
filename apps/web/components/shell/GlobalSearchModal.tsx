@@ -330,17 +330,20 @@ export function GlobalSearchModal() {
 
       {isOpen && (
         <div
-          className="fixed inset-0 z-50 bg-black/70 flex items-start justify-center pt-20 px-4 animate-in fade-in duration-150"
+          className="fixed inset-0 z-50 bg-black/70 flex items-start justify-center pt-20 px-4"
           onClick={() => setIsOpen(false)}
         >
           <div
-            className="w-full max-w-3xl rounded-lg border border-border bg-surface shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Global ledger search"
+            className="w-full max-w-3xl rounded-lg border border-border bg-surface shadow-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Top Search Input */}
-            <div className="px-4 py-3 border-b border-border flex items-center gap-3">
+            <div className="px-4 py-3 border-b border-border flex items-center gap-3 focus-within:bg-surface-subtle/40 focus-within:ring-1 focus-within:ring-inset focus-within:ring-accent/40">
               <BrandMark size={18} className="shrink-0" />
-              <Search className="w-4 h-4 text-text-tertiary shrink-0" />
+              <Search className="w-4 h-4 text-text-tertiary shrink-0" aria-hidden="true" />
               <input
                 ref={inputRef}
                 type="text"
@@ -350,7 +353,7 @@ export function GlobalSearchModal() {
                   setSmartStatusMsg(null);
                 }}
                 placeholder="Search ledger or type quick command (e.g. 'kopken 34200 spaylater', 'claude 350000 cc 21 nov', 'wallet 515000', 'afford 1.5m spaylater 3x')..."
-                className="w-full bg-transparent text-sm font-sans text-text-primary placeholder:text-text-tertiary focus:outline-none"
+                className="w-full bg-transparent text-sm font-sans text-text-primary placeholder:text-text-tertiary focus-visible:outline-none"
               />
               {query && (
                 <button
@@ -364,9 +367,10 @@ export function GlobalSearchModal() {
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
+                aria-label="Close search"
                 className="p-1 rounded text-text-tertiary hover:text-text-primary hover:bg-surface-subtle cursor-pointer"
               >
-                <X className="w-4 h-4" />
+                <X className="w-4 h-4" aria-hidden="true" />
               </button>
             </div>
 

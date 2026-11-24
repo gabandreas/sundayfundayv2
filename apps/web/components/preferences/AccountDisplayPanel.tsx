@@ -293,8 +293,8 @@ export function AccountDisplayPanel({ initialConfig }: { initialConfig?: Modular
                 <EyeOff className="w-3.5 h-3.5" />
                 <span>
                   {isAmountsMasked
-                    ? "Currently Masked — Click to Reveal"
-                    : "Currently Visible — Click to Mask"}
+                    ? "Currently Masked (Click to Reveal)"
+                    : "Currently Visible (Click to Mask)"}
                 </span>
               </button>
             </div>

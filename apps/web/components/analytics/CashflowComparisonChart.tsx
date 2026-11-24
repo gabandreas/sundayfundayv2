@@ -81,7 +81,7 @@ export function CashflowComparisonChart({
         </div>
       </div>
 
-      {/* Trajectory Summary Strip (Clean Header Strip — Zero SVG Clutter) */}
+      {/* Trajectory Summary Strip */}
       <div className="grid grid-cols-4 gap-4 rounded border border-border-subtle bg-surface-subtle/50 px-4 py-3">
         <div>
           <span className="text-[10px] font-sans text-text-tertiary block">

@@ -90,6 +90,27 @@ function generateClientTempPassword(length = 14): string {
   return chars.join("");
 }
 
+function formatRoleBadge(role: string): string {
+  if (role === "SUPERADMIN") return "Superadmin";
+  if (role === "BESPOKE_CLIENT") return "Bespoke Client";
+  if (role === "STANDARD_MEMBER") return "Standard Member";
+  if (role === "USER") return "User";
+  return role;
+}
+
+function formatBlueprintBadge(bp: string): string {
+  if (bp === "SUPERADMIN_BESPOKE") return "Bespoke";
+  if (bp === "STANDARD_GENERAL") return "Standard";
+  if (bp === "DEMO_SANDBOX") return "Demo Sandbox";
+  return bp;
+}
+
+function formatStatusBadge(st: string): string {
+  if (st === "ACTIVE") return "Active";
+  if (st === "SUSPENDED") return "Suspended";
+  return st;
+}
+
 type AdminTab = "ACCOUNTS" | "BLUEPRINT" | "REQUESTS" | "SECURITY";
 
 export default function AdminConsolePage() {
@@ -213,16 +234,18 @@ export default function AdminConsolePage() {
   };
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (user?.role === "SUPERADMIN") {
+      loadData();
+    }
+  }, [user?.role]);
 
   // When selected user changes in Blueprint Studio
   useEffect(() => {
-    if (!selectedUserId) return;
+    if (user?.role !== "SUPERADMIN" || !selectedUserId) return;
     fetchAdminUserConfig(selectedUserId)
       .then((cfg) => setSelectedUserConfig(cfg))
       .catch(() => setSelectedUserConfig(null));
-  }, [selectedUserId]);
+  }, [selectedUserId, user?.role]);
 
   // Keyboard ergonomics: Escape key closes open modals
   useEffect(() => {
@@ -682,11 +705,11 @@ export default function AdminConsolePage() {
         </div>
       )}
 
-      {/* Metric Cards Banner */}
-      <div className="grid grid-cols-4 gap-4">
-        <div className="p-4 rounded-lg border border-border bg-surface">
-          <div className="text-[10px] font-mono text-text-tertiary">Total Accounts</div>
-          <div className="text-2xl font-serif font-medium text-text-primary mt-1">
+      {/* Metric Cards Strip */}
+      <div className="rounded-lg border border-border bg-surface grid grid-cols-2 lg:grid-cols-4 divide-y lg:divide-y-0 lg:divide-x divide-border-subtle">
+        <div className="p-4 min-w-0">
+          <div className="text-[11px] font-sans text-text-tertiary">Total Accounts</div>
+          <div className="text-2xl font-serif font-medium text-text-primary mt-1 tabular-nums">
             {users.length}
           </div>
           <div className="text-[11px] text-text-secondary mt-1">
@@ -694,26 +717,26 @@ export default function AdminConsolePage() {
           </div>
         </div>
 
-        <div className="p-4 rounded-lg border border-border bg-surface">
-          <div className="text-[10px] font-mono text-text-tertiary">Active Snapshots</div>
-          <div className="text-2xl font-serif font-medium text-text-primary mt-1">
+        <div className="p-4 min-w-0">
+          <div className="text-[11px] font-sans text-text-tertiary">Active Snapshots</div>
+          <div className="text-2xl font-serif font-medium text-text-primary mt-1 tabular-nums">
             {users.reduce((sum, u) => sum + (u.snapshotCount || 0), 0)}
           </div>
           <div className="text-[11px] text-text-secondary mt-1">Stored across all tenants</div>
         </div>
 
-        <div className="p-4 rounded-lg border border-border bg-surface">
-          <div className="text-[10px] font-mono text-text-tertiary">Pending Requests</div>
-          <div className="text-2xl font-serif font-medium text-text-primary mt-1">
+        <div className="p-4 min-w-0">
+          <div className="text-[11px] font-sans text-text-tertiary">Pending Requests</div>
+          <div className="text-2xl font-serif font-medium text-text-primary mt-1 tabular-nums">
             {featureRequests.filter((r) => r.status === "SUBMITTED" || r.status === "IN_REVIEW").length}
           </div>
           <div className="text-[11px] text-text-secondary mt-1">Awaiting review or quotation</div>
         </div>
 
-        <div className="p-4 rounded-lg border border-border bg-surface">
-          <div className="text-[10px] font-mono text-text-tertiary">IP Whitelist</div>
-          <div className="text-2xl font-serif font-medium text-text-primary mt-1">
-            {securitySettings?.ipWhitelistEnforced ? "STRICT" : "PERMISSIVE"}
+        <div className="p-4 min-w-0">
+          <div className="text-[11px] font-sans text-text-tertiary">IP Whitelist</div>
+          <div className="text-xl font-semibold text-text-primary mt-1.5">
+            {securitySettings?.ipWhitelistEnforced ? "Strict" : "Permissive"}
           </div>
           <div className="text-[11px] text-text-secondary mt-1">
             {securitySettings?.trustedIps?.length || 0} whitelisted IP addresses
@@ -806,67 +829,68 @@ export default function AdminConsolePage() {
 
           <div className="rounded-lg border border-border bg-surface overflow-x-auto">
             <table className="w-full text-xs text-left">
-              <thead className="bg-surface-subtle border-b border-border text-[10px] font-mono text-text-tertiary">
+              <thead className="bg-surface-subtle border-b border-border text-[11px] font-sans text-text-tertiary">
                 <tr>
-                  <th className="px-4 py-3">ID / User</th>
-                  <th className="px-4 py-3">Role</th>
-                  <th className="px-4 py-3">Blueprint & Auth</th>
-                  <th className="px-4 py-3">Sessions / Cycles</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
+                  <th className="px-3 py-2.5">User</th>
+                  <th className="px-3 py-2.5">Role</th>
+                  <th className="px-3 py-2.5">Blueprint &amp; Auth</th>
+                  <th className="px-3 py-2.5">Cycles</th>
+                  <th className="px-3 py-2.5">Status</th>
+                  <th className="px-3 py-2.5 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border font-sans">
                 {users.map((u) => (
                   <tr key={u.id} className="hover:bg-surface-subtle/50 transition-colors">
-                    <td className="px-4 py-3.5">
-                      <div className="font-medium text-text-primary">{u.fullName}</div>
-                      <div className="text-[11px] font-mono text-text-tertiary mt-0.5">
+                    <td className="px-3 py-2.5 min-w-0 max-w-[230px]">
+                      <div className="font-medium text-text-primary truncate">{u.fullName}</div>
+                      <div className="text-[11px] font-mono text-text-tertiary mt-0.5 truncate">
                         <span className="text-emerald-400/80">{u.accountName || "default"}</span> /{" "}
-                        <span className="text-text-secondary">{u.username || "-"}</span> · {u.email}
+                        <span className="text-text-secondary">{u.username || "-"}</span>
                       </div>
+                      <div className="text-[10px] text-text-tertiary truncate">{u.email}</div>
                     </td>
-                    <td className="px-4 py-3.5">
-                      <span className="px-2 py-0.5 text-[10px] font-mono rounded border border-border bg-surface-subtle">
-                        {u.role}
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      <span className="px-2 py-0.5 text-[11px] font-sans rounded border border-border bg-surface-subtle">
+                        {formatRoleBadge(u.role)}
                       </span>
                     </td>
-                    <td className="px-4 py-3.5">
-                      <div className="font-mono text-[11px] text-text-primary">
-                        {u.blueprintType} · {(u.enabledModules?.length ?? 0) || "All"} modules
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      <div className="font-sans text-[11px] text-text-primary">
+                        {formatBlueprintBadge(u.blueprintType)} · {(u.enabledModules?.length ?? 0) || "All"} modules
                       </div>
-                      <div className="font-mono text-[10px] text-text-tertiary mt-0.5">
+                      <div className="text-[10px] text-text-tertiary mt-0.5">
                         {u.mustChangePassword
-                          ? "Pending first-login password setup"
+                          ? "Pending first-login setup"
                           : "Password verified"}
                       </div>
                     </td>
-                    <td className="px-4 py-3.5 font-mono text-text-primary">
+                    <td className="px-3 py-2.5 font-mono text-text-primary whitespace-nowrap">
                       <div>{u.snapshotCount} cycles</div>
                       <div className="text-[10px] text-text-tertiary mt-0.5">
-                        {u.activeSessionCount ?? 0} active sessions
+                        {u.activeSessionCount ?? 0} sessions
                       </div>
                     </td>
-                    <td className="px-4 py-3.5">
+                    <td className="px-3 py-2.5 whitespace-nowrap">
                       <span
-                        className={`px-2 py-0.5 text-[10px] font-mono rounded ${
+                        className={`px-2 py-0.5 text-[11px] font-sans rounded ${
                           u.status === "ACTIVE"
                             ? "bg-positive/10 text-positive border border-positive/20"
                             : "bg-negative/10 text-negative border border-negative/20"
                         }`}
                       >
-                        {u.status}
+                        {formatStatusBadge(u.status)}
                       </span>
                     </td>
-                    <td className="px-4 py-3.5 text-right">
-                      <div className="inline-flex flex-wrap justify-end gap-1.5">
+                    <td className="px-3 py-2.5 text-right">
+                      <div className="inline-flex flex-wrap justify-end gap-1">
                         <button
                           type="button"
                           onClick={() => {
                             setSelectedUserId(u.id);
                             setActiveTab("BLUEPRINT");
                           }}
-                          className="px-2 py-1 text-[11px] rounded border border-border hover:bg-surface-subtle text-text-secondary cursor-pointer"
+                          className="px-2 py-1 text-[11px] rounded border border-border hover:bg-surface-subtle text-text-secondary cursor-pointer whitespace-nowrap"
                         >
                           Modules
                         </button>
@@ -877,17 +901,17 @@ export default function AdminConsolePage() {
                               setResetTargetUser(u);
                               setResetForm({ temporaryPassword: "", sendEmail: false });
                             }}
-                            className="px-2 py-1 text-[11px] rounded border border-border hover:bg-surface-subtle text-text-secondary cursor-pointer"
+                            className="px-2 py-1 text-[11px] rounded border border-border hover:bg-surface-subtle text-text-secondary cursor-pointer whitespace-nowrap"
                           >
-                            Reset Password
+                            Reset PW
                           </button>
                         )}
                         <button
                           type="button"
                           onClick={() => handleRevokeSessions(u)}
-                          className="px-2 py-1 text-[11px] rounded border border-border hover:bg-surface-subtle text-text-tertiary hover:text-text-primary cursor-pointer"
+                          className="px-2 py-1 text-[11px] rounded border border-border hover:bg-surface-subtle text-text-tertiary hover:text-text-primary cursor-pointer whitespace-nowrap"
                         >
-                          Revoke Sessions
+                          Revoke
                         </button>
                         {u.id !== 1 && u.role !== "SUPERADMIN" && (
                           <button
@@ -897,7 +921,7 @@ export default function AdminConsolePage() {
                               await updateAdminClient(u.id, { status: nextStatus });
                               await loadData();
                             }}
-                            className="px-2 py-1 text-[11px] rounded border border-border hover:bg-surface-subtle text-text-tertiary hover:text-text-primary cursor-pointer"
+                            className="px-2 py-1 text-[11px] rounded border border-border hover:bg-surface-subtle text-text-tertiary hover:text-text-primary cursor-pointer whitespace-nowrap"
                           >
                             {u.status === "ACTIVE" ? "Suspend" : "Activate"}
                           </button>
@@ -906,7 +930,7 @@ export default function AdminConsolePage() {
                           <button
                             type="button"
                             onClick={() => setDeleteTargetUser(u)}
-                            className="px-2 py-1 text-[11px] rounded border border-negative/30 hover:bg-negative/10 text-negative cursor-pointer"
+                            className="px-2 py-1 text-[11px] rounded border border-negative/30 hover:bg-negative/10 text-negative cursor-pointer whitespace-nowrap"
                           >
                             Delete
                           </button>
@@ -937,7 +961,7 @@ export default function AdminConsolePage() {
               <select
                 value={selectedUserId || ""}
                 onChange={(e) => setSelectedUserId(parseInt(e.target.value, 10))}
-                className="px-3 py-1.5 text-xs rounded border border-border bg-surface text-text-primary font-mono focus:outline-none focus:border-border-strong"
+                className="px-3 py-1.5 text-xs rounded border border-border bg-surface text-text-primary font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
               >
                 {users.map((u) => (
                   <option key={u.id} value={u.id}>
@@ -1417,7 +1441,7 @@ export default function AdminConsolePage() {
                         value={restoreConfirmationText}
                         onChange={(e) => setRestoreConfirmationText(e.target.value)}
                         placeholder='Type "CONFIRM RESTORE"'
-                        className="flex-1 px-2.5 py-1 text-xs rounded border border-border bg-surface text-text-primary font-mono focus:outline-none focus:border-border-strong"
+                        className="flex-1 px-2.5 py-1 text-xs rounded border border-border bg-surface text-text-primary font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
                       />
                       <input
                         type="password"
@@ -1426,7 +1450,7 @@ export default function AdminConsolePage() {
                         value={restoreSecurityPin}
                         onChange={(e) => setRestoreSecurityPin(e.target.value)}
                         placeholder="6-Digit PIN"
-                        className="w-28 px-2 py-1 text-xs rounded border border-border bg-surface text-text-primary font-mono tracking-widest text-center focus:outline-none focus:border-border-strong"
+                        className="w-28 px-2 py-1 text-xs rounded border border-border bg-surface text-text-primary font-mono tracking-widest text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
                       />
                     </div>
 
@@ -1501,7 +1525,7 @@ export default function AdminConsolePage() {
                     value={credentialForm.currentPassword}
                     onChange={(e) => setCredentialForm({ ...credentialForm, currentPassword: e.target.value })}
                     placeholder="Enter current password to verify identity"
-                    className="w-full px-3 py-1.5 text-xs rounded border border-border bg-surface-subtle text-text-primary focus:outline-none focus:border-border-strong"
+                    className="w-full px-3 py-1.5 text-xs rounded border border-border bg-surface-subtle text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
                   />
                 </div>
 
@@ -1514,7 +1538,7 @@ export default function AdminConsolePage() {
                     value={credentialForm.newEmail}
                     onChange={(e) => setCredentialForm({ ...credentialForm, newEmail: e.target.value })}
                     placeholder={securitySettings?.ownerEmail || "owner@sundayfunday.id"}
-                    className="w-full px-3 py-1.5 text-xs rounded border border-border bg-surface-subtle text-text-primary font-mono focus:outline-none focus:border-border-strong"
+                    className="w-full px-3 py-1.5 text-xs rounded border border-border bg-surface-subtle text-text-primary font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
                   />
                 </div>
 
@@ -1528,7 +1552,7 @@ export default function AdminConsolePage() {
                     value={credentialForm.newPassword}
                     onChange={(e) => setCredentialForm({ ...credentialForm, newPassword: e.target.value })}
                     placeholder="Leave blank to keep existing password"
-                    className="w-full px-3 py-1.5 text-xs rounded border border-border bg-surface-subtle text-text-primary focus:outline-none focus:border-border-strong"
+                    className="w-full px-3 py-1.5 text-xs rounded border border-border bg-surface-subtle text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
                   />
                 </div>
 
@@ -1542,7 +1566,7 @@ export default function AdminConsolePage() {
                     value={credentialForm.newSecurityPin}
                     onChange={(e) => setCredentialForm({ ...credentialForm, newSecurityPin: e.target.value })}
                     placeholder="Leave blank to keep existing PIN"
-                    className="w-full px-3 py-1.5 text-xs rounded border border-border bg-surface-subtle text-text-primary font-mono tracking-widest focus:outline-none focus:border-border-strong"
+                    className="w-full px-3 py-1.5 text-xs rounded border border-border bg-surface-subtle text-text-primary font-mono tracking-widest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
                   />
                 </div>
               </div>
@@ -1670,14 +1694,14 @@ export default function AdminConsolePage() {
                 placeholder="IP Address (e.g. 192.168.1.50)"
                 value={newIpAddress}
                 onChange={(e) => setNewIpAddress(e.target.value)}
-                className="px-3 py-1.5 text-xs rounded border border-border bg-surface-subtle text-text-primary font-mono focus:outline-none focus:border-border-strong"
+                className="px-3 py-1.5 text-xs rounded border border-border bg-surface-subtle text-text-primary font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
               />
               <input
                 type="text"
                 placeholder="Label (e.g. Office Router)"
                 value={newIpLabel}
                 onChange={(e) => setNewIpLabel(e.target.value)}
-                className="px-3 py-1.5 text-xs rounded border border-border bg-surface-subtle text-text-primary font-sans focus:outline-none focus:border-border-strong flex-1"
+                className="px-3 py-1.5 text-xs rounded border border-border bg-surface-subtle text-text-primary font-sans focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong flex-1"
               />
               <button
                 type="submit"
@@ -1902,7 +1926,7 @@ export default function AdminConsolePage() {
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="block text-xs font-medium text-text-secondary">
-                    Temporary Password (optional — blank auto-generates strong CSPRNG password)
+                    Temporary Password (optional; leave blank to auto-generate strong CSPRNG password)
                   </label>
                   <button
                     type="button"
@@ -2278,7 +2302,7 @@ export default function AdminConsolePage() {
                     setRequestUpdateForm({ ...requestUpdateForm, adminNotes: e.target.value })
                   }
                   placeholder="Technical scope, delivery milestones, or architecture notes for the client..."
-                  className="w-full px-3 py-2 text-xs rounded border border-border bg-surface-subtle text-text-primary font-sans focus:outline-none focus:border-border-strong"
+                  className="w-full px-3 py-2 text-xs rounded border border-border bg-surface-subtle text-text-primary font-sans focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
                 />
               </div>
 

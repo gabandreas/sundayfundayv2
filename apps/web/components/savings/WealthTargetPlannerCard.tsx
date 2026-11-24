@@ -303,7 +303,7 @@ export function WealthTargetPlannerCard({
               }
               onChange={(e) => setTargetAmountStr(e.target.value)}
               placeholder="15.000.000"
-              className="w-full pl-8 pr-3 py-1.5 rounded bg-surface-subtle border border-border-subtle focus:border-border-strong text-xs font-mono text-text-primary outline-none"
+              className="w-full pl-8 pr-3 py-1.5 rounded bg-surface-subtle border border-border-subtle focus:border-border-strong text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
             />
           </div>
         </div>
@@ -317,7 +317,7 @@ export function WealthTargetPlannerCard({
             <select
               value={targetMonth}
               onChange={(e) => setTargetMonth(parseInt(e.target.value, 10))}
-              className="w-full px-2 py-1.5 rounded bg-surface-subtle border border-border-subtle text-xs font-mono text-text-primary outline-none whitespace-nowrap"
+              className="w-full px-2 py-1.5 rounded bg-surface-subtle border border-border-subtle text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 whitespace-nowrap"
             >
               {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
                 <option key={m} value={m}>
@@ -328,7 +328,7 @@ export function WealthTargetPlannerCard({
             <select
               value={targetYear}
               onChange={(e) => setTargetYear(parseInt(e.target.value, 10))}
-              className="w-full px-2 py-1.5 rounded bg-surface-subtle border border-border-subtle text-xs font-mono text-text-primary outline-none whitespace-nowrap"
+              className="w-full px-2 py-1.5 rounded bg-surface-subtle border border-border-subtle text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 whitespace-nowrap"
             >
               {[2026, 2027, 2028, 2029, 2030].map((y) => (
                 <option key={y} value={y}>

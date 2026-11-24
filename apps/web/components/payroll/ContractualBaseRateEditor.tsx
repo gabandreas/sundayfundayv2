@@ -107,7 +107,7 @@ export function ContractualBaseRateEditor({
               value={baseSalary}
               onChange={(e) => setBaseSalary(e.target.value)}
               disabled={isLocked || isSubmitting}
-              className="w-full bg-surface-subtle border border-border-subtle rounded px-3 py-1.5 text-xs font-mono tabular-nums text-text-primary focus:outline-none focus:border-border-active disabled:opacity-50"
+              className="w-full bg-surface-subtle border border-border-subtle rounded px-3 py-1.5 text-xs font-mono tabular-nums text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-active disabled:opacity-50"
             />
           </div>
 
@@ -125,7 +125,7 @@ export function ContractualBaseRateEditor({
                   value={dailyAllowance}
                   onChange={(e) => setDailyAllowance(e.target.value)}
                   disabled={isLocked || isSubmitting}
-                  className="w-full bg-surface-subtle border border-border-subtle rounded px-3 py-1.5 text-xs font-mono tabular-nums text-text-primary focus:outline-none focus:border-border-active disabled:opacity-50"
+                  className="w-full bg-surface-subtle border border-border-subtle rounded px-3 py-1.5 text-xs font-mono tabular-nums text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-active disabled:opacity-50"
                 />
               </div>
 
@@ -140,7 +140,7 @@ export function ContractualBaseRateEditor({
                   value={laptopAllowance}
                   onChange={(e) => setLaptopAllowance(e.target.value)}
                   disabled={isLocked || isSubmitting}
-                  className="w-full bg-surface-subtle border border-border-subtle rounded px-3 py-1.5 text-xs font-mono tabular-nums text-text-primary focus:outline-none focus:border-border-active disabled:opacity-50"
+                  className="w-full bg-surface-subtle border border-border-subtle rounded px-3 py-1.5 text-xs font-mono tabular-nums text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-active disabled:opacity-50"
                 />
               </div>
 

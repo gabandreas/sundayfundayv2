@@ -167,7 +167,7 @@ export function CreditCardTransactionsTable({
             Active Card Charges, Subscriptions & Installments
           </h3>
           <p className="text-xs font-sans text-text-secondary mt-0.5">
-            Statement cycle {currentMonth}/{currentYear} — track installment slice progress, set recurring end dates, or execute early settlement.
+            Statement cycle {currentMonth}/{currentYear}: track installment slice progress, set recurring end dates, or execute early settlement.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -526,7 +526,7 @@ export function CreditCardTransactionsTable({
                           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
                             <div className="space-y-1">
                               <div className="text-xs font-semibold font-sans text-text-primary">
-                                Early Installment Settlement — {tx.label} (Slice{" "}
+                                Early Installment Settlement: {tx.label} (Slice{" "}
                                 {prog.badgeLabel})
                               </div>
                               <div className="text-[11px] font-sans text-text-secondary">

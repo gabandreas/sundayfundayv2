@@ -326,7 +326,7 @@ export function MarqueeWorkspaceClient() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Ask or record an expense (e.g. safe to spend today?, log coffee 45k, run 12-month stress test)..."
-                className="flex-1 bg-canvas border border-border rounded px-3.5 py-2.5 text-xs text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-border-strong"
+                className="flex-1 bg-canvas border border-border rounded px-3.5 py-2.5 text-xs text-text-primary placeholder:text-text-tertiary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
               />
               <button
                 type="submit"
@@ -382,7 +382,7 @@ export function MarqueeWorkspaceClient() {
                   {contextData.payoffMilestones.map((m, i) => (
                     <li key={`${m.periodLabel ?? m.period ?? i}-${m.event ?? m.label ?? i}`}>
                       <span className="text-text-primary">{m.periodLabel ?? m.period ?? "Milestone"}</span>
-                      {" — "}
+                      {" · "}
                       <span>{m.event ?? m.label ?? ""}</span>
                       {typeof m.debtClearPct === "number" ? ` (${m.debtClearPct}%)` : ""}
                     </li>

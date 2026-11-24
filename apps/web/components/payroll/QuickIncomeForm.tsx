@@ -148,7 +148,7 @@ export function QuickIncomeForm({
                   setFieldErrors((prev) => ({ ...prev, label: undefined }));
                 }
               }}
-              className={`w-full bg-surface-subtle border rounded px-3 py-1.5 text-xs font-sans text-text-primary placeholder:text-text-tertiary focus:outline-none ${
+              className={`w-full bg-surface-subtle border rounded px-3 py-1.5 text-xs font-sans text-text-primary placeholder:text-text-tertiary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 ${
                 fieldErrors.label
                   ? "border-urgency focus:border-urgency"
                   : "border-border-subtle focus:border-border-active"
@@ -175,7 +175,7 @@ export function QuickIncomeForm({
                   setFieldErrors((prev) => ({ ...prev, amount: undefined }));
                 }
               }}
-              className={`w-full bg-surface-subtle border rounded px-3 py-1.5 text-xs font-mono text-text-primary placeholder:text-text-tertiary focus:outline-none ${
+              className={`w-full bg-surface-subtle border rounded px-3 py-1.5 text-xs font-mono text-text-primary placeholder:text-text-tertiary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 ${
                 fieldErrors.amount
                   ? "border-urgency focus:border-urgency"
                   : "border-border-subtle focus:border-border-active"

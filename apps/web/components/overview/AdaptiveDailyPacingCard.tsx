@@ -477,37 +477,33 @@ export function AdaptiveDailyPacingCard({
           </div>
         )}
 
-        {/* 3 Runway Metric Strip (Hairline-divided typographic hierarchy — zero nested box clutter) */}
+        {/* 3 Runway Metric Strip */}
         <div className="grid grid-cols-3 divide-x divide-border-subtle border-y border-border-subtle py-2.5 mt-3">
-          <div className="pr-3">
-            <span className="text-[10px] text-text-tertiary font-sans block">
+          <div className="pr-2.5 min-w-0">
+            <span className="text-[11px] text-text-tertiary font-sans block truncate">
               {t("overview.weekdayRate")}
             </span>
-            <span className="font-mono text-xs font-semibold text-text-primary tabular-nums mt-0.5 block">
+            <span className="erp-tabular-currency text-xs font-semibold text-text-primary mt-0.5 block">
               {formatIdr(weekdayRate)}
-              <span className="text-[10px] font-normal text-text-tertiary">
-                /day
-              </span>
+              <span className="text-[10px] font-normal text-text-tertiary">/day</span>
             </span>
           </div>
 
-          <div className="px-3">
-            <span className="text-[10px] text-text-tertiary font-sans block">
+          <div className="px-2.5 min-w-0">
+            <span className="text-[11px] text-text-tertiary font-sans block truncate">
               {t("overview.weekendRate")}
             </span>
-            <span className="font-mono text-xs font-semibold text-text-primary tabular-nums mt-0.5 block">
+            <span className="erp-tabular-currency text-xs font-semibold text-text-primary mt-0.5 block">
               {formatIdr(weekendRate)}
-              <span className="text-[10px] font-normal text-text-tertiary">
-                /day
-              </span>
+              <span className="text-[10px] font-normal text-text-tertiary">/day</span>
             </span>
           </div>
 
-          <div className="pl-3">
-            <span className="text-[10px] text-text-tertiary font-sans block">
+          <div className="pl-2.5 min-w-0">
+            <span className="text-[11px] text-text-tertiary font-sans block truncate">
               7-Day Runway
             </span>
-            <span className="font-mono text-xs font-semibold text-accent tabular-nums mt-0.5 block">
+            <span className="erp-tabular-currency text-xs font-semibold text-accent mt-0.5 block">
               {formatIdr(rollingEnvelope)}
             </span>
           </div>
@@ -528,16 +524,16 @@ export function AdaptiveDailyPacingCard({
         </div>
 
         {/* Budget & Spend Summary */}
-        <div className="flex items-center justify-between text-xs font-sans text-text-secondary pt-1.5">
-          <span>
-            Spent:{" "}
-            <strong className="font-mono text-text-primary tabular-nums">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-sans text-text-secondary pt-1.5">
+          <span className="inline-flex items-baseline gap-1 whitespace-nowrap">
+            <span>Spent:</span>
+            <strong className="erp-tabular-currency text-text-primary">
               {formatIdr(pacing?.totalDailySpent ?? 0)}
             </strong>
           </span>
-          <span>
-            {t("overview.remainingCash")}:{" "}
-            <strong className="font-mono text-text-primary tabular-nums">
+          <span className="inline-flex items-baseline gap-1 whitespace-nowrap">
+            <span>{t("overview.remainingCash")}:</span>
+            <strong className="erp-tabular-currency text-text-primary">
               {formatIdr(remainingBudget)}
             </strong>
           </span>
@@ -550,28 +546,25 @@ export function AdaptiveDailyPacingCard({
           <span className="text-[11px] font-semibold text-text-tertiary font-sans">
             Wallet Reconciliation
           </span>
-          <span className="text-[10px] text-text-tertiary font-sans">
-            No mental subtraction needed
-          </span>
         </div>
 
         {/* Expected Bank Decomposition Strip */}
-        <div className="grid grid-cols-3 gap-1.5 p-2 rounded bg-surface-subtle border border-border-subtle text-[10px]">
-          <div>
-            <span className="text-text-tertiary block font-sans">Living Cash</span>
-            <span className="font-mono font-semibold text-text-primary tabular-nums mt-0.5 block">
+        <div className="grid grid-cols-3 divide-x divide-border-subtle py-2 border-y border-border-subtle text-[11px]">
+          <div className="pr-2 min-w-0">
+            <span className="text-text-tertiary block font-sans truncate">Living Cash</span>
+            <span className="erp-tabular-currency font-semibold text-text-primary mt-0.5 block">
               {formatIdr(remainingBudget)}
             </span>
           </div>
-          <div>
-            <span className="text-text-tertiary block font-sans">+ Unpaid Bills</span>
-            <span className="font-mono font-semibold text-delta-positive tabular-nums mt-0.5 block">
+          <div className="px-2 min-w-0">
+            <span className="text-text-tertiary block font-sans truncate">+ Unpaid Bills</span>
+            <span className="erp-tabular-currency font-semibold text-delta-positive mt-0.5 block">
               {formatIdr(remainingRoutineBillsPool)}
             </span>
           </div>
-          <div className="text-right">
-            <span className="text-text-tertiary block font-sans">= Expected Bank</span>
-            <span className="font-mono font-semibold text-text-primary tabular-nums mt-0.5 block">
+          <div className="pl-2 text-right min-w-0">
+            <span className="text-text-tertiary block font-sans truncate">= Expected Bank</span>
+            <span className="erp-tabular-currency font-semibold text-text-primary mt-0.5 block">
               {formatIdr(expectedTotalBankBalance)}
             </span>
           </div>
@@ -623,7 +616,7 @@ export function AdaptiveDailyPacingCard({
               placeholder={
                 includesRoutineBills ? "Actual bank balance" : "Actual cash"
               }
-              className={`w-full px-2.5 py-1.5 rounded bg-surface-subtle border font-mono text-xs text-text-primary placeholder:text-text-tertiary focus:outline-none disabled:opacity-50 ${
+              className={`w-full px-2.5 py-1.5 rounded bg-surface-subtle border font-mono text-xs text-text-primary placeholder:text-text-tertiary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 disabled:opacity-50 ${
                 isSpike
                   ? "border-caution focus:border-caution"
                   : "border-border-default focus:border-text-secondary"
@@ -754,7 +747,7 @@ export function AdaptiveDailyPacingCard({
                   ? "Reason for upward adjustment (e.g. Typo fix, Refund, Transfer in)..."
                   : "Optional note (e.g. Unrecorded coffee / snacks)..."
               }
-              className={`w-full px-2.5 py-1.5 rounded bg-surface-subtle border text-xs text-text-primary placeholder:text-text-tertiary focus:outline-none ${
+              className={`w-full px-2.5 py-1.5 rounded bg-surface-subtle border text-xs text-text-primary placeholder:text-text-tertiary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 ${
                 isSpike
                   ? "border-caution focus:border-caution"
                   : "border-border focus:border-text-secondary"

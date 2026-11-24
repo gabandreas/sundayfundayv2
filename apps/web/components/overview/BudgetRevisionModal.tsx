@@ -223,7 +223,7 @@ export function BudgetRevisionModal({
                 value={newValueStr}
                 onChange={(e) => setNewValueStr(e.target.value)}
                 disabled={isSubmitting || isSuccess}
-                className="w-full px-3 py-2 text-sm font-mono tabular-nums bg-surface-subtle border border-border rounded text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-border-active transition-colors"
+                className="w-full px-3 py-2 text-sm font-mono tabular-nums bg-surface-subtle border border-border rounded text-text-primary placeholder:text-text-tertiary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-active transition-colors"
                 placeholder="e.g. 2800000"
                 required
               />
@@ -306,7 +306,7 @@ export function BudgetRevisionModal({
                     value={oneOffLabel}
                     onChange={(e) => setOneOffLabel(e.target.value)}
                     placeholder="Custom label for this period (e.g. Nov 25 Bill)"
-                    className="w-full px-2.5 py-1.5 text-xs font-sans bg-canvas border border-border rounded text-text-primary placeholder:text-text-tertiary focus:outline-none"
+                    className="w-full px-2.5 py-1.5 text-xs font-sans bg-canvas border border-border rounded text-text-primary placeholder:text-text-tertiary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                   />
                 )}
               </div>
@@ -325,7 +325,7 @@ export function BudgetRevisionModal({
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 disabled={isSubmitting || isSuccess}
-                className="w-full px-3 py-2 text-xs font-sans bg-surface-subtle border border-border rounded text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-border-active transition-colors resize-none"
+                className="w-full px-3 py-2 text-xs font-sans bg-surface-subtle border border-border rounded text-text-primary placeholder:text-text-tertiary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-active transition-colors resize-none"
                 placeholder="Reason is required for audit trail (min. 3 characters)..."
                 required
               />

@@ -207,7 +207,7 @@ export function SavingsAccumulationTable({
                         : "bg-surface-subtle border-border-subtle text-text-secondary hover:text-text-primary"
                     }`}
                   >
-                    <span className="font-semibold block">Investment — RDPU</span>
+                    <span className="font-semibold block">Investment · RDPU</span>
                     <span className="text-[10px] text-text-tertiary block mt-0.5">
                       Money market mutual fund
                     </span>

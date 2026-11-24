@@ -640,16 +640,16 @@ export function ActiveContractsHub({
                       : "border-border-subtle bg-surface-subtle/50 hover:border-border-strong"
                   }`}
                 >
-                  <div className="flex items-center justify-between text-xs font-mono">
+                  <div className="flex items-center justify-between gap-2 text-xs font-mono">
                     <span className="font-semibold text-text-primary">{m.label}</span>
-                    <span className="text-delta-positive font-semibold tabular-nums">
+                    <span className="text-delta-positive font-semibold erp-tabular-currency">
                       +{formatRp(m.freedMonthly)}/mo
                     </span>
                   </div>
                   <div className="text-[11px] text-text-tertiary truncate" title={m.titles.join(", ")}>
                     {m.titles.join(" · ")}
                   </div>
-                  <div className="text-[10px] font-mono text-text-secondary tabular-nums">
+                  <div className="text-[10px] font-mono text-text-secondary erp-tabular-currency">
                     Cumulative relief: +{formatRp(m.cumulative)}/mo
                   </div>
                 </button>

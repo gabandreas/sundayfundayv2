@@ -300,7 +300,7 @@ export function RecordExpenseCard({
                   e.target.value as FixedEssentialCategory
                 )
               }
-              className="w-full px-2 py-1 rounded bg-surface-subtle border border-border text-[11px] font-sans text-text-primary focus:outline-none focus:border-border-strong"
+              className="w-full px-2 py-1 rounded bg-surface-subtle border border-border text-[11px] font-sans text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
             >
               {routineEssentialOptions.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -377,7 +377,7 @@ export function RecordExpenseCard({
                         type="date"
                         value={purchaseDate}
                         onChange={(e) => setPurchaseDate(e.target.value)}
-                        className="w-full px-1.5 py-0.5 rounded bg-canvas border border-border font-mono text-[10px] text-text-primary focus:outline-none focus:border-border-strong"
+                        className="w-full px-1.5 py-0.5 rounded bg-canvas border border-border font-mono text-[10px] text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
                       />
                     </label>
                     <label className="space-y-0.5">
@@ -387,7 +387,7 @@ export function RecordExpenseCard({
                       <select
                         value={billingCycleOverride}
                         onChange={(e) => setBillingCycleOverride(e.target.value)}
-                        className="w-full px-1.5 py-0.5 rounded bg-canvas border border-border font-mono text-[10px] text-text-primary focus:outline-none focus:border-border-strong"
+                        className="w-full px-1.5 py-0.5 rounded bg-canvas border border-border font-mono text-[10px] text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
                       >
                         <option value="auto">
                           {t("overview.autoCutoff", "Auto")} ({autoLandingPreview.label})
@@ -461,7 +461,7 @@ export function RecordExpenseCard({
                   }
                 }}
                 disabled={isSubmitting}
-                className={`w-full px-2.5 py-1 rounded bg-surface-subtle border text-xs text-text-primary placeholder:text-text-disabled focus:outline-none font-sans ${
+                className={`w-full px-2.5 py-1 rounded bg-surface-subtle border text-xs text-text-primary placeholder:text-text-disabled focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 font-sans ${
                   fieldErrors.label
                     ? "border-urgency focus:border-urgency"
                     : "border-border focus:border-border-strong"
@@ -474,24 +474,31 @@ export function RecordExpenseCard({
               )}
             </div>
             <div className="col-span-5">
-              <input
-                type="text"
-                inputMode="numeric"
-                placeholder="Rp Amount"
-                value={amount}
-                onChange={(e) => {
-                  setAmount(formatCurrencyInput(e.target.value));
-                  if (fieldErrors.amount) {
-                    setFieldErrors((prev) => ({ ...prev, amount: undefined }));
-                  }
-                }}
-                disabled={isSubmitting}
-                className={`w-full px-2.5 py-1 rounded bg-surface-subtle border text-xs font-mono tabular-nums text-text-primary placeholder:text-text-disabled focus:outline-none ${
+              <div
+                className={`flex items-center rounded bg-surface-subtle border px-2 py-1 focus-within:ring-2 focus-within:ring-accent/45 ${
                   fieldErrors.amount
-                    ? "border-urgency focus:border-urgency"
-                    : "border-border focus:border-border-strong"
+                    ? "border-urgency focus-within:border-urgency"
+                    : "border-border focus-within:border-border-strong"
                 }`}
-              />
+              >
+                <span className="text-[11px] font-mono text-text-tertiary pr-1.5 select-none shrink-0">
+                  Rp
+                </span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="Amount"
+                  value={amount}
+                  onChange={(e) => {
+                    setAmount(formatCurrencyInput(e.target.value));
+                    if (fieldErrors.amount) {
+                      setFieldErrors((prev) => ({ ...prev, amount: undefined }));
+                    }
+                  }}
+                  disabled={isSubmitting}
+                  className="w-full min-w-0 bg-transparent text-xs font-mono tabular-nums text-text-primary placeholder:text-text-disabled focus-visible:outline-none"
+                />
+              </div>
               {fieldErrors.amount && (
                 <div className="text-[9px] font-sans text-delta-negative mt-0.5">
                   {fieldErrors.amount}

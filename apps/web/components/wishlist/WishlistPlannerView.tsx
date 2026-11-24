@@ -142,7 +142,7 @@ export function WishlistPlannerView({
                     value={selectedItemId}
                     onChange={(e) => handleSelectVaultItem(e.target.value)}
                     aria-label="Load Saved Wishlist item"
-                    className="max-w-[180px] px-2.5 py-1.5 rounded bg-surface-subtle border border-border-default font-sans text-xs text-text-primary focus:outline-none focus:border-text-secondary cursor-pointer"
+                    className="max-w-[180px] px-2.5 py-1.5 rounded bg-surface-subtle border border-border-default font-sans text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-text-secondary cursor-pointer"
                   >
                     <option value="">Custom amount...</option>
                     {activeVaultItems.map((item) => (
@@ -164,7 +164,7 @@ export function WishlistPlannerView({
                     setQuickPriceInput(formatCurrencyInput(e.target.value));
                   }}
                   placeholder="900.000"
-                  className="w-32 px-2.5 py-1.5 rounded bg-surface-subtle border border-border-default font-mono text-xs text-text-primary tabular-nums focus:outline-none focus:border-text-secondary"
+                  className="w-32 px-2.5 py-1.5 rounded bg-surface-subtle border border-border-default font-mono text-xs text-text-primary tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-text-secondary"
                 />
                 {trueWage > 0 && (
                   <span className="inline-flex items-center whitespace-nowrap px-2 py-1 rounded bg-surface-subtle border border-border-subtle font-mono text-[11px] text-caution tabular-nums">

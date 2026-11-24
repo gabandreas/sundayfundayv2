@@ -780,7 +780,7 @@ export function SubscriptionKillSwitchTab({
           value={customTemplate}
           onChange={(e) => setCustomTemplate(e.target.value)}
           placeholder={DEFAULT_KILL_SWITCH_TEMPLATE}
-          className="w-full px-3 py-2 rounded bg-canvas border border-border text-text-primary text-xs font-sans focus:outline-none focus:border-border-strong"
+          className="w-full px-3 py-2 rounded bg-canvas border border-border text-text-primary text-xs font-sans focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
         />
 
         <div className="rounded border border-border-subtle bg-canvas px-3.5 py-2.5 text-xs text-text-secondary">

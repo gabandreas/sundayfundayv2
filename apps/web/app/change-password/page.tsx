@@ -131,7 +131,7 @@ function FirstLoginPasswordForm() {
                 setNewPassword(e.target.value);
                 if (errorMessage) setErrorMessage(null);
               }}
-              className="w-full pl-9 pr-10 py-2 text-xs rounded border border-border bg-surface-subtle text-text-primary focus:outline-none focus:border-border-strong font-sans"
+              className="w-full pl-9 pr-10 py-2 text-xs rounded border border-border bg-surface-subtle text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong font-sans"
             />
             <button
               type="button"
@@ -170,7 +170,7 @@ function FirstLoginPasswordForm() {
                 setConfirmPassword(e.target.value);
                 if (errorMessage) setErrorMessage(null);
               }}
-              className="w-full pl-9 pr-10 py-2 text-xs rounded border border-border bg-surface-subtle text-text-primary focus:outline-none focus:border-border-strong font-sans"
+              className="w-full pl-9 pr-10 py-2 text-xs rounded border border-border bg-surface-subtle text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong font-sans"
             />
             <button
               type="button"

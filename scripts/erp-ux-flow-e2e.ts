@@ -63,6 +63,28 @@ async function main() {
 
   try {
     const page = await browser.newPage();
+    const pageErrors: string[] = [];
+    const consoleErrors: string[] = [];
+    const httpErrors: string[] = [];
+
+    page.on('pageerror', (err) => {
+      pageErrors.push(String(err?.message ?? err));
+    });
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') {
+        const text = msg.text();
+        if (!text.includes('favicon')) {
+          consoleErrors.push(text);
+        }
+      }
+    });
+    page.on('response', (res) => {
+      const status = res.status();
+      const url = res.url();
+      if (status >= 500 || (status >= 400 && url.includes('/api/'))) {
+        httpErrors.push(`${status} ${url}`);
+      }
+    });
 
     // Seed User #1 read-only session using exact AuthContext + middleware cookie & storage keys
     await page.goto(`${WEB_URL}/login`, { waitUntil: 'domcontentloaded', timeout: 45000 });
@@ -125,6 +147,47 @@ async function main() {
     assert.ok(
       !overviewText.includes('Burn-Rate Telemetry'),
       'Overview must not contain robotic "Burn-Rate Telemetry" copy',
+    );
+    assert.ok(
+      !overviewText.includes('Automatic recalculation enabled'),
+      'Overview cycle header must not contain "Automatic recalculation enabled" filler copy',
+    );
+
+    const deficitCheck = await page.evaluate(() => {
+      const box = document.querySelector('[data-testid="deficit-alert"]');
+      if (!box) return { present: false, hasAllocLink: true, rpCount: 0 };
+      const txt = box.textContent ?? '';
+      const rpMatches = txt.match(/Rp\s+[•\d.]+/g) ?? [];
+      return {
+        present: true,
+        hasAllocLink: Boolean(box.querySelector('a[href*="/allocations"]')),
+        rpCount: rpMatches.length,
+      };
+    });
+    if (deficitCheck.present) {
+      assert.equal(deficitCheck.hasAllocLink, true, 'DeficitAlert must link directly to /allocations');
+      assert.equal(deficitCheck.rpCount, 1, `DeficitAlert must show shortfall amount once, found ${deficitCheck.rpCount}`);
+    }
+
+    // Verify collapsible desktop sidebar rail toggle
+    await page.waitForSelector('[data-testid="sidebar-collapse-toggle"]', { timeout: 10000 });
+    await page.click('[data-testid="sidebar-collapse-toggle"]');
+    await new Promise((r) => setTimeout(r, 250));
+    const collapsedWidth = await page.evaluate(
+      () => document.querySelector('aside')?.getBoundingClientRect().width ?? 0,
+    );
+    assert.ok(
+      collapsedWidth > 0 && collapsedWidth <= 72,
+      `Collapsed sidebar width must be <= 72px, got ${collapsedWidth}`,
+    );
+    await page.click('[data-testid="sidebar-collapse-toggle"]');
+    await new Promise((r) => setTimeout(r, 250));
+    const expandedWidth = await page.evaluate(
+      () => document.querySelector('aside')?.getBoundingClientRect().width ?? 0,
+    );
+    assert.ok(
+      expandedWidth >= 200,
+      `Expanded sidebar width must be >= 200px, got ${expandedWidth}`,
     );
 
     // Also verify 12/2026 PRE_PAYDAY cycle boundary dates ("27 Nov" and "27 Dec")
@@ -362,6 +425,32 @@ async function main() {
       !/Ages\s+\d{2}/i.test(adminConsoleText),
       '/admin console must not show removed Age Bracket labels',
     );
+    assert.ok(
+      adminConsoleText.includes('Permissive') || adminConsoleText.includes('Strict'),
+      '/admin IP Whitelist KPI must display Title Case "Permissive" or "Strict"',
+    );
+    assert.ok(
+      !/\b(PERMISSIVE|STRICT)\b/.test(adminConsoleText),
+      '/admin must not render uppercase PERMISSIVE/STRICT KPI text',
+    );
+    const adminTableCheck = await page.evaluate(() => {
+      const tbl = document.querySelector('table');
+      if (!tbl) return { ok: false, reason: 'No users table rendered' };
+      const actionBtns = Array.from(tbl.querySelectorAll('tbody tr:first-child button'));
+      const lastBtn = actionBtns[actionBtns.length - 1] as HTMLElement | undefined;
+      if (!lastBtn) return { ok: false, reason: 'No action buttons in first user row' };
+      const rect = lastBtn.getBoundingClientRect();
+      return {
+        ok: rect.right <= window.innerWidth && rect.width > 0,
+        right: rect.right,
+        innerWidth: window.innerWidth,
+      };
+    });
+    assert.equal(
+      adminTableCheck.ok,
+      true,
+      `/admin Users Actions column must fit cleanly on desktop without right clipping: ${JSON.stringify(adminTableCheck)}`,
+    );
     await page.evaluate(() => {
       const buttons = Array.from(document.querySelectorAll('button'));
       const secBtn = buttons.find((b) => b.textContent?.includes('Security, IP Whitelist & Backup'));
@@ -438,7 +527,7 @@ async function main() {
       'Marquee UI must not leak internal model/provider/Tier strings',
     );
 
-    // Verify /scenarios renders Monte Carlo Stress Test & Surplus Allocation Frontier
+    // Verify /scenarios renders Monte Carlo Stress Test & Surplus Allocation Frontier without 999m target
     await page.goto(`${WEB_URL}/scenarios?month=11&year=2026`, { waitUntil: 'networkidle2', timeout: 60000 });
     await page.waitForFunction(
       () =>
@@ -446,11 +535,20 @@ async function main() {
         document.body.innerText.includes('Surplus Allocation Frontier'),
       { timeout: 20000 },
     );
+    const scenariosText = await page.evaluate(() => document.body.innerText);
+    assert.ok(
+      !scenariosText.includes('999m target'),
+      '/scenarios must not display raw "999m target" placeholder',
+    );
     console.log(
       '  PASS [7/8]: Single Privacy Eye, monogram popover menu, zero CAPSLOCK labels, Marquee clean "hi" response, and Go /scenarios stress-test UI verified.',
     );
 
-    console.log('  PASS [8/8]: Full Headless DOM & UX Flow E2E completed with 0 defects.');
+    assert.equal(pageErrors.length, 0, `Uncaught pageerrors during E2E: ${pageErrors.join(' | ')}`);
+    assert.equal(consoleErrors.length, 0, `Console errors during E2E: ${consoleErrors.join(' | ')}`);
+    assert.equal(httpErrors.length, 0, `Unexpected HTTP >= 400 API responses during E2E: ${httpErrors.join(' | ')}`);
+
+    console.log('  PASS [8/8]: Full Headless DOM & UX Flow E2E completed with 0 console/HTTP/layout defects.');
   } finally {
     await browser.close();
   }

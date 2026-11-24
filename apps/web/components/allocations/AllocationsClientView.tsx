@@ -624,7 +624,7 @@ export function AllocationsClientView({
       <details className="rounded-lg border border-border-subtle bg-surface overflow-hidden group">
         <summary className="px-5 py-3.5 cursor-pointer flex items-center justify-between text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-surface-subtle/40 transition-colors">
           <span>
-            Quota &amp; Target Change Log ({month}/{year}) — {revisions.length} revision(s)
+            Quota &amp; Target Change Log ({month}/{year}) · {revisions.length} revision(s)
           </span>
           <span className="font-mono text-[10px] text-text-tertiary">
             {snapshot?.isManualOverride ? "Manual Override Active" : "Auto-Engine Active"}

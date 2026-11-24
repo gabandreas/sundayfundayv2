@@ -167,7 +167,7 @@ export function PayrollFormulaTab({ config }: PayrollFormulaTabProps) {
                 type="number"
                 value={baseSalary}
                 onChange={(e) => setBaseSalary(Number(e.target.value))}
-                className="w-full pl-8 pr-3 py-1.5 bg-[#0c0e14] border border-[#282e3d] rounded text-xs font-mono text-text-primary focus:outline-none focus:border-accent-primary"
+                className="w-full pl-8 pr-3 py-1.5 bg-[#0c0e14] border border-[#282e3d] rounded text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-accent-primary"
               />
             </div>
             <p className="text-[10px] text-text-tertiary mt-1 font-mono">
@@ -185,7 +185,7 @@ export function PayrollFormulaTab({ config }: PayrollFormulaTabProps) {
                 type="number"
                 value={dailyAllowance}
                 onChange={(e) => setDailyAllowance(Number(e.target.value))}
-                className="w-full pl-8 pr-3 py-1.5 bg-[#0c0e14] border border-[#282e3d] rounded text-xs font-mono text-text-primary focus:outline-none focus:border-accent-primary"
+                className="w-full pl-8 pr-3 py-1.5 bg-[#0c0e14] border border-[#282e3d] rounded text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-accent-primary"
               />
             </div>
             <p className="text-[10px] text-text-tertiary mt-1 font-mono">
@@ -203,7 +203,7 @@ export function PayrollFormulaTab({ config }: PayrollFormulaTabProps) {
                 type="number"
                 value={laptopAllowance}
                 onChange={(e) => setLaptopAllowance(Number(e.target.value))}
-                className="w-full pl-8 pr-3 py-1.5 bg-[#0c0e14] border border-[#282e3d] rounded text-xs font-mono text-text-primary focus:outline-none focus:border-accent-primary"
+                className="w-full pl-8 pr-3 py-1.5 bg-[#0c0e14] border border-[#282e3d] rounded text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-accent-primary"
               />
             </div>
             <p className="text-[10px] text-text-tertiary mt-1 font-mono">
@@ -221,7 +221,7 @@ export function PayrollFormulaTab({ config }: PayrollFormulaTabProps) {
               max={31}
               value={payrollPayoutDay}
               onChange={(e) => setPayrollPayoutDay(Number(e.target.value))}
-              className="w-full px-3 py-1.5 bg-[#0c0e14] border border-[#282e3d] rounded text-xs font-mono text-text-primary focus:outline-none focus:border-accent-primary"
+              className="w-full px-3 py-1.5 bg-[#0c0e14] border border-[#282e3d] rounded text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-accent-primary"
             />
             <p className="text-[10px] text-text-tertiary mt-1">
               Every {payrollPayoutDay}th of the month
@@ -262,7 +262,7 @@ export function PayrollFormulaTab({ config }: PayrollFormulaTabProps) {
                   placeholder="e.g. Parking Subsidy"
                   value={newRuleLabel}
                   onChange={(e) => setNewRuleLabel(e.target.value)}
-                  className="w-full px-2 py-1 bg-[#161922] border border-[#282e3d] rounded text-xs text-text-primary focus:outline-none"
+                  className="w-full px-2 py-1 bg-[#161922] border border-[#282e3d] rounded text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                 />
               </div>
               <div>
@@ -270,7 +270,7 @@ export function PayrollFormulaTab({ config }: PayrollFormulaTabProps) {
                 <select
                   value={newRuleDirection}
                   onChange={(e) => setNewRuleDirection(e.target.value as any)}
-                  className="w-full px-2 py-1 bg-[#161922] border border-[#282e3d] rounded text-xs text-text-primary focus:outline-none"
+                  className="w-full px-2 py-1 bg-[#161922] border border-[#282e3d] rounded text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                 >
                   <option value="ADDITION">+ Addition</option>
                   <option value="DEDUCTION">- Deduction</option>
@@ -281,7 +281,7 @@ export function PayrollFormulaTab({ config }: PayrollFormulaTabProps) {
                 <select
                   value={newRuleFormulaType}
                   onChange={(e) => setNewRuleFormulaType(e.target.value as any)}
-                  className="w-full px-2 py-1 bg-[#161922] border border-[#282e3d] rounded text-xs text-text-primary focus:outline-none"
+                  className="w-full px-2 py-1 bg-[#161922] border border-[#282e3d] rounded text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                 >
                   <option value="FIXED_AMOUNT">Fixed Nominal (Rp)</option>
                   <option value="PERCENT_OF_BASE">% of Base Salary</option>
@@ -295,7 +295,7 @@ export function PayrollFormulaTab({ config }: PayrollFormulaTabProps) {
                   type="number"
                   value={newRuleValue}
                   onChange={(e) => setNewRuleValue(Number(e.target.value))}
-                  className="w-full px-2 py-1 bg-[#161922] border border-[#282e3d] rounded text-xs font-mono text-text-primary focus:outline-none"
+                  className="w-full px-2 py-1 bg-[#161922] border border-[#282e3d] rounded text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                 />
               </div>
             </div>
@@ -368,7 +368,7 @@ export function PayrollFormulaTab({ config }: PayrollFormulaTabProps) {
                         type="number"
                         value={rule.value}
                         onChange={(e) => handleUpdateRuleValue(idx, Number(e.target.value))}
-                        className="w-28 px-2 py-1 bg-[#0c0e14] border border-[#282e3d] rounded text-xs font-mono text-text-primary focus:outline-none"
+                        className="w-28 px-2 py-1 bg-[#0c0e14] border border-[#282e3d] rounded text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                       />
                       <span className="text-[11px] text-text-tertiary font-mono">
                         {rule.formulaType === "PERCENT_OF_BASE" && "%"}

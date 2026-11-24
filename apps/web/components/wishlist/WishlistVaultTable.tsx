@@ -264,7 +264,7 @@ export function WishlistVaultTable({
                         value={editTargetMonth}
                         onChange={(e) => setEditTargetMonth(e.target.value)}
                         aria-label="Target Month"
-                        className="w-11 px-1.5 py-1 rounded bg-surface border border-border-default font-mono text-[11px] text-text-primary tabular-nums focus:outline-none focus:border-accent"
+                        className="w-11 px-1.5 py-1 rounded bg-surface border border-border-default font-mono text-[11px] text-text-primary tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-accent"
                       />
                       <span className="text-text-tertiary font-mono">/</span>
                       <input
@@ -275,7 +275,7 @@ export function WishlistVaultTable({
                         value={editTargetYear}
                         onChange={(e) => setEditTargetYear(e.target.value)}
                         aria-label="Target Year"
-                        className="w-14 px-1.5 py-1 rounded bg-surface border border-border-default font-mono text-[11px] text-text-primary tabular-nums focus:outline-none focus:border-accent"
+                        className="w-14 px-1.5 py-1 rounded bg-surface border border-border-default font-mono text-[11px] text-text-primary tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-accent"
                       />
                     </div>
 
@@ -285,7 +285,7 @@ export function WishlistVaultTable({
                         value={editName}
                         onChange={(e) => setEditName(e.target.value)}
                         aria-label="Wishlist item name"
-                        className="w-full px-2 py-1 rounded bg-surface border border-border-default font-sans text-xs text-text-primary focus:outline-none focus:border-accent"
+                        className="w-full px-2 py-1 rounded bg-surface border border-border-default font-sans text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-accent"
                       />
                     </div>
 
@@ -295,7 +295,7 @@ export function WishlistVaultTable({
                         value={editPriceStr}
                         onChange={(e) => setEditPriceStr(formatCurrencyInput(e.target.value))}
                         aria-label="Estimated price"
-                        className="w-full px-2 py-1 rounded bg-surface border border-border-default font-mono text-xs text-right text-text-primary tabular-nums focus:outline-none focus:border-accent"
+                        className="w-full px-2 py-1 rounded bg-surface border border-border-default font-mono text-xs text-right text-text-primary tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-accent"
                       />
                     </div>
 

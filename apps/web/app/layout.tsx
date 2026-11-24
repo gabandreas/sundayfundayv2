@@ -28,7 +28,7 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: {
-    default: "Sunday Funday — Personal Finance ERP",
+    default: "Sunday Funday | Personal Finance ERP",
     template: "%s | Sunday Funday ERP",
   },
   description:
@@ -45,7 +45,7 @@ export const metadata: Metadata = {
     follow: false,
   },
   openGraph: {
-    title: "Sunday Funday — Personal Finance ERP",
+    title: "Sunday Funday | Personal Finance ERP",
     description:
       "Payroll waterfall allocation, 12-month debt matrix, and real-time safe-to-spend cash flow control.",
     type: "website",

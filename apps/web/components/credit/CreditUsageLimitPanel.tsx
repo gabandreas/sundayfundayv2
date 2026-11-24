@@ -441,7 +441,7 @@ export function CreditUsageLimitPanel({
                 value={ccLimitInput}
                 onChange={(e) => setCcLimitInput(e.target.value)}
                 disabled={isSubmitting}
-                className="w-full bg-surface-subtle border border-border focus:border-accent rounded px-3 py-1.5 text-xs font-mono text-text-primary tabular-nums outline-none"
+                className="w-full bg-surface-subtle border border-border focus:border-accent rounded px-3 py-1.5 text-xs font-mono text-text-primary tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
               />
               <span className="text-[10px] font-mono text-text-tertiary mt-0.5 block">
                 {formatRp(parseInt(ccLimitInput, 10) || 0)} (0 = Unset)
@@ -458,7 +458,7 @@ export function CreditUsageLimitPanel({
                 value={paylaterLimitInput}
                 onChange={(e) => setPaylaterLimitInput(e.target.value)}
                 disabled={isSubmitting}
-                className="w-full bg-surface-subtle border border-border focus:border-accent rounded px-3 py-1.5 text-xs font-mono text-text-primary tabular-nums outline-none"
+                className="w-full bg-surface-subtle border border-border focus:border-accent rounded px-3 py-1.5 text-xs font-mono text-text-primary tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
               />
               <span className="text-[10px] font-mono text-text-tertiary mt-0.5 block">
                 {formatRp(parseInt(paylaterLimitInput, 10) || 0)} (0 = Unset)

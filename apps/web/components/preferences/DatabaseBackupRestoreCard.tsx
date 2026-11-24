@@ -209,7 +209,7 @@ export function DatabaseBackupRestoreCard() {
                 value={confirmPhrase}
                 onChange={(e) => setConfirmPhrase(e.target.value)}
                 placeholder="RESTORE_ALL_DATA"
-                className="w-full px-3 py-1.5 rounded bg-surface-subtle border border-border text-xs font-mono text-text-primary focus:outline-none focus:border-border-strong"
+                className="w-full px-3 py-1.5 rounded bg-surface-subtle border border-border text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
               />
             </div>
 

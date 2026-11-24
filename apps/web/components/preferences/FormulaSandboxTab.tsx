@@ -85,7 +85,7 @@ export function FormulaSandboxTab({ config }: FormulaSandboxTabProps) {
                 type="number"
                 value={simIncome}
                 onChange={(e) => setSimIncome(Number(e.target.value))}
-                className="w-full pl-8 pr-3 py-1.5 bg-[#0c0e14] border border-[#282e3d] rounded text-xs font-mono text-text-primary focus:outline-none focus:border-accent-primary"
+                className="w-full pl-8 pr-3 py-1.5 bg-[#0c0e14] border border-[#282e3d] rounded text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-accent-primary"
               />
             </div>
             <p className="text-[10px] text-text-tertiary mt-1 font-mono">{formatRupiah(simIncome)}</p>
@@ -101,7 +101,7 @@ export function FormulaSandboxTab({ config }: FormulaSandboxTabProps) {
                 type="number"
                 value={simDebts}
                 onChange={(e) => setSimDebts(Number(e.target.value))}
-                className="w-full pl-8 pr-3 py-1.5 bg-[#0c0e14] border border-[#282e3d] rounded text-xs font-mono text-text-primary focus:outline-none focus:border-accent-primary"
+                className="w-full pl-8 pr-3 py-1.5 bg-[#0c0e14] border border-[#282e3d] rounded text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-accent-primary"
               />
             </div>
             <p className="text-[10px] text-text-tertiary mt-1 font-mono">{formatRupiah(simDebts)}</p>
@@ -117,7 +117,7 @@ export function FormulaSandboxTab({ config }: FormulaSandboxTabProps) {
               max={40}
               value={simCycleDays}
               onChange={(e) => setSimCycleDays(Number(e.target.value))}
-              className="w-full px-3 py-1.5 bg-[#0c0e14] border border-[#282e3d] rounded text-xs font-mono text-text-primary focus:outline-none focus:border-accent-primary"
+              className="w-full px-3 py-1.5 bg-[#0c0e14] border border-[#282e3d] rounded text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-accent-primary"
             />
             <p className="text-[10px] text-text-tertiary mt-1">{simCycleDays} days in period</p>
           </div>
@@ -132,7 +132,7 @@ export function FormulaSandboxTab({ config }: FormulaSandboxTabProps) {
               max={31}
               value={simWorkingDays}
               onChange={(e) => setSimWorkingDays(Number(e.target.value))}
-              className="w-full px-3 py-1.5 bg-[#0c0e14] border border-[#282e3d] rounded text-xs font-mono text-text-primary focus:outline-none focus:border-accent-primary"
+              className="w-full px-3 py-1.5 bg-[#0c0e14] border border-[#282e3d] rounded text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-accent-primary"
             />
             <p className="text-[10px] text-text-tertiary mt-1">{simWorkingDays} weekdays</p>
           </div>

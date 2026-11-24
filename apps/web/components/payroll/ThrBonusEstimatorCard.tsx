@@ -137,7 +137,7 @@ export function ThrBonusEstimatorCard({
             max={26}
             value={simulatedDays}
             onChange={(e) => setSimulatedDays(Math.max(0, Number(e.target.value) || 0))}
-            className="w-full px-2.5 py-1.5 rounded bg-surface-subtle border border-border-default font-mono text-xs text-text-primary focus:outline-none focus:border-text-secondary"
+            className="w-full px-2.5 py-1.5 rounded bg-surface-subtle border border-border-default font-mono text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-text-secondary"
           />
         </div>
 
@@ -154,7 +154,7 @@ export function ThrBonusEstimatorCard({
             onChange={(e) =>
               setTenureMonths(Math.min(12, Math.max(0, Number(e.target.value) || 0)))
             }
-            className="w-full px-2.5 py-1.5 rounded bg-surface-subtle border border-border-default font-mono text-xs text-text-primary focus:outline-none focus:border-text-secondary"
+            className="w-full px-2.5 py-1.5 rounded bg-surface-subtle border border-border-default font-mono text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-text-secondary"
           />
         </div>
 
@@ -169,7 +169,7 @@ export function ThrBonusEstimatorCard({
             step={0.25}
             value={bonusFactorMonths}
             onChange={(e) => setBonusFactorMonths(Math.max(0, Number(e.target.value) || 0))}
-            className="w-full px-2.5 py-1.5 rounded bg-surface-subtle border border-border-default font-mono text-xs text-text-primary focus:outline-none focus:border-text-secondary"
+            className="w-full px-2.5 py-1.5 rounded bg-surface-subtle border border-border-default font-mono text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-text-secondary"
           />
         </div>
       </div>

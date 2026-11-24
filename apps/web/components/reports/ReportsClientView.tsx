@@ -856,7 +856,7 @@ export function ReportsClientView({
                 <div className="pt-2.5 border-t border-border-subtle text-[11px] font-mono text-text-tertiary">
                   {mc.paydayChecklist.step4FreeSelfRewardAllowance
                     .fundedP2Allowance > 0
-                    ? "100% discretionary — safe to spend or allocate to savings"
+                    ? "100% discretionary, safe to spend or allocate to savings"
                     : "Paused at Rp 0 this month so upfront bills & core savings come first"}
                 </div>
               </div>

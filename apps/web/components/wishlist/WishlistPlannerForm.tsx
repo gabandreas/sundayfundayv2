@@ -185,7 +185,7 @@ export function WishlistPlannerForm({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g. MacBook Pro M3, Herman Miller Chair"
-            className="w-full bg-surface-subtle border border-border-subtle rounded px-3 py-1.5 text-xs text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-border-active transition-colors"
+            className="w-full bg-surface-subtle border border-border-subtle rounded px-3 py-1.5 text-xs text-text-primary placeholder:text-text-tertiary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-active transition-colors"
             required
           />
         </div>
@@ -207,7 +207,7 @@ export function WishlistPlannerForm({
               value={priceStr}
               onChange={(e) => handlePriceChange(e.target.value)}
               placeholder="e.g. 15000000"
-              className="w-full bg-surface-subtle border border-border-subtle rounded px-3 py-1.5 text-xs font-mono text-text-primary focus:outline-none focus:border-border-active transition-colors"
+              className="w-full bg-surface-subtle border border-border-subtle rounded px-3 py-1.5 text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-active transition-colors"
               required
             />
             {isValidPrice && (
@@ -271,7 +271,7 @@ export function WishlistPlannerForm({
                   value={provider}
                   onChange={(e) => setProvider(e.target.value)}
                   placeholder="e.g. BCA, Tokopedia"
-                  className="w-full bg-surface border border-border-subtle rounded px-2.5 py-1 text-xs text-text-primary focus:outline-none focus:border-border-active"
+                  className="w-full bg-surface border border-border-subtle rounded px-2.5 py-1 text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-active"
                 />
               </div>
 
@@ -286,7 +286,7 @@ export function WishlistPlannerForm({
                   id="installment-tenor"
                   value={tenorStr}
                   onChange={(e) => handleTenorChange(e.target.value)}
-                  className="w-full bg-surface border border-border-subtle rounded px-2.5 py-1 text-xs font-mono text-text-primary focus:outline-none focus:border-border-active"
+                  className="w-full bg-surface border border-border-subtle rounded px-2.5 py-1 text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-active"
                 >
                   <option value="1">1 month (Full)</option>
                   <option value="3">3 months</option>
@@ -313,7 +313,7 @@ export function WishlistPlannerForm({
                   value={monthlyPaymentStr}
                   onChange={(e) => setMonthlyPaymentStr(e.target.value)}
                   placeholder="e.g. 2500000"
-                  className="w-full bg-surface border border-border-subtle rounded px-2.5 py-1 text-xs font-mono text-text-primary focus:outline-none focus:border-border-active"
+                  className="w-full bg-surface border border-border-subtle rounded px-2.5 py-1 text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-active"
                 />
               </div>
             </div>
@@ -332,7 +332,7 @@ export function WishlistPlannerForm({
                 step="0.1"
                 value={interestPercentStr}
                 onChange={(e) => setInterestPercentStr(e.target.value)}
-                className="w-28 bg-surface border border-border-subtle rounded px-2.5 py-1 text-xs font-mono text-text-primary focus:outline-none focus:border-border-active"
+                className="w-28 bg-surface border border-border-subtle rounded px-2.5 py-1 text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-active"
               />
             </div>
           </div>
@@ -351,7 +351,7 @@ export function WishlistPlannerForm({
               id="target-month-select"
               value={targetMonth}
               onChange={(e) => setTargetMonth(e.target.value)}
-              className="w-full bg-surface-subtle border border-border-subtle rounded px-3 py-1.5 text-xs text-text-primary focus:outline-none focus:border-border-active"
+              className="w-full bg-surface-subtle border border-border-subtle rounded px-3 py-1.5 text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-active"
             >
               {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((m) => (
                 <option key={m} value={m}>
@@ -375,7 +375,7 @@ export function WishlistPlannerForm({
               max="2035"
               value={targetYear}
               onChange={(e) => setTargetYear(e.target.value)}
-              className="w-full bg-surface-subtle border border-border-subtle rounded px-3 py-1.5 text-xs font-mono text-text-primary focus:outline-none focus:border-border-active"
+              className="w-full bg-surface-subtle border border-border-subtle rounded px-3 py-1.5 text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-active"
             />
           </div>
         </div>
@@ -394,7 +394,7 @@ export function WishlistPlannerForm({
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="e.g. Wait for year-end discount, trade in old device"
-            className="w-full bg-surface-subtle border border-border-subtle rounded px-3 py-1.5 text-xs text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-border-active resize-none"
+            className="w-full bg-surface-subtle border border-border-subtle rounded px-3 py-1.5 text-xs text-text-primary placeholder:text-text-tertiary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-active resize-none"
           />
         </div>
 

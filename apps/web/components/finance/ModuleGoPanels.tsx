@@ -49,12 +49,12 @@ export function TrueHourlyLifeEnergyPanel({
 
   return (
     <div className="space-y-5 w-full">
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <div className="rounded-lg border border-border bg-surface p-4">
-          <div className="text-[10px] font-mono text-text-tertiary">
+      <div className="rounded-lg border border-border bg-surface grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 lg:divide-x divide-border-subtle">
+        <div className="p-4 min-w-0">
+          <div className="text-[11px] font-sans text-text-tertiary">
             {t("intel.trueHourlyWage")}
           </div>
-          <div className="font-serif text-2xl text-delta-positive mt-1 tabular-nums">
+          <div className="font-serif text-2xl text-delta-positive mt-1 erp-tabular-currency">
             {formatRupiah(trueWage, isAmountsMasked)}/hr
           </div>
           <div className="text-[11px] text-text-tertiary mt-1">
@@ -62,11 +62,11 @@ export function TrueHourlyLifeEnergyPanel({
           </div>
         </div>
 
-        <div className="rounded-lg border border-border bg-surface p-4">
-          <div className="text-[10px] font-mono text-text-tertiary">
+        <div className="p-4 min-w-0">
+          <div className="text-[11px] font-sans text-text-tertiary">
             Nominal Hourly Wage
           </div>
-          <div className="font-mono text-xl font-semibold text-text-primary mt-1 tabular-nums">
+          <div className="erp-tabular-currency text-xl font-semibold text-text-primary mt-1">
             {formatRupiah(le.nominalHourlyWageRp, isAmountsMasked)}/hr
           </div>
           <div className="text-[11px] text-text-tertiary mt-1">
@@ -74,8 +74,8 @@ export function TrueHourlyLifeEnergyPanel({
           </div>
         </div>
 
-        <div className="rounded-lg border border-border bg-surface p-4">
-          <div className="text-[10px] font-mono text-text-tertiary">
+        <div className="p-4 min-w-0">
+          <div className="text-[11px] font-sans text-text-tertiary">
             Commute + Work Time
           </div>
           <div className="font-mono text-xl font-semibold text-text-primary mt-1 tabular-nums">
@@ -86,11 +86,11 @@ export function TrueHourlyLifeEnergyPanel({
           </div>
         </div>
 
-        <div className="rounded-lg border border-border bg-surface p-4">
-          <div className="text-[10px] font-mono text-text-tertiary">
+        <div className="p-4 min-w-0">
+          <div className="text-[11px] font-sans text-text-tertiary">
             Net Pay After Commute Cost
           </div>
-          <div className="font-mono text-xl font-semibold text-text-primary mt-1 tabular-nums">
+          <div className="erp-tabular-currency text-xl font-semibold text-text-primary mt-1">
             {formatRupiah(le.netIncomeAfterWorkCostRp, isAmountsMasked)}
           </div>
           <div className="text-[11px] text-text-tertiary mt-1">
@@ -188,31 +188,31 @@ export function EnvelopesAndSinkingPanel({
 
   return (
     <div className="space-y-5 w-full">
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <div className="rounded-lg border border-border bg-surface p-4">
-          <div className="text-[10px] font-mono text-text-tertiary">Savings Runway</div>
+      <div className="rounded-lg border border-border bg-surface grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 lg:divide-x divide-border-subtle">
+        <div className="p-4 min-w-0">
+          <div className="text-[11px] font-sans text-text-tertiary">Savings Runway</div>
           <div className="font-serif text-2xl text-text-primary mt-1 tabular-nums">
             {env.ageOfMoneyDays} Days
           </div>
           <div className="text-[11px] text-text-tertiary mt-1">Cash &amp; savings buffer at current pace</div>
         </div>
-        <div className="rounded-lg border border-border bg-surface p-4">
-          <div className="text-[10px] font-mono text-text-tertiary">Pure Buffer Runway</div>
+        <div className="p-4 min-w-0">
+          <div className="text-[11px] font-sans text-text-tertiary">Pure Buffer Runway</div>
           <div className="font-mono text-xl font-semibold text-delta-positive mt-1 tabular-nums">
             {env.bufferDays} Days
           </div>
           <div className="text-[11px] text-text-tertiary mt-1">At current daily burn rate</div>
         </div>
-        <div className="rounded-lg border border-border bg-surface p-4">
-          <div className="text-[10px] font-mono text-text-tertiary">Unspent Sweep to Savings</div>
-          <div className="font-mono text-xl font-semibold text-delta-positive mt-1 tabular-nums">
+        <div className="p-4 min-w-0">
+          <div className="text-[11px] font-sans text-text-tertiary">Unspent Sweep to Savings</div>
+          <div className="erp-tabular-currency text-xl font-semibold text-delta-positive mt-1">
             {formatRupiah(env.totalUnspentSweepToP1Rp, isAmountsMasked)}
           </div>
           <div className="text-[11px] text-text-tertiary mt-1">Auto-swept at cycle close</div>
         </div>
-        <div className="rounded-lg border border-border bg-surface p-4">
-          <div className="text-[10px] font-mono text-text-tertiary">Monthly Sinking Reserve</div>
-          <div className="font-mono text-xl font-semibold text-text-primary mt-1 tabular-nums">
+        <div className="p-4 min-w-0">
+          <div className="text-[11px] font-sans text-text-tertiary">Monthly Sinking Reserve</div>
+          <div className="erp-tabular-currency text-xl font-semibold text-text-primary mt-1">
             {formatRupiah(env.totalSinkingMonthlyRp, isAmountsMasked)}/mo
           </div>
           <div className="text-[11px] text-text-tertiary mt-1">Staged monthly targets</div>
@@ -356,19 +356,19 @@ export function DebtPayoffOptimizerPanel({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 xl:grid-cols-3 divide-y xl:divide-y-0 xl:divide-x divide-border-subtle border-t border-border-subtle pt-1">
         {opt.strategies.map((st) => (
-          <div key={st.strategy} className="p-4 rounded border border-border-subtle bg-surface-subtle/40 space-y-2">
-            <div className="flex items-center justify-between">
+          <div key={st.strategy} className="py-3 xl:px-4 first:xl:pl-0 last:xl:pr-0 space-y-2">
+            <div className="flex items-center justify-between gap-2">
               <span className="text-xs font-semibold text-text-primary">{st.strategy}</span>
-              <span className="font-mono text-xs text-delta-positive tabular-nums">
+              <span className="erp-tabular-currency text-xs text-delta-positive">
                 +{formatRupiah(st.immediateFreedMonthlyRp, isAmountsMasked)}/mo freed
               </span>
             </div>
             <p className="text-[11px] text-text-tertiary leading-relaxed">{st.summary}</p>
-            <div className="pt-2 border-t border-border-subtle flex items-center justify-between text-xs font-mono">
+            <div className="pt-2 border-t border-border-subtle flex items-center justify-between gap-2 text-xs font-mono">
               <span className="text-text-secondary">Interest Saved:</span>
-              <span className="text-delta-positive font-semibold tabular-nums">
+              <span className="text-delta-positive font-semibold erp-tabular-currency">
                 {formatRupiah(st.estimatedInterestSavedRp, isAmountsMasked)} ({st.monthsShaved}m shaved)
               </span>
             </div>
@@ -490,7 +490,7 @@ export function BulkStatementReconcilerPanel({
         value={rawText}
         onChange={(e) => setRawText(e.target.value)}
         placeholder="YYYY-MM-DD, Description, Rp Amount"
-        className="w-full bg-canvas border border-border rounded p-3 font-mono text-xs text-text-primary focus:outline-none focus:border-text-secondary"
+        className="w-full bg-canvas border border-border rounded p-3 font-mono text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-text-secondary"
       />
 
       {statusMsg && (
@@ -602,10 +602,10 @@ export function NetWorthReservoirsPanel({
 
   return (
     <div className="space-y-5 w-full">
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <div className="rounded-lg border border-border bg-surface p-4">
-          <div className="text-[10px] font-mono text-text-tertiary">Cash &amp; Savings Balances</div>
-          <div className="font-serif text-2xl text-text-primary mt-1 tabular-nums">
+      <div className="rounded-lg border border-border bg-surface grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 lg:divide-x divide-border-subtle">
+        <div className="p-4 min-w-0">
+          <div className="text-[11px] font-sans text-text-tertiary">Cash &amp; Savings Balances</div>
+          <div className="font-serif text-2xl text-text-primary mt-1 erp-tabular-currency">
             {formatRupiah(nw.totalAssetsRp, isAmountsMasked)}
           </div>
           <div className="text-[11px] text-delta-positive font-mono mt-1">
@@ -614,19 +614,19 @@ export function NetWorthReservoirsPanel({
               : "Derived strictly from ledger & wallet"}
           </div>
         </div>
-        <div className="rounded-lg border border-border bg-surface p-4">
-          <div className="text-[10px] font-mono text-text-tertiary">Remaining External Debt</div>
-          <div className="font-mono text-xl font-semibold text-delta-negative mt-1 tabular-nums">
+        <div className="p-4 min-w-0">
+          <div className="text-[11px] font-sans text-text-tertiary">Remaining External Debt</div>
+          <div className="erp-tabular-currency text-xl font-semibold text-delta-negative mt-1">
             {formatRupiah(nw.totalUnpaidDebtRp, isAmountsMasked)}
           </div>
           <div className="text-[11px] text-text-tertiary font-mono mt-1 tabular-nums">
             Cycle: {formatRupiah(nw.currentCycleDebtRp ?? nw.totalUnpaidDebtRp, isAmountsMasked)} · Future: {formatRupiah(nw.futureInstallmentPrincipalRp ?? 0, isAmountsMasked)}
           </div>
         </div>
-        <div className="rounded-lg border border-border bg-surface p-4">
-          <div className="text-[10px] font-mono text-text-tertiary">Cash &amp; Savings vs. Debt</div>
+        <div className="p-4 min-w-0">
+          <div className="text-[11px] font-sans text-text-tertiary">Cash &amp; Savings vs. Debt</div>
           <div
-            className={`font-serif text-2xl mt-1 tabular-nums ${
+            className={`font-serif text-2xl mt-1 erp-tabular-currency ${
               nw.totalNetWorthRp >= 0 ? "text-delta-positive" : "text-delta-negative"
             }`}
           >
@@ -637,8 +637,8 @@ export function NetWorthReservoirsPanel({
             Coverage: {nw.assetToDebtCoveragePct.toFixed(1)}%
           </div>
         </div>
-        <div className="rounded-lg border border-border bg-surface p-4">
-          <div className="text-[10px] font-mono text-text-tertiary">Debt-to-Asset Leverage</div>
+        <div className="p-4 min-w-0">
+          <div className="text-[11px] font-sans text-text-tertiary">Debt-to-Asset Leverage</div>
           <div className="font-mono text-xl font-semibold text-text-primary mt-1 tabular-nums">
             {nw.debtToAssetLeveragePct.toFixed(1)}%
           </div>
@@ -720,9 +720,9 @@ export function WealthForecaster12MPanel({
 
   return (
     <div className="space-y-5 w-full">
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <div className="rounded-lg border border-border bg-surface p-4">
-          <div className="text-[10px] font-mono text-text-tertiary">
+      <div className="rounded-lg border border-border bg-surface grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 lg:divide-x divide-border-subtle">
+        <div className="p-4 min-w-0">
+          <div className="text-[11px] font-sans text-text-tertiary">
             {intel.dynamicMilestone?.labelEn ?? "Debt Payoff Target"}
           </div>
           <div className="font-serif text-2xl text-delta-positive mt-1">
@@ -737,21 +737,21 @@ export function WealthForecaster12MPanel({
                 : "Milestone achieved"}
           </div>
         </div>
-        <div className="rounded-lg border border-border bg-surface p-4">
-          <div className="text-[10px] font-mono text-text-tertiary">Low-DSR (&lt;15%) Date</div>
+        <div className="p-4 min-w-0">
+          <div className="text-[11px] font-sans text-text-tertiary">Low-DSR (&lt;15%) Date</div>
           <div className="font-mono text-xl font-semibold text-text-primary mt-1">{fc.lowDsrMilestoneDate}</div>
           <div className="text-[11px] text-text-tertiary mt-1">Healthy debt service ratio</div>
         </div>
-        <div className="rounded-lg border border-border bg-surface p-4">
-          <div className="text-[10px] font-mono text-text-tertiary">Survival Runway</div>
+        <div className="p-4 min-w-0">
+          <div className="text-[11px] font-sans text-text-tertiary">Survival Runway</div>
           <div className="font-mono text-xl font-semibold text-text-primary mt-1 tabular-nums">
             {fc.pureSurvivalRunwayDays} Days
           </div>
           <div className="text-[11px] text-text-tertiary mt-1">If income paused today</div>
         </div>
-        <div className="rounded-lg border border-border bg-surface p-4">
-          <div className="text-[10px] font-mono text-text-tertiary">Zero-Leak 12M Wealth</div>
-          <div className="font-serif text-2xl text-delta-positive mt-1 tabular-nums">
+        <div className="p-4 min-w-0">
+          <div className="text-[11px] font-sans text-text-tertiary">Zero-Leak 12M Wealth</div>
+          <div className="font-serif text-2xl text-delta-positive mt-1 erp-tabular-currency">
             {formatRupiah(fc.projected12MWealthZeroLeakRp, isAmountsMasked)}
           </div>
           <div className="text-[11px] text-text-tertiary mt-1">

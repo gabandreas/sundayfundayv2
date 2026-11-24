@@ -152,7 +152,7 @@ const EN_DICT = {
   "overview.prePaydayPlan": "Pre-Payday Plan",
   "overview.aheadOfPace": "ahead of pace",
   "overview.overPace": "over pace",
-  "overview.bridgeUntilPayday": "days until payday — log today's pocket cash in Wallet Check-In",
+  "overview.bridgeUntilPayday": "days until payday; log today's pocket cash in Wallet Check-In",
   "overview.status.onTrack": "On Track",
   "overview.status.caution": "Caution",
   "overview.status.burningFast": "Burning Fast",
@@ -203,6 +203,8 @@ const EN_DICT = {
 
   // Humanized Shortfall Alert
   "deficit.title": "Budget Shortfall",
+  "deficit.compactNote": "Closing paused until balanced",
+  "deficit.adjustPlan": "Adjust plan",
   "deficit.prefix": "Planned bills, daily living, and savings exceed this cycle's take-home pay by",
   "deficit.suffix": "Period closing is paused until planned spending is reduced, target buckets are adjusted, or extra income is logged.",
 
@@ -421,7 +423,7 @@ const ID_DICT: Record<TranslationKey, string> = {
   "overview.prePaydayPlan": "Rencana Pra-Gajian",
   "overview.aheadOfPace": "lebih hemat",
   "overview.overPace": "di atas kuota",
-  "overview.bridgeUntilPayday": "hari menuju gajian — pantau saldo tunai di Wallet Check-In",
+  "overview.bridgeUntilPayday": "hari menuju gajian; pantau saldo tunai di Wallet Check-In",
   "overview.status.onTrack": "Sesuai Jalur",
   "overview.status.caution": "Waspada",
   "overview.status.burningFast": "Boros Cepat",
@@ -470,6 +472,8 @@ const ID_DICT: Record<TranslationKey, string> = {
   "drawer.later": "Undurkan",
 
   "deficit.title": "Anggaran Kurang",
+  "deficit.compactNote": "Tutup periode ditahan sampai seimbang",
+  "deficit.adjustPlan": "Atur alokasi",
   "deficit.prefix": "Total tagihan, biaya hidup harian, dan target tabungan melebihi gaji bersih siklus ini sebesar",
   "deficit.suffix": "Penutupan periode ditunda hingga pengeluaran dikurangi, target kategori disesuaikan, atau ada pemasukan tambahan.",
 
@@ -683,7 +687,7 @@ const ZH_DICT: Record<TranslationKey, string> = {
   "overview.prePaydayPlan": "发薪前预算规划",
   "overview.aheadOfPace": "低于日均节奏",
   "overview.overPace": "超出日均节奏",
-  "overview.bridgeUntilPayday": "天后发薪 — 可在钱包核对记录当前现金",
+  "overview.bridgeUntilPayday": "天后发薪，可在钱包核对记录当前现金",
   "overview.status.onTrack": "进度正常",
   "overview.status.caution": "注意控制",
   "overview.status.burningFast": "消耗过快",
@@ -732,6 +736,8 @@ const ZH_DICT: Record<TranslationKey, string> = {
   "drawer.later": "延后一期",
 
   "deficit.title": "预算缺口",
+  "deficit.compactNote": "预算平衡前暂缓结账",
+  "deficit.adjustPlan": "调整分配",
   "deficit.prefix": "本期账单、日常开销与储蓄目标超出净收入",
   "deficit.suffix": "在削减计划支出、调整目标预算或记录额外收入之前，周期结转将保持锁定。",
 

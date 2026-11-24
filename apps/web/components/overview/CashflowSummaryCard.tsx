@@ -31,7 +31,7 @@ export function CashflowSummaryCard({ snapshot, pacing }: CashflowSummaryCardPro
             {t("overview.cashflowSummary")}
           </span>
           <span className="text-[10px] font-mono text-text-tertiary">
-            MONTH {snapshot.month} / {snapshot.year}
+            Period {snapshot.month}/{snapshot.year}
           </span>
         </div>
 
@@ -40,7 +40,7 @@ export function CashflowSummaryCard({ snapshot, pacing }: CashflowSummaryCardPro
           {/* Total Income */}
           <div className="flex items-center justify-between py-1">
             <span className="text-text-secondary">{t("overview.totalNetIncome")}</span>
-            <span className="font-mono tabular-nums text-[13px] font-medium text-delta-positive">
+            <span className="erp-tabular-currency text-[13px] font-medium text-delta-positive">
               +{formatRupiah(totalIncome, isAmountsMasked)}
             </span>
           </div>
@@ -48,7 +48,7 @@ export function CashflowSummaryCard({ snapshot, pacing }: CashflowSummaryCardPro
           {/* Total Liabilities & Deductions */}
           <div className="flex items-center justify-between py-1 border-t border-border-subtle">
             <span className="text-text-secondary">{t("overview.materializedDebt")}</span>
-            <span className="font-mono tabular-nums text-[13px] font-medium text-text-primary">
+            <span className="erp-tabular-currency text-[13px] font-medium text-text-primary">
               -{formatRupiah(totalDeductions, isAmountsMasked)}
             </span>
           </div>
@@ -58,7 +58,7 @@ export function CashflowSummaryCard({ snapshot, pacing }: CashflowSummaryCardPro
             <span className="font-medium text-text-primary">{t("overview.netBaseline")}</span>
             <div className="flex items-center gap-2">
               <span
-                className={`font-mono tabular-nums text-sm font-semibold ${
+                className={`erp-tabular-currency text-sm font-semibold ${
                   netSurplus >= 0 ? "text-text-primary" : "text-urgency"
                 }`}
               >
@@ -71,7 +71,7 @@ export function CashflowSummaryCard({ snapshot, pacing }: CashflowSummaryCardPro
           {pacing && (
             <div className="flex items-center justify-between pt-1 border-t border-border-subtle/60 text-[11px] text-text-tertiary">
               <span>Daily spending in consumption cycle ({pacing.cycleDateLabel})</span>
-              <span className="font-mono tabular-nums text-text-secondary">
+              <span className="erp-tabular-currency text-text-secondary">
                 {formatRupiah(dailySpent, isAmountsMasked)}
               </span>
             </div>
@@ -80,19 +80,19 @@ export function CashflowSummaryCard({ snapshot, pacing }: CashflowSummaryCardPro
 
         {/* Waterfall Pillar Allocation Breakdown */}
         <div className="mt-4 pt-3 border-t border-border-subtle">
-          <div className="text-[10px] font-mono text-text-tertiary mb-2">
+          <div className="text-[11px] font-sans text-text-tertiary mb-2">
             Waterfall Allocations Status
           </div>
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="p-2 rounded bg-surface-subtle border border-border-subtle">
-              <div className="text-[10px] text-text-tertiary font-sans">{savingsTierLabel}</div>
-              <div className="font-mono text-xs font-medium text-text-primary mt-0.5 tabular-nums erp-tabular-currency">
+          <div className="grid grid-cols-3 divide-x divide-border-subtle border-y border-border-subtle py-2.5 text-center">
+            <div className="px-2 min-w-0">
+              <div className="text-[10px] text-text-tertiary font-sans truncate">{savingsTierLabel}</div>
+              <div className="erp-tabular-currency text-xs font-medium text-text-primary mt-0.5">
                 {formatRupiah(snapshot.actualSavings ?? 0, isAmountsMasked)}
               </div>
             </div>
-            <div className="p-2 rounded bg-surface-subtle border border-border-subtle">
-              <div className="text-[10px] text-text-tertiary font-sans">{surplusTierLabel}</div>
-              <div className="font-mono text-xs font-medium text-text-primary mt-0.5 tabular-nums erp-tabular-currency flex items-center justify-center gap-1">
+            <div className="px-2 min-w-0">
+              <div className="text-[10px] text-text-tertiary font-sans truncate">{surplusTierLabel}</div>
+              <div className="erp-tabular-currency text-xs font-medium text-text-primary mt-0.5 flex items-center justify-center gap-1">
                 <span>{formatRupiah(snapshot.selfReward ?? 0, isAmountsMasked)}</span>
                 {(snapshot.selfReward ?? 0) === 0 && (snapshot.selfRewardTarget ?? 0) > 0 && (
                   <span
@@ -104,9 +104,9 @@ export function CashflowSummaryCard({ snapshot, pacing }: CashflowSummaryCardPro
                 )}
               </div>
             </div>
-            <div className="p-2 rounded bg-surface-subtle border border-border-subtle">
-              <div className="text-[10px] text-text-tertiary font-sans">Emergency Buffer</div>
-              <div className="font-mono text-xs font-medium text-text-primary mt-0.5 tabular-nums">
+            <div className="px-2 min-w-0">
+              <div className="text-[10px] text-text-tertiary font-sans truncate">Emergency Buffer</div>
+              <div className="erp-tabular-currency text-xs font-medium text-text-primary mt-0.5">
                 {formatRupiah(snapshot.bufferPocket ?? 0, isAmountsMasked)}
               </div>
             </div>

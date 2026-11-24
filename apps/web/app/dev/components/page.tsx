@@ -22,7 +22,7 @@ import { MiniTrendChart } from "@/components/primitives/MiniTrendChart";
 export default function ComponentDevShowcasePage() {
   return (
     <div className="max-w-7xl space-y-10">
-      {/* Page Header — restrained, technical */}
+      {/* Page Header */}
       <header className="border-b border-border-subtle pb-5">
         <div className="flex items-center gap-3">
           <span className="px-2 py-0.5 font-mono text-[10px] text-text-tertiary bg-surface-subtle border border-border-subtle rounded">
@@ -249,7 +249,7 @@ export default function ComponentDevShowcasePage() {
           <DataTableHeader />
           <DataTableRow
             date="11 Sep 2026"
-            title="PT Teknologi Nusantara — Gaji Pokok Sep 2026"
+            title="PT Teknologi Nusantara: Gaji Pokok Sep 2026"
             subtitle="Payroll baseline + laptop allowance Rp 800.000"
             category="INCOME"
             badge={{ text: "RECORDED", variant: "positive" }}
@@ -267,7 +267,7 @@ export default function ComponentDevShowcasePage() {
           />
           <DataTableRow
             date="10 Sep 2026"
-            title="KPR Bank Mandiri — Cicilan Pokok & Bunga"
+            title="KPR Bank Mandiri: Cicilan Pokok & Bunga"
             subtitle="Auto-debit via Payroll checking account"
             category="CREDIT_BILL"
             tenorInfo="14/24 bln"
@@ -277,7 +277,7 @@ export default function ComponentDevShowcasePage() {
           />
           <DataTableRow
             date="08 Sep 2026"
-            title="Digimap — MacBook Pro M3 Pro Cicilan 0%"
+            title="Digimap: MacBook Pro M3 Pro Cicilan 0%"
             subtitle="BCA Visa Platinum auto-installment"
             category="CREDIT_BILL"
             tenorInfo="3/12 bln"
@@ -287,8 +287,8 @@ export default function ComponentDevShowcasePage() {
           />
           <DataTableRow
             date="05 Sep 2026"
-            title="Tokopedia PayLater — Tagihan Belanja Bulanan"
-            subtitle="Informal bulk debt — cut-off payment due Sep 25"
+            title="Tokopedia PayLater: Tagihan Belanja Bulanan"
+            subtitle="Informal bulk debt, cut-off payment due Sep 25"
             category="BULK_BILL"
             badge={{ text: "DUE 25 SEP", variant: "caution" }}
             amount="-Rp 1.150.000"
@@ -296,7 +296,7 @@ export default function ComponentDevShowcasePage() {
           />
           <DataTableRow
             date="03 Sep 2026"
-            title="Core Savings Reserve — Emergency & Yield"
+            title="Core Savings Reserve: Emergency & Yield"
             subtitle="Core savings allocation to high-yield account"
             category="SAVINGS"
             badge={{ text: "LOCKED", variant: "positive" }}

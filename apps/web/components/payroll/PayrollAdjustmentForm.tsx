@@ -241,7 +241,7 @@ export function PayrollAdjustmentForm({
                 }
               }}
               disabled={isLocked || isSubmitting}
-              className={`w-full bg-surface-subtle border rounded px-3 py-1.5 text-xs font-mono text-text-primary focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed ${
+              className={`w-full bg-surface-subtle border rounded px-3 py-1.5 text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 disabled:opacity-50 disabled:cursor-not-allowed ${
                 fieldErrors.workingDays
                   ? "border-urgency focus:border-urgency"
                   : "border-border-subtle focus:border-border-active"
@@ -265,7 +265,7 @@ export function PayrollAdjustmentForm({
               value={salaryAdjustment}
               onChange={(e) => setSalaryAdjustment(e.target.value)}
               disabled={isLocked || isSubmitting}
-              className="w-full bg-surface-subtle border border-border-subtle rounded px-3 py-1.5 text-xs font-mono text-text-primary focus:outline-none focus:border-border-active disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-surface-subtle border border-border-subtle rounded px-3 py-1.5 text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-active disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </div>
 
@@ -287,7 +287,7 @@ export function PayrollAdjustmentForm({
                 }
               }}
               disabled={isLocked || isSubmitting}
-              className={`w-full bg-surface-subtle border rounded px-3 py-1.5 text-xs font-mono text-text-primary focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed ${
+              className={`w-full bg-surface-subtle border rounded px-3 py-1.5 text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 disabled:opacity-50 disabled:cursor-not-allowed ${
                 fieldErrors.cafeteria
                   ? "border-urgency focus:border-urgency"
                   : "border-border-subtle focus:border-border-active"
@@ -317,7 +317,7 @@ export function PayrollAdjustmentForm({
                 }
               }}
               disabled={isLocked || isSubmitting}
-              className={`w-full bg-surface-subtle border rounded px-3 py-1.5 text-xs font-mono text-text-primary focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed ${
+              className={`w-full bg-surface-subtle border rounded px-3 py-1.5 text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 disabled:opacity-50 disabled:cursor-not-allowed ${
                 fieldErrors.bonus
                   ? "border-urgency focus:border-urgency"
                   : "border-border-subtle focus:border-border-active"
@@ -340,7 +340,7 @@ export function PayrollAdjustmentForm({
               value={payrollPayoutDate}
               onChange={(e) => setPayrollPayoutDate(e.target.value)}
               disabled={isLocked || isSubmitting}
-              className="w-full bg-surface-subtle border border-border-subtle rounded px-3 py-1.5 text-xs font-mono text-text-primary focus:outline-none focus:border-border-active disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-surface-subtle border border-border-subtle rounded px-3 py-1.5 text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-active disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <p className="text-[10px] font-sans text-text-tertiary mt-1">
               Defines the start of this period&apos;s consumption cycle. Does not alter waterfall allocations.
@@ -430,7 +430,7 @@ export function PayrollAdjustmentForm({
                     value={tenureMonths}
                     onChange={(e) => setTenureMonths(e.target.value)}
                     disabled={isLocked || isSubmitting}
-                    className="w-20 px-2 py-1 rounded bg-surface border border-border text-xs font-mono tabular-nums text-text-primary text-center focus:outline-none"
+                    className="w-20 px-2 py-1 rounded bg-surface border border-border text-xs font-mono tabular-nums text-text-primary text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                   />
                   <span className="text-text-tertiary font-mono">/ 12</span>
                 </div>
@@ -463,7 +463,7 @@ export function PayrollAdjustmentForm({
                 onChange={(e) => setCustomThrAmount(e.target.value)}
                 disabled={isLocked || isSubmitting}
                 placeholder="e.g. 5000000"
-                className="w-full px-2.5 py-1.5 rounded bg-surface border border-border text-xs font-mono tabular-nums text-text-primary focus:outline-none"
+                className="w-full px-2.5 py-1.5 rounded bg-surface border border-border text-xs font-mono tabular-nums text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
               />
             </div>
           )}

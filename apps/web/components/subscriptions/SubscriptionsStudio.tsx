@@ -618,12 +618,12 @@ export function SubscriptionsStudio({
       {/* Top Asymmetric KPI Grid */}
       <div className="grid grid-cols-12 gap-4">
         {/* Card A: Monthly Recurring Total (Centerpiece Display Face) */}
-        <section className="col-span-5 rounded-lg border border-border bg-surface p-5 flex flex-col justify-between">
+        <section className="col-span-5 rounded-lg border border-border bg-surface p-5 flex flex-col justify-between min-w-0">
           <div>
-            <div className="text-[11px] font-mono text-text-tertiary">
+            <div className="text-[11px] font-sans text-text-tertiary">
               {copy.monthlyRecurringLabel}
             </div>
-            <div className="mt-2 font-display text-3xl font-semibold tracking-tight text-text-primary tabular-nums">
+            <div className="mt-2 font-display text-3xl font-semibold tracking-tight text-text-primary erp-tabular-currency">
               {formatRupiah(totalMonthlyRecurring, isAmountsMasked)}
             </div>
             <div className="mt-1 text-xs font-sans text-text-tertiary">
@@ -632,16 +632,16 @@ export function SubscriptionsStudio({
           </div>
 
           <div className="mt-4 pt-3 border-t border-border-subtle grid grid-cols-2 gap-3 text-xs font-mono tabular-nums">
-            <div>
+            <div className="min-w-0">
               <div className="text-[10px] text-text-tertiary">CC Subscriptions</div>
-              <div className="text-text-primary mt-0.5">
+              <div className="text-text-primary mt-0.5 erp-tabular-currency">
                 {formatRupiah(activeRecurringCcMonthly, isAmountsMasked)}
                 <span className="text-text-tertiary ml-1">({activeRecurringEntries.length})</span>
               </div>
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="text-[10px] text-text-tertiary">Routine Envelopes</div>
-              <div className="text-text-primary mt-0.5">
+              <div className="text-text-primary mt-0.5 erp-tabular-currency">
                 {formatRupiah(totalRoutineMonthly, isAmountsMasked)}
                 <span className="text-text-tertiary ml-1">({routineCategories.length})</span>
               </div>
@@ -650,20 +650,20 @@ export function SubscriptionsStudio({
         </section>
 
         {/* Card B: Annualized Run-Rate */}
-        <section className="col-span-4 rounded-lg border border-border bg-surface p-5 flex flex-col justify-between">
+        <section className="col-span-4 rounded-lg border border-border bg-surface p-5 flex flex-col justify-between min-w-0">
           <div>
-            <div className="text-[11px] font-mono text-text-tertiary">
+            <div className="text-[11px] font-sans text-text-tertiary">
               {copy.annualizedLabel}
             </div>
-            <div className="mt-2 font-display text-3xl font-semibold tracking-tight text-text-primary tabular-nums">
+            <div className="mt-2 font-display text-3xl font-semibold tracking-tight text-text-primary erp-tabular-currency">
               {formatRupiah(annualizedRunRate, isAmountsMasked)}
             </div>
             <div className="mt-1 text-xs font-sans text-text-tertiary">{copy.annualizedSub}</div>
           </div>
 
-          <div className="mt-4 pt-3 border-t border-border-subtle flex items-center justify-between text-xs font-mono tabular-nums">
-            <span className="text-text-tertiary">{copy.oneOffCycleLabel}</span>
-            <span className="text-text-primary">
+          <div className="mt-4 pt-3 border-t border-border-subtle flex items-center justify-between gap-2 text-xs font-mono tabular-nums">
+            <span className="text-text-tertiary truncate">{copy.oneOffCycleLabel}</span>
+            <span className="text-text-primary erp-tabular-currency">
               {formatRupiah(currentPeriodOneOffAmount, isAmountsMasked)} /{" "}
               <span className="text-text-tertiary">
                 {formatRupiah(totalOneOffFullAmount, isAmountsMasked)} all
@@ -783,7 +783,7 @@ export function SubscriptionsStudio({
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={copy.searchPlaceholder}
                 aria-label="Filter subscriptions and one-off card charges"
-                className="w-full pl-8 pr-3 py-1.5 rounded bg-canvas border border-border text-xs text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-border-strong"
+                className="w-full pl-8 pr-3 py-1.5 rounded bg-canvas border border-border text-xs text-text-primary placeholder:text-text-tertiary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
               />
             </div>
           </div>
@@ -1020,7 +1020,7 @@ export function SubscriptionsStudio({
                 id="sub-charge-mode"
                 value={formChargeType}
                 onChange={(e) => setFormChargeType(e.target.value as "FULL" | "RECURRING")}
-                className="w-full px-3 py-1.5 rounded bg-canvas border border-border text-xs text-text-primary focus:outline-none focus:border-border-strong"
+                className="w-full px-3 py-1.5 rounded bg-canvas border border-border text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
               >
                 <option value="RECURRING">Recurring Monthly Subscription</option>
                 <option value="FULL">One-Off Charge (Single Cycle)</option>
@@ -1035,7 +1035,7 @@ export function SubscriptionsStudio({
                 id="sub-charge-category"
                 value={formCategory}
                 onChange={(e) => setFormCategory(e.target.value)}
-                className="w-full px-3 py-1.5 rounded bg-canvas border border-border text-xs text-text-primary focus:outline-none focus:border-border-strong"
+                className="w-full px-3 py-1.5 rounded bg-canvas border border-border text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
               >
                 <option value="Subscription">Subscription</option>
                 <option value="Shopping">Shopping</option>
@@ -1056,7 +1056,7 @@ export function SubscriptionsStudio({
                 value={formLabel}
                 onChange={(e) => setFormLabel(e.target.value)}
                 placeholder="e.g. Google AI Pro / JetBrains"
-                className="w-full px-3 py-1.5 rounded bg-canvas border border-border text-xs text-text-primary focus:outline-none focus:border-border-strong"
+                className="w-full px-3 py-1.5 rounded bg-canvas border border-border text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
               />
             </div>
 
@@ -1071,7 +1071,7 @@ export function SubscriptionsStudio({
                 value={formAmount}
                 onChange={(e) => setFormAmount(formatCurrencyInput(e.target.value))}
                 placeholder="309.000"
-                className="w-full px-3 py-1.5 rounded bg-canvas border border-border text-xs font-mono tabular-nums text-right text-text-primary focus:outline-none focus:border-border-strong"
+                className="w-full px-3 py-1.5 rounded bg-canvas border border-border text-xs font-mono tabular-nums text-right text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
               />
             </div>
           </div>
@@ -1086,7 +1086,7 @@ export function SubscriptionsStudio({
                 type="date"
                 value={formTxDate}
                 onChange={(e) => setFormTxDate(e.target.value)}
-                className="w-full px-3 py-1.5 rounded bg-canvas border border-border text-xs font-mono text-text-primary focus:outline-none focus:border-border-strong"
+                className="w-full px-3 py-1.5 rounded bg-canvas border border-border text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
               />
               <span className="block text-[11px] font-mono text-text-tertiary">
                 Routes to statement period {formatPeriodCode(previewBillingPeriod.month, previewBillingPeriod.year)}
@@ -1103,7 +1103,7 @@ export function SubscriptionsStudio({
                 value={formNotes}
                 onChange={(e) => setFormNotes(e.target.value)}
                 placeholder="Plan tier or invoice reference"
-                className="w-full px-3 py-1.5 rounded bg-canvas border border-border text-xs text-text-primary focus:outline-none focus:border-border-strong"
+                className="w-full px-3 py-1.5 rounded bg-canvas border border-border text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
               />
             </div>
           </div>

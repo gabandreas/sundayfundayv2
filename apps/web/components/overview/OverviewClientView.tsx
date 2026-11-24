@@ -165,26 +165,20 @@ export function OverviewClientView({
     fixedEssentialsTotal + (snapshot?.dailyOperational ?? 0);
 
   return (
-    <div className="space-y-6 w-full max-w-full">
+    <div className="space-y-5 w-full max-w-full">
       {/* SECTION A: Top Executive Ribbon */}
       <OverviewExecutiveRibbon intel={intelligence ?? null} />
 
-      {/* Deficit Alert — only rendered if deficitUncovered > 0 */}
-      <DeficitAlert deficitUncovered={deficitUncovered} />
-
-      {/* Subscription Kill-Switch Alert Banner — rendered strictly when action is required */}
-      <SubscriptionKillSwitchBanner initialData={killSwitches} />
-
-      {/* Snapshot Period Status Banner */}
-      <div className="flex flex-wrap items-center justify-between gap-y-2 gap-x-4 pb-2 border-b border-border-subtle">
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+      {/* Snapshot Period Status Bar (Primary Context Leads) */}
+      <div className="flex flex-wrap items-center justify-between gap-y-2 gap-x-4 pb-2.5 border-b border-border-subtle">
+        <div className="flex flex-wrap items-center gap-2.5">
           <span className="text-sm font-medium font-sans text-text-primary whitespace-nowrap">
             {pacing?.cycleDateLabel
               ? `Active Cycle: ${pacing.cycleDateLabel}`
               : `Period: ${month}/${year}`}
           </span>
           <span
-            className={`px-2 py-0.5 rounded text-[10px] font-sans font-medium border whitespace-nowrap ${
+            className={`px-2 py-0.5 rounded text-[11px] font-sans font-medium border whitespace-nowrap ${
               isLocked
                 ? "bg-surface-subtle text-text-tertiary border-border-subtle"
                 : "bg-[rgba(16,183,141,0.10)] text-delta-positive border-[rgba(16,183,141,0.25)]"
@@ -193,12 +187,7 @@ export function OverviewClientView({
             {formatSnapshotStatus(snapshot?.status)}
           </span>
         </div>
-        <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-          <span className="text-xs font-sans text-text-tertiary whitespace-nowrap">
-            {isLocked
-              ? "Finalized on record · All writes rejected"
-              : "Active Period · Automatic recalculation enabled"}
-          </span>
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           {snapshot && (
             <ClosePeriodModal
               snapshotId={snapshot.id}
@@ -220,6 +209,12 @@ export function OverviewClientView({
           )}
         </div>
       </div>
+
+      {/* Compact Shortfall Notice (single-line strip only when deficitUncovered > 0) */}
+      <DeficitAlert deficitUncovered={deficitUncovered} month={month} year={year} />
+
+      {/* Subscription Kill-Switch Alert Banner (rendered strictly when action is required) */}
+      <SubscriptionKillSwitchBanner initialData={killSwitches} />
 
       {/* SECTION 1: 3-COLUMN COMMAND COCKPIT OR SIMPLE CLARITY MODE */}
       <OverviewDensityWrapper

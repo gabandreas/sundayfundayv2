@@ -491,7 +491,7 @@ export function SmtpControlPanel({
               value={smtpUser}
               onChange={(e) => setSmtpUser(e.target.value)}
               placeholder="you@gmail.com"
-              className="w-full px-3 py-1.5 rounded bg-canvas border border-border text-text-primary text-xs font-mono focus:outline-none focus:border-border-strong"
+              className="w-full px-3 py-1.5 rounded bg-canvas border border-border text-text-primary text-xs font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
             />
             <span className="text-[11px] text-text-tertiary block leading-snug">
               Google account that owns your 16-digit App Password (emails still show From: sundayfundayerp@gmail.com). Host {hostDisplay} · Port {portDisplay}.
@@ -525,7 +525,7 @@ export function SmtpControlPanel({
                   : "xxxx xxxx xxxx xxxx"
               }
               autoComplete="off"
-              className="w-full px-3 py-1.5 rounded bg-canvas border border-border text-text-primary text-xs font-mono focus:outline-none focus:border-border-strong"
+              className="w-full px-3 py-1.5 rounded bg-canvas border border-border text-text-primary text-xs font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
             />
             <span className="text-[11px] text-text-tertiary block">
               Leave empty when updating other fields to preserve any saved App Password.{" "}
@@ -556,7 +556,7 @@ export function SmtpControlPanel({
               value={waPhone}
               onChange={(e) => setWaPhone(e.target.value)}
               placeholder="6281234567890"
-              className="w-full px-3 py-1.5 rounded bg-canvas border border-border text-text-primary text-xs font-mono focus:outline-none focus:border-border-strong"
+              className="w-full px-3 py-1.5 rounded bg-canvas border border-border text-text-primary text-xs font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
             />
           </div>
 
@@ -573,7 +573,7 @@ export function SmtpControlPanel({
               value={webhookUrl}
               onChange={(e) => setWebhookUrl(e.target.value)}
               placeholder="https://api.fonnte.com/send"
-              className="w-full px-3 py-1.5 rounded bg-canvas border border-border text-text-primary text-xs font-mono focus:outline-none focus:border-border-strong"
+              className="w-full px-3 py-1.5 rounded bg-canvas border border-border text-text-primary text-xs font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
             />
           </div>
 
@@ -600,7 +600,7 @@ export function SmtpControlPanel({
               onChange={(e) => setWaApiKey(e.target.value)}
               placeholder={hasWaApiKey ? "Configured (leave blank to keep)" : "Bearer or gateway token"}
               autoComplete="off"
-              className="w-full px-3 py-1.5 rounded bg-canvas border border-border text-text-primary text-xs font-mono focus:outline-none focus:border-border-strong"
+              className="w-full px-3 py-1.5 rounded bg-canvas border border-border text-text-primary text-xs font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
             />
           </div>
         </div>

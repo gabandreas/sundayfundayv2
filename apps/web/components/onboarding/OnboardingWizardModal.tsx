@@ -226,7 +226,7 @@ export function OnboardingWizardModal() {
               Workspace Financial Setup
             </h2>
             <p className="text-xs font-sans text-text-tertiary mt-0.5">
-              Step {step} of 3 — Select your workspace blueprint, active modules, and allocation formula.
+              Step {step} of 3: Select your workspace blueprint, active modules, and allocation formula.
             </p>
           </div>
 
@@ -331,7 +331,7 @@ export function OnboardingWizardModal() {
                     }
                     onChange={(e) => setNetIncomeStr(e.target.value)}
                     placeholder="10.000.000"
-                    className="w-full pl-8 pr-3 py-1.5 rounded bg-surface-subtle border border-border text-xs font-mono text-text-primary outline-none focus:border-border-strong"
+                    className="w-full pl-8 pr-3 py-1.5 rounded bg-surface-subtle border border-border text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
                   />
                 </div>
               </div>
@@ -343,7 +343,7 @@ export function OnboardingWizardModal() {
                 <select
                   value={paydayAnchor}
                   onChange={(e) => setPaydayAnchor(parseInt(e.target.value, 10))}
-                  className="w-full px-3 py-1.5 rounded bg-surface-subtle border border-border text-xs font-mono text-text-primary outline-none focus:border-border-strong"
+                  className="w-full px-3 py-1.5 rounded bg-surface-subtle border border-border text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
                 >
                   {Array.from({ length: 28 }, (_, i) => i + 1).map((d) => (
                     <option key={d} value={d}>
@@ -370,7 +370,7 @@ export function OnboardingWizardModal() {
                   type="text"
                   value={slot1Name}
                   onChange={(e) => setSlot1Name(e.target.value)}
-                  className="w-full text-xs font-sans font-semibold text-text-primary bg-transparent border-b border-border-subtle pb-1 outline-none"
+                  className="w-full text-xs font-sans font-semibold text-text-primary bg-transparent border-b border-border-subtle pb-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                 />
                 <div className="relative">
                   <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] font-mono text-text-tertiary">
@@ -384,7 +384,7 @@ export function OnboardingWizardModal() {
                         : ""
                     }
                     onChange={(e) => setSlot1AmountStr(e.target.value)}
-                    className="w-full pl-8 pr-2 py-1 rounded bg-surface border border-border-subtle text-xs font-mono text-text-primary outline-none"
+                    className="w-full pl-8 pr-2 py-1 rounded bg-surface border border-border-subtle text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                   />
                 </div>
               </div>
@@ -395,7 +395,7 @@ export function OnboardingWizardModal() {
                   type="text"
                   value={slot2Name}
                   onChange={(e) => setSlot2Name(e.target.value)}
-                  className="w-full text-xs font-sans font-semibold text-text-primary bg-transparent border-b border-border-subtle pb-1 outline-none"
+                  className="w-full text-xs font-sans font-semibold text-text-primary bg-transparent border-b border-border-subtle pb-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                 />
                 <div className="relative">
                   <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] font-mono text-text-tertiary">
@@ -409,7 +409,7 @@ export function OnboardingWizardModal() {
                         : ""
                     }
                     onChange={(e) => setSlot2AmountStr(e.target.value)}
-                    className="w-full pl-8 pr-2 py-1 rounded bg-surface border border-border-subtle text-xs font-mono text-text-primary outline-none"
+                    className="w-full pl-8 pr-2 py-1 rounded bg-surface border border-border-subtle text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                   />
                 </div>
               </div>
@@ -420,7 +420,7 @@ export function OnboardingWizardModal() {
                   type="text"
                   value={slot3Name}
                   onChange={(e) => setSlot3Name(e.target.value)}
-                  className="w-full text-xs font-sans font-semibold text-text-primary bg-transparent border-b border-border-subtle pb-1 outline-none"
+                  className="w-full text-xs font-sans font-semibold text-text-primary bg-transparent border-b border-border-subtle pb-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                 />
                 <div className="relative">
                   <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] font-mono text-text-tertiary">
@@ -434,7 +434,7 @@ export function OnboardingWizardModal() {
                         : ""
                     }
                     onChange={(e) => setSlot3AmountStr(e.target.value)}
-                    className="w-full pl-8 pr-2 py-1 rounded bg-surface border border-border-subtle text-xs font-mono text-text-primary outline-none"
+                    className="w-full pl-8 pr-2 py-1 rounded bg-surface border border-border-subtle text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                   />
                 </div>
               </div>
@@ -445,7 +445,7 @@ export function OnboardingWizardModal() {
                   type="text"
                   value={slot4Name}
                   onChange={(e) => setSlot4Name(e.target.value)}
-                  className="w-full text-xs font-sans font-semibold text-text-primary bg-transparent border-b border-border-subtle pb-1 outline-none"
+                  className="w-full text-xs font-sans font-semibold text-text-primary bg-transparent border-b border-border-subtle pb-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                 />
                 <div className="relative">
                   <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] font-mono text-text-tertiary">
@@ -459,7 +459,7 @@ export function OnboardingWizardModal() {
                         : ""
                     }
                     onChange={(e) => setSlot4AmountStr(e.target.value)}
-                    className="w-full pl-8 pr-2 py-1 rounded bg-surface border border-border-subtle text-xs font-mono text-text-primary outline-none"
+                    className="w-full pl-8 pr-2 py-1 rounded bg-surface border border-border-subtle text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                   />
                 </div>
               </div>
@@ -482,7 +482,7 @@ export function OnboardingWizardModal() {
                       : ""
                   }
                   onChange={(e) => setDailyLivingStr(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 rounded bg-surface border border-border text-xs font-mono text-text-primary outline-none"
+                  className="w-full pl-8 pr-3 py-1.5 rounded bg-surface border border-border text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                 />
               </div>
             </div>
@@ -556,7 +556,7 @@ export function OnboardingWizardModal() {
                       : ""
                   }
                   onChange={(e) => setSavingsTargetStr(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 rounded bg-surface-subtle border border-border text-xs font-mono text-text-primary outline-none"
+                  className="w-full pl-8 pr-3 py-1.5 rounded bg-surface-subtle border border-border text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                 />
               </div>
             </div>

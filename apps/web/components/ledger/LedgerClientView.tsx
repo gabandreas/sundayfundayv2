@@ -280,7 +280,7 @@ export function LedgerClientView({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search description, amount, date..."
-              className="w-48 lg:w-60 pl-8 pr-7 py-1.5 rounded bg-surface-subtle border border-border text-xs font-sans text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-border-strong"
+              className="w-48 lg:w-60 pl-8 pr-7 py-1.5 rounded bg-surface-subtle border border-border text-xs font-sans text-text-primary placeholder:text-text-tertiary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
             />
             {searchQuery && (
               <button
@@ -560,7 +560,7 @@ export function LedgerClientView({
                   value={editLabel}
                   onChange={(e) => setEditLabel(e.target.value)}
                   placeholder="e.g. Mie Ayam & Es Teh"
-                  className="w-full px-3 py-1.5 rounded bg-surface-subtle border border-border text-xs font-sans text-text-primary outline-none focus:border-border-strong"
+                  className="w-full px-3 py-1.5 rounded bg-surface-subtle border border-border text-xs font-sans text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
                 />
               </div>
 
@@ -582,7 +582,7 @@ export function LedgerClientView({
                     }
                     onChange={(e) => setEditAmountStr(e.target.value)}
                     placeholder="0"
-                    className="w-full pl-8 pr-3 py-1.5 rounded bg-surface-subtle border border-border text-xs font-mono text-text-primary outline-none focus:border-border-strong"
+                    className="w-full pl-8 pr-3 py-1.5 rounded bg-surface-subtle border border-border text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
                   />
                 </div>
               </div>
@@ -596,7 +596,7 @@ export function LedgerClientView({
                   type="date"
                   value={editDate}
                   onChange={(e) => setEditDate(e.target.value)}
-                  className="w-full px-3 py-1.5 rounded bg-surface-subtle border border-border text-xs font-mono text-text-primary outline-none focus:border-border-strong"
+                  className="w-full px-3 py-1.5 rounded bg-surface-subtle border border-border text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
                 />
               </div>
 
@@ -613,7 +613,7 @@ export function LedgerClientView({
                           e.target.value as "" | "TRANSPORT" | "INTERNET" | "VAPE" | "HAIRCUT"
                         )
                       }
-                      className="w-full px-2.5 py-1.5 rounded bg-surface-subtle border border-border text-xs font-mono text-text-primary outline-none focus:border-border-strong"
+                      className="w-full px-2.5 py-1.5 rounded bg-surface-subtle border border-border text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
                     >
                       <option value="">Daily Cash</option>
                       <option value="TRANSPORT">Transport Quota</option>
@@ -631,7 +631,7 @@ export function LedgerClientView({
                       onChange={(e) =>
                         setEditPaymentMethod(e.target.value as "CASH" | "PAYLATER" | "CC")
                       }
-                      className="w-full px-2.5 py-1.5 rounded bg-surface-subtle border border-border text-xs font-mono text-text-primary outline-none focus:border-border-strong"
+                      className="w-full px-2.5 py-1.5 rounded bg-surface-subtle border border-border text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
                     >
                       <option value="CASH">Cash Log</option>
                       <option value="PAYLATER">Convert to PayLater</option>

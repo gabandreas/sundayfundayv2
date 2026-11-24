@@ -207,22 +207,22 @@ export function DebtFreedomTimeline({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+          <div className="rounded-md border border-border-subtle bg-surface grid grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 lg:divide-x divide-border-subtle">
             {freedUpMilestones.slice(0, 4).map((m) => (
               <div
                 key={m.label}
-                className="rounded border border-border-subtle bg-surface px-3 py-2 space-y-1"
+                className="px-3.5 py-2.5 space-y-1 min-w-0"
               >
-                <div className="flex items-center justify-between text-[11px] font-mono">
+                <div className="flex items-center justify-between gap-2 text-[11px] font-mono">
                   <span className="font-semibold text-text-primary">{m.label}</span>
-                  <span className="text-delta-positive font-semibold tabular-nums">
+                  <span className="text-delta-positive font-semibold erp-tabular-currency">
                     +{formatRp(m.freedMonthly)}/mo
                   </span>
                 </div>
-                <div className="text-[10px] font-sans text-text-tertiary truncate" title={m.contracts.join(", ")}>
+                <div className="text-[11px] font-sans text-text-tertiary truncate" title={m.contracts.join(", ")}>
                   {m.contracts.join(" · ")}
                 </div>
-                <div className="text-[10px] font-mono text-text-secondary tabular-nums">
+                <div className="text-[10px] font-mono text-text-secondary erp-tabular-currency">
                   Cumulative: +{formatRp(m.cumulative)}/mo
                 </div>
               </div>

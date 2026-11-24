@@ -395,7 +395,7 @@ export function CashReconciliationModal({
                       className={`w-full px-3 py-2 rounded border border-border font-mono text-sm text-text-primary ${
                         useMultiAccountCounter
                           ? "bg-surface-subtle cursor-not-allowed"
-                          : "bg-surface-subtle focus:outline-none focus:border-text-secondary"
+                          : "bg-surface-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-text-secondary"
                       }`}
                       placeholder="Enter real cash balance..."
                     />
@@ -409,7 +409,7 @@ export function CashReconciliationModal({
                       type="text"
                       value={note}
                       onChange={(e) => setNote(e.target.value)}
-                      className="w-full px-3 py-2 rounded bg-surface-subtle border border-border text-xs text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-text-secondary"
+                      className="w-full px-3 py-2 rounded bg-surface-subtle border border-border text-xs text-text-primary placeholder:text-text-tertiary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-text-secondary"
                       placeholder="Optional note (e.g. Unrecorded cash coffee / parking)"
                     />
                     <div className="text-[10px] text-text-tertiary mt-1">

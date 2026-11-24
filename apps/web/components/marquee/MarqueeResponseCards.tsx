@@ -201,7 +201,7 @@ export function MarqueeResponseCards({
                   <span>
                     <span className="text-delta-positive mr-1.5">·</span>
                     <strong className="text-text-primary font-medium">{s.label}</strong>
-                    {s.detail ? ` — ${s.detail}` : ""}
+                    {s.detail ? ` · ${s.detail}` : ""}
                   </span>
                   {s.durationMs !== undefined && (
                     <span className="text-text-tertiary shrink-0">{s.durationMs}ms</span>

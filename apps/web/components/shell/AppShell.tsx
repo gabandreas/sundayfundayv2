@@ -33,13 +33,47 @@ function AppShellProtected({ children }: { children: React.ReactNode }) {
   const { user, isLoading, isSigningOut } = useAuth();
   const { t } = useLanguage();
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMarqueeOpen, setIsMarqueeOpen] = useState(false);
+
+  React.useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem("erp_sidebar_collapsed");
+      if (saved === "true") setIsSidebarCollapsed(true);
+    } catch {
+      // ignore storage unavailable
+    }
+  }, []);
+
+  const toggleSidebarCollapse = React.useCallback(() => {
+    setIsSidebarCollapsed((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem("erp_sidebar_collapsed", String(next));
+      } catch {
+        // ignore storage unavailable
+      }
+      return next;
+    });
+  }, []);
 
   React.useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.altKey && e.key.toLowerCase() === "m") {
         e.preventDefault();
         setIsMarqueeOpen((prev) => !prev);
+        return;
+      }
+      const target = e.target as HTMLElement | null;
+      const inInput =
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable);
+      if (!inInput && !e.metaKey && !e.ctrlKey && !e.altKey && e.key === "[") {
+        e.preventDefault();
+        toggleSidebarCollapse();
       }
     };
     const onToggle = () => setIsMarqueeOpen((prev) => !prev);
@@ -49,7 +83,7 @@ function AppShellProtected({ children }: { children: React.ReactNode }) {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("erp:marquee-toggle", onToggle);
     };
-  }, []);
+  }, [toggleSidebarCollapse]);
 
   if (isSigningOut) {
     return (
@@ -98,14 +132,29 @@ function AppShellProtected({ children }: { children: React.ReactNode }) {
           </Suspense>
         </div>
         <div className="flex h-screen w-screen overflow-hidden print:h-auto print:w-auto print:overflow-visible bg-canvas text-text-primary">
-          {/* Persistent Left Navigation Sidebar (Desktop) */}
-          <div className="hidden lg:flex w-64 h-screen shrink-0 print-hidden">
+          <a href="#main-content" className="erp-skip-link">
+            Skip to main content
+          </a>
+
+          {/* Persistent Left Navigation Sidebar (Desktop Collapsible Rail) */}
+          <div
+            className={`erp-sidebar-rail hidden lg:flex h-screen shrink-0 print-hidden transition-[width] duration-150 ease-out ${
+              isSidebarCollapsed ? "w-[60px]" : "w-[228px]"
+            }`}
+          >
             <Suspense
               fallback={
-                <div className="w-64 h-screen bg-surface-subtle border-r border-border shrink-0" />
+                <div
+                  className={`h-screen bg-surface-subtle border-r border-border shrink-0 ${
+                    isSidebarCollapsed ? "w-[60px]" : "w-[228px]"
+                  }`}
+                />
               }
             >
-              <Sidebar />
+              <Sidebar
+                collapsed={isSidebarCollapsed}
+                onToggleCollapse={toggleSidebarCollapse}
+              />
             </Suspense>
           </div>
 
@@ -119,7 +168,7 @@ function AppShellProtected({ children }: { children: React.ReactNode }) {
                 aria-hidden="true"
               />
               {/* Drawer Content */}
-              <div className="relative w-72 max-w-[85vw] h-full bg-surface-subtle shadow-2xl flex flex-col z-10 animate-in slide-in-from-left duration-200">
+              <div className="relative w-72 max-w-[85vw] h-full bg-surface-subtle shadow-2xl flex flex-col z-10">
                 <div className="flex items-center justify-between px-4 py-3 border-b border-border">
                   <div className="flex items-center gap-2">
                     <BrandMark size={18} />
@@ -155,7 +204,11 @@ function AppShellProtected({ children }: { children: React.ReactNode }) {
             <AppHeader onToggleMobileDrawer={() => setIsMobileDrawerOpen((prev) => !prev)} />
 
             {/* Scrollable View Area */}
-            <main className="flex-1 overflow-y-auto overflow-x-hidden print:overflow-visible print:p-0 p-4 pb-24 sm:p-6 sm:pb-24 lg:p-8 lg:pb-24">
+            <main
+              id="main-content"
+              tabIndex={-1}
+              className="flex-1 overflow-y-auto overflow-x-hidden print:overflow-visible print:p-0 p-4 pb-24 sm:p-6 sm:pb-24 lg:p-7 lg:pb-24 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
+            >
               {children}
             </main>
           </div>

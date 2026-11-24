@@ -237,7 +237,7 @@ export function QuickExpenseForm({
                     e.target.value as FixedEssentialCategory
                   )
                 }
-                className="w-full px-2.5 py-1.5 rounded bg-surface border border-border text-xs font-sans text-text-primary focus:outline-none focus:border-border-strong"
+                className="w-full px-2.5 py-1.5 rounded bg-surface border border-border text-xs font-sans text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
               >
                 {FIXED_ESSENTIAL_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>
@@ -292,7 +292,7 @@ export function QuickExpenseForm({
                   }
                 }}
                 disabled={isSubmitting}
-                className={`w-full px-3 py-1.5 rounded bg-surface-subtle border text-xs text-text-primary placeholder:text-text-disabled focus:outline-none font-sans ${
+                className={`w-full px-3 py-1.5 rounded bg-surface-subtle border text-xs text-text-primary placeholder:text-text-disabled focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 font-sans ${
                   fieldErrors.label
                     ? "border-urgency focus:border-urgency"
                     : "border-border focus:border-border-strong"
@@ -316,7 +316,7 @@ export function QuickExpenseForm({
                   }
                 }}
                 disabled={isSubmitting}
-                className={`w-full px-3 py-1.5 rounded bg-surface-subtle border text-xs font-mono tabular-nums text-text-primary placeholder:text-text-disabled focus:outline-none ${
+                className={`w-full px-3 py-1.5 rounded bg-surface-subtle border text-xs font-mono tabular-nums text-text-primary placeholder:text-text-disabled focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 ${
                   fieldErrors.amount
                     ? "border-urgency focus:border-urgency"
                     : "border-border focus:border-border-strong"

@@ -326,7 +326,7 @@ export function SavingsGoalsCard({
                   placeholder="e.g. Emergency Fund (6 Months)"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3 py-1.5 rounded bg-surface-subtle border border-border text-text-primary focus:outline-none"
+                  className="w-full px-3 py-1.5 rounded bg-surface-subtle border border-border text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                   required
                 />
               </div>
@@ -341,7 +341,7 @@ export function SavingsGoalsCard({
                     placeholder="e.g. 10.000.000"
                     value={targetAmount}
                     onChange={(e) => setTargetAmount(e.target.value)}
-                    className="w-full px-3 py-1.5 rounded bg-surface-subtle border border-border text-text-primary font-mono focus:outline-none"
+                    className="w-full px-3 py-1.5 rounded bg-surface-subtle border border-border text-text-primary font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                     required
                   />
                 </div>
@@ -355,7 +355,7 @@ export function SavingsGoalsCard({
                     placeholder="e.g. 2.000.000"
                     value={currentAllocated}
                     onChange={(e) => setCurrentAllocated(e.target.value)}
-                    className="w-full px-3 py-1.5 rounded bg-surface-subtle border border-border text-text-primary font-mono focus:outline-none"
+                    className="w-full px-3 py-1.5 rounded bg-surface-subtle border border-border text-text-primary font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                   />
                 </div>
               </div>
@@ -368,7 +368,7 @@ export function SavingsGoalsCard({
                   <select
                     value={targetMonth}
                     onChange={(e) => setTargetMonth(e.target.value)}
-                    className="w-full px-2 py-1.5 rounded bg-surface-subtle border border-border text-text-primary font-mono focus:outline-none"
+                    className="w-full px-2 py-1.5 rounded bg-surface-subtle border border-border text-text-primary font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                   >
                     {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
                       <option key={m} value={m}>
@@ -385,7 +385,7 @@ export function SavingsGoalsCard({
                   <select
                     value={targetYear}
                     onChange={(e) => setTargetYear(e.target.value)}
-                    className="w-full px-2 py-1.5 rounded bg-surface-subtle border border-border text-text-primary font-mono focus:outline-none"
+                    className="w-full px-2 py-1.5 rounded bg-surface-subtle border border-border text-text-primary font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                   >
                     {[2026, 2027, 2028, 2029, 2030].map((y) => (
                       <option key={y} value={y}>
@@ -402,7 +402,7 @@ export function SavingsGoalsCard({
                   <select
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
-                    className="w-full px-2 py-1.5 rounded bg-surface-subtle border border-border text-text-primary text-[11px] focus:outline-none"
+                    className="w-full px-2 py-1.5 rounded bg-surface-subtle border border-border text-text-primary text-[11px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                   >
                     <option value="EMERGENCY_FUND">Emergency Fund</option>
                     <option value="DEVICE_UPGRADE">Device Upgrade</option>

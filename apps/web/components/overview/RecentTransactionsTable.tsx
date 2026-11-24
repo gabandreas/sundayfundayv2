@@ -106,7 +106,7 @@ export function RecentTransactionsTable({
             {t("overview.recentTransactions")}
           </span>
           <span className="text-[10px] font-mono text-text-tertiary">
-            ({transactions.length} TOTAL)
+            ({transactions.length} entries)
           </span>
         </div>
         <span className="text-[11px] font-sans text-text-tertiary">
@@ -230,7 +230,7 @@ export function RecentTransactionsTable({
                       value={editLabel}
                       onChange={(e) => setEditLabel(e.target.value)}
                       placeholder="Description"
-                      className="flex-1 min-w-[180px] bg-canvas border border-border rounded px-2 py-1 text-xs font-sans text-text-primary focus:outline-none focus:border-text-secondary"
+                      className="flex-1 min-w-[180px] bg-canvas border border-border rounded px-2 py-1 text-xs font-sans text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-text-secondary"
                     />
                     <input
                       type="text"
@@ -238,14 +238,14 @@ export function RecentTransactionsTable({
                       value={editAmountRaw}
                       onChange={(e) => setEditAmountRaw(formatCurrencyInput(e.target.value))}
                       placeholder="Amount"
-                      className="w-32 bg-canvas border border-border rounded px-2 py-1 text-xs font-mono tabular-nums text-right text-text-primary focus:outline-none focus:border-text-secondary"
+                      className="w-32 bg-canvas border border-border rounded px-2 py-1 text-xs font-mono tabular-nums text-right text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-text-secondary"
                     />
                     {tx.type === "DEDUCTION" && tx.sourceType === "MANUAL" && (
                       <>
                         <select
                           value={editCategory}
                           onChange={(e) => setEditCategory(e.target.value as RoutineCategoryOption)}
-                          className="bg-canvas border border-border rounded px-2 py-1 text-xs font-mono text-text-secondary focus:outline-none"
+                          className="bg-canvas border border-border rounded px-2 py-1 text-xs font-mono text-text-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                           aria-label="Routine category"
                         >
                           <option value="">Daily Cash</option>
@@ -257,7 +257,7 @@ export function RecentTransactionsTable({
                         <select
                           value={editPaymentMethod}
                           onChange={(e) => setEditPaymentMethod(e.target.value as PaymentMethodOption)}
-                          className="bg-canvas border border-border rounded px-2 py-1 text-xs font-mono text-text-secondary focus:outline-none"
+                          className="bg-canvas border border-border rounded px-2 py-1 text-xs font-mono text-text-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
                           aria-label="Funding source"
                         >
                           <option value="CASH">Cash Log</option>

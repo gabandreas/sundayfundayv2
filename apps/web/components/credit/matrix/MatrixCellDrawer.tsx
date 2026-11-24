@@ -653,7 +653,7 @@ export function MatrixCellDrawer({
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
                       placeholder="e.g. 11.11 Electronics Order"
-                      className="w-full bg-canvas border border-border rounded px-2.5 py-1.5 text-xs font-sans text-text-primary focus:outline-none focus:border-text-secondary"
+                      className="w-full bg-canvas border border-border rounded px-2.5 py-1.5 text-xs font-sans text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-text-secondary"
                     />
                   </div>
 
@@ -667,7 +667,7 @@ export function MatrixCellDrawer({
                         value={merchant}
                         onChange={(e) => setMerchant(e.target.value)}
                         placeholder={category === "PERSONAL_DEBT" ? "Lender name" : "PayLater platform"}
-                        className="w-full bg-canvas border border-border rounded px-2.5 py-1.5 text-xs font-sans text-text-primary focus:outline-none focus:border-text-secondary"
+                        className="w-full bg-canvas border border-border rounded px-2.5 py-1.5 text-xs font-sans text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-text-secondary"
                       />
                     </div>
                     <div className="space-y-1">
@@ -683,7 +683,7 @@ export function MatrixCellDrawer({
                         value={totalAmountRaw}
                         onChange={(e) => setTotalAmountRaw(formatCurrencyInput(e.target.value))}
                         placeholder="0"
-                        className="w-full bg-canvas border border-border rounded px-2.5 py-1.5 text-xs font-mono tabular-nums text-text-primary focus:outline-none focus:border-text-secondary"
+                        className="w-full bg-canvas border border-border rounded px-2.5 py-1.5 text-xs font-mono tabular-nums text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-text-secondary"
                       />
                     </div>
                   </div>
@@ -800,7 +800,7 @@ export function MatrixCellDrawer({
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
                       placeholder="Optional reference"
-                      className="w-full bg-canvas border border-border rounded px-2.5 py-1.5 text-xs font-sans text-text-primary focus:outline-none focus:border-text-secondary"
+                      className="w-full bg-canvas border border-border rounded px-2.5 py-1.5 text-xs font-sans text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-text-secondary"
                     />
                   </div>
 
@@ -1000,7 +1000,7 @@ export function MatrixCellDrawer({
                               value={splitAmountRaw}
                               onChange={(e) => setSplitAmountRaw(formatCurrencyInput(e.target.value))}
                               placeholder="Amount to move next month"
-                              className="flex-1 bg-canvas border border-border rounded px-2 py-1 text-xs font-mono tabular-nums text-text-primary focus:outline-none focus:border-text-secondary"
+                              className="flex-1 bg-canvas border border-border rounded px-2 py-1 text-xs font-mono tabular-nums text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-text-secondary"
                             />
                             <button
                               type="button"
@@ -1105,7 +1105,7 @@ export function MatrixCellDrawer({
                   value={overrideRaw}
                   onChange={(e) => setOverrideRaw(e.target.value)}
                   placeholder="e.g. 2393391 or +150000"
-                  className="w-full bg-canvas border border-border rounded px-2.5 py-1.5 text-xs font-mono tabular-nums text-text-primary focus:outline-none focus:border-text-secondary"
+                  className="w-full bg-canvas border border-border rounded px-2.5 py-1.5 text-xs font-mono tabular-nums text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-text-secondary"
                 />
                 {overrideRaw.trim() !== "" && (
                   <div className="text-[10px] font-mono text-text-tertiary tabular-nums">
