@@ -98,28 +98,20 @@ export function MiniTrendChart({
     isPrePayday ? "28 Dec" : `Day ${safeDays}`,
   );
 
-  const leftAxisLabel = isPrePayday
-    ? startBoundary
-    : cycleStartDate
-      ? `${startBoundary} (Day 1)`
-      : "Day 1";
-  const rightAxisLabel = isPrePayday
-    ? endBoundary
-    : cycleEndDate
-      ? `${endBoundary} (Day ${safeDays})`
-      : `Day ${safeDays}`;
+  const leftAxisLabel = startBoundary;
+  const rightAxisLabel = endBoundary;
 
   const centerCaption = isPrePayday
-    ? `Day 0 of ${safeDays} · Starts ${startBoundary}${
-        daysUntilCycleStart > 0 ? ` (in ${daysUntilCycleStart}d)` : ""
+    ? `Day 0/${safeDays} · Starts ${startBoundary}${
+        daysUntilCycleStart > 0 ? ` (${daysUntilCycleStart}d)` : ""
       }`
     : isCompleted
-      ? `Completed (${safeDays} of ${safeDays} days)`
-      : `Today (Day ${Math.max(1, safeCurrentDay)} of ${safeDays})`;
+      ? `Completed (${safeDays}d)`
+      : `Day ${Math.max(1, safeCurrentDay)}/${safeDays}`;
 
   return (
     <div className="w-full">
-      <div className="flex items-center justify-between text-[10px] font-mono text-text-tertiary mb-1.5">
+      <div className="flex items-center justify-between gap-2 text-[10px] font-mono text-text-tertiary mb-1.5 whitespace-nowrap">
         <span>{leftAxisLabel}</span>
         <span className="text-text-secondary font-medium">{centerCaption}</span>
         <span>{rightAxisLabel}</span>

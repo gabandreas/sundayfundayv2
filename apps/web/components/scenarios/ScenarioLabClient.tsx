@@ -594,26 +594,30 @@ export function ScenarioLabClient({
                 </h3>
               </div>
               <div className="grid grid-cols-1 xl:grid-cols-3 divide-y xl:divide-y-0 xl:divide-x divide-border-subtle border-t border-border-subtle">
-                {result.debtStrategies.map((st) => (
-                  <div
-                    key={st.strategy}
-                    className="py-3 xl:px-4 first:xl:pl-0 last:xl:pr-0 space-y-1.5"
-                  >
-                    <div className="flex items-center justify-between gap-2 text-xs font-semibold text-text-primary">
-                      <span>{st.strategy}</span>
-                      <span className="text-delta-positive erp-tabular-currency">
-                        +{formatRupiah(st.immediateFreedMonthlyRp, isAmountsMasked)}/mo
-                      </span>
+                {result.debtStrategies.map((st) => {
+                  const strategyName =
+                    st.strategy.charAt(0).toUpperCase() + st.strategy.slice(1).toLowerCase();
+                  return (
+                    <div
+                      key={st.strategy}
+                      className="py-3 xl:px-4 first:xl:pl-0 last:xl:pr-0 space-y-1.5"
+                    >
+                      <div className="flex items-center justify-between gap-2 text-xs font-semibold text-text-primary">
+                        <span>{strategyName}</span>
+                        <span className="text-delta-positive erp-tabular-currency">
+                          +{formatRupiah(st.immediateFreedMonthlyRp, isAmountsMasked)}/mo
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-text-tertiary leading-relaxed">{st.summary}</p>
+                      <div className="pt-1.5 border-t border-border-subtle flex items-center justify-between gap-2 text-[11px] font-mono">
+                        <span className="text-text-secondary">Interest Saved</span>
+                        <span className="text-delta-positive font-semibold erp-tabular-currency">
+                          {formatRupiah(st.estimatedInterestSavedRp, isAmountsMasked)} ({st.monthsShaved}m)
+                        </span>
+                      </div>
                     </div>
-                    <p className="text-[11px] text-text-tertiary leading-relaxed">{st.summary}</p>
-                    <div className="pt-1.5 border-t border-border-subtle flex items-center justify-between gap-2 text-[11px] font-mono">
-                      <span className="text-text-secondary">Interest Saved</span>
-                      <span className="text-delta-positive font-semibold erp-tabular-currency">
-                        {formatRupiah(st.estimatedInterestSavedRp, isAmountsMasked)} ({st.monthsShaved}m)
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -1024,7 +1028,7 @@ export function ScenarioLabClient({
                             </span>
                           </div>
                           <div className="flex items-center justify-between gap-3">
-                            <span className="text-text-tertiary truncate">Emergency Reserve</span>
+                            <span className="text-text-tertiary truncate">Emergency</span>
                             <span className="text-text-primary erp-tabular-currency">
                               {formatRupiah(st.emergencyFundRp, isAmountsMasked)}
                             </span>
@@ -1049,7 +1053,11 @@ export function ScenarioLabClient({
                             {formatRupiah(st.projected12MNetWorthRp, isAmountsMasked)}
                           </span>
                         </div>
-                        <p className="text-[11px] text-text-tertiary leading-relaxed">{st.rationale}</p>
+                        <p className="text-[11px] text-text-tertiary leading-relaxed">
+                          {st.emergencyMonthsToTarget >= 999 || st.rationale.includes("~999")
+                            ? "No monthly surplus is routed to emergency reserves under this split."
+                            : st.rationale}
+                        </p>
                       </div>
                     );
                   })}

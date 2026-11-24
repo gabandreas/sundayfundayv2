@@ -94,6 +94,7 @@ function formatRoleBadge(role: string): string {
   if (role === "SUPERADMIN") return "Superadmin";
   if (role === "BESPOKE_CLIENT") return "Bespoke Client";
   if (role === "STANDARD_MEMBER") return "Standard Member";
+  if (role === "DEMO_SANDBOX") return "Demo Sandbox";
   if (role === "USER") return "User";
   return role;
 }

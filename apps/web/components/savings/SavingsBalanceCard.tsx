@@ -81,7 +81,7 @@ export function SavingsBalanceCard({ vault }: SavingsBalanceCardProps) {
           <div>
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-semibold text-text-tertiary font-sans">
-                LIQUID SAVINGS &amp; EMERGENCY FUND
+                Liquid Savings &amp; Emergency Fund
               </span>
               <button
                 type="button"
@@ -108,21 +108,21 @@ export function SavingsBalanceCard({ vault }: SavingsBalanceCardProps) {
             </div>
           </div>
 
-          <div className="pt-2.5 border-t border-border-subtle grid grid-cols-2 gap-2 text-xs font-mono">
-            <div className="p-2 rounded bg-surface-subtle/60 border border-border-subtle">
+          <div className="pt-2.5 border-t border-border-subtle grid grid-cols-2 divide-x divide-border-subtle text-xs font-mono">
+            <div className="pr-3">
               <div className="flex items-center justify-between text-[10px] text-text-tertiary">
                 <span title={vaultLabels.liquid}>{isStandard ? "Liquid (Cash/HYSA)" : "Cash"} ({liquidShare}%)</span>
               </div>
-              <div className="text-xs font-semibold text-text-primary mt-0.5 tabular-nums">
+              <div className="text-xs font-semibold text-text-primary mt-0.5 erp-tabular-currency">
                 {formatRupiah(liquidBalance, isAmountsMasked)}
               </div>
             </div>
 
-            <div className="p-2 rounded bg-surface-subtle/60 border border-border-subtle">
+            <div className="pl-3">
               <div className="flex items-center justify-between text-[10px] text-text-tertiary">
                 <span title={vaultLabels.investment}>{isStandard ? "Portfolio (Invest)" : "RDPU"} ({rdpuShare}%)</span>
               </div>
-              <div className="text-xs font-semibold text-text-primary mt-0.5 tabular-nums">
+              <div className="text-xs font-semibold text-text-primary mt-0.5 erp-tabular-currency">
                 {formatRupiah(rdpuBalance, isAmountsMasked)}
               </div>
             </div>
@@ -164,7 +164,7 @@ export function SavingsBalanceCard({ vault }: SavingsBalanceCardProps) {
           <div>
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-semibold text-text-tertiary font-sans">
-                SAVINGS RATE &amp; RUNWAY
+                Savings Rate &amp; Runway
               </span>
               <ShieldCheck className="w-3.5 h-3.5 text-delta-positive" />
             </div>

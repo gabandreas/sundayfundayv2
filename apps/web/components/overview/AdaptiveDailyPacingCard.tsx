@@ -563,7 +563,7 @@ export function AdaptiveDailyPacingCard({
             </span>
           </div>
           <div className="pl-2 text-right min-w-0">
-            <span className="text-text-tertiary block font-sans truncate">= Expected Bank</span>
+            <span className="text-text-tertiary block font-sans truncate">Expected Bank</span>
             <span className="erp-tabular-currency font-semibold text-text-primary mt-0.5 block">
               {formatIdr(expectedTotalBankBalance)}
             </span>
@@ -614,7 +614,7 @@ export function AdaptiveDailyPacingCard({
               value={bankBalanceInput}
               onChange={(e) => setBankBalanceInput(formatCurrencyInput(e.target.value))}
               placeholder={
-                includesRoutineBills ? "Actual bank balance" : "Actual cash"
+                includesRoutineBills ? "Bank Rp" : "Cash Rp"
               }
               className={`w-full px-2.5 py-1.5 rounded bg-surface-subtle border font-mono text-xs text-text-primary placeholder:text-text-tertiary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 disabled:opacity-50 ${
                 isSpike
