@@ -504,7 +504,7 @@ export function AdaptiveDailyPacingCard({
             </span>
             <span className="erp-tabular-currency text-xs font-semibold text-text-primary mt-0.5 block">
               {formatIdr(weekdayRate)}
-              <span className="text-[10px] font-normal text-text-tertiary">/day</span>
+              <span className="text-[10px] font-normal text-text-tertiary">{t("overview.perDay")}</span>
             </span>
           </div>
 
@@ -514,7 +514,7 @@ export function AdaptiveDailyPacingCard({
             </span>
             <span className="erp-tabular-currency text-xs font-semibold text-text-primary mt-0.5 block">
               {formatIdr(weekendRate)}
-              <span className="text-[10px] font-normal text-text-tertiary">/day</span>
+              <span className="text-[10px] font-normal text-text-tertiary">{t("overview.perDay")}</span>
             </span>
           </div>
 
@@ -545,7 +545,7 @@ export function AdaptiveDailyPacingCard({
         {/* Budget & Spend Summary */}
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-sans text-text-secondary pt-1.5">
           <span className="inline-flex items-baseline gap-1 whitespace-nowrap">
-            <span>Spent:</span>
+            <span>{t("overview.spentLabel")}:</span>
             <strong className="erp-tabular-currency text-text-primary">
               {formatIdr(totalSpentCycle)}
             </strong>
@@ -565,12 +565,12 @@ export function AdaptiveDailyPacingCard({
         >
           <div className="space-y-1.5">
             <div className="flex items-center justify-between gap-2 text-[11px] font-sans">
-              <span className="text-text-tertiary">
+              <span className="text-text-tertiary whitespace-nowrap">
                 {isPrePayday
                   ? t("overview.cycleReadiness")
                   : t("overview.cycleBudgetUsed")}
               </span>
-              <span className="erp-tabular-currency text-text-primary font-medium">
+              <span className="erp-tabular-currency text-text-primary font-medium whitespace-nowrap">
                 {isPrePayday
                   ? `${formatIdr(cycleBudgetTotal)} · ${cycleDaysTotal}d`
                   : `${cycleUsedPct}% ${t("overview.usedLabel")} · ${cycleElapsedPct}% ${t("overview.elapsedLabel")}`}
@@ -609,10 +609,10 @@ export function AdaptiveDailyPacingCard({
               </span>
               <span className="erp-tabular-currency text-xs font-semibold text-text-primary mt-0.5 block">
                 {formatIdr(avgDailyBurn)}
-                <span className="text-[10px] font-normal text-text-tertiary">/day</span>
+                <span className="text-[10px] font-normal text-text-tertiary">{t("overview.perDay")}</span>
               </span>
               <span className="text-[10px] font-mono text-text-tertiary truncate block">
-                vs {formatIdr(pacing?.baselineDailyRate ?? 0)} baseline
+                vs {formatIdr(pacing?.baselineDailyRate ?? 0)} {t("overview.baselineLabel")}
               </span>
             </div>
 
