@@ -536,16 +536,22 @@ async function main() {
     assert.ok(!headerAudit.hasAllCapsHeaderCopy, 'Overview must not show CAPSLOCK header strings');
 
     // Verify custom ErpDatePicker, dark select styling, Title Case cycle label, and zero Marquee orb collision on PayLater tab
-    const paylaterAudit = await page.evaluate(() => {
+    await page.evaluate(() => {
       const buttons = Array.from(document.querySelectorAll('button'));
       const paylaterTab = buttons.find((b) => b.textContent?.trim() === 'PayLater');
-      paylaterTab?.click();
+      (paylaterTab as HTMLElement | undefined)?.click();
+    });
+    await page.waitForSelector('[data-testid="erp-date-picker-trigger"]', { timeout: 10000 });
+    await page.click('[data-testid="erp-date-picker-trigger"]');
+    await page.waitForFunction(
+      () => Boolean(document.querySelector('.erp-popover-panel[aria-label="Purchase Date"]')?.matches(':popover-open')),
+      { timeout: 5000 },
+    );
+
+    const paylaterAudit = await page.evaluate(() => {
       const rawDateInputs = document.querySelectorAll('input[type="date"]').length;
-      const dateTrigger = document.querySelector('[data-testid="erp-date-picker-trigger"]') as HTMLElement | null;
-      dateTrigger?.click();
       const datePop = document.querySelector('.erp-popover-panel[aria-label="Purchase Date"]') as HTMLElement | null;
       const datePopOpen = Boolean(datePop?.matches(':popover-open'));
-      if (datePopOpen) dateTrigger?.click();
       const submitBtn = document.querySelector('[data-testid="record-expense-submit"]') as HTMLElement | null;
       const marqueeOrb = document.querySelector('[data-testid="marquee-floating-launcher"]') as HTMLElement | null;
       const rSub = submitBtn?.getBoundingClientRect();
@@ -562,6 +568,7 @@ async function main() {
         hasUppercaseDec26: /\bDEC\s+'26\b/.test(bodyText),
       };
     });
+    await page.keyboard.press('Escape');
     assert.equal(paylaterAudit.rawDateInputs, 0, 'Overview DOM must have zero native <input type="date">');
     assert.equal(paylaterAudit.datePopOpen, true, 'ErpDatePicker trigger must open top-layer calendar popover');
     assert.equal(paylaterAudit.overlaps, false, 'Marquee launcher orb must not overlap + Record Expense button');

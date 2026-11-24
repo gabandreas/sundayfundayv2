@@ -209,7 +209,7 @@ function AppShellProtected({ children }: { children: React.ReactNode }) {
             <main
               id="main-content"
               tabIndex={-1}
-              className="flex-1 overflow-y-auto overflow-x-hidden print:overflow-visible print:p-0 p-4 pb-24 sm:p-6 sm:pb-24 lg:p-7 lg:pb-24 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
+              className="flex-1 overflow-y-auto overflow-x-hidden print:overflow-visible print:p-0 p-4 pb-24 sm:p-6 sm:pb-24 lg:py-7 lg:pl-7 lg:pr-20 lg:pb-24 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
             >
               {children}
             </main>
