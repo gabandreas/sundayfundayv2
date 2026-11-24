@@ -23,7 +23,7 @@ import {
   evaluateWalletGuardApi,
 } from "@/lib/api";
 import { MiniTrendChart } from "@/components/primitives/MiniTrendChart";
-import { formatRupiah, formatCurrencyInput, getJakartaDateParts } from "@/lib/utils";
+import { formatRupiah, formatCurrencyInput } from "@/lib/utils";
 import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { usePeriod } from "@/context/PeriodContext";
@@ -279,23 +279,7 @@ export function AdaptiveDailyPacingCard({
   const daysUntilStart = pacing?.daysUntilCycleStart ?? 0;
   const paceDeltaRp = pacing?.paceDeltaRp ?? 0;
 
-  // Derived cycle telemetry strictly from existing snapshot/pacing/transaction inputs
-  const todayIso = getJakartaDateParts().isoDate;
-  const spentToday = transactions
-    .filter((tx) => {
-      if (tx.type !== "DEDUCTION" || tx.sourceType !== "MANUAL" || tx.fixedEssentialCategory) {
-        return false;
-      }
-      const rawDate = tx.date || tx.createdAt;
-      if (!rawDate) return false;
-      try {
-        return getJakartaDateParts(new Date(rawDate)).isoDate === todayIso;
-      } catch {
-        return String(rawDate).slice(0, 10) === todayIso;
-      }
-    })
-    .reduce((acc, tx) => acc + (tx.amount || 0), 0);
-
+  // Derived cycle telemetry strictly from existing snapshot/pacing inputs (updates cleanly from both manual spend and wallet balance syncs)
   const cycleDaysTotal = pacing?.daysInCycle ?? 30;
   const elapsedDays = Math.max(1, pacing?.currentDayIndex ?? 1);
   const totalSpentCycle = pacing?.totalDailySpent ?? 0;
@@ -304,9 +288,15 @@ export function AdaptiveDailyPacingCard({
   const projectedCycleEndRemaining = isPrePayday
     ? cycleBudgetTotal
     : Math.round(cycleBudgetTotal - avgDailyBurn * cycleDaysTotal);
-  const todayAllowanceRatioPct =
-    displaySafeToday > 0 ? Math.min(100, Math.round((spentToday / displaySafeToday) * 100)) : 0;
-  const isSpentTodayOver = displaySafeToday > 0 && spentToday > displaySafeToday;
+  const cycleUsedPct =
+    cycleBudgetTotal > 0 ? Math.round((totalSpentCycle / cycleBudgetTotal) * 100) : 0;
+  const cycleUsedBarPct = Math.min(100, Math.max(0, cycleUsedPct));
+  const cycleElapsedPct = isPrePayday
+    ? 0
+    : isCompletedCycle
+    ? 100
+    : Math.min(100, Math.round((elapsedDays / Math.max(1, cycleDaysTotal)) * 100));
+  const isBurnAheadOfSchedule = !isPrePayday && cycleUsedPct > cycleElapsedPct + 2;
   const cyclePaydayFormatted = pacing?.cycleStartDate
     ? new Date(`${pacing.cycleStartDate}T12:00:00Z`).toLocaleDateString("en-GB", {
         day: "numeric",
@@ -568,7 +558,7 @@ export function AdaptiveDailyPacingCard({
           </span>
         </div>
 
-        {/* Cycle Pace & Burn Forecast (Eliminates vertical void between chart & reconciliation) */}
+        {/* Cycle Pace & Burn Forecast (Works zero-friction with both manual logs and Wallet Sync) */}
         <div
           data-testid="cycle-pace-breakdown"
           className="mt-3.5 pt-3.5 border-t border-border-subtle space-y-2.5"
@@ -578,35 +568,37 @@ export function AdaptiveDailyPacingCard({
               <span className="text-text-tertiary">
                 {isPrePayday
                   ? t("overview.cycleReadiness")
-                  : isCompletedCycle
-                  ? t("overview.cycleCompletion")
-                  : t("overview.spentToday")}
+                  : t("overview.cycleBudgetUsed")}
               </span>
               <span className="erp-tabular-currency text-text-primary font-medium">
                 {isPrePayday
                   ? `${formatIdr(cycleBudgetTotal)} · ${cycleDaysTotal}d`
-                  : isCompletedCycle
-                  ? `${formatIdr(totalSpentCycle)} / ${formatIdr(cycleBudgetTotal)}`
-                  : `${formatIdr(spentToday)} / ${formatIdr(displaySafeToday)}`}
+                  : `${cycleUsedPct}% ${t("overview.usedLabel")} · ${cycleElapsedPct}% ${t("overview.elapsedLabel")}`}
               </span>
             </div>
-            <div className="h-1 w-full rounded-full bg-surface-subtle overflow-hidden">
+            <div className="relative h-1.5 w-full rounded-full bg-surface-subtle">
               <div
-                className={`h-full transition-all duration-300 ${
+                className={`h-full rounded-full transition-all duration-300 ${
                   isPrePayday
                     ? "bg-border-strong"
-                    : isSpentTodayOver
+                    : cycleUsedPct >= 100
+                    ? "bg-urgency"
+                    : isBurnAheadOfSchedule
                     ? "bg-caution"
                     : "bg-delta-positive"
                 }`}
                 style={{
-                  width: isPrePayday
-                    ? "100%"
-                    : isCompletedCycle
-                    ? `${Math.min(100, cycleBudgetTotal > 0 ? Math.round((totalSpentCycle / cycleBudgetTotal) * 100) : 0)}%`
-                    : `${todayAllowanceRatioPct}%`,
+                  width: isPrePayday ? "100%" : `${cycleUsedBarPct}%`,
                 }}
               />
+              {!isPrePayday && !isCompletedCycle && (
+                <div
+                  aria-hidden="true"
+                  title="Elapsed cycle timeline"
+                  style={{ left: `${cycleElapsedPct}%` }}
+                  className="absolute -top-0.5 -bottom-0.5 w-[2px] -ml-[1px] rounded-full bg-text-primary/80"
+                />
+              )}
             </div>
           </div>
 

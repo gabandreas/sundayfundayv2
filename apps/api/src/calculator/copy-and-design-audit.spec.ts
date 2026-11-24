@@ -944,7 +944,10 @@ describe('System-Wide Anti-AI-Slop Visual Design, Temporal Chart Axis & Human Co
     );
     expect(pacingCardSrc).toContain('data-testid="cycle-pace-breakdown"');
     expect(pacingCardSrc).toContain('avgDailyBurn');
-    expect(pacingCardSrc).toContain('spentToday');
+    expect(pacingCardSrc).toContain('cycleUsedPct');
+    expect(pacingCardSrc).toContain('cycleElapsedPct');
+    expect(pacingCardSrc).toContain('overview.cycleBudgetUsed');
+    expect(pacingCardSrc).not.toContain('overview.spentToday');
     expect(pacingCardSrc).not.toContain('SPIKE (');
     expect(pacingCardSrc).not.toContain('"NORMAL"');
     expect(pacingCardSrc).not.toContain('"CORRECTION"');
