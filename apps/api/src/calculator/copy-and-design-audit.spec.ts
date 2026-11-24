@@ -950,6 +950,8 @@ describe('System-Wide Anti-AI-Slop Visual Design, Temporal Chart Axis & Human Co
     expect(pacingCardSrc).toContain('overview.spentLabel');
     expect(pacingCardSrc).toContain('overview.perDay');
     expect(pacingCardSrc).toContain('overview.baselineLabel');
+    expect(pacingCardSrc).toContain('flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5');
+    expect(pacingCardSrc).toContain('pr-2 min-w-0 overflow-hidden');
     expect(pacingCardSrc).not.toContain('overview.spentToday');
     expect(pacingCardSrc).not.toContain('<span>Spent:</span>');
     expect(pacingCardSrc).not.toContain('>/day<');

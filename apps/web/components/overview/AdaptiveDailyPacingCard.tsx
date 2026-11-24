@@ -498,31 +498,31 @@ export function AdaptiveDailyPacingCard({
 
         {/* 3 Runway Metric Strip */}
         <div className="grid grid-cols-3 divide-x divide-border-subtle border-y border-border-subtle py-2.5 mt-3">
-          <div className="pr-2.5 min-w-0">
+          <div className="pr-2 min-w-0 overflow-hidden">
             <span className="text-[11px] text-text-tertiary font-sans block truncate">
               {t("overview.weekdayRate")}
             </span>
-            <span className="erp-tabular-currency text-xs font-semibold text-text-primary mt-0.5 block">
-              {formatIdr(weekdayRate)}
+            <span className="erp-tabular-currency text-xs font-semibold text-text-primary mt-0.5 flex flex-wrap items-baseline gap-x-0.5 leading-tight">
+              <span>{formatIdr(weekdayRate)}</span>
               <span className="text-[10px] font-normal text-text-tertiary">{t("overview.perDay")}</span>
             </span>
           </div>
 
-          <div className="px-2.5 min-w-0">
+          <div className="px-2 min-w-0 overflow-hidden">
             <span className="text-[11px] text-text-tertiary font-sans block truncate">
               {t("overview.weekendRate")}
             </span>
-            <span className="erp-tabular-currency text-xs font-semibold text-text-primary mt-0.5 block">
-              {formatIdr(weekendRate)}
+            <span className="erp-tabular-currency text-xs font-semibold text-text-primary mt-0.5 flex flex-wrap items-baseline gap-x-0.5 leading-tight">
+              <span>{formatIdr(weekendRate)}</span>
               <span className="text-[10px] font-normal text-text-tertiary">{t("overview.perDay")}</span>
             </span>
           </div>
 
-          <div className="pl-2.5 min-w-0">
+          <div className="pl-2 min-w-0 overflow-hidden">
             <span className="text-[11px] text-text-tertiary font-sans block truncate">
               7-Day Runway
             </span>
-            <span className="erp-tabular-currency text-xs font-semibold text-accent mt-0.5 block">
+            <span className="erp-tabular-currency text-xs font-semibold text-accent mt-0.5 block truncate">
               {formatIdr(rollingEnvelope)}
             </span>
           </div>
@@ -564,13 +564,13 @@ export function AdaptiveDailyPacingCard({
           className="mt-3.5 pt-3.5 border-t border-border-subtle space-y-2.5"
         >
           <div className="space-y-1.5">
-            <div className="flex items-center justify-between gap-2 text-[11px] font-sans">
-              <span className="text-text-tertiary whitespace-nowrap">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 text-[11px] font-sans">
+              <span className="text-text-tertiary">
                 {isPrePayday
                   ? t("overview.cycleReadiness")
                   : t("overview.cycleBudgetUsed")}
               </span>
-              <span className="erp-tabular-currency text-text-primary font-medium whitespace-nowrap">
+              <span className="erp-tabular-currency text-text-primary font-medium ml-auto">
                 {isPrePayday
                   ? `${formatIdr(cycleBudgetTotal)} · ${cycleDaysTotal}d`
                   : `${cycleUsedPct}% ${t("overview.usedLabel")} · ${cycleElapsedPct}% ${t("overview.elapsedLabel")}`}
@@ -607,8 +607,8 @@ export function AdaptiveDailyPacingCard({
               <span className="text-[11px] text-text-tertiary font-sans block truncate">
                 {t("overview.avgDailyBurn")}
               </span>
-              <span className="erp-tabular-currency text-xs font-semibold text-text-primary mt-0.5 block">
-                {formatIdr(avgDailyBurn)}
+              <span className="erp-tabular-currency text-xs font-semibold text-text-primary mt-0.5 flex flex-wrap items-baseline gap-x-0.5 leading-tight">
+                <span>{formatIdr(avgDailyBurn)}</span>
                 <span className="text-[10px] font-normal text-text-tertiary">{t("overview.perDay")}</span>
               </span>
               <span className="text-[10px] font-mono text-text-tertiary truncate block">
