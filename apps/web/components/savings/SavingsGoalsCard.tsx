@@ -10,6 +10,7 @@ import {
 } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
 import { useToast } from "@/context/ToastContext";
+import { useConfirmDialog } from "@/context/ConfirmDialogContext";
 
 interface SavingsGoalsCardProps {
   goals: EnrichedSavingsGoal[];
@@ -34,6 +35,7 @@ export function SavingsGoalsCard({
   avgMonthlySavings,
 }: SavingsGoalsCardProps) {
   const { toast } = useToast();
+  const { confirmDialog } = useConfirmDialog();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<EnrichedSavingsGoal | null>(null);
 
@@ -129,8 +131,15 @@ export function SavingsGoalsCard({
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Are you sure you want to delete this savings goal?")) return;
+    const ok = await confirmDialog({
+      title: "Delete savings goal",
+      description: "This goal projection will be permanently removed.",
+      confirmLabel: "Delete goal",
+      variant: "danger",
+    });
+    if (!ok) return;
     await deleteSavingsGoal(id);
+    toast({ title: "Savings goal deleted", variant: "success" });
   };
 
   const handleToggleComplete = async (goal: EnrichedSavingsGoal) => {

@@ -25,6 +25,7 @@ import {
   stopRecurringCardSubscription,
 } from "@/lib/api";
 import { usePeriodSlice } from "@/hooks/usePeriodSlice";
+import { ErpDatePicker } from "@/components/primitives/ErpDatePicker";
 import {
   DOMAIN_CONSTANTS,
   formatCurrencyInput,
@@ -1081,12 +1082,11 @@ export function SubscriptionsStudio({
               <label htmlFor="sub-charge-date" className="block text-xs font-medium text-text-secondary">
                 Transaction Date
               </label>
-              <input
+              <ErpDatePicker
                 id="sub-charge-date"
-                type="date"
                 value={formTxDate}
-                onChange={(e) => setFormTxDate(e.target.value)}
-                className="w-full px-3 py-1.5 rounded bg-canvas border border-border text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
+                onChange={setFormTxDate}
+                ariaLabel="Transaction Date"
               />
               <span className="block text-[11px] font-mono text-text-tertiary">
                 Routes to statement period {formatPeriodCode(previewBillingPeriod.month, previewBillingPeriod.year)}
@@ -1123,11 +1123,11 @@ export function SubscriptionsStudio({
                 <div className="grid grid-cols-2 gap-3 pt-1">
                   <div className="space-y-1">
                     <label className="block text-[11px] text-text-tertiary">Promo End Date</label>
-                    <input
-                      type="date"
+                    <ErpDatePicker
+                      compact
                       value={promoEndDate}
-                      onChange={(e) => setPromoEndDate(e.target.value)}
-                      className="w-full px-2.5 py-1 rounded bg-surface border border-border text-xs font-mono text-text-primary"
+                      onChange={setPromoEndDate}
+                      ariaLabel="Promo End Date"
                     />
                   </div>
                   <div className="space-y-1">

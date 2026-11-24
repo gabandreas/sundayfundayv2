@@ -18,6 +18,7 @@ import { DataTableHeader, DataTableRow } from "@/components/primitives/DataTable
 import { useLanguage } from "@/context/LanguageContext";
 import { exportLedgerToExcel } from "@/lib/exportLedgerExcel";
 import { CashReconciliationModal } from "@/components/finance/CashReconciliationModal";
+import { ErpDatePicker } from "@/components/primitives/ErpDatePicker";
 import {
   Search,
   Download,
@@ -592,11 +593,10 @@ export function LedgerClientView({
                 <label className="text-[11px] font-mono text-text-tertiary block">
                   Transaction Date
                 </label>
-                <input
-                  type="date"
+                <ErpDatePicker
                   value={editDate}
-                  onChange={(e) => setEditDate(e.target.value)}
-                  className="w-full px-3 py-1.5 rounded bg-surface-subtle border border-border text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
+                  onChange={setEditDate}
+                  ariaLabel="Transaction Date"
                 />
               </div>
 

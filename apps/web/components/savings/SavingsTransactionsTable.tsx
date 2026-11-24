@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { SavingsVault, deleteSavingsTransaction } from "@/lib/api";
 import { formatRupiah, formatDate } from "@/lib/utils";
 import { useLanguage } from "@/context/LanguageContext";
+import { useConfirmDialog } from "@/context/ConfirmDialogContext";
 import { DataTableHeader, DataTableRow } from "@/components/primitives/DataTableRow";
 
 interface SavingsTransactionsTableProps {
@@ -14,13 +15,18 @@ export function SavingsTransactionsTable({
   transactions,
 }: SavingsTransactionsTableProps) {
   const { t } = useLanguage();
+  const { confirmDialog } = useConfirmDialog();
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm("Remove this savings transaction record?")) {
-      return;
-    }
+    const ok = await confirmDialog({
+      title: "Remove savings record",
+      description: "Delete this savings deposit or withdrawal entry from the ledger?",
+      confirmLabel: "Remove record",
+      variant: "danger",
+    });
+    if (!ok) return;
 
     setDeletingId(id);
     setError(null);

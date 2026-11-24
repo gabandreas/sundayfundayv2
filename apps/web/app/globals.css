@@ -111,6 +111,74 @@ input[type="number"] {
   appearance: textfield;
 }
 
+/* Fallback dark surface for <option> elements in browsers lacking customizable select */
+select option {
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+}
+
+/* Progressive branded customizable <select> styling (Chrome 135+, Edge 135+, Safari 27+) */
+@supports (appearance: base-select) {
+  select,
+  select::picker(select) {
+    appearance: base-select;
+  }
+
+  select {
+    align-items: center;
+    gap: 0.375rem;
+    cursor: pointer;
+  }
+
+  select::picker(select) {
+    background-color: var(--color-surface);
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border-strong);
+    border-radius: 0.5rem;
+    padding: 0.25rem;
+    margin-block: 0.25rem;
+    box-shadow: 0 18px 42px rgba(0, 0, 0, 0.58);
+    max-height: 16rem;
+    overflow-y: auto;
+  }
+
+  select::picker-icon {
+    color: var(--color-text-tertiary);
+    transition: rotate 150ms var(--ease-out-quint), color 150ms ease;
+  }
+
+  select:open::picker-icon {
+    rotate: 180deg;
+    color: var(--color-text-primary);
+  }
+
+  select option {
+    padding: 0.4rem 0.6rem;
+    border-radius: 0.375rem;
+    color: var(--color-text-secondary);
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: background-color 120ms ease, color 120ms ease;
+  }
+
+  select option:hover,
+  select option:focus-visible {
+    background-color: var(--color-surface-hover);
+    color: var(--color-text-primary);
+  }
+
+  select option:checked {
+    background-color: rgba(16, 183, 141, 0.14);
+    color: var(--color-text-primary);
+    font-weight: 500;
+  }
+
+  select option::checkmark {
+    color: var(--color-accent);
+    font-size: 0.75rem;
+  }
+}
+
 /* Custom Global Dark-Slate Scrollbars (Non-breaking Executive Dark Aesthetics) */
 * {
   scrollbar-width: thin;
@@ -223,6 +291,15 @@ input[type="number"] {
 }
 
 /* Native top-layer modal containment without backdrop blur */
+dialog:modal {
+  overscroll-behavior: contain;
+}
+
+dialog::backdrop {
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
 dialog.erp-dialog {
   margin: auto;
   background-color: var(--color-surface);
@@ -237,7 +314,34 @@ dialog.erp-dialog {
 
 dialog.erp-dialog::backdrop {
   background: rgba(12, 14, 20, 0.8);
+  overflow: hidden;
   overscroll-behavior: contain;
+}
+
+dialog.erp-confirm-dialog {
+  opacity: 0;
+  transform: translateY(-6px) scale(0.98);
+  transition: opacity var(--duration-surface) var(--ease-out-quint), transform var(--duration-surface) var(--ease-out-quint), overlay var(--duration-surface) ease, display var(--duration-surface) ease;
+  transition-behavior: allow-discrete;
+}
+
+dialog.erp-confirm-dialog[open] {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+@starting-style {
+  dialog.erp-confirm-dialog[open] {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  dialog.erp-confirm-dialog {
+    transition: none;
+    transform: none;
+  }
 }
 
 /* Marquee top-layer right navigation drawer without viewport scroll locking hacks */
@@ -451,10 +555,34 @@ dialog.marquee-drawer::backdrop {
   }
 }
 
-/* Unified Non-Modal Toast Viewport (Top Layer via popover="manual") */
+/* Top-layer floating panels (ErpDatePicker & LanguageSwitcher popover) */
+.erp-popover-panel {
+  margin: 0;
+  inset: auto;
+  position: fixed;
+  color: inherit;
+  opacity: 0;
+  transform: translateY(-4px) scale(0.97);
+  transition: opacity var(--duration-surface) var(--ease-out-quint), transform var(--duration-surface) var(--ease-out-quint), overlay var(--duration-surface) ease, display var(--duration-surface) ease;
+  transition-behavior: allow-discrete;
+}
+
+.erp-popover-panel:is(:popover-open, .\:popover-open) {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+@starting-style {
+  .erp-popover-panel:is(:popover-open, .\:popover-open) {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.97);
+  }
+}
+
+/* Unified Non-Modal Toast Viewport (Top Layer via popover="manual", top-right clear of bottom-right Marquee orb) */
 .erp-toast-viewport {
   position: fixed;
-  inset: auto 1rem 1rem auto;
+  inset: 3.75rem 1.25rem auto auto;
   margin: 0;
   padding: 0;
   border: none;
@@ -465,7 +593,7 @@ dialog.marquee-drawer::backdrop {
   z-index: 60;
   pointer-events: none;
   opacity: 0;
-  transform: translateY(8px);
+  transform: translateY(-8px);
   transition: opacity var(--duration-surface) var(--ease-out-quint), transform var(--duration-surface) var(--ease-out-quint), overlay var(--duration-surface) ease, display var(--duration-surface) ease;
   transition-behavior: allow-discrete;
 }
@@ -478,13 +606,34 @@ dialog.marquee-drawer::backdrop {
 @starting-style {
   .erp-toast-viewport:is(:popover-open, .\:popover-open) {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(-8px);
   }
 }
 
+@keyframes erp-toast-shrink {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+
+.erp-toast-progress {
+  transform-origin: left center;
+  animation-name: erp-toast-shrink;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+.erp-toast-card:hover .erp-toast-progress,
+.erp-toast-card:focus-within .erp-toast-progress {
+  animation-play-state: paused;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .erp-popover-panel,
   .erp-toast-viewport {
     transition: none;
     transform: none;
+  }
+  .erp-toast-progress {
+    animation: none;
   }
 }

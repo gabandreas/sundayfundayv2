@@ -115,6 +115,18 @@ export function PrivacyMaskProvider({ children }: { children: React.ReactNode })
     }
   }, [isAmountsMasked, isSessionPasswordVerified, sessionKey]);
 
+  // Global Alt+H keyboard shortcut to toggle balance visibility
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.altKey && !e.ctrlKey && !e.metaKey && e.key.toLowerCase() === "h") {
+        e.preventDefault();
+        toggleMask();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [toggleMask]);
+
   const hideFigures = useCallback(() => {
     setIsAmountsMasked(true);
     setGlobalAmountsMasked(true);

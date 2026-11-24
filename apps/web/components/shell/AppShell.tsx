@@ -12,6 +12,8 @@ import { LanguageProvider } from "@/context/LanguageContext";
 import { PeriodProvider } from "@/context/PeriodContext";
 import { ToastProvider } from "@/context/ToastContext";
 import { ToastViewport } from "@/components/primitives/ToastViewport";
+import { ConfirmDialogProvider } from "@/context/ConfirmDialogContext";
+import { ConfirmDialogHost } from "@/components/primitives/ConfirmDialogHost";
 import { OnboardingWizardModal } from "@/components/onboarding/OnboardingWizardModal";
 import { CustomRuleRequestModal } from "@/components/shell/CustomRuleRequestModal";
 import { ProfileSettingsModal } from "@/components/shell/ProfileSettingsModal";
@@ -240,12 +242,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return (
       <ToastProvider>
         <LanguageProvider>
-          <AuthProvider>
-            <div className="min-h-screen w-full overflow-y-auto overflow-x-hidden bg-canvas text-text-primary">
-              {children}
-            </div>
-            <ToastViewport />
-          </AuthProvider>
+          <ConfirmDialogProvider>
+            <AuthProvider>
+              <div className="min-h-screen w-full overflow-y-auto overflow-x-hidden bg-canvas text-text-primary">
+                {children}
+              </div>
+              <ToastViewport />
+              <ConfirmDialogHost />
+            </AuthProvider>
+          </ConfirmDialogProvider>
         </LanguageProvider>
       </ToastProvider>
     );
@@ -254,10 +259,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <ToastProvider>
       <LanguageProvider>
-        <AuthProvider>
-          <AppShellProtected>{children}</AppShellProtected>
-          <ToastViewport />
-        </AuthProvider>
+        <ConfirmDialogProvider>
+          <AuthProvider>
+            <AppShellProtected>{children}</AppShellProtected>
+            <ToastViewport />
+            <ConfirmDialogHost />
+          </AuthProvider>
+        </ConfirmDialogProvider>
       </LanguageProvider>
     </ToastProvider>
   );

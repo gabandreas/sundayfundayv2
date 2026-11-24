@@ -15,6 +15,7 @@ import {
 import { useLanguage } from "@/context/LanguageContext";
 import { usePerspective } from "@/context/PerspectiveContext";
 import { useToast } from "@/context/ToastContext";
+import { ErpDatePicker } from "@/components/primitives/ErpDatePicker";
 
 interface RecordExpenseCardProps {
   month: number;
@@ -369,17 +370,17 @@ export function RecordExpenseCard({
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-1.5">
-                    <label className="space-y-0.5">
+                    <div className="space-y-0.5">
                       <span className="font-mono text-[9px] text-text-tertiary block">
                         {t("overview.purchaseDate", "Purchase Date")}
                       </span>
-                      <input
-                        type="date"
+                      <ErpDatePicker
+                        compact
                         value={purchaseDate}
-                        onChange={(e) => setPurchaseDate(e.target.value)}
-                        className="w-full px-1.5 py-0.5 rounded bg-canvas border border-border font-mono text-[10px] text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
+                        onChange={setPurchaseDate}
+                        ariaLabel={t("overview.purchaseDate", "Purchase Date")}
                       />
-                    </label>
+                    </div>
                     <label className="space-y-0.5">
                       <span className="font-mono text-[9px] text-text-tertiary block">
                         {t("overview.billingCycle", "Billing Cycle")}
@@ -387,7 +388,7 @@ export function RecordExpenseCard({
                       <select
                         value={billingCycleOverride}
                         onChange={(e) => setBillingCycleOverride(e.target.value)}
-                        className="w-full px-1.5 py-0.5 rounded bg-canvas border border-border font-mono text-[10px] text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
+                        className="w-full px-1.5 py-1 rounded bg-canvas border border-border font-mono text-[10px] text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
                       >
                         <option value="auto">
                           {t("overview.autoCutoff", "Auto")} ({autoLandingPreview.label})
@@ -524,11 +525,12 @@ export function RecordExpenseCard({
             </div>
           )}
 
-          <div className="flex items-center justify-end pt-1">
+          <div className="pt-1.5">
             <button
               type="submit"
               disabled={isSubmitting}
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded text-xs font-sans font-medium bg-surface-active hover:bg-surface-hover text-text-primary border border-border hover:border-border-strong transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+              data-testid="record-expense-submit"
+              className="w-full justify-center inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-sans font-medium erp-btn-primary disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
             >
               {isSubmitting ? (
                 <span>Recording...</span>
@@ -543,7 +545,7 @@ export function RecordExpenseCard({
               ) : (
                 <>
                   <Plus
-                    className="w-3.5 h-3.5 text-text-secondary"
+                    className="w-3.5 h-3.5 text-delta-positive"
                     strokeWidth={1.8}
                   />
                   <span>

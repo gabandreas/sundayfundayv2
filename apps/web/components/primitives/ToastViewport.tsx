@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { X } from "lucide-react";
+import { AlertCircle, AlertTriangle, CheckCircle2, Info, X } from "lucide-react";
 import { useToast, ToastVariant } from "@/context/ToastContext";
 
 const VARIANT_ACCENT: Record<ToastVariant, string> = {
@@ -10,6 +10,26 @@ const VARIANT_ACCENT: Record<ToastVariant, string> = {
   error: "border-l-urgency",
   info: "border-l-border-strong",
 };
+
+const VARIANT_PROGRESS_COLOR: Record<ToastVariant, string> = {
+  success: "bg-delta-positive/70",
+  warning: "bg-caution/70",
+  error: "bg-urgency/75",
+  info: "bg-text-tertiary/60",
+};
+
+function ToastStatusIcon({ variant }: { variant: ToastVariant }) {
+  switch (variant) {
+    case "success":
+      return <CheckCircle2 className="w-4 h-4 text-delta-positive shrink-0 mt-0.5" strokeWidth={1.8} />;
+    case "warning":
+      return <AlertTriangle className="w-4 h-4 text-caution shrink-0 mt-0.5" strokeWidth={1.8} />;
+    case "error":
+      return <AlertCircle className="w-4 h-4 text-urgency shrink-0 mt-0.5" strokeWidth={1.8} />;
+    default:
+      return <Info className="w-4 h-4 text-text-secondary shrink-0 mt-0.5" strokeWidth={1.8} />;
+  }
+}
 
 export function ToastViewport() {
   const { toasts, dismiss, pauseAll, resumeAll } = useToast();
@@ -82,40 +102,51 @@ export function ToastViewport() {
               <div
                 key={item.id}
                 role={item.variant === "error" ? "alert" : "status"}
-                className={`rounded-md border border-border border-l-2 ${VARIANT_ACCENT[item.variant]} bg-surface px-3.5 py-2.5 shadow-xl flex items-start justify-between gap-3 text-xs pointer-events-auto`}
+                className={`erp-toast-card relative overflow-hidden rounded-md border border-border-strong border-l-2 ${VARIANT_ACCENT[item.variant]} bg-surface px-3.5 py-2.5 shadow-2xl flex items-start justify-between gap-2.5 text-xs pointer-events-auto`}
               >
-                <div className="min-w-0 flex-1 space-y-0.5">
-                  <div className="font-medium text-text-primary leading-snug">
-                    {item.title}
-                  </div>
-                  {item.description && (
-                    <div className="text-[11px] text-text-secondary leading-relaxed">
-                      {item.description}
+                <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                  <ToastStatusIcon variant={item.variant} />
+                  <div className="min-w-0 flex-1 space-y-0.5">
+                    <div className="font-medium text-text-primary leading-snug">
+                      {item.title}
                     </div>
-                  )}
-                  {item.action && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        item.action?.onClick();
-                        dismiss(item.id);
-                      }}
-                      className="mt-1 inline-block text-[11px] font-mono text-delta-positive hover:underline cursor-pointer"
-                    >
-                      {item.action.label}
-                    </button>
-                  )}
+                    {item.description && (
+                      <div className="text-[11px] text-text-secondary leading-relaxed">
+                        {item.description}
+                      </div>
+                    )}
+                    {item.action && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          item.action?.onClick();
+                          dismiss(item.id);
+                        }}
+                        className="mt-1 inline-block text-[11px] font-mono text-delta-positive hover:underline cursor-pointer"
+                      >
+                        {item.action.label}
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <button
                   type="button"
                   onClick={() => dismiss(item.id)}
-                  aria-label="Close"
+                  aria-label="Close notification"
                   title="Close"
                   className="p-0.5 rounded text-text-tertiary hover:text-text-primary hover:bg-surface-hover transition-colors cursor-pointer shrink-0"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
+
+                {item.durationMs > 0 && (
+                  <div
+                    aria-hidden="true"
+                    style={{ animationDuration: `${item.durationMs}ms` }}
+                    className={`erp-toast-progress absolute bottom-0 left-0 right-0 h-[2px] ${VARIANT_PROGRESS_COLOR[item.variant]}`}
+                  />
+                )}
               </div>
             ))}
           </div>

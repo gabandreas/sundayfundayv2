@@ -8,6 +8,7 @@ import {
   UntransferredLockedPeriod,
 } from "@/lib/api";
 import { formatRupiah, formatCurrencyInput, parseCurrencyInput } from "@/lib/utils";
+import { ErpDatePicker } from "@/components/primitives/ErpDatePicker";
 
 interface ManualSavingsFormProps {
   untransferredLockedPeriods?: UntransferredLockedPeriod[];
@@ -282,23 +283,19 @@ export function ManualSavingsForm({
             </div>
 
             <div className="col-span-4">
-              <label className="block text-[11px] font-mono text-text-tertiary mb-1.5">
-                DATE
+              <label className="block text-[11px] font-sans text-text-tertiary mb-1.5">
+                Date
               </label>
-              <input
-                type="date"
+              <ErpDatePicker
                 value={date}
-                onChange={(e) => {
-                  setDate(e.target.value);
+                onChange={(val) => {
+                  setDate(val);
                   if (fieldErrors.date) {
                     setFieldErrors((prev) => ({ ...prev, date: undefined }));
                   }
                 }}
-                className={`w-full px-3 py-2 rounded bg-surface-subtle border text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 ${
-                  fieldErrors.date
-                    ? "border-urgency focus:border-urgency"
-                    : "border-border focus:border-border-strong"
-                }`}
+                ariaLabel="Date"
+                className={fieldErrors.date ? "border-urgency" : ""}
               />
               {fieldErrors.date && (
                 <div className="text-[10px] font-sans text-delta-negative mt-1">

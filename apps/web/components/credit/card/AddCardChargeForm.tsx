@@ -10,6 +10,7 @@ import {
   parseCurrencyInput,
   getJakartaDateParts,
 } from "@/lib/utils";
+import { ErpDatePicker } from "@/components/primitives/ErpDatePicker";
 
 interface AddCardChargeFormProps {
   currentMonth: number;
@@ -266,7 +267,7 @@ export function AddCardChargeForm({
           {/* Category */}
           <div className={chargeType === "INSTALLMENT" ? "sm:col-span-1 lg:col-span-3" : "sm:col-span-1 lg:col-span-4"}>
             <label className="block text-[11px] font-sans font-medium text-text-tertiary mb-1">
-              CATEGORY
+              Category
             </label>
             <select
               value={category}
@@ -287,12 +288,10 @@ export function AddCardChargeForm({
             <label className="block text-[11px] font-sans font-medium text-text-tertiary mb-1">
               Transaction Date
             </label>
-            <input
-              type="date"
+            <ErpDatePicker
               value={transactionDate}
-              onChange={(e) => setTransactionDate(e.target.value)}
-              required
-              className="w-full bg-surface-subtle border border-border rounded px-3 py-2 text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-accent"
+              onChange={setTransactionDate}
+              ariaLabel="Transaction Date"
             />
           </div>
         </div>

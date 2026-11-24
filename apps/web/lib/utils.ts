@@ -348,14 +348,14 @@ export function resolveInstrumentLandingPeriodClient(
   const finalPeriod = holdPastCutoff ? addMonthsClient(base.month, base.year, 1) : base;
   const dueDim = new Date(Date.UTC(finalPeriod.year, finalPeriod.month, 0)).getUTCDate();
   const dueDay = Math.min(dueDim, inst?.dueDay && inst.dueDay > 0 ? inst.dueDay : isCc ? 11 : 25);
-  const SHORT = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+  const SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   return {
     cutoffDay,
     crossedCutoff: crossedCutoff || holdPastCutoff,
     dueDay,
     month: finalPeriod.month,
     year: finalPeriod.year,
-    label: `${SHORT[finalPeriod.month - 1] ?? finalPeriod.month} '${String(finalPeriod.year).slice(-2)}`,
+    label: `${SHORT[finalPeriod.month - 1] ?? finalPeriod.month} ${finalPeriod.year}`,
   };
 }
 

@@ -39,6 +39,7 @@ import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { usePerspective } from "@/context/PerspectiveContext";
 import { useToast } from "@/context/ToastContext";
+import { ErpDatePicker } from "@/components/primitives/ErpDatePicker";
 import { evaluateMathExpression } from "./InlineBulkBillCell";
 
 interface MatrixCellDrawerProps {
@@ -752,11 +753,11 @@ export function MatrixCellDrawer({
                           <label className="text-[10px] font-mono text-text-tertiary">
                             Purchase / Disbursed Date
                           </label>
-                          <input
-                            type="date"
+                          <ErpDatePicker
+                            compact
                             value={purchaseDate}
-                            onChange={(e) => setPurchaseDate(e.target.value)}
-                            className="w-full bg-canvas border border-border rounded px-2.5 py-1 text-xs font-mono text-text-primary"
+                            onChange={setPurchaseDate}
+                            ariaLabel="Purchase / Disbursed Date"
                           />
                         </div>
                       )}

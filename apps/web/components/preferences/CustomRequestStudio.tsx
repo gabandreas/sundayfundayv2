@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import { usePerspective } from "@/context/PerspectiveContext";
+import { useConfirmDialog } from "@/context/ConfirmDialogContext";
+import { useToast } from "@/context/ToastContext";
 import {
   CustomFeatureRequest,
   fetchCustomRequests,
@@ -47,6 +49,8 @@ function buildEditStatesMap(data: CustomFeatureRequest[]) {
 
 export function CustomRequestStudio({ initialRequests }: CustomRequestStudioProps = {}) {
   const { profileMode } = usePerspective();
+  const { confirmDialog } = useConfirmDialog();
+  const { toast } = useToast();
   const isSuperadmin = profileMode === "SUPERADMIN_BESPOKE";
 
   const [requests, setRequests] = useState<CustomFeatureRequest[]>(initialRequests ?? []);
@@ -145,20 +149,28 @@ export function CustomRequestStudio({ initialRequests }: CustomRequestStudioProp
     setActionLoading(null);
     if (res.success) {
       loadRequests();
+      toast({ title: "Custom request updated", variant: "success" });
     } else {
-      alert(res.error || "Failed to update request");
+      toast({ title: "Failed to update request", description: res.error || "Failed to update request", variant: "error" });
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Are you sure you want to delete this custom request?")) return;
+    const ok = await confirmDialog({
+      title: "Delete custom request",
+      description: "Remove this custom request from the queue?",
+      confirmLabel: "Delete request",
+      variant: "danger",
+    });
+    if (!ok) return;
     setActionLoading(id);
     const res = await deleteCustomRequest(id);
     setActionLoading(null);
     if (res.success) {
       loadRequests();
+      toast({ title: "Custom request deleted", variant: "success" });
     } else {
-      alert(res.error || "Failed to delete request");
+      toast({ title: "Failed to delete request", description: res.error || "Failed to delete request", variant: "error" });
     }
   };
 

@@ -19,6 +19,7 @@ import {
 } from "@/lib/utils";
 import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 import { usePerspective } from "@/context/PerspectiveContext";
+import { ErpDatePicker } from "@/components/primitives/ErpDatePicker";
 
 interface SafeSpendSimulatorPanelProps {
   isOpen: boolean;
@@ -326,11 +327,11 @@ export function SafeSpendSimulatorPanel({
           <label className="text-[10px] font-mono text-text-tertiary">
             Purchase Date
           </label>
-          <input
-            type="date"
+          <ErpDatePicker
+            compact
             value={purchaseDate}
-            onChange={(e) => setPurchaseDate(e.target.value)}
-            className="w-full bg-canvas border border-border rounded px-2 py-1 text-xs font-mono text-text-primary"
+            onChange={setPurchaseDate}
+            ariaLabel="Purchase Date"
           />
         </div>
       </div>

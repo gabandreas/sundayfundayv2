@@ -190,7 +190,7 @@ export function MonthYearSwitcher() {
 
       {/* Unified Popover Dropdown */}
       {isDropdownOpen && (
-        <div className="absolute right-0 mt-1.5 w-60 rounded-md border border-border bg-surface shadow-xl z-50 p-2 animate-in fade-in zoom-in-95 duration-100">
+        <div className="absolute right-0 mt-1.5 w-60 rounded-lg border border-border-strong bg-surface shadow-2xl z-50 p-2">
           {/* Year selector tabs */}
           <div className="flex items-center justify-between pb-2 mb-2 border-b border-border-subtle px-1">
             <span className="text-[10px] font-sans font-semibold text-text-tertiary">
@@ -308,7 +308,7 @@ export function MonthYearSwitcher() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[11px] font-sans font-medium text-text-tertiary mb-1">
-                    MONTH
+                    Month
                   </label>
                   <select
                     value={newMonth}
@@ -325,7 +325,7 @@ export function MonthYearSwitcher() {
 
                 <div>
                   <label className="block text-[11px] font-sans font-medium text-text-tertiary mb-1">
-                    YEAR
+                    Year
                   </label>
                   <select
                     value={newYear}

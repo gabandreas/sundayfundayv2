@@ -7,7 +7,6 @@ import { MonthYearSwitcher } from "./MonthYearSwitcher";
 import { GlobalSearchModal } from "./GlobalSearchModal";
 import { AccountHeaderBadge } from "./AccountHeaderBadge";
 import { LanguageSwitcher } from "./LanguageSwitcher";
-import { PrivacyEyeButton } from "./PrivacyEyeButton";
 import { BrandMark } from "@/components/primitives/BrandMark";
 import { TranslationKey, useLanguage } from "@/context/LanguageContext";
 
@@ -41,11 +40,12 @@ export function AppHeader({ onToggleMobileDrawer }: { onToggleMobileDrawer?: () 
   const keys = ROUTE_TITLE_KEYS[pathname];
   const category = keys ? t(keys.catKey) : t("cat.view");
   const title = keys ? t(keys.titleKey) : pathname.replace("/", "");
+  const showParentBreadcrumb = pathname !== "/";
 
   return (
-    <header className="print-hidden relative z-30 h-12 border-b border-border-subtle bg-canvas px-3 sm:px-4 lg:px-5 flex items-center justify-between gap-2 shrink-0 select-none">
-      {/* Left Zone: Route breadcrumb + Mobile Drawer Trigger + Mobile BrandMark */}
-      <div className="flex items-center gap-1.5 text-xs font-sans min-w-0 shrink pr-2">
+    <header className="print-hidden relative z-30 h-12 border-b border-border-subtle bg-canvas px-4 lg:px-6 flex items-center justify-between gap-4 shrink-0 select-none">
+      {/* Left Zone: Clean Route Context */}
+      <div className="flex items-center gap-2 text-xs font-sans min-w-0 shrink pr-2">
         {onToggleMobileDrawer && (
           <button
             type="button"
@@ -60,38 +60,37 @@ export function AppHeader({ onToggleMobileDrawer }: { onToggleMobileDrawer?: () 
         <span className="lg:hidden shrink-0 inline-flex items-center">
           <BrandMark size={20} />
         </span>
-        <span className="hidden sm:inline text-text-tertiary font-normal shrink-0">
-          {category}
-        </span>
-        <span className="hidden sm:inline text-border-strong select-none shrink-0">/</span>
-        <h1 className="font-medium text-text-primary tracking-tight truncate">
+        {showParentBreadcrumb && (
+          <>
+            <span className="hidden sm:inline text-text-tertiary font-normal shrink-0">
+              {category}
+            </span>
+            <span className="hidden sm:inline text-border-strong select-none shrink-0">/</span>
+          </>
+        )}
+        <h1 className="text-[13px] font-semibold text-text-primary tracking-tight truncate">
           {title}
         </h1>
       </div>
 
-      {/* Center Zone: Quick Global Search Input */}
-      <div className="hidden md:flex flex-1 justify-center px-1 lg:px-2 min-w-0">
+      {/* Center Zone: Command Search */}
+      <div className="hidden md:flex flex-1 justify-center px-2 min-w-0">
         <GlobalSearchModal />
       </div>
 
-      {/* Right Zone: Single Privacy Toggle | Language | Period Navigator | Account Avatar Menu */}
+      {/* Right Zone: Period Switcher · Compact Locale Popover · Monogram Account Menu */}
       <div className="flex items-center gap-2 justify-end min-w-0 shrink-0">
-        <div className="hidden sm:flex items-center gap-1.5">
-          <PrivacyEyeButton
-            size="sm"
-            className="h-8 w-8 rounded-md text-text-secondary hover:text-text-primary hover:bg-surface transition-colors"
-          />
-          <span className="h-4 w-px bg-border-subtle mx-0.5" aria-hidden="true" />
-          <LanguageSwitcher compact />
-          <span className="h-4 w-px bg-border-subtle mx-0.5" aria-hidden="true" />
-        </div>
         <Suspense
           fallback={
-            <div className="h-8 w-24 sm:w-36 rounded-md bg-surface animate-pulse" />
+            <div className="h-8 w-28 sm:w-36 rounded-md bg-surface animate-pulse" />
           }
         >
           <MonthYearSwitcher />
         </Suspense>
+
+        <div className="hidden sm:block">
+          <LanguageSwitcher compact />
+        </div>
 
         <AccountHeaderBadge />
       </div>

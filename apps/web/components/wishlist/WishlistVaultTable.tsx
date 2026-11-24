@@ -10,6 +10,7 @@ import {
 } from "@/lib/api";
 import { formatRupiah, formatCurrencyInput, parseCurrencyInput } from "@/lib/utils";
 import { ConvertToContractModal } from "./ConvertToContractModal";
+import { useConfirmDialog } from "@/context/ConfirmDialogContext";
 import { Trash2, ArrowRightCircle, Target, Loader2, Pencil, Check, X, CheckCircle2 } from "lucide-react";
 
 interface WishlistVaultTableProps {
@@ -25,6 +26,7 @@ export function WishlistVaultTable({
   hoursPerWorkday = 10,
   onSelectItemForAnalysis,
 }: WishlistVaultTableProps) {
+  const { confirmDialog } = useConfirmDialog();
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [contractModalItem, setContractModalItem] = useState<WishlistItem | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
@@ -61,7 +63,13 @@ export function WishlistVaultTable({
 
   const handleDelete = async (e: React.MouseEvent, id: number, name: string) => {
     e.stopPropagation();
-    if (!confirm(`Are you sure you want to delete "${name}" from your wishlist?`)) {
+    const ok = await confirmDialog({
+      title: "Delete wishlist item",
+      description: `Remove "${name}" from your wishlist?`,
+      confirmLabel: "Delete item",
+      variant: "danger",
+    });
+    if (!ok) {
       return;
     }
 

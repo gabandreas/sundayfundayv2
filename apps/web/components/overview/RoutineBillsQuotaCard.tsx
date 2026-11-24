@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Check, Loader2, Plus, Pencil, X, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { Check, Loader2, Plus, Pencil, X, Trash2, ArrowUpRight } from "lucide-react";
 import {
   MonthlySnapshot,
   DailyPacing,
@@ -21,6 +22,7 @@ import { formatRupiah } from "@/lib/utils";
 import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useToast } from "@/context/ToastContext";
+import { useConfirmDialog } from "@/context/ConfirmDialogContext";
 
 interface RoutineBillsQuotaCardProps {
   snapshot: MonthlySnapshot | null;
@@ -86,6 +88,7 @@ export function RoutineBillsQuotaCard({
   const [showInactiveQuotas, setShowInactiveQuotas] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { toast } = useToast();
+  const { confirmDialog } = useConfirmDialog();
 
   // Inline rename state for Standard Edition
   const [renamingCategory, setRenamingCategory] = useState<string | null>(null);
@@ -211,11 +214,18 @@ export function RoutineBillsQuotaCard({
 
   const handleRemoveCategory = async (id?: string) => {
     if (!id) return;
-    if (window.confirm("Remove this routine category?")) {
+    const ok = await confirmDialog({
+      title: "Remove routine category",
+      description: "Delete this custom routine expense category from your monthly quota list?",
+      confirmLabel: "Remove category",
+      variant: "danger",
+    });
+    if (ok) {
       try {
         const res = await removeRoutineCategory(id);
         if (res.success && res.data) {
           setDynamicCategories(res.data);
+          toast({ title: "Routine category removed", variant: "success" });
         }
       } catch (e) {
         console.error("Failed to remove routine category", e);
@@ -319,6 +329,53 @@ export function RoutineBillsQuotaCard({
   const totalRoutinePoolRemaining =
     pacing?.fixedEssentialsRealization?.totalRemainingPool ??
     activeCategories.reduce((sum, c) => sum + c.target, 0);
+
+  // Derived allocation mix strictly from authoritative MonthlySnapshot buckets
+  const mixBillsAndDebt =
+    (snapshot?.totalDeductions ?? 0) +
+    (snapshot?.transport ?? 0) +
+    (snapshot?.internet ?? 0) +
+    (snapshot?.vape ?? 0) +
+    (snapshot?.haircut ?? 0);
+  const mixDailyLiving =
+    snapshot?.actualDailyOperational ?? snapshot?.dailyOperational ?? 0;
+  const mixCoreSavings = snapshot?.actualSavings ?? 0;
+  const mixFlexAndBuffer =
+    (snapshot?.selfReward ?? 0) + (snapshot?.bufferPocket ?? 0);
+  const mixTotal = Math.max(
+    1,
+    mixBillsAndDebt + mixDailyLiving + mixCoreSavings + mixFlexAndBuffer
+  );
+  const allocationSegments = [
+    {
+      key: "bills",
+      label: t("overview.billsAndDebt"),
+      amount: mixBillsAndDebt,
+      pct: Math.round((mixBillsAndDebt / mixTotal) * 100),
+      colorClass: "bg-slate-500",
+    },
+    {
+      key: "living",
+      label: t("overview.dailyLivingPool"),
+      amount: mixDailyLiving,
+      pct: Math.round((mixDailyLiving / mixTotal) * 100),
+      colorClass: "bg-caution",
+    },
+    {
+      key: "savings",
+      label: t("overview.coreSavings"),
+      amount: mixCoreSavings,
+      pct: Math.round((mixCoreSavings / mixTotal) * 100),
+      colorClass: "bg-delta-positive",
+    },
+    {
+      key: "flex",
+      label: t("overview.flexAndBuffer"),
+      amount: mixFlexAndBuffer,
+      pct: Math.round((mixFlexAndBuffer / mixTotal) * 100),
+      colorClass: "bg-sky-400/75",
+    },
+  ];
 
   return (
     <div className="rounded-lg border border-border bg-surface p-5 flex flex-col justify-between h-full">
@@ -834,6 +891,76 @@ export function RoutineBillsQuotaCard({
               )}
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Bottom Cycle Allocation Mix (Eliminates vertical void in Col 2 with exact snapshot proportions) */}
+      <div
+        data-testid="cycle-allocation-mix"
+        className="mt-5 pt-4 border-t border-border-subtle space-y-3"
+      >
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[11px] font-semibold text-text-tertiary font-sans">
+            {t("overview.allocationMix")}
+          </span>
+          <span className="text-[10px] font-mono text-text-tertiary tabular-nums">
+            {formatIdr(snapshot?.finalTotalIncome ?? snapshot?.netSalaryIncome ?? mixTotal)}
+          </span>
+        </div>
+
+        {/* 4-segment proportional bar */}
+        <div className="h-1.5 w-full rounded-full bg-surface-subtle overflow-hidden flex gap-0.5">
+          {allocationSegments.map((seg) =>
+            seg.pct > 0 ? (
+              <div
+                key={seg.key}
+                className={`h-full ${seg.colorClass}`}
+                style={{ width: `${Math.max(2, seg.pct)}%` }}
+                title={`${seg.label}: ${seg.pct}%`}
+              />
+            ) : null
+          )}
+        </div>
+
+        {/* Breakdown rows */}
+        <div className="space-y-1.5">
+          {allocationSegments.map((seg) => (
+            <div
+              key={seg.key}
+              className="flex items-center justify-between gap-2 text-[11px] font-sans"
+            >
+              <span className="inline-flex items-center gap-1.5 text-text-secondary min-w-0">
+                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${seg.colorClass}`} />
+                <span className="truncate">{seg.label}</span>
+              </span>
+              <span className="inline-flex items-center gap-2.5 shrink-0">
+                <span className="text-[10px] font-mono text-text-tertiary tabular-nums w-7 text-right">
+                  {seg.pct}%
+                </span>
+                <span className="erp-tabular-currency text-text-primary font-medium min-w-[76px] text-right">
+                  {formatIdr(seg.amount)}
+                </span>
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {/* Quick Links Footer */}
+        <div className="pt-2 border-t border-border-subtle/70 flex items-center justify-between text-[11px] font-sans">
+          <Link
+            href={`/allocations?month=${month}&year=${year}`}
+            className="inline-flex items-center gap-1 text-text-secondary hover:text-text-primary transition-colors"
+          >
+            <span>{t("overview.fullWaterfall")}</span>
+            <ArrowUpRight className="w-3 h-3 text-text-tertiary" />
+          </Link>
+          <Link
+            href={`/calendar?month=${month}&year=${year}`}
+            className="inline-flex items-center gap-1 text-text-secondary hover:text-text-primary transition-colors"
+          >
+            <span>{t("overview.dueCalendar")}</span>
+            <ArrowUpRight className="w-3 h-3 text-text-tertiary" />
+          </Link>
         </div>
       </div>
     </div>

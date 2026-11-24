@@ -27,6 +27,7 @@ import {
   resolveInstrumentLandingPeriodClient,
 } from "@/lib/utils";
 import { Plus, Save, Trash2, CheckCircle2, Calendar, Bookmark, RotateCcw, AlertTriangle } from "lucide-react";
+import { ErpDatePicker } from "@/components/primitives/ErpDatePicker";
 
 const SHORT_MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -707,24 +708,24 @@ export function PaycycleFormulaStudioCard({ initialConfig }: { initialConfig?: M
                     <tr className="bg-surface-subtle/40">
                       <td colSpan={7} className="px-3 py-2.5">
                         <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end font-sans">
-                          <label className="space-y-1 text-[11px]">
+                          <div className="space-y-1 text-[11px]">
                             <span className="text-text-tertiary block">Explicit Payslip ISO</span>
-                            <input
-                              type="date"
+                            <ErpDatePicker
+                              compact
                               value={row.override?.payslipDateIso ?? row.payslipIso}
-                              onChange={(e) => updateOverride(row.periodCode, { payslipDateIso: e.target.value })}
-                              className="w-full bg-canvas border border-border rounded px-2 py-1 font-mono text-xs text-text-primary"
+                              onChange={(val) => updateOverride(row.periodCode, { payslipDateIso: val })}
+                              ariaLabel="Explicit Payslip Date"
                             />
-                          </label>
-                          <label className="space-y-1 text-[11px]">
+                          </div>
+                          <div className="space-y-1 text-[11px]">
                             <span className="text-text-tertiary block">Explicit Payday ISO</span>
-                            <input
-                              type="date"
+                            <ErpDatePicker
+                              compact
                               value={row.override?.paydayDateIso ?? row.paydayIso}
-                              onChange={(e) => updateOverride(row.periodCode, { paydayDateIso: e.target.value })}
-                              className="w-full bg-canvas border border-border rounded px-2 py-1 font-mono text-xs text-text-primary"
+                              onChange={(val) => updateOverride(row.periodCode, { paydayDateIso: val })}
+                              ariaLabel="Explicit Payday Date"
                             />
-                          </label>
+                          </div>
                           <label className="space-y-1 text-[11px]">
                             <span className="text-text-tertiary block">Override Reason</span>
                             <input

@@ -23,7 +23,7 @@ import {
   evaluateWalletGuardApi,
 } from "@/lib/api";
 import { MiniTrendChart } from "@/components/primitives/MiniTrendChart";
-import { formatRupiah, formatCurrencyInput } from "@/lib/utils";
+import { formatRupiah, formatCurrencyInput, getJakartaDateParts } from "@/lib/utils";
 import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { usePeriod } from "@/context/PeriodContext";
@@ -278,6 +278,35 @@ export function AdaptiveDailyPacingCard({
   const isCompletedCycle = temporalState === "COMPLETED";
   const daysUntilStart = pacing?.daysUntilCycleStart ?? 0;
   const paceDeltaRp = pacing?.paceDeltaRp ?? 0;
+
+  // Derived cycle telemetry strictly from existing snapshot/pacing/transaction inputs
+  const todayIso = getJakartaDateParts().isoDate;
+  const spentToday = transactions
+    .filter((tx) => {
+      if (tx.type !== "DEDUCTION" || tx.sourceType !== "MANUAL" || tx.fixedEssentialCategory) {
+        return false;
+      }
+      const rawDate = tx.date || tx.createdAt;
+      if (!rawDate) return false;
+      try {
+        return getJakartaDateParts(new Date(rawDate)).isoDate === todayIso;
+      } catch {
+        return String(rawDate).slice(0, 10) === todayIso;
+      }
+    })
+    .reduce((acc, tx) => acc + (tx.amount || 0), 0);
+
+  const cycleDaysTotal = pacing?.daysInCycle ?? 30;
+  const elapsedDays = Math.max(1, pacing?.currentDayIndex ?? 1);
+  const totalSpentCycle = pacing?.totalDailySpent ?? 0;
+  const cycleBudgetTotal = pacing?.totalOperationalBudget ?? totalOperationalBudget ?? 0;
+  const avgDailyBurn = isPrePayday ? 0 : Math.round(totalSpentCycle / elapsedDays);
+  const projectedCycleEndRemaining = isPrePayday
+    ? cycleBudgetTotal
+    : Math.round(cycleBudgetTotal - avgDailyBurn * cycleDaysTotal);
+  const todayAllowanceRatioPct =
+    displaySafeToday > 0 ? Math.min(100, Math.round((spentToday / displaySafeToday) * 100)) : 0;
+  const isSpentTodayOver = displaySafeToday > 0 && spentToday > displaySafeToday;
   const cyclePaydayFormatted = pacing?.cycleStartDate
     ? new Date(`${pacing.cycleStartDate}T12:00:00Z`).toLocaleDateString("en-GB", {
         day: "numeric",
@@ -528,7 +557,7 @@ export function AdaptiveDailyPacingCard({
           <span className="inline-flex items-baseline gap-1 whitespace-nowrap">
             <span>Spent:</span>
             <strong className="erp-tabular-currency text-text-primary">
-              {formatIdr(pacing?.totalDailySpent ?? 0)}
+              {formatIdr(totalSpentCycle)}
             </strong>
           </span>
           <span className="inline-flex items-baseline gap-1 whitespace-nowrap">
@@ -537,6 +566,82 @@ export function AdaptiveDailyPacingCard({
               {formatIdr(remainingBudget)}
             </strong>
           </span>
+        </div>
+
+        {/* Cycle Pace & Burn Forecast (Eliminates vertical void between chart & reconciliation) */}
+        <div
+          data-testid="cycle-pace-breakdown"
+          className="mt-3.5 pt-3.5 border-t border-border-subtle space-y-2.5"
+        >
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-2 text-[11px] font-sans">
+              <span className="text-text-tertiary">
+                {isPrePayday
+                  ? t("overview.cycleReadiness")
+                  : isCompletedCycle
+                  ? t("overview.cycleCompletion")
+                  : t("overview.spentToday")}
+              </span>
+              <span className="erp-tabular-currency text-text-primary font-medium">
+                {isPrePayday
+                  ? `${formatIdr(cycleBudgetTotal)} · ${cycleDaysTotal}d`
+                  : isCompletedCycle
+                  ? `${formatIdr(totalSpentCycle)} / ${formatIdr(cycleBudgetTotal)}`
+                  : `${formatIdr(spentToday)} / ${formatIdr(displaySafeToday)}`}
+              </span>
+            </div>
+            <div className="h-1 w-full rounded-full bg-surface-subtle overflow-hidden">
+              <div
+                className={`h-full transition-all duration-300 ${
+                  isPrePayday
+                    ? "bg-border-strong"
+                    : isSpentTodayOver
+                    ? "bg-caution"
+                    : "bg-delta-positive"
+                }`}
+                style={{
+                  width: isPrePayday
+                    ? "100%"
+                    : isCompletedCycle
+                    ? `${Math.min(100, cycleBudgetTotal > 0 ? Math.round((totalSpentCycle / cycleBudgetTotal) * 100) : 0)}%`
+                    : `${todayAllowanceRatioPct}%`,
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 pt-1">
+            <div className="min-w-0">
+              <span className="text-[11px] text-text-tertiary font-sans block truncate">
+                {t("overview.avgDailyBurn")}
+              </span>
+              <span className="erp-tabular-currency text-xs font-semibold text-text-primary mt-0.5 block">
+                {formatIdr(avgDailyBurn)}
+                <span className="text-[10px] font-normal text-text-tertiary">/day</span>
+              </span>
+              <span className="text-[10px] font-mono text-text-tertiary truncate block">
+                vs {formatIdr(pacing?.baselineDailyRate ?? 0)} baseline
+              </span>
+            </div>
+
+            <div className="min-w-0 text-right">
+              <span className="text-[11px] text-text-tertiary font-sans block truncate">
+                {t("overview.projectedCycleEnd")}
+              </span>
+              <span
+                className={`erp-tabular-currency text-xs font-semibold mt-0.5 block ${
+                  projectedCycleEndRemaining >= 0 ? "text-delta-positive" : "text-caution"
+                }`}
+              >
+                {projectedCycleEndRemaining >= 0
+                  ? `+${formatIdr(projectedCycleEndRemaining)}`
+                  : `-${formatIdr(Math.abs(projectedCycleEndRemaining))}`}
+              </span>
+              <span className="text-[10px] font-sans text-text-tertiary truncate block">
+                {t("overview.atCurrentPace")}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -676,7 +781,7 @@ export function AdaptiveDailyPacingCard({
                 Free Cash: <strong className="text-text-primary">{formatIdr(walletGuardStatus.guard.freeSpendableCash)}</strong>
               </span>
               <span
-                className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                className={`px-1.5 py-0.5 rounded text-[10px] font-sans font-medium ${
                   walletGuardStatus.guard.guardStatus === "SURVIVAL_GUARD"
                     ? "bg-urgency/15 text-urgency"
                     : walletGuardStatus.guard.guardStatus === "WATCH"
@@ -684,7 +789,11 @@ export function AdaptiveDailyPacingCard({
                       : "bg-delta-positive/15 text-delta-positive"
                 }`}
               >
-                {walletGuardStatus.guard.guardStatus.replace("_", " ")}
+                {walletGuardStatus.guard.guardStatus === "SURVIVAL_GUARD"
+                  ? "Survival Guard"
+                  : walletGuardStatus.guard.guardStatus === "WATCH"
+                    ? "Watch"
+                    : "Safe"}
               </span>
             </div>
             <div className="text-[10px] font-sans text-text-secondary">
@@ -716,7 +825,7 @@ export function AdaptiveDailyPacingCard({
               ) : isSpike ? (
                 <>
                   <AlertTriangle className="w-3 h-3" />
-                  SPIKE ({spikeRatio}x limit · {formatIdr(balanceDiff)})
+                  Spike ({spikeRatio}x limit · {formatIdr(balanceDiff)})
                 </>
               ) : balanceDiff < 0 ? (
                 <>
@@ -823,10 +932,10 @@ export function AdaptiveDailyPacingCard({
                               }`}
                             >
                               {isTxSpike
-                                ? `SPIKE (${(tx.amount / (displaySafeToday || 1)).toFixed(1)}x)`
+                                ? `Spike (${(tx.amount / (displaySafeToday || 1)).toFixed(1)}x)`
                                 : tx.type === "DEDUCTION"
-                                ? "NORMAL"
-                                : "CORRECTION"}
+                                ? "Normal"
+                                : "Correction"}
                             </span>
                           </div>
                           <div className="text-[11px] text-text-primary truncate font-sans mt-0.5">

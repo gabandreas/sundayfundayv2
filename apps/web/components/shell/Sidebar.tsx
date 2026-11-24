@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 import { SidebarNavItem } from "@/components/primitives/SidebarNavItem";
 import { BrandMark } from "@/components/primitives/BrandMark";
+import { PrivacyEyeButton } from "./PrivacyEyeButton";
 
 interface SubModuleDef {
   key: string;
@@ -393,6 +394,15 @@ export function Sidebar({
             <LanguageSwitcher compact />
           </div>
         )}
+
+        {/* Single Global Balance Visibility Utility */}
+        <div
+          className={`border-t border-border-subtle shrink-0 ${
+            collapsed ? "py-1.5 px-1.5" : "py-1.5 px-2.5"
+          }`}
+        >
+          <PrivacyEyeButton variant="sidebar" collapsed={collapsed} />
+        </div>
 
         {/* Restrained Sidebar Footer: Module Link + Collapse Toggle */}
         <div

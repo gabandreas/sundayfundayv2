@@ -19,6 +19,7 @@ import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { Copy, ExternalLink, Eye, Plus, X } from "lucide-react";
 import { SmtpControlPanel } from "./SmtpControlPanel";
+import { ErpDatePicker } from "@/components/primitives/ErpDatePicker";
 
 interface SubscriptionKillSwitchTabProps {
   config: GlobalConfig;
@@ -890,12 +891,10 @@ export function SubscriptionKillSwitchTab({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div className="space-y-1">
               <label className="text-text-secondary font-medium block">Deadline Date *</label>
-              <input
-                type="date"
-                required
+              <ErpDatePicker
                 value={formPromoEndDate}
-                onChange={(e) => setFormPromoEndDate(e.target.value)}
-                className="w-full px-3 py-1.5 rounded bg-canvas border border-border text-text-primary font-mono"
+                onChange={setFormPromoEndDate}
+                ariaLabel="Deadline Date"
               />
             </div>
 

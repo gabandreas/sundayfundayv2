@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Check } from "lucide-react";
 import { updateSnapshot } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
+import { ErpDatePicker } from "@/components/primitives/ErpDatePicker";
 
 interface PayrollAdjustmentFormProps {
   snapshotId: number;
@@ -335,12 +336,11 @@ export function PayrollAdjustmentForm({
             <label className="block text-[11px] font-sans font-medium text-text-secondary mb-1">
               Actual Payroll Payout Date
             </label>
-            <input
-              type="date"
+            <ErpDatePicker
               value={payrollPayoutDate}
-              onChange={(e) => setPayrollPayoutDate(e.target.value)}
+              onChange={setPayrollPayoutDate}
               disabled={isLocked || isSubmitting}
-              className="w-full bg-surface-subtle border border-border-subtle rounded px-3 py-1.5 text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-active disabled:opacity-50 disabled:cursor-not-allowed"
+              ariaLabel="Actual Payroll Payout Date"
             />
             <p className="text-[10px] font-sans text-text-tertiary mt-1">
               Defines the start of this period&apos;s consumption cycle. Does not alter waterfall allocations.

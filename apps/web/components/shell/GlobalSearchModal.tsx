@@ -316,15 +316,15 @@ export function GlobalSearchModal() {
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="hidden md:flex h-8 w-8 xl:w-full xl:max-w-[230px] px-0 xl:px-2.5 rounded-md bg-surface/60 hover:bg-surface border border-border-subtle hover:border-border items-center justify-center xl:justify-between gap-2 text-xs font-sans text-text-secondary hover:text-text-primary transition-colors cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
+        className="hidden md:flex h-8 w-8 lg:w-full lg:max-w-[280px] px-0 lg:px-2.5 rounded-md bg-surface-subtle hover:bg-surface border border-border-subtle hover:border-border items-center justify-center lg:justify-between gap-2 text-xs font-sans text-text-secondary hover:text-text-primary transition-colors cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
         title="Global Ledger Search (Ctrl+K)"
       >
         <div className="flex items-center gap-2 min-w-0">
           <Search className="w-3.5 h-3.5 text-text-tertiary shrink-0" />
-          <span className="hidden xl:inline truncate">Search or jump to...</span>
+          <span className="hidden lg:inline truncate text-text-tertiary">Search or jump to...</span>
         </div>
-        <kbd className="hidden xl:inline-block px-1.5 py-0.5 text-[10px] font-mono text-text-tertiary bg-surface-subtle border border-border-subtle rounded shrink-0">
-          Ctrl+K
+        <kbd className="hidden lg:inline-block px-1.5 py-0.5 text-[10px] font-mono text-text-tertiary bg-canvas/70 border border-border-subtle rounded shrink-0">
+          Ctrl K
         </kbd>
       </button>
 

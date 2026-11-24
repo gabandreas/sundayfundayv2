@@ -481,19 +481,40 @@ async function main() {
     );
     await page.goto(`${WEB_URL}/?month=11&year=2026`, { waitUntil: 'networkidle2', timeout: 60000 });
     await page.waitForSelector('#account-menu-trigger', { timeout: 15000 });
+    await page.waitForSelector('[data-testid="cycle-pace-breakdown"]', { timeout: 10000 });
+    await page.waitForSelector('[data-testid="cycle-allocation-mix"]', { timeout: 10000 });
 
     const headerAudit = await page.evaluate(() => {
       const eyeBtns = document.querySelectorAll(
         'button[aria-label="Hide amounts"], button[aria-label="Show amounts"]',
+      );
+      const eyeInAside = Boolean(
+        document.querySelector('aside button[aria-label="Hide amounts"], aside button[aria-label="Show amounts"]'),
+      );
+      const eyeInHeader = Boolean(
+        document.querySelector('header button[aria-label="Hide amounts"], header button[aria-label="Show amounts"]'),
       );
       const acctBtn = document.getElementById('account-menu-trigger');
       const acctTriggerText = acctBtn?.textContent?.trim() ?? '';
       acctBtn?.click();
       const pop = document.getElementById('account-menu-popover');
       const popText = pop?.innerText ?? '';
+      acctBtn?.click();
+
+      const localeBtn = document.getElementById('locale-menu-trigger');
+      localeBtn?.click();
+      const localePop = document.getElementById('locale-menu-popover');
+      const localePopOpen = Boolean(localePop?.matches(':popover-open'));
+      if (localePopOpen) localeBtn?.click();
+
       const bodyText = document.body.innerText;
       return {
         eyeCount: eyeBtns.length,
+        eyeInAside,
+        eyeInHeader,
+        localePopOpen,
+        hasPaceBreakdown: Boolean(document.querySelector('[data-testid="cycle-pace-breakdown"]')),
+        hasAllocMix: Boolean(document.querySelector('[data-testid="cycle-allocation-mix"]')),
         acctTriggerText,
         popText,
         hasAllCapsHeaderCopy:
@@ -501,6 +522,11 @@ async function main() {
       };
     });
     assert.equal(headerAudit.eyeCount, 1, `Expected exactly 1 Privacy Eye button on Overview, got ${headerAudit.eyeCount}`);
+    assert.equal(headerAudit.eyeInAside, true, 'Single Privacy Eye button must sit in Sidebar aside');
+    assert.equal(headerAudit.eyeInHeader, false, 'Top header must not contain Privacy Eye button');
+    assert.equal(headerAudit.localePopOpen, true, 'Compact #locale-menu-trigger must open #locale-menu-popover');
+    assert.equal(headerAudit.hasPaceBreakdown, true, 'Overview Col 1 must render Cycle Pace & Burn Forecast');
+    assert.equal(headerAudit.hasAllocMix, true, 'Overview Col 2 must render Cycle Allocation Mix');
     assert.ok(
       headerAudit.acctTriggerText.length > 0 && headerAudit.acctTriggerText.length <= 3,
       `Account trigger must be icon-only monogram, got "${headerAudit.acctTriggerText}"`,
@@ -508,6 +534,38 @@ async function main() {
     assert.ok(!headerAudit.popText.includes('Privacy Stealth'), 'Account menu must not show Privacy Stealth');
     assert.ok(!headerAudit.popText.includes('Switch Account'), 'Account menu must not show Switch Account');
     assert.ok(!headerAudit.hasAllCapsHeaderCopy, 'Overview must not show CAPSLOCK header strings');
+
+    // Verify custom ErpDatePicker, dark select styling, Title Case cycle label, and zero Marquee orb collision on PayLater tab
+    const paylaterAudit = await page.evaluate(() => {
+      const buttons = Array.from(document.querySelectorAll('button'));
+      const paylaterTab = buttons.find((b) => b.textContent?.trim() === 'PayLater');
+      paylaterTab?.click();
+      const rawDateInputs = document.querySelectorAll('input[type="date"]').length;
+      const dateTrigger = document.querySelector('[data-testid="erp-date-picker-trigger"]') as HTMLElement | null;
+      dateTrigger?.click();
+      const datePop = document.querySelector('.erp-popover-panel[aria-label="Purchase Date"]') as HTMLElement | null;
+      const datePopOpen = Boolean(datePop?.matches(':popover-open'));
+      if (datePopOpen) dateTrigger?.click();
+      const submitBtn = document.querySelector('[data-testid="record-expense-submit"]') as HTMLElement | null;
+      const marqueeOrb = document.querySelector('[data-testid="marquee-floating-launcher"]') as HTMLElement | null;
+      const rSub = submitBtn?.getBoundingClientRect();
+      const rOrb = marqueeOrb?.getBoundingClientRect();
+      const overlaps =
+        rSub && rOrb
+          ? !(rSub.right < rOrb.left || rSub.left > rOrb.right || rSub.bottom < rOrb.top || rSub.top > rOrb.bottom)
+          : false;
+      const bodyText = document.body.innerText;
+      return {
+        rawDateInputs,
+        datePopOpen,
+        overlaps,
+        hasUppercaseDec26: /\bDEC\s+'26\b/.test(bodyText),
+      };
+    });
+    assert.equal(paylaterAudit.rawDateInputs, 0, 'Overview DOM must have zero native <input type="date">');
+    assert.equal(paylaterAudit.datePopOpen, true, 'ErpDatePicker trigger must open top-layer calendar popover');
+    assert.equal(paylaterAudit.overlaps, false, 'Marquee launcher orb must not overlap + Record Expense button');
+    assert.equal(paylaterAudit.hasUppercaseDec26, false, 'PayLater billing preview must use Title Case (Dec 2026), not DEC \'26');
 
     // Verify /marquee "hi" responds cleanly with zero model/Tier leaks
     await page.goto(`${WEB_URL}/marquee`, { waitUntil: 'networkidle2', timeout: 60000 });

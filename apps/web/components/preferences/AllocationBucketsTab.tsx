@@ -13,6 +13,7 @@ import {
   syncConfigToPeriod,
 } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
+import { useConfirmDialog } from "@/context/ConfirmDialogContext";
 
 interface AllocationBucketsTabProps {
   config: GlobalConfig;
@@ -106,6 +107,7 @@ export function AllocationBucketsTab({
   activeYear,
   snapshotStatus,
 }: AllocationBucketsTabProps) {
+  const { confirmDialog } = useConfirmDialog();
   const initialBuckets: AllocationBucketRule[] =
     config.allocationBuckets && config.allocationBuckets.length > 0
       ? config.allocationBuckets
@@ -226,7 +228,13 @@ export function AllocationBucketsTab({
   };
 
   const handleRestoreDefaults = async () => {
-    if (!confirm("Reset all allocation buckets and surplus rules to factory defaults?")) return;
+    const ok = await confirmDialog({
+      title: "Restore default rules",
+      description: "Reset all allocation buckets and surplus rules back to factory defaults?",
+      confirmLabel: "Restore defaults",
+      variant: "danger",
+    });
+    if (!ok) return;
     setIsSaving(true);
     try {
       const res = await restoreDefaultRules();

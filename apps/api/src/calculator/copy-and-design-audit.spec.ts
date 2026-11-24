@@ -352,13 +352,14 @@ describe('System-Wide Anti-AI-Slop Visual Design, Temporal Chart Axis & Human Co
     expect(sidebar).toContain('<BrandMark');
     expect(sidebar).toContain('/import');
     expect(sidebar).toContain('/scenarios');
+    expect(sidebar).toContain('PrivacyEyeButton');
     expect(sidebar).not.toContain('SPinjam Tracker');
 
     const appHeader = fs.readFileSync(
       path.join(WEB_DIR, 'components', 'shell', 'AppHeader.tsx'),
       'utf8',
     );
-    expect(appHeader).toContain('PrivacyEyeButton');
+    expect(appHeader).not.toContain('PrivacyEyeButton');
 
     expect(
       fs.existsSync(path.join(WEB_DIR, 'components', 'primitives', 'PageHeader.tsx')),
@@ -633,7 +634,7 @@ describe('System-Wide Anti-AI-Slop Visual Design, Temporal Chart Axis & Human Co
     expect(miniTrendSrc).not.toContain('(DAY 1)');
   });
 
-  it('consolidates PrivacyEyeButton exclusively into AppHeader and implements a clutter-free native Popover Account Menu', () => {
+  it('consolidates PrivacyEyeButton exclusively into Sidebar utility bar and implements a clutter-free native Popover Account Menu', () => {
     const uiFiles = [
       ...collectFiles(path.join(WEB_DIR, 'app'), ['.ts', '.tsx']),
       ...collectFiles(path.join(WEB_DIR, 'components'), ['.ts', '.tsx']),
@@ -641,7 +642,7 @@ describe('System-Wide Anti-AI-Slop Visual Design, Temporal Chart Axis & Human Co
     for (const file of uiFiles) {
       const rel = path.relative(REPO_ROOT, file).replace(/\\/g, '/');
       if (
-        rel.endsWith('components/shell/AppHeader.tsx') ||
+        rel.endsWith('components/shell/Sidebar.tsx') ||
         rel.endsWith('components/shell/PrivacyEyeButton.tsx')
       ) {
         continue;
@@ -653,11 +654,17 @@ describe('System-Wide Anti-AI-Slop Visual Design, Temporal Chart Axis & Human Co
       });
     }
 
+    const sidebarSrc = fs.readFileSync(
+      path.join(WEB_DIR, 'components', 'shell', 'Sidebar.tsx'),
+      'utf8',
+    );
+    expect(sidebarSrc).toContain('<PrivacyEyeButton');
+
     const appHeaderSrc = fs.readFileSync(
       path.join(WEB_DIR, 'components', 'shell', 'AppHeader.tsx'),
       'utf8',
     );
-    expect(appHeaderSrc).toContain('<PrivacyEyeButton');
+    expect(appHeaderSrc).not.toContain('<PrivacyEyeButton');
     expect(appHeaderSrc).not.toContain('BookOpen');
     expect(appHeaderSrc).not.toContain('href="/guide"');
 
@@ -839,5 +846,113 @@ describe('System-Wide Anti-AI-Slop Visual Design, Temporal Chart Axis & Human Co
     );
     expect(sqlStudioSrc).not.toContain("table_name = '${tableName}'");
     expect(sqlStudioSrc).not.toContain("ILIKE '%${s}%'");
+  });
+
+  it('replaces all native browser alerts, confirms, prompts, date inputs, and selects with bespoke ERP controls and populates Overview voids', () => {
+    const webUiFiles = [
+      ...collectFiles(path.join(WEB_DIR, 'app'), ['.ts', '.tsx']),
+      ...collectFiles(path.join(WEB_DIR, 'components'), ['.ts', '.tsx']),
+      ...collectFiles(path.join(WEB_DIR, 'context'), ['.ts', '.tsx']),
+    ];
+
+    const nativeDialogCallPattern = /(?<![A-Za-z0-9_$])(?:window\.)?(?:alert|confirm|prompt)\s*\(/;
+    const rawDateInputPattern = /type=["']date["']/;
+
+    for (const file of webUiFiles) {
+      const rel = path.relative(REPO_ROOT, file).replace(/\\/g, '/');
+      const lines = fs.readFileSync(file, 'utf8').split(/\r?\n/);
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const trimmed = line.trim();
+        if (trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('/*')) {
+          continue;
+        }
+        expect({
+          file: `${rel}:${i + 1}`,
+          hasNativeBrowserPopup: nativeDialogCallPattern.test(line),
+        }).toEqual({
+          file: `${rel}:${i + 1}`,
+          hasNativeBrowserPopup: false,
+        });
+        expect({
+          file: `${rel}:${i + 1}`,
+          hasRawDateInput: rawDateInputPattern.test(line),
+        }).toEqual({
+          file: `${rel}:${i + 1}`,
+          hasRawDateInput: false,
+        });
+      }
+    }
+
+    const confirmCtxPath = path.join(WEB_DIR, 'context', 'ConfirmDialogContext.tsx');
+    const confirmHostPath = path.join(WEB_DIR, 'components', 'primitives', 'ConfirmDialogHost.tsx');
+    const datePickerPath = path.join(WEB_DIR, 'components', 'primitives', 'ErpDatePicker.tsx');
+
+    expect(fs.existsSync(confirmCtxPath)).toBe(true);
+    expect(fs.existsSync(confirmHostPath)).toBe(true);
+    expect(fs.existsSync(datePickerPath)).toBe(true);
+
+    const confirmHostSrc = fs.readFileSync(confirmHostPath, 'utf8');
+    expect(confirmHostSrc).toContain('<dialog');
+    expect(confirmHostSrc).toContain('showModal()');
+    expect(confirmHostSrc).toContain('method="dialog"');
+    expect(confirmHostSrc).toContain('returnValue = ""');
+    expect(confirmHostSrc).not.toContain('role="dialog"');
+    expect(confirmHostSrc).not.toContain('aria-modal');
+    expect(confirmHostSrc).toContain('autoFocus');
+
+    const datePickerSrc = fs.readFileSync(datePickerPath, 'utf8');
+    expect(datePickerSrc).toContain('popover="auto"');
+    expect(datePickerSrc).not.toMatch(/type=["']date["']/);
+
+    const globalsSrc = fs.readFileSync(path.join(WEB_DIR, 'app', 'globals.css'), 'utf8');
+    expect(globalsSrc).toContain('@supports (appearance: base-select)');
+    expect(globalsSrc).toContain('appearance: base-select');
+    expect(globalsSrc).toContain('::picker(select)');
+    expect(globalsSrc).toContain('dialog:modal');
+    expect(globalsSrc).toContain('overscroll-behavior: contain');
+    expect(globalsSrc).toContain('dialog::backdrop');
+    expect(globalsSrc).toContain('overflow: hidden');
+    expect(globalsSrc).toContain('inset: 3.75rem 1.25rem auto auto');
+
+    const utilsSrc = fs.readFileSync(path.join(WEB_DIR, 'lib', 'utils.ts'), 'utf8');
+    const landingFn = utilsSrc.slice(
+      utilsSrc.indexOf('export function resolveInstrumentLandingPeriodClient'),
+      utilsSrc.indexOf('const JAKARTA_DATE_FORMATTER'),
+    );
+    expect(landingFn).not.toContain('"JAN"');
+    expect(landingFn).not.toContain('"DEC"');
+    expect(landingFn).toContain('"Dec"');
+
+    const monthSwitcherSrc = fs.readFileSync(
+      path.join(WEB_DIR, 'components', 'shell', 'MonthYearSwitcher.tsx'),
+      'utf8',
+    );
+    expect(monthSwitcherSrc).not.toContain('>MONTH<');
+    expect(monthSwitcherSrc).not.toContain('>YEAR<');
+
+    const localeSwitcherSrc = fs.readFileSync(
+      path.join(WEB_DIR, 'components', 'shell', 'LanguageSwitcher.tsx'),
+      'utf8',
+    );
+    expect(localeSwitcherSrc).toContain('popover="auto"');
+    expect(localeSwitcherSrc).toContain('id="locale-menu-trigger"');
+
+    const pacingCardSrc = fs.readFileSync(
+      path.join(WEB_DIR, 'components', 'overview', 'AdaptiveDailyPacingCard.tsx'),
+      'utf8',
+    );
+    expect(pacingCardSrc).toContain('data-testid="cycle-pace-breakdown"');
+    expect(pacingCardSrc).toContain('avgDailyBurn');
+    expect(pacingCardSrc).toContain('spentToday');
+    expect(pacingCardSrc).not.toContain('SPIKE (');
+    expect(pacingCardSrc).not.toContain('"NORMAL"');
+    expect(pacingCardSrc).not.toContain('"CORRECTION"');
+
+    const routineCardSrc = fs.readFileSync(
+      path.join(WEB_DIR, 'components', 'overview', 'RoutineBillsQuotaCard.tsx'),
+      'utf8',
+    );
+    expect(routineCardSrc).toContain('data-testid="cycle-allocation-mix"');
   });
 });

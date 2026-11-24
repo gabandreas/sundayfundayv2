@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { usePerspective } from "@/context/PerspectiveContext";
+import { useConfirmDialog } from "@/context/ConfirmDialogContext";
 import { ShieldCheck, Store, SlidersHorizontal, Send, ChevronDown, Check, RotateCcw } from "lucide-react";
 import { resetDemoSandbox } from "@/lib/api";
 
@@ -12,13 +13,20 @@ export function PerspectiveSwitcher() {
     setIsOnboardingOpen,
     setIsCustomRequestModalOpen,
   } = usePerspective();
+  const { confirmDialog } = useConfirmDialog();
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const isStandard = profileMode === "STANDARD_GENERAL";
 
   const handleResetSandbox = async () => {
-    if (window.confirm("Reset Demo Sandbox to clean corporate defaults?")) {
+    const ok = await confirmDialog({
+      title: "Reset Demo Sandbox",
+      description: "Restore Demo Sandbox balances, rules, and transactions to factory defaults?",
+      confirmLabel: "Reset Sandbox",
+      variant: "danger",
+    });
+    if (ok) {
       setIsResetting(true);
       try {
         await resetDemoSandbox();

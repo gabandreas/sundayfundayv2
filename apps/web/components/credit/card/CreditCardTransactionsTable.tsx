@@ -11,6 +11,7 @@ import {
   resumeRecurringCardSubscription,
 } from "@/lib/api";
 import { formatDate, formatRupiah, getChargeTypeBadge } from "@/lib/utils";
+import { useConfirmDialog } from "@/context/ConfirmDialogContext";
 
 interface CreditCardTransactionsTableProps {
   transactions: CreditCardTransaction[];
@@ -40,6 +41,7 @@ export function CreditCardTransactionsTable({
   currentYear = 2026,
   isLocked = false,
 }: CreditCardTransactionsTableProps) {
+  const { confirmDialog } = useConfirmDialog();
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [editingEndDateId, setEditingEndDateId] = useState<number | null>(null);
   const [endMonthInput, setEndMonthInput] = useState<number>(currentMonth);
@@ -96,7 +98,13 @@ export function CreditCardTransactionsTable({
 
   const handleDelete = async (id: number) => {
     if (isLocked || deletingId !== null) return;
-    if (!confirm("Are you sure you want to delete this credit card charge?")) {
+    const ok = await confirmDialog({
+      title: "Delete credit card charge",
+      description: "Remove this credit card charge and update scheduled card totals?",
+      confirmLabel: "Delete charge",
+      variant: "danger",
+    });
+    if (!ok) {
       return;
     }
 
