@@ -216,8 +216,8 @@ export function ErpDatePicker({
         data-testid="erp-date-picker-trigger"
         className={`w-full flex items-center justify-between gap-2 rounded border border-border text-text-primary font-mono tabular-nums transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 ${
           compact
-            ? "px-2 py-1 text-[10px] bg-canvas hover:border-border-strong"
-            : "px-3 py-1.5 text-xs bg-surface-subtle hover:border-border-strong"
+            ? "h-7 px-2 text-[10px] bg-canvas hover:border-border-strong"
+            : "h-8 px-3 text-xs bg-surface-subtle hover:border-border-strong"
         } ${className}`}
       >
         <span className={`truncate ${displayStr ? "text-text-primary" : "text-text-disabled"}`}>

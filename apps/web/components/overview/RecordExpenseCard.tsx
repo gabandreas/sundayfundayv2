@@ -388,7 +388,7 @@ export function RecordExpenseCard({
                       <select
                         value={billingCycleOverride}
                         onChange={(e) => setBillingCycleOverride(e.target.value)}
-                        className="w-full px-1.5 py-1 rounded bg-canvas border border-border font-mono text-[10px] text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
+                        className="w-full h-7 px-1.5 rounded bg-canvas border border-border font-mono text-[10px] text-text-primary whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-strong"
                       >
                         <option value="auto">
                           {t("overview.autoCutoff", "Auto")} ({autoLandingPreview.label})
