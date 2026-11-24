@@ -313,8 +313,8 @@ describe('System-Wide Anti-AI-Slop Visual Design, Temporal Chart Axis & Human Co
       path.join(WEB_DIR, 'components', 'payroll', 'PayrollCashflowHighlights.tsx'),
       'utf8',
     );
-    expect(payrollCards).toContain('minmax(0,1.45fr)');
-    expect(payrollCards).toContain('minmax(0,0.95fr)');
+    expect(payrollCards).toContain('minmax(0,1.34fr)');
+    expect(payrollCards).toContain('minmax(0,1.16fr)');
     expect(payrollCards).not.toMatch(/col-span-2">\s*<MetricCard[\s\S]*?(?:THR, Bonus|Working Days)/);
 
     const drawer = fs.readFileSync(

@@ -39,7 +39,7 @@ export function PayrollCashflowHighlights({
       className={
         isStandardMode
           ? "grid grid-cols-3 gap-4"
-          : "grid grid-cols-[minmax(0,1.45fr)_minmax(0,1.15fr)_minmax(0,1fr)_minmax(0,0.95fr)] gap-4"
+          : "grid grid-cols-[minmax(0,1.34fr)_minmax(0,1.16fr)_minmax(0,1.16fr)_minmax(0,0.78fr)] gap-4"
       }
     >
       {/* Centerpiece: Final Total Income */}
@@ -56,6 +56,7 @@ export function PayrollCashflowHighlights({
           }
           isCenterpiece={true}
           statusVariant="default"
+          className="!p-4"
         />
       </div>
 
@@ -80,6 +81,7 @@ export function PayrollCashflowHighlights({
                 : "Base salary + allowances - statutory deductions"
           }
           statusVariant="default"
+          className="!p-4"
         />
       </div>
 
@@ -96,6 +98,7 @@ export function PayrollCashflowHighlights({
               : "Freelance, side income & bonuses"
           }
           statusVariant="default"
+          className="!p-4"
         />
       </div>
 
@@ -107,6 +110,7 @@ export function PayrollCashflowHighlights({
             value={`${workingDays} days`}
             footer="Attended office days"
             statusVariant="default"
+            className="!p-4"
           />
         </div>
       )}

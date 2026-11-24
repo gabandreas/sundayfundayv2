@@ -86,7 +86,7 @@ export function MetricCard({
           className={`erp-tabular-currency whitespace-nowrap leading-tight ${
             isCenterpiece
               ? "font-display text-[24px] sm:text-[26px] xl:text-[28px] font-normal tracking-tight text-text-primary"
-              : "font-mono text-[20px] xl:text-[22px] font-semibold tracking-tight text-text-primary"
+              : "font-mono text-[18px] xl:text-[20px] font-semibold tracking-tight text-text-primary"
           }`}
         >
           {displayValue}
