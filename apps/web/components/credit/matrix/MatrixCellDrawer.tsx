@@ -35,7 +35,7 @@ import {
   getJakartaDateParts,
   resolveInstrumentCutoffDayClient,
 } from "@/lib/utils";
-import { usePrivacyMask } from "@/context/PrivacyMaskContext";
+import { usePrivacyGuard } from "@/hooks/usePrivacyGuard";
 import { useLanguage } from "@/context/LanguageContext";
 import { usePerspective } from "@/context/PerspectiveContext";
 import { useToast } from "@/context/ToastContext";
@@ -65,7 +65,7 @@ export function MatrixCellDrawer({
   isLocked,
   safeHeadroom = 0,
 }: MatrixCellDrawerProps) {
-  const { isAmountsMasked } = usePrivacyMask();
+  const { isAmountsMasked, requireUnmasked } = usePrivacyGuard();
   const { t } = useLanguage();
   const { studioConfig } = usePerspective();
   const { toast } = useToast();
@@ -571,6 +571,7 @@ export function MatrixCellDrawer({
                 type="button"
                 disabled={isLocked}
                 onClick={() => {
+                  if (!requireUnmasked(t("drawer.lumpSumOverride"))) return;
                   setDrawerMode("override");
                   setOverrideRaw(cellAmount > 0 ? String(cellAmount) : "");
                 }}
@@ -624,7 +625,10 @@ export function MatrixCellDrawer({
                     )}
                     <button
                       type="button"
-                      onClick={() => setShowAddForm((prev) => !prev)}
+                      onClick={() => {
+                        if (!showAddForm && !requireUnmasked(t("drawer.addItem"))) return;
+                        setShowAddForm((prev) => !prev);
+                      }}
                       className="inline-flex items-center gap-1 px-2.5 py-1 rounded border border-border bg-surface hover:bg-surface-hover text-[11px] font-sans font-medium text-text-primary transition-colors"
                     >
                       <Plus className="w-3 h-3" />

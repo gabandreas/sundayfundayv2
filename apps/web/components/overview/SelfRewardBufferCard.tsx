@@ -39,7 +39,7 @@ export function SelfRewardBufferCard({
           <span className="text-[11px] font-semibold text-text-tertiary font-sans">
             {t("overview.selfRewardBuffer")}
           </span>
-          <span className="text-[10px] font-mono text-text-tertiary">
+          <span className="text-[11px] font-sans text-text-tertiary">
             Secondary Allocations
           </span>
         </div>
@@ -52,8 +52,11 @@ export function SelfRewardBufferCard({
                 {surplusTierLabel}
               </span>
               {actualSelfReward < targetSelfReward && (
-                <span className="text-[10px] text-text-tertiary font-mono">
-                  Target: {formatRupiah(targetSelfReward, isAmountsMasked)}
+                <span className="text-[10px] text-text-tertiary font-sans">
+                  Target:{" "}
+                  <span className="font-mono tabular-nums">
+                    {formatRupiah(targetSelfReward, isAmountsMasked)}
+                  </span>
                 </span>
               )}
             </div>
@@ -63,7 +66,7 @@ export function SelfRewardBufferCard({
                 {isSqueezed && (
                   <span
                     title={`Target ${formatRupiah(targetSelfReward, isAmountsMasked)} was consumed by higher priority commitments`}
-                    className="text-[9px] font-mono px-1 py-0.2 rounded border border-[rgba(229,155,44,0.30)] text-caution bg-[rgba(229,155,44,0.08)]"
+                    className="text-[10px] font-sans font-medium px-1.5 py-0.5 rounded border border-[rgba(229,155,44,0.30)] text-caution bg-[rgba(229,155,44,0.08)]"
                   >
                     Squeezed
                   </span>

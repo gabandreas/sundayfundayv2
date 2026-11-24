@@ -65,6 +65,7 @@ export function ErpDatePicker({
   const [viewYear, setViewYear] = useState<number>(parsedValue.year);
   const [viewMonth, setViewMonth] = useState<number>(parsedValue.month);
   const [showYearGrid, setShowYearGrid] = useState<boolean>(false);
+  const [isOpen, setIsOpen] = useState<boolean>(false);
   const [panelPos, setPanelPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
 
   useEffect(() => {
@@ -77,10 +78,20 @@ export function ErpDatePicker({
 
   const computeAndApplyPosition = useCallback(() => {
     const trigger = triggerRef.current;
+    const panel = panelRef.current;
     if (!trigger || typeof window === "undefined") return;
     const rect = trigger.getBoundingClientRect();
+    if (rect.width === 0 || rect.bottom < 52 || rect.top > window.innerHeight - 16) {
+      try {
+        if (panel?.matches(":popover-open")) {
+          panel.hidePopover?.();
+        }
+      } catch {}
+      return;
+    }
+
     const panelWidth = 264;
-    const panelHeight = 292;
+    const panelHeight = 296;
     const gap = 6;
 
     const fitsBelow = rect.bottom + gap + panelHeight <= window.innerHeight - 12;
@@ -92,41 +103,54 @@ export function ErpDatePicker({
       12,
       Math.min(rect.left, window.innerWidth - panelWidth - 12),
     );
-    setPanelPos({ top, left });
+    setPanelPos({ top: Math.round(top), left: Math.round(left) });
   }, []);
-
-  const openOrToggle = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (disabled) return;
-    const panel = panelRef.current;
-    if (!panel) return;
-    try {
-      if (panel.matches(":popover-open")) {
-        panel.hidePopover?.();
-        return;
-      }
-      computeAndApplyPosition();
-      setShowYearGrid(false);
-      panel.showPopover?.();
-    } catch {
-      computeAndApplyPosition();
-    }
-  };
 
   useEffect(() => {
     const panel = panelRef.current;
     if (!panel) return;
-    const onToggle = (ev: Event) => {
+    const onBeforeToggle = (ev: Event) => {
       const toggleEv = ev as ToggleEvent;
       if (toggleEv.newState === "open") {
+        setShowYearGrid(false);
+        computeAndApplyPosition();
+      }
+    };
+    const onToggle = (ev: Event) => {
+      const toggleEv = ev as ToggleEvent;
+      const open = toggleEv.newState === "open";
+      setIsOpen(open);
+      if (open) {
         computeAndApplyPosition();
       } else {
         setShowYearGrid(false);
       }
     };
+    panel.addEventListener("beforetoggle", onBeforeToggle);
     panel.addEventListener("toggle", onToggle);
-    return () => panel.removeEventListener("toggle", onToggle);
+    return () => {
+      panel.removeEventListener("beforetoggle", onBeforeToggle);
+      panel.removeEventListener("toggle", onToggle);
+    };
   }, [computeAndApplyPosition]);
+
+  useEffect(() => {
+    if (!isOpen || typeof window === "undefined") return;
+    let rafId = 0;
+    const scheduleSync = () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        computeAndApplyPosition();
+      });
+    };
+    window.addEventListener("scroll", scheduleSync, { capture: true, passive: true });
+    window.addEventListener("resize", scheduleSync, { passive: true });
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      window.removeEventListener("scroll", scheduleSync, { capture: true });
+      window.removeEventListener("resize", scheduleSync);
+    };
+  }, [isOpen, computeAndApplyPosition]);
 
   const calendarDays = useMemo(() => {
     const firstUtc = new Date(Date.UTC(viewYear, viewMonth - 1, 1));
@@ -211,7 +235,10 @@ export function ErpDatePicker({
         id={id}
         type="button"
         disabled={disabled}
-        onClick={openOrToggle}
+        popoverTarget={disabled ? undefined : popoverId}
+        onClick={(e) => e.stopPropagation()}
+        aria-expanded={isOpen}
+        aria-haspopup="dialog"
         aria-label={ariaLabel}
         data-testid="erp-date-picker-trigger"
         className={`w-full flex items-center justify-between gap-2 rounded border border-border text-text-primary font-mono tabular-nums transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 ${
@@ -315,7 +342,7 @@ export function ErpDatePicker({
               {WEEKDAY_HEADERS.map((wd) => (
                 <div
                   key={wd}
-                  className="text-center text-[10px] font-mono text-text-tertiary py-0.5"
+                  className="text-center text-[10px] font-sans font-medium text-text-tertiary py-0.5"
                 >
                   {wd}
                 </div>

@@ -88,10 +88,10 @@ async function main() {
 
     // Upcoming period (22 Nov 2026): 12/2026 (27 Nov – 27 Dec 2026, PRE_PAYDAY Day 0, starts in 5 days) with Natal THR H-7 Dec 18 & Nov 25 Benefit EWA (-Rp 360.500)
     assert.equal(Math.round(dec26?.finalTotalIncome ?? -1), 9376925, '12/2026 finalTotalIncome (Bank Salary 5,543,500 + Natal THR 3,833,425) must be 9,376,925');
-    assert.equal(Math.round(dec26?.totalDeductions ?? -1), 4189341, '12/2026 Total Debt (with Nov 23 Americano & Dunhill Rp 52k + Cigar Rp 27k routed to 12/2026) must be 4,189,341');
+    assert.equal(Math.round(dec26?.totalDeductions ?? -1), 4260841, '12/2026 Total Debt (incl. Nov 23 Americano & Dunhill Rp 52k + Cigar Rp 27k & Nov 24 Ayam Gepuk Rp 38.5k + Dunhill Rp 33k routed to 12/2026) must be 4,260,841');
     assert.equal(Math.round(dec26?.actualDailyOperational ?? -1), 1500000, '12/2026 actualDailyOperational must be 1,500,000');
     assert.equal(Math.round(dec26?.actualSavings ?? -1), 1000000, '12/2026 P1 must be 1,000,000 funded with Natal THR');
-    assert.equal(Math.round(dec26?.selfReward ?? -1), 2387584, '12/2026 P2 must be 2,387,584');
+    assert.equal(Math.round(dec26?.selfReward ?? -1), 2316084, '12/2026 P2 must be 2,316,084');
     assert.equal(Math.round(dec26?.deficitUncovered ?? -1), 0, '12/2026 deficitUncovered must be 0 with Natal THR');
 
     const decPacing = await financeSelectors.getPacing(
@@ -429,8 +429,8 @@ async function main() {
     );
     assert.equal(
       intelDec.networth.currentCycleDebtRp,
-      4189341,
-      `12/2026 currentCycleDebtRp must be 4,189,341, got ${intelDec.networth.currentCycleDebtRp}`,
+      4260841,
+      `12/2026 currentCycleDebtRp must be 4,260,841, got ${intelDec.networth.currentCycleDebtRp}`,
     );
     const p1AccountsTotal = (intelNov.effectiveAssetAccounts ?? [])
       .filter((a: any) => a.accountType === 'SAVINGS_VAULT')
@@ -440,7 +440,7 @@ async function main() {
       `User #1 11/2026 P1 vault (${p1AccountsTotal}) must exclude pre-epoch phantom backfill`,
     );
     console.log(
-      `  PASS: Zero Hoodie P1 leak, 03/2027 contracts = ${mar27ActiveContracts.length} (CC only), 11/2026 currentCycleDebtRp = Rp 4,522,976, 12/2026 currentCycleDebtRp = Rp 4,189,341, P1 vault = Rp ${p1AccountsTotal}.`,
+      `  PASS: Zero Hoodie P1 leak, 03/2027 contracts = ${mar27ActiveContracts.length} (CC only), 11/2026 currentCycleDebtRp = Rp 4,522,976, 12/2026 currentCycleDebtRp = Rp 4,260,841, P1 vault = Rp ${p1AccountsTotal}.`,
     );
 
     // 11. Verify Two-Stage 02/2027 Payday Date (Jan 27, 2027) & Non-Double-Counted Dec 2026 Natal THR Timeline

@@ -122,7 +122,7 @@ export function ToastViewport() {
                           item.action?.onClick();
                           dismiss(item.id);
                         }}
-                        className="mt-1 inline-block text-[11px] font-mono text-delta-positive hover:underline cursor-pointer"
+                        className="mt-1 inline-block text-[11px] font-sans font-medium text-delta-positive hover:underline cursor-pointer"
                       >
                         {item.action.label}
                       </button>

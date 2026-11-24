@@ -11,6 +11,7 @@ import {
 import { formatRupiah } from "@/lib/utils";
 import { useToast } from "@/context/ToastContext";
 import { useConfirmDialog } from "@/context/ConfirmDialogContext";
+import { usePrivacyGuard } from "@/hooks/usePrivacyGuard";
 
 interface SavingsGoalsCardProps {
   goals: EnrichedSavingsGoal[];
@@ -36,6 +37,7 @@ export function SavingsGoalsCard({
 }: SavingsGoalsCardProps) {
   const { toast } = useToast();
   const { confirmDialog } = useConfirmDialog();
+  const { requireUnmasked } = usePrivacyGuard();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<EnrichedSavingsGoal | null>(null);
 
@@ -50,6 +52,7 @@ export function SavingsGoalsCard({
   const [error, setError] = useState<string | null>(null);
 
   const openCreateModal = () => {
+    if (!requireUnmasked("Add savings goal")) return;
     setEditingGoal(null);
     setName("");
     setTargetAmount("");
@@ -62,6 +65,7 @@ export function SavingsGoalsCard({
   };
 
   const openEditModal = (goal: EnrichedSavingsGoal) => {
+    if (!requireUnmasked("Edit savings goal")) return;
     setEditingGoal(goal);
     setName(goal.name);
     setTargetAmount(goal.targetAmount.toString());

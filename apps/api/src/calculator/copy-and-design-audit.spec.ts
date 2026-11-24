@@ -1023,4 +1023,120 @@ describe('System-Wide Anti-AI-Slop Visual Design, Temporal Chart Axis & Human Co
     const globalsCss = fs.readFileSync(path.join(WEB_DIR, 'app', 'globals.css'), 'utf8');
     expect(globalsCss).toMatch(/\.erp-toast-viewport:is\(:popover-open,[^)]*\)\s*\{\s*display:\s*block;/);
   });
+
+  it('enforces popover toggle/scroll anchoring, Privacy Mask edit guard, settled bill validation, interactive calendar trajectory, clean typography, and Payroll workbench', () => {
+    const radarGo = fs.readFileSync(
+      path.join(REPO_ROOT, 'apps', 'go-engine', 'internal', 'timeline', 'radar.go'),
+      'utf8',
+    );
+    const hybridTs = fs.readFileSync(
+      path.join(REPO_ROOT, 'apps', 'api', 'src', 'calculator', 'hybrid-engine.ts'),
+      'utf8',
+    );
+    const reportsTs = fs.readFileSync(
+      path.join(REPO_ROOT, 'apps', 'api', 'src', 'calculator', 'reports.ts'),
+      'utf8',
+    );
+    const modularTs = fs.readFileSync(
+      path.join(REPO_ROOT, 'apps', 'api', 'src', 'calculator', 'modular-engine.ts'),
+      'utf8',
+    );
+    const snapshotsSvc = fs.readFileSync(
+      path.join(REPO_ROOT, 'apps', 'api', 'src', 'snapshots', 'snapshots.service.ts'),
+      'utf8',
+    );
+
+    expect(radarGo).not.toContain('Priority 1 Core Savings');
+    expect(hybridTs).not.toContain('Priority 1 Core Savings');
+    expect(reportsTs).not.toContain('Core Savings (Priority 1)');
+    expect(modularTs).not.toContain('Priority 1 Core Savings');
+    expect(snapshotsSvc).not.toContain('Priority 1 Core Savings');
+
+    const datePickerSrc = fs.readFileSync(
+      path.join(WEB_DIR, 'components', 'primitives', 'ErpDatePicker.tsx'),
+      'utf8',
+    );
+    expect(datePickerSrc).toContain('popoverTarget={disabled ? undefined : popoverId}');
+    expect(datePickerSrc).toContain('"scroll"');
+    expect(datePickerSrc).toContain('hidePopover');
+    expect(datePickerSrc).toContain('capture: true');
+
+    const localeSwitcherSrc = fs.readFileSync(
+      path.join(WEB_DIR, 'components', 'shell', 'LanguageSwitcher.tsx'),
+      'utf8',
+    );
+    expect(localeSwitcherSrc).toContain('popoverTarget="locale-menu-popover"');
+    expect(localeSwitcherSrc).toContain('"scroll"');
+
+    const privacyGuardPath = path.join(WEB_DIR, 'hooks', 'usePrivacyGuard.ts');
+    expect(fs.existsSync(privacyGuardPath)).toBe(true);
+    const privacyGuardSrc = fs.readFileSync(privacyGuardPath, 'utf8');
+    expect(privacyGuardSrc).toContain('requireUnmasked');
+
+    const guardedFiles = [
+      path.join(WEB_DIR, 'components', 'overview', 'EditableTarget.tsx'),
+      path.join(WEB_DIR, 'components', 'overview', 'RoutineBillsQuotaCard.tsx'),
+      path.join(WEB_DIR, 'components', 'overview', 'CoreSavingsCard.tsx'),
+      path.join(WEB_DIR, 'components', 'overview', 'AdaptiveDailyPacingCard.tsx'),
+      path.join(WEB_DIR, 'components', 'payroll', 'PayrollAdjustmentForm.tsx'),
+      path.join(WEB_DIR, 'components', 'overview', 'BudgetRevisionHistoryPopover.tsx'),
+      path.join(WEB_DIR, 'components', 'ledger', 'LedgerClientView.tsx'),
+      path.join(WEB_DIR, 'components', 'overview', 'RecentTransactionsTable.tsx'),
+      path.join(WEB_DIR, 'components', 'credit', 'matrix', 'MatrixCellDrawer.tsx'),
+      path.join(WEB_DIR, 'components', 'savings', 'SavingsGoalsCard.tsx'),
+      path.join(WEB_DIR, 'components', 'credit', 'CreditUsageLimitPanel.tsx'),
+      path.join(WEB_DIR, 'components', 'preferences', 'SubscriptionKillSwitchTab.tsx'),
+    ];
+    for (const f of guardedFiles) {
+      const src = fs.readFileSync(f, 'utf8');
+      expect({ file: path.basename(f), hasGuard: src.includes('usePrivacyGuard') }).toEqual({
+        file: path.basename(f),
+        hasGuard: true,
+      });
+    }
+
+    const donutSrc = fs.readFileSync(
+      path.join(WEB_DIR, 'components', 'allocations', 'AllocationsDonutChart.tsx'),
+      'utf8',
+    );
+    expect(donutSrc).toContain('usePrivacyMask');
+    expect(donutSrc).toContain('isAmountsMasked');
+
+    const routineCardSrc = fs.readFileSync(
+      path.join(WEB_DIR, 'components', 'overview', 'RoutineBillsQuotaCard.tsx'),
+      'utf8',
+    );
+    expect(routineCardSrc).toContain('isSettledInFull');
+    expect(routineCardSrc).toContain('isLocked || isSettledInFull');
+    expect(routineCardSrc).not.toMatch(/text-\[1[01]px\] font-mono[^>]*>(?:Settled in full|\{isCustomOpen \? "Close" : "\+ Extra"\}|Enable \/ Adjust Routine Quota)/);
+    expect(routineCardSrc).not.toContain('font-mono text-text-tertiary hover:text-text-primary transition-colors cursor-pointer');
+
+    const selfRewardSrc = fs.readFileSync(
+      path.join(WEB_DIR, 'components', 'overview', 'SelfRewardBufferCard.tsx'),
+      'utf8',
+    );
+    expect(selfRewardSrc).not.toMatch(/font-mono text-text-tertiary">\s*Secondary Allocations/);
+
+    const coreSavingsSrc = fs.readFileSync(
+      path.join(WEB_DIR, 'components', 'overview', 'CoreSavingsCard.tsx'),
+      'utf8',
+    );
+    expect(coreSavingsSrc).not.toMatch(/font-mono text-text-secondary hover:text-text-primary[^\"]*">\s*\{t\("overview\.forwardBorrowP1"\)\}/);
+
+    const calendarSrc = fs.readFileSync(
+      path.join(WEB_DIR, 'components', 'calendar', 'CashRadarCalendarClient.tsx'),
+      'utf8',
+    );
+    expect(calendarSrc).toContain('hoveredIso');
+    expect(calendarSrc).not.toContain('handleShiftPeriod(-1)');
+    expect(calendarSrc).not.toMatch(/text-\[11px\] font-mono text-text-tertiary[^"]*">\s*\{radar \? `Credited/);
+    expect(calendarSrc).not.toMatch(/text-\[11px\] font-mono text-text-tertiary[^"]*">\s*\{radar\s*\?\s*`\$\{radar\.events/);
+
+    const payrollFormSrc = fs.readFileSync(
+      path.join(WEB_DIR, 'components', 'payroll', 'PayrollAdjustmentForm.tsx'),
+      'utf8',
+    );
+    expect(payrollFormSrc).not.toMatch(/<select[\s>]/);
+    expect(payrollFormSrc).toContain('PRORATED_EXACT');
+  });
 });

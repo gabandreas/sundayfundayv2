@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { Trash2, Pencil, Check, X } from "lucide-react";
 import { Transaction, deleteFinanceTransaction, updateFinanceTransaction } from "@/lib/api";
 import { DataTableRow, DataTableHeader } from "@/components/primitives/DataTableRow";
-import { usePrivacyMask } from "@/context/PrivacyMaskContext";
+import { usePrivacyGuard } from "@/hooks/usePrivacyGuard";
 import { useLanguage } from "@/context/LanguageContext";
 import {
   formatRupiah,
@@ -27,7 +27,7 @@ export function RecentTransactionsTable({
   transactions,
   isLocked,
 }: RecentTransactionsTableProps) {
-  const { isAmountsMasked } = usePrivacyMask();
+  const { isAmountsMasked, requireUnmasked } = usePrivacyGuard();
   const { t } = useLanguage();
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
@@ -43,6 +43,7 @@ export function RecentTransactionsTable({
 
   const handleStartEdit = (tx: Transaction) => {
     if (isLocked) return;
+    if (!requireUnmasked("Edit transaction")) return;
     setConfirmDeleteId(null);
     setErrorMsg(null);
     setEditingId(tx.id);
@@ -171,6 +172,7 @@ export function RecentTransactionsTable({
                     <button
                       type="button"
                       onClick={() => {
+                        if (!requireUnmasked("Delete transaction")) return;
                         setEditingId(null);
                         setConfirmDeleteId(tx.id);
                       }}

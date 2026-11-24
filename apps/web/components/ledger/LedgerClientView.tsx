@@ -16,6 +16,7 @@ import {
 } from "@/lib/utils";
 import { DataTableHeader, DataTableRow } from "@/components/primitives/DataTableRow";
 import { useLanguage } from "@/context/LanguageContext";
+import { usePrivacyGuard } from "@/hooks/usePrivacyGuard";
 import { exportLedgerToExcel } from "@/lib/exportLedgerExcel";
 import { CashReconciliationModal } from "@/components/finance/CashReconciliationModal";
 import { ErpDatePicker } from "@/components/primitives/ErpDatePicker";
@@ -57,6 +58,7 @@ export function LedgerClientView({
   pacing,
 }: LedgerClientViewProps) {
   const { t } = useLanguage();
+  const { requireUnmasked } = usePrivacyGuard();
   const [activeTab, setActiveTab] = useState<LedgerFilterTab>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [deletingId, setDeletingId] = useState<number | null>(null);
@@ -155,6 +157,7 @@ export function LedgerClientView({
 
   // Edit handler
   const handleOpenEdit = (tx: Transaction) => {
+    if (!requireUnmasked("Edit transaction")) return;
     setConfirmDeleteId(null);
     setEditingTransaction(tx);
     setEditLabel(tx.label);

@@ -15,57 +15,81 @@ export function LanguageSwitcher({ compact = false }: { compact?: boolean }) {
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const panelRef = useRef<(HTMLDivElement & { showPopover?: () => void; hidePopover?: () => void }) | null>(null);
   const [panelPos, setPanelPos] = useState<{ top: number; left: number }>({ top: 52, left: 0 });
+  const [isOpen, setIsOpen] = useState<boolean>(false);
 
   const currentOpt = LOCALE_OPTIONS.find((o) => o.code === locale) ?? LOCALE_OPTIONS[0];
 
   const computePos = useCallback(() => {
     const trigger = triggerRef.current;
+    const panel = panelRef.current;
     if (!trigger || typeof window === "undefined") return;
     const rect = trigger.getBoundingClientRect();
+    if (rect.width === 0 || rect.bottom < 0 || rect.top > window.innerHeight - 16) {
+      try {
+        if (panel?.matches(":popover-open")) {
+          panel.hidePopover?.();
+        }
+      } catch {}
+      return;
+    }
     const width = 176;
     const top = rect.bottom + 6;
     const left = Math.max(12, Math.min(rect.right - width, window.innerWidth - width - 12));
-    setPanelPos({ top, left });
+    setPanelPos({ top: Math.round(top), left: Math.round(left) });
   }, []);
 
   useEffect(() => {
     const panel = panelRef.current;
     if (!panel) return;
-    const onToggle = (ev: Event) => {
+    const onBeforeToggle = (ev: Event) => {
       if ((ev as ToggleEvent).newState === "open") {
         computePos();
       }
     };
-    panel.addEventListener("toggle", onToggle);
-    return () => panel.removeEventListener("toggle", onToggle);
-  }, [computePos]);
-
-  if (compact) {
-    const handleToggle = () => {
-      const panel = panelRef.current;
-      if (!panel) return;
-      try {
-        if (panel.matches(":popover-open")) {
-          panel.hidePopover?.();
-          return;
-        }
-        computePos();
-        panel.showPopover?.();
-      } catch {
+    const onToggle = (ev: Event) => {
+      const open = (ev as ToggleEvent).newState === "open";
+      setIsOpen(open);
+      if (open) {
         computePos();
       }
     };
+    panel.addEventListener("beforetoggle", onBeforeToggle);
+    panel.addEventListener("toggle", onToggle);
+    return () => {
+      panel.removeEventListener("beforetoggle", onBeforeToggle);
+      panel.removeEventListener("toggle", onToggle);
+    };
+  }, [computePos]);
 
+  useEffect(() => {
+    if (!isOpen || typeof window === "undefined") return;
+    let rafId = 0;
+    const onScrollOrResize = () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => computePos());
+    };
+    window.addEventListener("scroll", onScrollOrResize, { capture: true, passive: true });
+    window.addEventListener("resize", onScrollOrResize, { passive: true });
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      window.removeEventListener("scroll", onScrollOrResize, { capture: true });
+      window.removeEventListener("resize", onScrollOrResize);
+    };
+  }, [isOpen, computePos]);
+
+  if (compact) {
     return (
       <div className="relative shrink-0">
         <button
           ref={triggerRef}
           id="locale-menu-trigger"
           type="button"
-          onClick={handleToggle}
+          popoverTarget="locale-menu-popover"
+          aria-expanded={isOpen}
+          aria-haspopup="menu"
           title={currentOpt.label}
           aria-label={`Language: ${currentOpt.label}`}
-          className="h-8 px-2 rounded-md border border-border-subtle bg-surface/60 hover:bg-surface hover:border-border inline-flex items-center gap-1.5 text-[11px] font-mono text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
+          className="h-8 px-2 rounded-md border border-border-subtle bg-surface/60 hover:bg-surface hover:border-border inline-flex items-center gap-1.5 text-[11px] font-sans text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
         >
           <Globe className="w-3.5 h-3.5 text-text-tertiary shrink-0" strokeWidth={1.8} />
           <span className="font-medium text-text-primary">{currentOpt.short}</span>

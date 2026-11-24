@@ -6,7 +6,7 @@ import { ArrowUpRight, X } from "lucide-react";
 import { MonthlySnapshot, borrowFromP1Vault, resolvePriorityTierLabel } from "@/lib/api";
 import { formatRupiah, formatCurrencyInput, parseCurrencyInput } from "@/lib/utils";
 import { EditableTarget } from "./EditableTarget";
-import { usePrivacyMask } from "@/context/PrivacyMaskContext";
+import { usePrivacyGuard } from "@/hooks/usePrivacyGuard";
 import { useLanguage } from "@/context/LanguageContext";
 import { usePerspective } from "@/context/PerspectiveContext";
 import { useToast } from "@/context/ToastContext";
@@ -17,7 +17,7 @@ interface CoreSavingsCardProps {
 }
 
 export function CoreSavingsCard({ snapshot, isLocked }: CoreSavingsCardProps) {
-  const { isAmountsMasked } = usePrivacyMask();
+  const { isAmountsMasked, requireUnmasked } = usePrivacyGuard();
   const { t } = useLanguage();
   const { studioConfig } = usePerspective();
   const { toast } = useToast();
@@ -92,7 +92,7 @@ export function CoreSavingsCard({ snapshot, isLocked }: CoreSavingsCardProps) {
             <span className="text-[11px] font-semibold text-text-tertiary font-sans">
               {t("overview.coreSavings")}
             </span>
-            <span className="text-[10px] font-mono text-text-tertiary">
+            <span className="text-[11px] font-sans text-text-tertiary">
               {savingsTierLabel}
             </span>
           </div>
@@ -104,8 +104,8 @@ export function CoreSavingsCard({ snapshot, isLocked }: CoreSavingsCardProps) {
               </span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="text-xs font-mono text-text-secondary tabular-nums whitespace-nowrap">
-                of {formatRupiah(targetSavings, isAmountsMasked)}
+              <span className="text-xs font-sans text-text-secondary whitespace-nowrap">
+                of <span className="font-mono tabular-nums">{formatRupiah(targetSavings, isAmountsMasked)}</span>
               </span>
               {snapshot && (
                 <EditableTarget
@@ -128,12 +128,21 @@ export function CoreSavingsCard({ snapshot, isLocked }: CoreSavingsCardProps) {
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
-            <div className="flex justify-between items-center text-[10px] font-mono text-text-tertiary">
-              <span>{progressPercent}% funded</span>
+            <div className="flex justify-between items-center text-[11px] font-sans text-text-tertiary">
               <span>
-                {actualSavings >= targetSavings
-                  ? "Target met"
-                  : `Shortfall: ${formatRupiah(targetSavings - actualSavings, isAmountsMasked)}`}
+                <span className="font-mono tabular-nums">{progressPercent}%</span> funded
+              </span>
+              <span>
+                {actualSavings >= targetSavings ? (
+                  "Target met"
+                ) : (
+                  <>
+                    Shortfall:{" "}
+                    <span className="font-mono tabular-nums">
+                      {formatRupiah(targetSavings - actualSavings, isAmountsMasked)}
+                    </span>
+                  </>
+                )}
               </span>
             </div>
           </div>
@@ -145,10 +154,11 @@ export function CoreSavingsCard({ snapshot, isLocked }: CoreSavingsCardProps) {
             <button
               type="button"
               onClick={() => {
+                if (!requireUnmasked(t("overview.forwardBorrowP1"))) return;
                 setErrorMsg(null);
                 setIsBorrowModalOpen(true);
               }}
-              className="text-[11px] font-mono text-text-secondary hover:text-text-primary underline-offset-2 hover:underline cursor-pointer"
+              className="text-[11px] font-sans text-text-secondary hover:text-text-primary underline-offset-2 hover:underline cursor-pointer"
             >
               {t("overview.forwardBorrowP1")}
             </button>

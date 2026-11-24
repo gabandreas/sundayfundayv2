@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Check } from "lucide-react";
 import { dispatchOptimisticMatrixBulk, updateBulkBillCell } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
-import { usePrivacyMask } from "@/context/PrivacyMaskContext";
+import { usePrivacyGuard } from "@/hooks/usePrivacyGuard";
 
 interface InlineBulkBillCellProps {
   bulkBillId?: number;
@@ -61,7 +61,7 @@ export function InlineBulkBillCell({
   safeHeadroom = 0,
   onOpenDrawer,
 }: InlineBulkBillCellProps) {
-  const { isAmountsMasked } = usePrivacyMask();
+  const { isAmountsMasked, requireUnmasked } = usePrivacyGuard();
   const [isEditing, setIsEditing] = useState(false);
   const [inputValue, setInputValue] = useState(String(initialAmount || ""));
   const [optimisticAmount, setOptimisticAmount] = useState<number | null>(null);
@@ -86,6 +86,7 @@ export function InlineBulkBillCell({
 
   const handleStartEdit = () => {
     if (disabled) return;
+    if (!requireUnmasked("Edit monthly bill total")) return;
     committedOnEnterRef.current = false;
     setErrorMessage(null);
     setInputValue(displayedAmount ? String(displayedAmount) : "");

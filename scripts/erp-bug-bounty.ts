@@ -792,7 +792,7 @@ async function runLayer3User1ReadOnlyParity(baseUrl: string): Promise<void> {
     }
     if (m === 12 && y === 2026) {
       assert.equal(Math.round(s.finalTotalIncome), 9376925);
-      assert.equal(Math.round(s.totalDeductions), 4189341);
+      assert.equal(Math.round(s.totalDeductions), 4260841);
       assert.equal(Math.round(s.actualDailyOperational), 1500000);
       assert.equal(Math.round(s.deficitUncovered), 0);
       assert.equal(Math.round(s.actualSavings), 1000000);

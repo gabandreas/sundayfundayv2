@@ -168,7 +168,7 @@ export function BudgetRevisionModal({
 
         <div className="space-y-4">
           <div>
-            <div className="text-[10px] font-mono text-text-tertiary">
+            <div className="text-[11px] font-sans text-text-tertiary">
               Budget Target Revision
             </div>
             <h2

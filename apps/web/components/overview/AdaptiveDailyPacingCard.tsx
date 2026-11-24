@@ -25,7 +25,7 @@ import {
 } from "@/lib/api";
 import { MiniTrendChart } from "@/components/primitives/MiniTrendChart";
 import { formatRupiah, formatCurrencyInput } from "@/lib/utils";
-import { usePrivacyMask } from "@/context/PrivacyMaskContext";
+import { usePrivacyGuard } from "@/hooks/usePrivacyGuard";
 import { useLanguage } from "@/context/LanguageContext";
 import { usePeriod } from "@/context/PeriodContext";
 import { usePerspective } from "@/context/PerspectiveContext";
@@ -71,7 +71,7 @@ export function AdaptiveDailyPacingCard({
   totalOperationalBudget,
   transactions = [],
 }: AdaptiveDailyPacingCardProps) {
-  const { isAmountsMasked } = usePrivacyMask();
+  const { isAmountsMasked, requireUnmasked } = usePrivacyGuard();
   const { t } = useLanguage();
   const { revisionTick } = usePeriod();
   const { studioConfig } = usePerspective();
@@ -115,6 +115,12 @@ export function AdaptiveDailyPacingCard({
   useEffect(() => {
     setIncludesRoutineBills(remainingRoutineBillsPool > 0);
   }, [remainingRoutineBillsPool]);
+
+  useEffect(() => {
+    if (isAmountsMasked) {
+      setShowSyncPanel(false);
+    }
+  }, [isAmountsMasked]);
 
   useEffect(() => {
     let cancelled = false;
@@ -235,6 +241,7 @@ export function AdaptiveDailyPacingCard({
 
   const handleUndoAdjustment = async (txId: number) => {
     if (isLocked || undoingTxId !== null) return;
+    if (!requireUnmasked(t("overview.balanceHistory"))) return;
 
     setUndoingTxId(txId);
     setSyncError(null);
@@ -657,6 +664,9 @@ export function AdaptiveDailyPacingCard({
                 type="button"
                 onClick={() => {
                   const next = !showSyncPanel;
+                  if (next && !requireUnmasked(t("overview.checkpointTitle"))) {
+                    return;
+                  }
                   setShowSyncPanel(next);
                   if (next) {
                     setTimeout(() => walletInputRef.current?.focus(), 20);
@@ -864,11 +874,14 @@ export function AdaptiveDailyPacingCard({
             className="w-full flex items-center justify-between text-[11px] text-text-tertiary hover:text-text-secondary transition-colors cursor-pointer py-1"
           >
             <span className="font-sans font-medium">
-              {t("overview.balanceHistory")} ({balanceHistory.length})
+              {t("overview.balanceHistory")} (<span className="font-mono tabular-nums">{balanceHistory.length}</span>)
             </span>
             <div className="flex items-center gap-1">
-              <span className="font-mono text-[10px]">
-                {t("overview.adjustmentsLabel")}: {formatIdr(netBalanceAdjustment)}
+              <span className="font-sans text-[11px]">
+                {t("overview.adjustmentsLabel")}:{" "}
+                <span className="font-mono text-[10px] tabular-nums">
+                  {formatIdr(netBalanceAdjustment)}
+                </span>
               </span>
               {showBalanceHistory ? (
                 <ChevronUp className="w-3.5 h-3.5" />
@@ -903,7 +916,7 @@ export function AdaptiveDailyPacingCard({
                             <span className="font-mono text-[10px] text-text-tertiary">
                               {formatTimestamp(tx.createdAt || tx.date)}
                             </span>
-                            <span className="text-[9px] font-mono px-1.5 py-0.2 rounded font-medium bg-surface text-text-secondary border border-border">
+                            <span className="text-[10px] font-sans px-1.5 py-0.5 rounded font-medium bg-surface text-text-secondary border border-border">
                               {tx.type === "DEDUCTION" ? "Outflow" : "Inflow"}
                             </span>
                           </div>
@@ -930,7 +943,7 @@ export function AdaptiveDailyPacingCard({
                               disabled={undoingTxId === tx.id}
                               onClick={() => handleUndoAdjustment(tx.id)}
                               title="Undo last adjustment"
-                              className="px-1.5 py-0.5 rounded text-[10px] font-mono border border-border hover:border-urgency text-text-tertiary hover:text-urgency transition-colors inline-flex items-center gap-1 cursor-pointer disabled:opacity-40"
+                              className="px-2 py-0.5 rounded text-[10px] font-sans border border-border hover:border-urgency text-text-tertiary hover:text-urgency transition-colors inline-flex items-center gap-1 cursor-pointer disabled:opacity-40"
                             >
                               {undoingTxId === tx.id ? (
                                 <Loader2 className="w-2.5 h-2.5 animate-spin" />

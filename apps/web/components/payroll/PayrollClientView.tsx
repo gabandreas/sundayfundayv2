@@ -214,14 +214,14 @@ export function PayrollClientView({
                         <button
                           type="button"
                           onClick={() => setShowManualThrEstimator(true)}
-                          className="font-mono text-[11px] text-accent hover:underline cursor-pointer"
+                          className="font-sans text-[11px] font-medium text-accent hover:underline cursor-pointer"
                         >
                           Estimate {thrConfig?.label || "Holiday Bonus"}
                         </button>
                       )}
                       <Link
                         href="/preferences?sub=payroll"
-                        className="font-mono text-[11px] text-text-secondary hover:text-text-primary hover:underline"
+                        className="font-sans text-[11px] text-text-secondary hover:text-text-primary hover:underline"
                       >
                         Configure in Preferences
                       </Link>
@@ -231,7 +231,7 @@ export function PayrollClientView({
               </div>
             )}
 
-            <div className={`${showCorporatePayroll ? "lg:col-span-5" : "lg:col-span-12"} space-y-6`}>
+            <div className={`${showCorporatePayroll ? "lg:col-span-5" : "lg:col-span-12"} space-y-5`}>
               {snapshot && showCorporatePayroll && (
                 <PayrollAdjustmentForm
                   key={`payroll-form-${snapshot.id}-${month}-${year}`}
@@ -254,18 +254,36 @@ export function PayrollClientView({
                 />
               )}
 
+              {!showCorporatePayroll && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                  <ContractualBaseRateEditor
+                    key={`contract-rates-std-${month}-${year}`}
+                    month={month}
+                    year={year}
+                    isLocked={isLocked}
+                    config={config}
+                    hideAllowances={true}
+                  />
+                  <QuickIncomeForm month={month} year={year} isLocked={isLocked} />
+                </div>
+              )}
+            </div>
+          </section>
+
+          {showCorporatePayroll && (
+            <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
               <ContractualBaseRateEditor
                 key={`contract-rates-${month}-${year}`}
                 month={month}
                 year={year}
                 isLocked={isLocked}
                 config={config}
-                hideAllowances={!showCorporatePayroll}
+                hideAllowances={false}
               />
 
               <QuickIncomeForm month={month} year={year} isLocked={isLocked} />
-            </div>
-          </section>
+            </section>
+          )}
         </div>
       )}
 

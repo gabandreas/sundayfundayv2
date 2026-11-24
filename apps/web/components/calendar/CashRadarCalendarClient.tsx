@@ -19,7 +19,6 @@ import {
   fetchCashRadar,
 } from "@/lib/api";
 import { usePeriodSlice } from "@/hooks/usePeriodSlice";
-import { usePeriod } from "@/context/PeriodContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 import { formatRupiah } from "@/lib/utils";
@@ -228,9 +227,8 @@ export function CashRadarCalendarClient({
   initialYear,
   initialData,
 }: CashRadarCalendarClientProps) {
-  const { locale } = useLanguage();
+  const { locale, t: tGlobal } = useLanguage();
   const { isAmountsMasked } = usePrivacyMask();
-  const { setPeriod } = usePeriod();
   const t = COPY_BY_LOCALE[locale] ?? COPY_BY_LOCALE.en;
 
   const maskRp = useCallback(
@@ -256,6 +254,7 @@ export function CashRadarCalendarClient({
 
   const radar = data?.radar ?? null;
   const [filterMode, setFilterMode] = useState<EventFilterMode>("ALL");
+  const [hoveredIso, setHoveredIso] = useState<string | null>(null);
   const [selectedIso, setSelectedIso] = useState<string>(() => {
     if (!initialData.radar?.dailySeries?.length) return "";
     const todayPt = initialData.radar.dailySeries.find((d) => d.isToday);
@@ -415,13 +414,15 @@ export function CashRadarCalendarClient({
     };
   }, [activeCycleSeries, effectiveSelectedIso, radar]);
 
-  const handleShiftPeriod = (delta: number) => {
-    const idx = year * 12 + (month - 1) + delta;
-    const nextY = Math.floor(idx / 12);
-    const nextM = (idx % 12) + 1;
-    setPeriod(nextM, nextY);
-    setSelectedIso("");
-  };
+  const hoveredCoord = useMemo(() => {
+    if (!hoveredIso || !chartGeometry) return null;
+    return chartGeometry.coords.find((c) => c.pt.dateIso === hoveredIso) ?? null;
+  }, [hoveredIso, chartGeometry]);
+
+  const totalFilteredEvents = useMemo(() => {
+    if (!radar?.events) return 0;
+    return radar.events.filter(matchesFilter).length;
+  }, [radar, matchesFilter]);
 
   if (isPreBoundary) {
     return (
@@ -437,48 +438,6 @@ export function CashRadarCalendarClient({
         title={t.title}
         subtitle={t.subtitle}
         periodLabel={radar ? `${fmtShortDate(radar.cycleStartIso)} – ${fmtShortDate(radar.cycleEndIso)}` : undefined}
-        rightActions={
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-flex items-center rounded border border-border bg-surface p-0.5 flex-wrap">
-              {(["ALL", "INFLOW", "BILLS", "CUTOFF", "SPENDING"] as EventFilterMode[]).map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => setFilterMode(mode)}
-                  className={`px-2.5 py-1 text-[11px] font-medium rounded-sm cursor-pointer transition-colors ${
-                    filterMode === mode
-                      ? "bg-surface-active text-text-primary"
-                      : "text-text-tertiary hover:text-text-secondary"
-                  }`}
-                >
-                  {t.filters[mode]}
-                </button>
-              ))}
-            </div>
-
-            <div className="inline-flex items-center rounded border border-border bg-surface">
-              <button
-                type="button"
-                onClick={() => handleShiftPeriod(-1)}
-                aria-label={t.prevMonth}
-                className="p-1.5 text-text-secondary hover:text-text-primary hover:bg-surface-hover cursor-pointer"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <span className="px-2.5 text-xs font-mono text-text-primary tabular-nums">
-                {String(month).padStart(2, "0")}/{year}
-              </span>
-              <button
-                type="button"
-                onClick={() => handleShiftPeriod(1)}
-                aria-label={t.nextMonth}
-                className="p-1.5 text-text-secondary hover:text-text-primary hover:bg-surface-hover cursor-pointer"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        }
       />
 
       {/* Summary Metrics Strip */}
@@ -491,8 +450,14 @@ export function CashRadarCalendarClient({
           <div className="text-2xl font-semibold tracking-tight font-display text-positive tabular-nums">
             {radar ? maskRp(radar.paydayInflowsRp) : "Rp 0"}
           </div>
-          <div className="text-[11px] font-mono text-text-tertiary">
-            {radar ? `Credited ${fmtShortDate(radar.cycleStartIso)}` : "-"}
+          <div className="text-[11px] font-sans text-text-tertiary">
+            {radar ? (
+              <>
+                Credited <span className="font-mono tabular-nums">{fmtShortDate(radar.cycleStartIso)}</span>
+              </>
+            ) : (
+              "-"
+            )}
           </div>
         </div>
 
@@ -504,10 +469,17 @@ export function CashRadarCalendarClient({
           <div className="text-2xl font-semibold tracking-tight font-display text-text-primary tabular-nums">
             {radar ? maskRp(radar.totalScheduledBillsRp) : "Rp 0"}
           </div>
-          <div className="text-[11px] font-mono text-text-tertiary">
-            {radar
-              ? `${radar.events.filter((e) => e.signedAmountRp < 0).length} scheduled outflows`
-              : "-"}
+          <div className="text-[11px] font-sans text-text-tertiary">
+            {radar ? (
+              <>
+                <span className="font-mono tabular-nums">
+                  {radar.events.filter((e) => e.signedAmountRp < 0).length}
+                </span>{" "}
+                scheduled outflows
+              </>
+            ) : (
+              "-"
+            )}
           </div>
         </div>
 
@@ -531,10 +503,15 @@ export function CashRadarCalendarClient({
           >
             {radar ? maskRp(radar.lowestCashPoint.balanceRp) : "Rp 0"}
           </div>
-          <div className="text-[11px] font-mono text-text-tertiary truncate">
-            {radar
-              ? `${fmtShortDate(radar.lowestCashPoint.dateIso)} · ${radar.lowestCashPoint.contextLabel}`
-              : "-"}
+          <div className="text-[11px] font-sans text-text-tertiary truncate" title={radar?.lowestCashPoint.contextLabel}>
+            {radar ? (
+              <>
+                <span className="font-mono tabular-nums">{fmtShortDate(radar.lowestCashPoint.dateIso)}</span> ·{" "}
+                {radar.lowestCashPoint.contextLabel}
+              </>
+            ) : (
+              "-"
+            )}
           </div>
         </div>
 
@@ -550,27 +527,100 @@ export function CashRadarCalendarClient({
           >
             {radar ? maskRp(radar.endingCashBufferRp) : "Rp 0"}
           </div>
-          <div className="text-[11px] font-mono text-text-tertiary">
-            {radar ? `Cycle closes ${fmtShortDate(radar.cycleEndIso)}` : "-"}
+          <div className="text-[11px] font-sans text-text-tertiary">
+            {radar ? (
+              <>
+                Cycle closes <span className="font-mono tabular-nums">{fmtShortDate(radar.cycleEndIso)}</span>
+              </>
+            ) : (
+              "-"
+            )}
           </div>
         </div>
       </div>
 
-      {/* Synchronized SVG Cash Curve */}
+      {/* Interactive Synchronized SVG Cash Curve */}
       {chartGeometry && radar && (
         <div className="bg-surface border border-border rounded-lg p-4 space-y-2.5">
           <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-            <span className="font-medium text-text-primary">{t.balanceCurve}</span>
-            <span className="font-mono text-[11px] text-text-tertiary">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span className="font-semibold font-sans text-text-primary">{t.balanceCurve}</span>
+              <span className="text-[11px] font-sans text-text-tertiary">
+                {tGlobal("calendar.hoverHint")}
+              </span>
+            </div>
+            <span className="font-mono text-[11px] text-text-tertiary tabular-nums">
               {fmtShortDate(radar.cycleStartIso)} → {fmtShortDate(radar.cycleEndIso)}
             </span>
           </div>
-          <div className="w-full overflow-hidden">
+          <div className="relative w-full">
+            {hoveredCoord && (
+              <div
+                style={{
+                  left: `${Math.max(12, Math.min(88, (hoveredCoord.x / chartGeometry.width) * 100))}%`,
+                }}
+                className="pointer-events-none absolute -top-2 -translate-y-full -translate-x-1/2 z-30 w-64 rounded-lg border border-border-strong bg-surface-elevated shadow-2xl p-2.5 text-xs space-y-1.5"
+              >
+                <div className="flex items-center justify-between gap-2 border-b border-border-subtle pb-1.5">
+                  <span className="font-mono text-[11px] text-text-primary font-semibold">
+                    {fmtShortDate(hoveredCoord.pt.dateIso)}
+                  </span>
+                  <span
+                    className={`font-mono text-xs font-semibold tabular-nums ${
+                      hoveredCoord.pt.closingBalanceRp < 0
+                        ? "text-urgency"
+                        : hoveredCoord.pt.closingBalanceRp === 0
+                          ? "text-text-secondary"
+                          : "text-positive"
+                    }`}
+                  >
+                    {maskRp(hoveredCoord.pt.closingBalanceRp)}
+                  </span>
+                </div>
+                {(() => {
+                  const netDay = hoveredCoord.pt.inflowsRp - hoveredCoord.pt.outflowsRp;
+                  return (
+                    <div className="flex items-center justify-between text-[10px] font-sans text-text-tertiary">
+                      <span>{tGlobal("calendar.dayDelta")}</span>
+                      {netDay !== 0 ? (
+                        <span
+                          className={`font-mono tabular-nums font-medium ${
+                            netDay > 0 ? "text-positive" : "text-negative"
+                          }`}
+                        >
+                          {netDay > 0 ? "+" : "-"}
+                          {maskRp(Math.abs(netDay))}
+                        </span>
+                      ) : (
+                        <span>{tGlobal("calendar.noMovement")}</span>
+                      )}
+                    </div>
+                  );
+                })()}
+                {hoveredCoord.pt.events.length > 0 && (
+                  <div className="space-y-1 pt-1 border-t border-border-subtle/70">
+                    {hoveredCoord.pt.events.slice(0, 3).map((ev) => (
+                      <div key={ev.id} className="flex items-center justify-between gap-2 text-[10px]">
+                        <span className="font-sans text-text-secondary truncate">{ev.label}</span>
+                        {ev.signedAmountRp !== 0 && (
+                          <span className="font-mono tabular-nums text-text-primary shrink-0">
+                            {ev.signedAmountRp > 0 ? "+" : "-"}
+                            {maskRp(Math.abs(ev.signedAmountRp))}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             <svg
               viewBox={`0 0 ${chartGeometry.width} ${chartGeometry.height}`}
-              className="w-full h-28 overflow-visible"
+              className="w-full h-28 overflow-visible select-none"
               role="img"
               aria-label={t.balanceCurve}
+              onMouseLeave={() => setHoveredIso(null)}
             >
               <line
                 x1={12}
@@ -618,33 +668,110 @@ export function CashRadarCalendarClient({
                   />
                 </>
               )}
+              {hoveredCoord && (
+                <>
+                  <line
+                    x1={hoveredCoord.x}
+                    x2={hoveredCoord.x}
+                    y1={4}
+                    y2={chartGeometry.height - 12}
+                    stroke="#10b78d"
+                    strokeOpacity="0.65"
+                    strokeDasharray="2 2"
+                    strokeWidth="1.25"
+                  />
+                  <circle
+                    cx={hoveredCoord.x}
+                    cy={hoveredCoord.y}
+                    r={5.5}
+                    fill="#0c0e14"
+                    stroke={hoveredCoord.pt.closingBalanceRp < 0 ? "#ff3838" : "#10b78d"}
+                    strokeWidth="2.5"
+                  />
+                </>
+              )}
+              {chartGeometry.coords.map((c) => {
+                const stripW = Math.max(
+                  14,
+                  (chartGeometry.width - 24) / Math.max(1, chartGeometry.coords.length),
+                );
+                return (
+                  <rect
+                    key={c.pt.dateIso}
+                    x={c.x - stripW / 2}
+                    y={0}
+                    width={stripW}
+                    height={chartGeometry.height}
+                    fill="transparent"
+                    className="cursor-pointer"
+                    onMouseEnter={() => setHoveredIso(c.pt.dateIso)}
+                    onClick={() => setSelectedIso(c.pt.dateIso)}
+                  />
+                );
+              })}
             </svg>
           </div>
-          <div className="flex items-center justify-between text-[10px] font-mono text-text-tertiary">
-            <span>{fmtShortDate(radar.cycleStartIso)}</span>
+          <div className="flex items-center justify-between text-[11px] font-sans text-text-tertiary">
+            <span className="font-mono text-[10px] tabular-nums">{fmtShortDate(radar.cycleStartIso)}</span>
             {chartGeometry.troughCoord && (
               <span>
-                Lowest: {fmtShortDate(radar.lowestCashPoint.dateIso)} (
-                {maskRp(radar.lowestCashPoint.balanceRp)})
+                Lowest:{" "}
+                <span className="font-mono text-[10px] tabular-nums">
+                  {fmtShortDate(radar.lowestCashPoint.dateIso)} ({maskRp(radar.lowestCashPoint.balanceRp)})
+                </span>
               </span>
             )}
-            <span>{fmtShortDate(radar.cycleEndIso)}</span>
+            <span className="font-mono text-[10px] tabular-nums">{fmtShortDate(radar.cycleEndIso)}</span>
           </div>
         </div>
       )}
+
+      {/* Dedicated Activity Filter Toolbar (Cleanly Separated Above Calendar & Inspector) */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div
+          role="tablist"
+          aria-label="Calendar activity filter"
+          className="inline-flex items-center rounded-md border border-border bg-surface p-0.5 flex-wrap gap-0.5"
+        >
+          {(["ALL", "INFLOW", "BILLS", "CUTOFF", "SPENDING"] as EventFilterMode[]).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              role="tab"
+              aria-selected={filterMode === mode}
+              onClick={() => setFilterMode(mode)}
+              className={`px-3 py-1.5 text-xs font-sans font-medium rounded-sm cursor-pointer transition-colors ${
+                filterMode === mode
+                  ? "bg-surface-active text-text-primary"
+                  : "text-text-tertiary hover:text-text-secondary"
+              }`}
+            >
+              {t.filters[mode]}
+            </button>
+          ))}
+        </div>
+
+        <div className="text-xs font-sans text-text-tertiary">
+          Showing{" "}
+          <span className="font-mono tabular-nums text-text-primary font-medium">
+            {totalFilteredEvents}
+          </span>{" "}
+          scheduled events
+        </div>
+      </div>
 
       {/* Main Split: Calendar Grid + Day Inspector */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         <div className="lg:col-span-8 bg-surface border border-border rounded-lg overflow-hidden">
           {isLoading ? (
-            <div className="p-8 text-center text-xs text-text-secondary font-mono">{t.loading}</div>
+            <div className="p-8 text-center text-xs text-text-secondary font-sans">{t.loading}</div>
           ) : (
             <>
               <div className="grid grid-cols-7 border-b border-border bg-surface-subtle/50">
                 {t.weekdays.map((wd) => (
                   <div
                     key={wd}
-                    className="py-2 px-2.5 text-[10px] font-mono text-text-tertiary border-r last:border-r-0 border-border-subtle"
+                    className="py-2 px-2.5 text-[11px] font-sans font-medium text-text-tertiary border-r last:border-r-0 border-border-subtle"
                   >
                     {wd}
                   </div>
@@ -777,7 +904,7 @@ export function CashRadarCalendarClient({
         <aside className="lg:col-span-4 bg-surface border border-border rounded-lg p-4 space-y-4">
           <div className="flex items-center justify-between border-b border-border-subtle pb-3">
             <div>
-              <div className="text-[10px] font-mono text-text-tertiary">
+              <div className="text-[11px] font-sans text-text-tertiary">
                 {t.selectedDayInspector}
               </div>
               <div className="text-base font-semibold text-text-primary font-mono mt-0.5">
@@ -785,7 +912,7 @@ export function CashRadarCalendarClient({
               </div>
             </div>
             <span
-              className={`px-2 py-0.5 rounded-sm text-[10px] font-mono ${
+              className={`px-2 py-0.5 rounded-sm text-[11px] font-sans ${
                 selectedPoint?.inActiveCycle
                   ? "bg-positive/10 text-positive border border-positive/20"
                   : "bg-surface-subtle text-text-tertiary border border-border-subtle"
@@ -798,7 +925,7 @@ export function CashRadarCalendarClient({
           {selectedPoint && (
             <div className="grid grid-cols-2 gap-2.5">
               <div className="rounded bg-canvas border border-border-subtle p-2.5">
-                <div className="text-[10px] font-mono text-text-tertiary">
+                <div className="text-[11px] font-sans text-text-tertiary">
                   {t.openingCash}
                 </div>
                 <div className="text-xs font-mono text-text-secondary tabular-nums mt-0.5">
@@ -806,7 +933,7 @@ export function CashRadarCalendarClient({
                 </div>
               </div>
               <div className="rounded bg-canvas border border-border-subtle p-2.5">
-                <div className="text-[10px] font-mono text-text-tertiary">
+                <div className="text-[11px] font-sans text-text-tertiary">
                   {t.closingCash}
                 </div>
                 <div
@@ -890,7 +1017,7 @@ export function CashRadarCalendarClient({
                     )}
 
                     {ev.insideAllocatedPool && (
-                      <div className="text-[10px] font-mono text-text-tertiary pt-0.5">
+                      <div className="text-[10px] font-sans text-text-tertiary pt-0.5">
                         {t.insidePoolNote}
                       </div>
                     )}

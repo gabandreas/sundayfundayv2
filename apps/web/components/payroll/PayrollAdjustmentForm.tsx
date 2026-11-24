@@ -14,6 +14,7 @@ import {
 import { formatRupiah } from "@/lib/utils";
 import { ErpDatePicker } from "@/components/primitives/ErpDatePicker";
 import { useToast } from "@/context/ToastContext";
+import { usePrivacyGuard } from "@/hooks/usePrivacyGuard";
 
 interface PayrollAdjustmentFormProps {
   snapshotId: number;
@@ -34,12 +35,12 @@ interface PayrollAdjustmentFormProps {
   onAdjusted?: () => void;
 }
 
-type ThrMode = "NO_THR" | "PRORATED" | "FULL_THR" | "CUSTOM";
+type ThrMode = "NO_THR" | "PRORATED_EXACT" | "PRORATED" | "FULL_THR" | "CUSTOM";
 
 const STAGE_BADGE_LABELS: Record<PayrollAdjustmentStage, string> = {
-  POST_NET_DEDUCTION: "Direct Deduction (Post-Net)",
+  POST_NET_DEDUCTION: "Post-Net Deduction",
   PRE_NET_DEDUCTION: "Pre-Net Deduction",
-  PRE_NET_EARNING: "Pre-Net Earning",
+  PRE_NET_EARNING: "Pre-Net Earning (+)",
 };
 
 export function PayrollAdjustmentForm({
@@ -61,6 +62,7 @@ export function PayrollAdjustmentForm({
   onAdjusted,
 }: PayrollAdjustmentFormProps) {
   const { toast } = useToast();
+  const { isAmountsMasked, requireUnmasked } = usePrivacyGuard();
   const [totalWorkingDays, setTotalWorkingDays] = useState(initialWorkingDays.toString());
   const [salaryAdjustment, setSalaryAdjustment] = useState(initialSalaryAdjustment.toString());
   const [cafeteriaDeduction, setCafeteriaDeduction] = useState(initialCafeteriaDeduction.toString());
@@ -75,7 +77,7 @@ export function PayrollAdjustmentForm({
         return "FULL_THR";
       }
       if (month === thrPayoutMonth && thrEnabledInConfig) {
-        return "PRORATED";
+        return "PRORATED_EXACT";
       }
       return "CUSTOM";
     }
@@ -157,6 +159,8 @@ export function PayrollAdjustmentForm({
     switch (thrMode) {
       case "NO_THR":
         return 0;
+      case "PRORATED_EXACT":
+        return Math.round(initialThrAmount);
       case "PRORATED": {
         const tenure = parseFloat(tenureMonths) || 0;
         return Math.round((tenure / 12) * effectiveBase);
@@ -173,6 +177,7 @@ export function PayrollAdjustmentForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isLocked || isSubmitting) return;
+    if (!requireUnmasked("Save payroll parameters")) return;
 
     const errors: {
       workingDays?: string;
@@ -229,7 +234,7 @@ export function PayrollAdjustmentForm({
       cafeteriaDeduction: isNaN(cafeteriaNum) ? 0 : cafeteriaNum,
       bonusAmount: isNaN(bonusNum) ? 0 : bonusNum,
       thrAmount: effectiveThrAmount,
-      useDecemberProratedThr: isDecember && thrMode === "PRORATED",
+      useDecemberProratedThr: isDecember && (thrMode === "PRORATED_EXACT" || thrMode === "PRORATED"),
     };
 
     if (payrollPayoutDate) {
@@ -275,6 +280,7 @@ export function PayrollAdjustmentForm({
 
   const handleAddAdjustment = async () => {
     if (isLocked || isMutatingAdj) return;
+    if (!requireUnmasked("Add payroll adjustment")) return;
     const numericAmt = Math.round(Number(adjAmount) || 0);
     if (!adjLabel.trim() || numericAmt <= 0) {
       toast({
@@ -315,6 +321,7 @@ export function PayrollAdjustmentForm({
 
   const handleDeleteAdjustment = async (adjId: number, label: string) => {
     if (isLocked || isMutatingAdj) return;
+    if (!requireUnmasked(`Remove ${label}`)) return;
     setIsMutatingAdj(true);
     const res = await deleteSnapshotPayrollAdjustmentApi(snapshotId, adjId);
     setIsMutatingAdj(false);
@@ -335,330 +342,368 @@ export function PayrollAdjustmentForm({
   };
 
   return (
-    <div className="bg-surface border border-border-subtle rounded-lg p-5 space-y-4">
-      <div className="pb-3 border-b border-border-subtle">
-        <h2 className="text-sm font-semibold font-sans text-text-primary tracking-tight">
-          Snapshot Parameters
-        </h2>
-        <p className="text-xs font-sans text-text-tertiary mt-0.5">
-          {isLocked
-            ? "Period is locked. All adjustment fields are strictly read-only."
-            : "Adjustable monthly inputs. Saves atomically and triggers recalculations."}
-        </p>
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-2 gap-3">
-          {/* Total Working Days */}
-          <div>
-            <label className="block text-[11px] font-sans font-medium text-text-secondary mb-1">
-              Working Days (Attended)
-            </label>
-            <input
-              type="number"
-              min="0"
-              max="31"
-              value={totalWorkingDays}
-              onChange={(e) => {
-                setTotalWorkingDays(e.target.value);
-                if (fieldErrors.workingDays) {
-                  setFieldErrors((prev) => ({ ...prev, workingDays: undefined }));
-                }
-              }}
-              disabled={isLocked || isSubmitting}
-              className={`w-full bg-surface-subtle border rounded px-3 py-1.5 text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 disabled:opacity-50 disabled:cursor-not-allowed ${
-                fieldErrors.workingDays
-                  ? "border-urgency focus:border-urgency"
-                  : "border-border-subtle focus:border-border-active"
-              }`}
-            />
-            {fieldErrors.workingDays && (
-              <div className="text-[10px] font-sans text-delta-negative mt-1">
-                {fieldErrors.workingDays}
-              </div>
-            )}
-          </div>
-
-          {/* Salary Adjustment */}
-          <div>
-            <label className="block text-[11px] font-sans font-medium text-text-secondary mb-1">
-              Salary Adjustment (Rp)
-            </label>
-            <input
-              type="number"
-              step="1000"
-              value={salaryAdjustment}
-              onChange={(e) => setSalaryAdjustment(e.target.value)}
-              disabled={isLocked || isSubmitting}
-              className="w-full bg-surface-subtle border border-border-subtle rounded px-3 py-1.5 text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-active disabled:opacity-50 disabled:cursor-not-allowed"
-            />
-          </div>
-
-          {/* Cafeteria Deduction */}
-          <div>
-            <label className="block text-[11px] font-sans font-medium text-text-secondary mb-1">
-              Cafeteria Deduction (Rp)
-            </label>
-            <input
-              id="cafeteria-input"
-              type="number"
-              min="0"
-              step="1000"
-              value={cafeteriaDeduction}
-              onChange={(e) => {
-                setCafeteriaDeduction(e.target.value);
-                if (fieldErrors.cafeteria) {
-                  setFieldErrors((prev) => ({ ...prev, cafeteria: undefined }));
-                }
-              }}
-              disabled={isLocked || isSubmitting}
-              className={`w-full bg-surface-subtle border rounded px-3 py-1.5 text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 disabled:opacity-50 disabled:cursor-not-allowed ${
-                fieldErrors.cafeteria
-                  ? "border-urgency focus:border-urgency"
-                  : "border-border-subtle focus:border-border-active"
-              }`}
-            />
-            {fieldErrors.cafeteria && (
-              <div className="text-[10px] font-sans text-delta-negative mt-1">
-                {fieldErrors.cafeteria}
-              </div>
-            )}
-          </div>
-
-          {/* Bonus Amount */}
-          <div>
-            <label className="block text-[11px] font-sans font-medium text-text-secondary mb-1">
-              Bonus / Incentive (Rp)
-            </label>
-            <input
-              type="number"
-              min="0"
-              step="10000"
-              value={bonusAmount}
-              onChange={(e) => {
-                setBonusAmount(e.target.value);
-                if (fieldErrors.bonus) {
-                  setFieldErrors((prev) => ({ ...prev, bonus: undefined }));
-                }
-              }}
-              disabled={isLocked || isSubmitting}
-              className={`w-full bg-surface-subtle border rounded px-3 py-1.5 text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 disabled:opacity-50 disabled:cursor-not-allowed ${
-                fieldErrors.bonus
-                  ? "border-urgency focus:border-urgency"
-                  : "border-border-subtle focus:border-border-active"
-              }`}
-            />
-            {fieldErrors.bonus && (
-              <div className="text-[10px] font-sans text-delta-negative mt-1">
-                {fieldErrors.bonus}
-              </div>
-            )}
-          </div>
-
-          {/* Actual Payroll Payout Date */}
-          <div className="col-span-2">
-            <label className="block text-[11px] font-sans font-medium text-text-secondary mb-1">
-              Actual Payroll Payout Date
-            </label>
-            <ErpDatePicker
-              value={payrollPayoutDate}
-              onChange={setPayrollPayoutDate}
-              disabled={isLocked || isSubmitting}
-              ariaLabel="Actual Payroll Payout Date"
-            />
-            <p className="text-[10px] font-sans text-text-tertiary mt-1">
-              Defines the start of this period&apos;s consumption cycle. Does not alter waterfall allocations.
-            </p>
-          </div>
+    <div className="space-y-5">
+      {/* CARD 1: CYCLE PARAMETERS & PAYOUT SCHEDULE */}
+      <div className="bg-surface border border-border-subtle rounded-lg p-5 space-y-4">
+        <div className="pb-3 border-b border-border-subtle">
+          <h2 className="text-sm font-semibold font-sans text-text-primary tracking-tight">
+            Cycle Parameters &amp; Payout Schedule
+          </h2>
+          <p className="text-xs font-sans text-text-tertiary mt-0.5">
+            {isLocked
+              ? "Period is locked. All adjustment fields are strictly read-only."
+              : "Adjustable monthly inputs. Saves atomically and triggers recalculations."}
+          </p>
         </div>
 
-        {/* THR / HOLIDAY BONUS SECTION (CONDITIONAL) */}
-        {!showThrControls ? (
-          <div className="flex items-center justify-between px-3 py-2 rounded border border-border-subtle bg-surface-subtle text-xs">
-            <span className="text-text-tertiary">
-              {thrEnabledInConfig
-                ? `${thrConfig?.label || "Holiday Bonus (THR)"} is inactive for month ${month}.`
-                : "Holiday Bonus (THR) is disabled in Preferences."}
-            </span>
-            {thrEnabledInConfig && !isLocked && (
-              <button
-                type="button"
-                onClick={() => setShowThrControls(true)}
-                className="font-mono text-[11px] text-accent hover:underline cursor-pointer"
-              >
-                Adjust {thrConfig?.label || "THR"}
-              </button>
-            )}
-          </div>
-        ) : (
-        <div className="p-3.5 rounded border border-border-subtle bg-surface-subtle space-y-3">
-          <div className="flex items-center justify-between">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            {/* Total Working Days */}
             <div>
-              <span className="text-xs font-sans font-medium text-text-primary block">
-                {thrConfig?.label || "Holiday Bonus (THR)"}
-              </span>
-              <span className="text-[11px] font-sans text-text-tertiary">
-                Seasonal allowance calculation mode
-              </span>
-            </div>
-            <span className="font-mono text-xs font-semibold text-text-primary tabular-nums">
-              {formatRupiah(effectiveThrAmount)}
-            </span>
-          </div>
-
-          {/* Mode Selector Buttons */}
-          <div className="grid grid-cols-4 gap-1 p-0.5 rounded bg-surface border border-border-subtle">
-            <button
-              type="button"
-              disabled={isLocked}
-              onClick={() => setThrMode("NO_THR")}
-              className={`px-2 py-1.5 rounded text-[10px] font-sans font-medium transition-colors cursor-pointer disabled:cursor-not-allowed ${
-                thrMode === "NO_THR"
-                  ? "bg-surface-active text-text-primary border border-border"
-                  : "text-text-tertiary hover:text-text-secondary"
-              }`}
-            >
-              No THR (Rp 0)
-            </button>
-            <button
-              type="button"
-              disabled={isLocked}
-              onClick={() => setThrMode("PRORATED")}
-              className={`px-2 py-1.5 rounded text-[10px] font-sans font-medium transition-colors cursor-pointer disabled:cursor-not-allowed ${
-                thrMode === "PRORATED"
-                  ? "bg-surface-active text-text-primary border border-border"
-                  : "text-text-tertiary hover:text-text-secondary"
-              }`}
-            >
-              Prorated
-            </button>
-            <button
-              type="button"
-              disabled={isLocked}
-              onClick={() => setThrMode("FULL_THR")}
-              className={`px-2 py-1.5 rounded text-[10px] font-sans font-medium transition-colors cursor-pointer disabled:cursor-not-allowed ${
-                thrMode === "FULL_THR"
-                  ? "bg-surface-active text-text-primary border border-border"
-                  : "text-text-tertiary hover:text-text-secondary"
-              }`}
-            >
-              Full (100%)
-            </button>
-            <button
-              type="button"
-              disabled={isLocked}
-              onClick={() => setThrMode("CUSTOM")}
-              className={`px-2 py-1.5 rounded text-[10px] font-sans font-medium transition-colors cursor-pointer disabled:cursor-not-allowed ${
-                thrMode === "CUSTOM"
-                  ? "bg-surface-active text-text-primary border border-border"
-                  : "text-text-tertiary hover:text-text-secondary"
-              }`}
-            >
-              Custom
-            </button>
-          </div>
-
-          {/* Mode Specific Inputs */}
-          {thrMode === "PRORATED" && (
-            <div className="pt-2 border-t border-border-subtle space-y-1.5">
-              <div className="flex items-center justify-between text-xs font-sans">
-                <span className="text-text-secondary">Worked Tenure (Months / 12):</span>
-                <div className="flex items-center gap-1.5">
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="12"
-                    value={tenureMonths}
-                    onChange={(e) => setTenureMonths(e.target.value)}
-                    disabled={isLocked || isSubmitting}
-                    className="w-20 px-2 py-1 rounded bg-surface border border-border text-xs font-mono tabular-nums text-text-primary text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
-                  />
-                  <span className="text-text-tertiary font-mono">/ 12</span>
-                </div>
-              </div>
-              <p className="text-[10px] font-sans text-text-tertiary">
-                Prorated calc: ({tenureMonths || 0} / 12 mos) × {formatRupiah(effectiveBase)} ={" "}
-                <strong className="font-mono text-text-secondary">{formatRupiah(effectiveThrAmount)}</strong>
-              </p>
-            </div>
-          )}
-
-          {thrMode === "FULL_THR" && (
-            <div className="pt-2 border-t border-border-subtle">
-              <p className="text-[11px] font-sans text-text-secondary">
-                Auto-fills 100% of base salary ({formatRupiah(effectiveBase)}).
-              </p>
-            </div>
-          )}
-
-          {thrMode === "CUSTOM" && (
-            <div className="pt-2 border-t border-border-subtle space-y-1.5">
-              <label className="block text-[11px] font-sans font-medium text-text-secondary">
-                Custom Manual THR Amount (Rp)
+              <label className="block text-[11px] font-sans font-medium text-text-secondary mb-1">
+                Working Days (Attended)
               </label>
               <input
                 type="number"
-                step="10000"
                 min="0"
-                value={customThrAmount}
-                onChange={(e) => setCustomThrAmount(e.target.value)}
+                max="31"
+                value={totalWorkingDays}
+                onChange={(e) => {
+                  setTotalWorkingDays(e.target.value);
+                  if (fieldErrors.workingDays) {
+                    setFieldErrors((prev) => ({ ...prev, workingDays: undefined }));
+                  }
+                }}
                 disabled={isLocked || isSubmitting}
-                placeholder="e.g. 5000000"
-                className="w-full px-2.5 py-1.5 rounded bg-surface border border-border text-xs font-mono tabular-nums text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
+                className={`w-full bg-surface-subtle border rounded px-3 py-1.5 text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 disabled:opacity-50 disabled:cursor-not-allowed ${
+                  fieldErrors.workingDays
+                    ? "border-urgency focus:border-urgency"
+                    : "border-border-subtle focus:border-border-active"
+                }`}
+              />
+              {fieldErrors.workingDays && (
+                <div className="text-[10px] font-sans text-delta-negative mt-1">
+                  {fieldErrors.workingDays}
+                </div>
+              )}
+            </div>
+
+            {/* Salary Adjustment */}
+            <div>
+              <label className="block text-[11px] font-sans font-medium text-text-secondary mb-1">
+                Salary Adjustment (Rp)
+              </label>
+              <input
+                type="number"
+                step="1000"
+                value={salaryAdjustment}
+                onChange={(e) => setSalaryAdjustment(e.target.value)}
+                disabled={isLocked || isSubmitting}
+                className="w-full bg-surface-subtle border border-border-subtle rounded px-3 py-1.5 text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus:border-border-active disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </div>
-          )}
 
-          {fieldErrors.thr && (
-            <div className="text-[10px] font-sans text-delta-negative">
-              {fieldErrors.thr}
+            {/* Cafeteria Deduction */}
+            <div>
+              <label className="block text-[11px] font-sans font-medium text-text-secondary mb-1">
+                Cafeteria Deduction (Rp)
+              </label>
+              <input
+                id="cafeteria-input"
+                type="number"
+                min="0"
+                step="1000"
+                value={cafeteriaDeduction}
+                onChange={(e) => {
+                  setCafeteriaDeduction(e.target.value);
+                  if (fieldErrors.cafeteria) {
+                    setFieldErrors((prev) => ({ ...prev, cafeteria: undefined }));
+                  }
+                }}
+                disabled={isLocked || isSubmitting}
+                className={`w-full bg-surface-subtle border rounded px-3 py-1.5 text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 disabled:opacity-50 disabled:cursor-not-allowed ${
+                  fieldErrors.cafeteria
+                    ? "border-urgency focus:border-urgency"
+                    : "border-border-subtle focus:border-border-active"
+                }`}
+              />
+              {fieldErrors.cafeteria && (
+                <div className="text-[10px] font-sans text-delta-negative mt-1">
+                  {fieldErrors.cafeteria}
+                </div>
+              )}
+            </div>
+
+            {/* Bonus Amount */}
+            <div>
+              <label className="block text-[11px] font-sans font-medium text-text-secondary mb-1">
+                Bonus / Incentive (Rp)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="10000"
+                value={bonusAmount}
+                onChange={(e) => {
+                  setBonusAmount(e.target.value);
+                  if (fieldErrors.bonus) {
+                    setFieldErrors((prev) => ({ ...prev, bonus: undefined }));
+                  }
+                }}
+                disabled={isLocked || isSubmitting}
+                className={`w-full bg-surface-subtle border rounded px-3 py-1.5 text-xs font-mono text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 disabled:opacity-50 disabled:cursor-not-allowed ${
+                  fieldErrors.bonus
+                    ? "border-urgency focus:border-urgency"
+                    : "border-border-subtle focus:border-border-active"
+                }`}
+              />
+              {fieldErrors.bonus && (
+                <div className="text-[10px] font-sans text-delta-negative mt-1">
+                  {fieldErrors.bonus}
+                </div>
+              )}
+            </div>
+
+            {/* Actual Payroll Payout Date */}
+            <div className="col-span-2">
+              <label className="block text-[11px] font-sans font-medium text-text-secondary mb-1">
+                Actual Payroll Payout Date
+              </label>
+              <ErpDatePicker
+                value={payrollPayoutDate}
+                onChange={setPayrollPayoutDate}
+                disabled={isLocked || isSubmitting}
+                ariaLabel="Actual Payroll Payout Date"
+              />
+              <p className="text-[10px] font-sans text-text-tertiary mt-1">
+                Defines the start of this period&apos;s consumption cycle. Does not alter waterfall allocations.
+              </p>
+            </div>
+          </div>
+
+          {/* THR / HOLIDAY BONUS SECTION (CONDITIONAL) */}
+          {!showThrControls ? (
+            <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 rounded border border-border-subtle bg-surface-subtle text-xs">
+              <span className="font-sans text-text-tertiary">
+                {thrEnabledInConfig
+                  ? `${thrConfig?.label || "Holiday Bonus (THR)"} is inactive for month ${month}.`
+                  : "Holiday Bonus (THR) is disabled in Preferences."}
+              </span>
+              {thrEnabledInConfig && !isLocked && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!requireUnmasked("Adjust seasonal allowance")) return;
+                    setShowThrControls(true);
+                  }}
+                  className="font-sans text-[11px] font-medium text-accent hover:underline cursor-pointer"
+                >
+                  Adjust {thrConfig?.label || "THR"}
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="p-3.5 rounded border border-border-subtle bg-surface-subtle space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <span className="text-xs font-sans font-medium text-text-primary block">
+                    {thrConfig?.label || "Holiday Bonus (THR)"}
+                  </span>
+                  <span className="text-[11px] font-sans text-text-tertiary block">
+                    Seasonal allowance calculation mode
+                  </span>
+                </div>
+                <span className="font-mono text-xs font-semibold text-text-primary tabular-nums whitespace-nowrap shrink-0">
+                  {formatRupiah(effectiveThrAmount, isAmountsMasked)}
+                </span>
+              </div>
+
+              {/* Mode Selector Buttons */}
+              <div className="grid grid-cols-4 gap-1 p-0.5 rounded bg-surface border border-border-subtle">
+                <button
+                  type="button"
+                  disabled={isLocked}
+                  onClick={() => setThrMode("NO_THR")}
+                  className={`px-2 py-1.5 rounded text-[11px] font-sans font-medium transition-colors cursor-pointer disabled:cursor-not-allowed ${
+                    thrMode === "NO_THR"
+                      ? "bg-surface-active text-text-primary border border-border"
+                      : "text-text-tertiary hover:text-text-secondary"
+                  }`}
+                >
+                  No THR
+                </button>
+                <button
+                  type="button"
+                  disabled={isLocked}
+                  onClick={() =>
+                    setThrMode(
+                      initialThrAmount > 0 && initialThrAmount < effectiveBase
+                        ? "PRORATED_EXACT"
+                        : "PRORATED",
+                    )
+                  }
+                  className={`px-2 py-1.5 rounded text-[11px] font-sans font-medium transition-colors cursor-pointer disabled:cursor-not-allowed ${
+                    thrMode === "PRORATED_EXACT" || thrMode === "PRORATED"
+                      ? "bg-surface-active text-text-primary border border-border"
+                      : "text-text-tertiary hover:text-text-secondary"
+                  }`}
+                >
+                  Prorated
+                </button>
+                <button
+                  type="button"
+                  disabled={isLocked}
+                  onClick={() => setThrMode("FULL_THR")}
+                  className={`px-2 py-1.5 rounded text-[11px] font-sans font-medium transition-colors cursor-pointer disabled:cursor-not-allowed ${
+                    thrMode === "FULL_THR"
+                      ? "bg-surface-active text-text-primary border border-border"
+                      : "text-text-tertiary hover:text-text-secondary"
+                  }`}
+                >
+                  Full (100%)
+                </button>
+                <button
+                  type="button"
+                  disabled={isLocked}
+                  onClick={() => setThrMode("CUSTOM")}
+                  className={`px-2 py-1.5 rounded text-[11px] font-sans font-medium transition-colors cursor-pointer disabled:cursor-not-allowed ${
+                    thrMode === "CUSTOM"
+                      ? "bg-surface-active text-text-primary border border-border"
+                      : "text-text-tertiary hover:text-text-secondary"
+                  }`}
+                >
+                  Custom
+                </button>
+              </div>
+
+              {(thrMode === "PRORATED_EXACT" || thrMode === "PRORATED") && (
+                <div className="pt-2 border-t border-border-subtle space-y-1.5">
+                  <div className="flex items-center justify-between text-xs font-sans">
+                    <span className="text-text-secondary">Worked Tenure (Months / 12):</span>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max="12"
+                        value={tenureMonths}
+                        onChange={(e) => {
+                          setTenureMonths(e.target.value);
+                          setThrMode("PRORATED");
+                        }}
+                        disabled={isLocked || isSubmitting}
+                        className="w-20 px-2 py-1 rounded bg-surface border border-border text-xs font-mono tabular-nums text-text-primary text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
+                      />
+                      <span className="text-text-tertiary font-mono">/ 12</span>
+                    </div>
+                  </div>
+                  <p className="text-[11px] font-sans text-text-tertiary">
+                    {thrMode === "PRORATED_EXACT" ? (
+                      <>
+                        Exact day-prorated stored value:{" "}
+                        <strong className="font-mono tabular-nums text-text-secondary">
+                          {formatRupiah(effectiveThrAmount, isAmountsMasked)}
+                        </strong>
+                      </>
+                    ) : (
+                      <>
+                        Prorated calc: ({tenureMonths || 0} / 12 mos) ×{" "}
+                        <span className="font-mono tabular-nums">
+                          {formatRupiah(effectiveBase, isAmountsMasked)}
+                        </span>{" "}
+                        ={" "}
+                        <strong className="font-mono tabular-nums text-text-secondary">
+                          {formatRupiah(effectiveThrAmount, isAmountsMasked)}
+                        </strong>
+                      </>
+                    )}
+                  </p>
+                </div>
+              )}
+
+              {thrMode === "FULL_THR" && (
+                <div className="pt-2 border-t border-border-subtle">
+                  <p className="text-[11px] font-sans text-text-secondary">
+                    Auto-fills 100% of base salary (
+                    <span className="font-mono tabular-nums">
+                      {formatRupiah(effectiveBase, isAmountsMasked)}
+                    </span>
+                    ).
+                  </p>
+                </div>
+              )}
+
+              {thrMode === "CUSTOM" && (
+                <div className="pt-2 border-t border-border-subtle space-y-1.5">
+                  <label className="block text-[11px] font-sans font-medium text-text-secondary">
+                    Custom Manual THR Amount (Rp)
+                  </label>
+                  <input
+                    type="number"
+                    step="10000"
+                    min="0"
+                    value={customThrAmount}
+                    onChange={(e) => setCustomThrAmount(e.target.value)}
+                    disabled={isLocked || isSubmitting}
+                    placeholder="e.g. 5000000"
+                    className="w-full px-2.5 py-1.5 rounded bg-surface border border-border text-xs font-mono tabular-nums text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
+                  />
+                </div>
+              )}
+
+              {fieldErrors.thr && (
+                <div className="text-[10px] font-sans text-delta-negative">
+                  {fieldErrors.thr}
+                </div>
+              )}
             </div>
           )}
-        </div>
-        )}
 
-        {/* General Error Message */}
-        {fieldErrors.general && (
-          <div className="text-xs font-sans py-2 px-3 rounded border bg-[rgba(224,108,83,0.08)] border-[rgba(224,108,83,0.25)] text-delta-negative">
-            {fieldErrors.general}
-          </div>
-        )}
+          {fieldErrors.general && (
+            <div className="text-xs font-sans py-2 px-3 rounded border bg-[rgba(224,108,83,0.08)] border-[rgba(224,108,83,0.25)] text-delta-negative">
+              {fieldErrors.general}
+            </div>
+          )}
 
-        {/* Save Button */}
-        {!isLocked && (
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full py-2 px-4 rounded bg-surface-active hover:bg-border-active text-text-primary text-xs font-sans font-medium border border-border-subtle transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-1.5"
-          >
-            {isSubmitting ? (
-              "Saving Parameters..."
-            ) : isSuccess ? (
-              <>
-                <Check className="w-3.5 h-3.5 text-delta-positive" strokeWidth={1.8} />
-                <span className="text-delta-positive">Saved</span>
-              </>
-            ) : (
-              "Save Parameters"
-            )}
-          </button>
-        )}
-      </form>
+          {!isLocked && (
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full py-2 px-4 rounded bg-surface-active hover:bg-border-active text-text-primary text-xs font-sans font-medium border border-border-subtle transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-1.5"
+            >
+              {isSubmitting ? (
+                "Saving Parameters..."
+              ) : isSuccess ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-delta-positive" strokeWidth={1.8} />
+                  <span className="text-delta-positive">Saved</span>
+                </>
+              ) : (
+                "Save Parameters"
+              )}
+            </button>
+          )}
+        </form>
+      </div>
 
-      {/* DIRECT PAYROLL DEDUCTIONS & CUSTOM ADJUSTMENTS */}
-      <div className="pt-4 border-t border-border-subtle space-y-3">
-        <div className="flex items-center justify-between">
+      {/* CARD 2: DIRECT PAYROLL DEDUCTIONS & CUSTOM ITEMS */}
+      <div className="bg-surface border border-border-subtle rounded-lg p-5 space-y-3.5">
+        <div className="flex items-start justify-between gap-2 pb-3 border-b border-border-subtle">
           <div>
-            <h3 className="text-xs font-semibold font-sans text-text-primary">
+            <h3 className="text-sm font-semibold font-sans text-text-primary tracking-tight">
               Direct Payroll Deductions &amp; Custom Items
             </h3>
-            <p className="text-[11px] font-sans text-text-tertiary">
-              Post-net deductions (e.g. early salary advance, loan clawback) or custom allowances for {month}/{year}.
+            <p className="text-xs font-sans text-text-tertiary mt-0.5">
+              Post-net deductions (e.g. early salary advance, loan clawback) or custom allowances for{" "}
+              <span className="font-mono tabular-nums">
+                {month}/{year}
+              </span>
+              .
             </p>
           </div>
-          <span className="font-mono text-[11px] text-text-tertiary">
-            {periodAdjustments.length} item{periodAdjustments.length === 1 ? "" : "s"}
+          <span className="font-sans text-[11px] text-text-tertiary shrink-0">
+            <span className="font-mono tabular-nums">{periodAdjustments.length}</span> item
+            {periodAdjustments.length === 1 ? "" : "s"}
           </span>
         </div>
 
@@ -670,8 +715,10 @@ export function PayrollAdjustmentForm({
                 className="flex items-center justify-between gap-2 px-3 py-2 rounded border border-border-subtle bg-surface-subtle text-xs"
               >
                 <div className="min-w-0">
-                  <div className="font-medium text-text-primary truncate">{adj.label}</div>
-                  <div className="text-[10px] font-mono text-text-tertiary">
+                  <div className="font-sans font-medium text-text-primary truncate">
+                    {adj.label}
+                  </div>
+                  <div className="text-[11px] font-sans text-text-tertiary truncate">
                     {STAGE_BADGE_LABELS[adj.stage]}
                     {adj.notes ? ` · ${adj.notes}` : ""}
                   </div>
@@ -679,11 +726,13 @@ export function PayrollAdjustmentForm({
                 <div className="flex items-center gap-2 shrink-0">
                   <span
                     className={`font-mono font-semibold tabular-nums ${
-                      adj.stage === "PRE_NET_EARNING" ? "text-delta-positive" : "text-delta-negative"
+                      adj.stage === "PRE_NET_EARNING"
+                        ? "text-delta-positive"
+                        : "text-delta-negative"
                     }`}
                   >
                     {adj.stage === "PRE_NET_EARNING" ? "+" : "-"}
-                    {formatRupiah(adj.amount)}
+                    {formatRupiah(adj.amount, isAmountsMasked)}
                   </span>
                   {!isLocked && (
                     <button
@@ -703,46 +752,95 @@ export function PayrollAdjustmentForm({
         )}
 
         {!isLocked && (
-          <div className="p-3 rounded border border-border-subtle bg-canvas/60 space-y-2.5">
-            {templates.length > 0 && (
-              <div>
-                <label className="block text-[10px] font-mono text-text-tertiary mb-1">
-                  Quick-Fill from Saved Payroll Template
-                </label>
-                <select
-                  value={selectedTemplateId}
-                  onChange={(e) => handleSelectTemplate(e.target.value)}
-                  className="w-full px-2.5 py-1.5 rounded bg-surface-subtle border border-border-subtle text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
-                >
-                  <option value="">Custom one-off item...</option>
+          <div className="p-3.5 rounded border border-border-subtle bg-canvas/60 space-y-3">
+            {templates.filter((tpl) => tpl.isActive).length > 0 && (
+              <div className="space-y-1.5">
+                <span className="block text-[11px] font-sans font-medium text-text-secondary">
+                  Quick-Fill from Saved Template
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedTemplateId("");
+                      setAdjLabel("");
+                      setAdjAmount("");
+                      setAdjNotes("");
+                    }}
+                    className={`px-2.5 py-1 rounded text-[11px] font-sans border transition-colors cursor-pointer ${
+                      selectedTemplateId === ""
+                        ? "bg-surface-active text-text-primary border-border font-medium"
+                        : "bg-surface text-text-tertiary border-border-subtle hover:text-text-primary"
+                    }`}
+                  >
+                    Custom Item
+                  </button>
                   {templates
                     .filter((tpl) => tpl.isActive)
-                    .map((tpl) => (
-                      <option key={tpl.id} value={String(tpl.id)}>
-                        {tpl.label} ({STAGE_BADGE_LABELS[tpl.stage]})
-                      </option>
-                    ))}
-                </select>
+                    .map((tpl) => {
+                      const active = selectedTemplateId === String(tpl.id);
+                      return (
+                        <button
+                          key={tpl.id}
+                          type="button"
+                          onClick={() => handleSelectTemplate(String(tpl.id))}
+                          className={`px-2.5 py-1 rounded text-[11px] font-sans border transition-colors cursor-pointer ${
+                            active
+                              ? "bg-surface-active text-text-primary border-border font-medium"
+                              : "bg-surface text-text-secondary border-border-subtle hover:text-text-primary"
+                          }`}
+                        >
+                          {tpl.label}
+                        </button>
+                      );
+                    })}
+                </div>
               </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="space-y-1.5">
+              <span className="block text-[11px] font-sans font-medium text-text-secondary">
+                Payroll Stage
+              </span>
+              <div className="grid grid-cols-3 gap-1 p-0.5 rounded bg-surface border border-border-subtle">
+                {(
+                  [
+                    { key: "POST_NET_DEDUCTION", label: "Post-Net Deduct" },
+                    { key: "PRE_NET_DEDUCTION", label: "Pre-Net Deduct" },
+                    { key: "PRE_NET_EARNING", label: "Pre-Net Earning" },
+                  ] as Array<{ key: PayrollAdjustmentStage; label: string }>
+                ).map((st) => (
+                  <button
+                    key={st.key}
+                    type="button"
+                    onClick={() => setAdjStage(st.key)}
+                    className={`px-2 py-1.5 rounded text-[11px] font-sans font-medium transition-colors cursor-pointer ${
+                      adjStage === st.key
+                        ? "bg-surface-active text-text-primary border border-border"
+                        : "text-text-tertiary hover:text-text-secondary"
+                    }`}
+                  >
+                    {st.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <div>
-                <label className="block text-[10px] font-mono text-text-tertiary mb-1">
-                  Stage
+                <label className="block text-[11px] font-sans font-medium text-text-secondary mb-1">
+                  Label
                 </label>
-                <select
-                  value={adjStage}
-                  onChange={(e) => setAdjStage(e.target.value as PayrollAdjustmentStage)}
-                  className="w-full px-2.5 py-1.5 rounded bg-surface-subtle border border-border-subtle text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
-                >
-                  <option value="POST_NET_DEDUCTION">Direct Deduction (Post-Net)</option>
-                  <option value="PRE_NET_DEDUCTION">Pre-Net Deduction</option>
-                  <option value="PRE_NET_EARNING">Pre-Net Earning (+)</option>
-                </select>
+                <input
+                  type="text"
+                  placeholder="e.g. Early Salary Advance Repayment"
+                  value={adjLabel}
+                  onChange={(e) => setAdjLabel(e.target.value)}
+                  className="w-full px-2.5 py-1.5 rounded bg-surface-subtle border border-border-subtle text-xs font-sans text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
+                />
               </div>
               <div>
-                <label className="block text-[10px] font-mono text-text-tertiary mb-1">
+                <label className="block text-[11px] font-sans font-medium text-text-secondary mb-1">
                   Amount (Rp)
                 </label>
                 <input
@@ -757,38 +855,24 @@ export function PayrollAdjustmentForm({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <div>
-                <label className="block text-[10px] font-mono text-text-tertiary mb-1">
-                  Label
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Early Salary Advance Repayment"
-                  value={adjLabel}
-                  onChange={(e) => setAdjLabel(e.target.value)}
-                  className="w-full px-2.5 py-1.5 rounded bg-surface-subtle border border-border-subtle text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-mono text-text-tertiary mb-1">
-                  Optional Note
-                </label>
-                <input
-                  type="text"
-                  placeholder="Reference / slip line"
-                  value={adjNotes}
-                  onChange={(e) => setAdjNotes(e.target.value)}
-                  className="w-full px-2.5 py-1.5 rounded bg-surface-subtle border border-border-subtle text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
-                />
-              </div>
+            <div>
+              <label className="block text-[11px] font-sans font-medium text-text-secondary mb-1">
+                Optional Note
+              </label>
+              <input
+                type="text"
+                placeholder="Reference / slip line"
+                value={adjNotes}
+                onChange={(e) => setAdjNotes(e.target.value)}
+                className="w-full px-2.5 py-1.5 rounded bg-surface-subtle border border-border-subtle text-xs font-sans text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
+              />
             </div>
 
             <button
               type="button"
               disabled={isMutatingAdj || !adjLabel.trim() || !(Number(adjAmount) > 0)}
               onClick={() => void handleAddAdjustment()}
-              className="w-full py-1.5 px-3 rounded border border-border bg-surface hover:bg-surface-hover text-xs font-mono text-text-primary disabled:opacity-40 cursor-pointer flex items-center justify-center gap-1.5"
+              className="w-full py-1.5 px-3 rounded border border-border bg-surface hover:bg-surface-hover text-xs font-sans font-medium text-text-primary disabled:opacity-40 cursor-pointer flex items-center justify-center gap-1.5"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>{isMutatingAdj ? "Saving Item..." : "Add Payroll Adjustment"}</span>

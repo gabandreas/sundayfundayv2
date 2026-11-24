@@ -309,7 +309,7 @@ export function buildDefaultAllocationBuckets(
     },
     {
       id: 'core_savings',
-      label: 'Priority 1 Core Savings',
+      label: 'Core Savings Reserve',
       group: 'SAVINGS_P1',
       priorityTier: 1,
       formulaType: 'FIXED_AMOUNT',
@@ -318,7 +318,7 @@ export function buildDefaultAllocationBuckets(
     },
     {
       id: 'self_reward',
-      label: 'Priority 2 Discretionary / Self-Reward',
+      label: 'Discretionary / Self-Reward',
       group: 'SELF_REWARD_P2',
       priorityTier: 2,
       formulaType: 'REMAINDER_OVERFLOW',

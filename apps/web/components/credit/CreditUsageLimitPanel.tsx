@@ -8,7 +8,7 @@ import {
   updateCreditUsageLimit,
 } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
-import { usePrivacyMask } from "@/context/PrivacyMaskContext";
+import { usePrivacyGuard } from "@/hooks/usePrivacyGuard";
 import { useLanguage } from "@/context/LanguageContext";
 
 interface CreditUsageLimitPanelProps {
@@ -61,7 +61,7 @@ function getStatusColorClasses(status: InstrumentLimitEvaluation["status"]): {
 export function CreditUsageLimitPanel({
   limitData,
 }: CreditUsageLimitPanelProps) {
-  const { isAmountsMasked } = usePrivacyMask();
+  const { isAmountsMasked, requireUnmasked } = usePrivacyGuard();
   const { t } = useLanguage();
   const formatRp = (amt: number): string => formatRupiah(amt, isAmountsMasked);
   const [isEditing, setIsEditing] = useState(false);
@@ -91,6 +91,7 @@ export function CreditUsageLimitPanel({
 
   const handleApplyPreset = (mode: "OPTIMAL" | "SAFE") => {
     if (isLocked) return;
+    if (!requireUnmasked("Edit credit limit")) return;
     setIsEditing(true);
     setErrorMessage(null);
 
@@ -280,7 +281,10 @@ export function CreditUsageLimitPanel({
               </button>
               <button
                 type="button"
-                onClick={() => setIsEditing((prev) => !prev)}
+                onClick={() => {
+                  if (!isEditing && !requireUnmasked("Configure credit limits")) return;
+                  setIsEditing((prev) => !prev);
+                }}
                 className="px-3 py-1.5 rounded border border-border bg-surface-active hover:bg-border-active text-[11px] font-sans font-medium text-text-primary transition-colors cursor-pointer"
               >
                 {isEditing ? "Close Editor" : t("credit.btn.configure")}

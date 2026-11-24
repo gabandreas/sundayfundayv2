@@ -1,6 +1,9 @@
 package timeline
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestBuildCashRadarDec2026(t *testing.T) {
 	res := BuildCashRadar(CashRadarRequest{
@@ -83,6 +86,9 @@ func TestBuildCashRadarApr2027HolidayShiftAndFebFinalSlice(t *testing.T) {
 	})
 	foundShiftedCc := false
 	for _, ev := range apr.Events {
+		if strings.Contains(ev.Label, "Priority 1") || strings.Contains(ev.Notes, "Priority 1") {
+			t.Fatalf("radar event must use clean human label without Priority 1 jargon, got label=%q notes=%q", ev.Label, ev.Notes)
+		}
 		if ev.Category == "CREDIT_CARD" {
 			if ev.DateIso != "2027-04-09" || !ev.IsBusinessDayShifted || ev.NominalDateIso != "2027-04-11" {
 				t.Fatalf("expected Apr 2027 Permata CC H-1 shift 2027-04-11 -> 2027-04-09, got %+v", ev)

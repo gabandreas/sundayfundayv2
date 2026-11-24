@@ -94,8 +94,8 @@ export function PayrollStatementTable({ payroll }: PayrollStatementTableProps) {
 
       <div className="space-y-1">
         {/* SECTION: Gross Base Salary */}
-        <div className="text-[10px] font-mono text-text-tertiary pt-1 pb-1">
-          Base Salary & Adjustments
+        <div className="text-[11px] font-sans font-medium text-text-tertiary pt-1 pb-1">
+          Base Salary &amp; Adjustments
         </div>
         <StatementLineItem
           label="Gross Base Salary"
@@ -168,8 +168,8 @@ export function PayrollStatementTable({ payroll }: PayrollStatementTableProps) {
           </div>
         ) : (
           <>
-            <div className="text-[10px] font-mono text-text-tertiary pt-3 pb-1">
-              Statutory Deductions & Allowances
+            <div className="text-[11px] font-sans font-medium text-text-tertiary pt-3 pb-1">
+              Statutory Deductions &amp; Allowances
             </div>
             <StatementLineItem
               label="BPJS Deduction (3%)"
@@ -241,7 +241,7 @@ export function PayrollStatementTable({ payroll }: PayrollStatementTableProps) {
 
               {(postNetItems.length > 0 || directDeductions > 0) && (
                 <>
-                  <div className="text-[10px] font-mono text-text-tertiary pt-3 pb-1">
+                  <div className="text-[11px] font-sans font-medium text-text-tertiary pt-3 pb-1">
                     Direct Payroll Deductions
                   </div>
                   {postNetItems.length > 0 ? (
@@ -280,8 +280,8 @@ export function PayrollStatementTable({ payroll }: PayrollStatementTableProps) {
         {/* SECTION: Supplemental & Windfall Income */}
         {(payroll.bonusAmount > 0 || payroll.thrAmount > 0 || payroll.extraIncome > 0) && (
           <>
-            <div className="text-[10px] font-mono text-text-tertiary pt-3 pb-1">
-              Supplemental & Windfall Income
+            <div className="text-[11px] font-sans font-medium text-text-tertiary pt-3 pb-1">
+              Supplemental &amp; Windfall Income
             </div>
             {payroll.bonusAmount > 0 && (
               <StatementLineItem

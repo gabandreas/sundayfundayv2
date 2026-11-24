@@ -5,6 +5,7 @@ import { Pencil } from "lucide-react";
 import { BudgetRevision, BudgetRevisionCategory } from "@/lib/api";
 import { BudgetRevisionModal } from "./BudgetRevisionModal";
 import { BudgetRevisionHistoryPopover } from "./BudgetRevisionHistoryPopover";
+import { usePrivacyGuard } from "@/hooks/usePrivacyGuard";
 
 interface EditableTargetProps {
   snapshotId: number;
@@ -12,6 +13,7 @@ interface EditableTargetProps {
   categoryLabel: string;
   currentValue: number;
   isLocked: boolean;
+  lockedReason?: string;
   revisions?: BudgetRevision[];
 }
 
@@ -21,9 +23,11 @@ export function EditableTarget({
   categoryLabel,
   currentValue,
   isLocked,
+  lockedReason,
   revisions = [],
 }: EditableTargetProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const { isAmountsMasked, requireUnmasked } = usePrivacyGuard();
 
   const categoryRevisions = revisions.filter((r) => r.category === category);
 
@@ -39,16 +43,23 @@ export function EditableTarget({
       <button
         type="button"
         disabled={isLocked}
-        onClick={() => setIsModalOpen(true)}
+        onClick={() => {
+          if (!requireUnmasked(`Revise ${categoryLabel}`)) return;
+          setIsModalOpen(true);
+        }}
         title={
           isLocked
-            ? "Period is finalized (budget revisions disabled)"
+            ? lockedReason || "Period is finalized (budget revisions disabled)"
+            : isAmountsMasked
+            ? `Reveal balances to revise ${categoryLabel} target`
             : `Revise ${categoryLabel} target`
         }
         aria-label={`Revise ${categoryLabel} target`}
         className={`p-1 rounded transition-colors ${
           isLocked
             ? "opacity-30 cursor-not-allowed text-text-tertiary"
+            : isAmountsMasked
+            ? "opacity-55 text-text-tertiary hover:text-text-primary hover:bg-surface-subtle cursor-pointer"
             : "text-text-tertiary hover:text-text-primary hover:bg-surface-subtle cursor-pointer"
         }`}
       >

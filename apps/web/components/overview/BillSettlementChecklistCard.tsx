@@ -116,7 +116,7 @@ export function BillSettlementChecklistCard({
         </div>
         <Link
           href="/credit?tab=matrix"
-          className="inline-flex items-center gap-1 text-[11px] font-mono text-text-secondary hover:text-text-primary"
+          className="inline-flex items-center gap-1 text-[11px] font-sans text-text-secondary hover:text-text-primary"
         >
           Open Matrix <ArrowUpRight className="w-3 h-3" />
         </Link>

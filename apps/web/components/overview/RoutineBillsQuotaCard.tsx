@@ -19,7 +19,7 @@ import { EditableTarget } from "./EditableTarget";
 import { usePerspective } from "@/context/PerspectiveContext";
 import { useAuth } from "@/context/AuthContext";
 import { formatRupiah } from "@/lib/utils";
-import { usePrivacyMask } from "@/context/PrivacyMaskContext";
+import { usePrivacyGuard } from "@/hooks/usePrivacyGuard";
 import { useLanguage } from "@/context/LanguageContext";
 import { useToast } from "@/context/ToastContext";
 import { useConfirmDialog } from "@/context/ConfirmDialogContext";
@@ -52,7 +52,7 @@ export function RoutineBillsQuotaCard({
   baselineTotal,
 }: RoutineBillsQuotaCardProps) {
   const { user } = useAuth();
-  const { isAmountsMasked } = usePrivacyMask();
+  const { isAmountsMasked, requireUnmasked } = usePrivacyGuard();
   const { t } = useLanguage();
   const formatIdr = (amount: number): string => formatRupiah(amount, isAmountsMasked);
   const { profileMode, getRoutineLabel, setCustomRoutineLabel } = usePerspective();
@@ -214,6 +214,7 @@ export function RoutineBillsQuotaCard({
 
   const handleRemoveCategory = async (id?: string) => {
     if (!id) return;
+    if (!requireUnmasked("Remove routine category")) return;
     const ok = await confirmDialog({
       title: "Remove routine category",
       description: "Delete this custom routine expense category from your monthly quota list?",
@@ -253,6 +254,7 @@ export function RoutineBillsQuotaCard({
     paymentMethod: "CASH" | "PAYLATER" = "CASH"
   ) => {
     if (isLocked || submittingCategory || spendAmount <= 0) return;
+    if (!requireUnmasked(categoryLabel)) return;
 
     const rounded = Math.round(spendAmount);
     setErrorMessage(null);
@@ -470,6 +472,7 @@ export function RoutineBillsQuotaCard({
               const remainingPool =
                 realItem?.remainingPool ?? Math.max(0, target - spent);
               const overage = realItem?.overage ?? Math.max(0, spent - target);
+              const isSettledInFull = target > 0 && remainingPool <= 0;
               const utilPercent =
                 target > 0
                   ? Math.min(100, Math.round((spent / target) * 100))
@@ -560,7 +563,14 @@ export function RoutineBillsQuotaCard({
                           category={cat.key as any}
                           categoryLabel={cat.label}
                           currentValue={cat.target}
-                          isLocked={isLocked}
+                          isLocked={isLocked || isSettledInFull}
+                          lockedReason={
+                            isLocked
+                              ? "Period is closed"
+                              : isSettledInFull
+                              ? t("overview.settledLockedHint")
+                              : undefined
+                          }
                           revisions={snapshot.budgetRevisions}
                         />
                       )}
@@ -585,10 +595,12 @@ export function RoutineBillsQuotaCard({
                   </div>
 
                   {/* Sub-label: Remaining Pool / Unbudgeted Spend Callout */}
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono mt-1.5 text-text-tertiary">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-sans mt-1.5 text-text-tertiary">
                     {isUnbudgeted ? (
                       <span className="text-caution font-medium">
-                        Unbudgeted Spend: {formatIdr(spent)} / Budget Rp 0 (Covered from Surplus)
+                        Unbudgeted Spend:{" "}
+                        <span className="erp-tabular-currency">{formatIdr(spent)}</span> / Budget{" "}
+                        <span className="erp-tabular-currency">Rp 0</span> (Covered from Surplus)
                       </span>
                     ) : (
                       <>
@@ -602,12 +614,17 @@ export function RoutineBillsQuotaCard({
                             </span>
                           ) : (
                             <>
-                              <span className="text-delta-positive">Settled in full</span>
+                              <span className="text-delta-positive font-medium">
+                                {t("overview.settledInFull")}
+                              </span>
                               {!isLocked && (
                                 <button
                                   type="button"
                                   disabled={isSubmittingThis}
                                   onClick={() => {
+                                    if (!isCustomOpen && !requireUnmasked(`${cat.label} ${t("overview.extraSpend")}`)) {
+                                      return;
+                                    }
                                     if (isCustomOpen) {
                                       setActiveCustomCategory(null);
                                       setCustomAmount("");
@@ -616,9 +633,9 @@ export function RoutineBillsQuotaCard({
                                       setCustomAmount("");
                                     }
                                   }}
-                                  className="text-[10px] font-mono text-text-tertiary hover:text-text-primary underline-offset-2 hover:underline cursor-pointer"
+                                  className="text-[11px] font-sans text-text-tertiary hover:text-text-primary underline-offset-2 hover:underline cursor-pointer"
                                 >
-                                  {isCustomOpen ? "Close" : "+ Extra"}
+                                  {isCustomOpen ? t("datePicker.close") : t("overview.extraSpend")}
                                 </button>
                               )}
                             </>
@@ -643,9 +660,12 @@ export function RoutineBillsQuotaCard({
                           onClick={() =>
                             handleQuickSpend(cat.key, cat.label, remainingPool, "CASH")
                           }
-                          className="px-2.5 py-1 rounded text-[11px] font-mono bg-delta-positive/10 border border-delta-positive/30 text-delta-positive hover:bg-delta-positive/15 transition-colors cursor-pointer disabled:opacity-50"
+                          className="px-2.5 py-1 rounded text-[11px] font-sans font-medium bg-delta-positive/10 border border-delta-positive/30 text-delta-positive hover:bg-delta-positive/15 transition-colors cursor-pointer disabled:opacity-50"
                         >
-                          Pay Full · {formatIdr(remainingPool).replace("Rp ", "")}
+                          Pay Full ·{" "}
+                          <span className="erp-tabular-currency">
+                            {formatIdr(remainingPool).replace("Rp ", "")}
+                          </span>
                         </button>
                         <button
                           type="button"
@@ -663,6 +683,9 @@ export function RoutineBillsQuotaCard({
                           type="button"
                           disabled={isSubmittingThis}
                           onClick={() => {
+                            if (!isCustomOpen && !requireUnmasked(cat.label)) {
+                              return;
+                            }
                             if (isCustomOpen) {
                               setActiveCustomCategory(null);
                               setCustomAmount("");
@@ -673,19 +696,19 @@ export function RoutineBillsQuotaCard({
                           }}
                           className="px-2 py-1 rounded text-[11px] font-sans bg-surface border border-border-subtle text-text-tertiary hover:text-text-primary hover:border-border-default transition-colors cursor-pointer"
                         >
-                          {isCustomOpen ? "Close" : "Log Partial"}
+                          {isCustomOpen ? t("datePicker.close") : "Log Partial"}
                         </button>
                       </div>
 
                       {isSubmittingThis && (
-                        <span className="text-[10px] text-text-tertiary inline-flex items-center gap-1 font-mono">
+                        <span className="text-[10px] text-text-tertiary inline-flex items-center gap-1 font-sans">
                           <Loader2 className="w-2.5 h-2.5 animate-spin" />
                           Logging
                         </span>
                       )}
 
                       {isSuccessThis && (
-                        <span className="text-[10px] text-delta-positive inline-flex items-center gap-1 font-mono">
+                        <span className="text-[10px] text-delta-positive inline-flex items-center gap-1 font-sans font-medium">
                           <Check className="w-2.5 h-2.5" />
                           Logged
                         </span>
@@ -744,12 +767,13 @@ export function RoutineBillsQuotaCard({
           </div>
 
           {/* Add Dynamic Category Button in Standard General Mode */}
-          {isStandard && (
+          {isStandard && !isLocked && (
             <div className="pt-1">
               {!isAddCategoryOpen ? (
                 <button
                   type="button"
                   onClick={() => {
+                    if (!requireUnmasked("Add Routine Category")) return;
                     setIsAddCategoryOpen(true);
                     setNewCategoryLabel("");
                     setNewCategoryTarget("");
@@ -811,19 +835,24 @@ export function RoutineBillsQuotaCard({
             </div>
           )}
 
-          {/* Inactive Rp 0 Categories: Collapsed behind explicit + Enable / Adjust toggle */}
-          {zeroCategories.length > 0 && (
+          {/* Inactive Rp 0 Categories: Hidden when cycle closed; otherwise collapsed behind Add Optional toggle */}
+          {!isLocked && zeroCategories.length > 0 && (
             <div className="pt-2.5 border-t border-border-subtle/60 space-y-2">
               <button
                 type="button"
-                onClick={() => setShowInactiveQuotas((prev) => !prev)}
-                className="inline-flex items-center gap-1.5 text-[11px] font-mono text-text-tertiary hover:text-text-primary transition-colors cursor-pointer"
+                onClick={() => {
+                  if (!showInactiveQuotas && !requireUnmasked(t("overview.addOptionalBill"))) {
+                    return;
+                  }
+                  setShowInactiveQuotas((prev) => !prev);
+                }}
+                className="inline-flex items-center gap-1.5 text-[11px] font-sans text-text-tertiary hover:text-text-primary transition-colors cursor-pointer"
               >
                 <Plus className="w-3 h-3" />
                 <span>
                   {showInactiveQuotas
-                    ? "Hide Inactive Routine Quotas"
-                    : `Enable / Adjust Routine Quota (${zeroCategories.length})`}
+                    ? t("overview.hideOptionalBills")
+                    : `${t("overview.addOptionalBill")} (${zeroCategories.length})`}
                 </span>
               </button>
 
@@ -834,7 +863,7 @@ export function RoutineBillsQuotaCard({
                     return (
                       <div
                         key={zc.key}
-                        className="inline-flex items-center gap-1 bg-surface-subtle px-2 py-1 rounded border border-border-subtle text-[10px] font-mono text-text-secondary"
+                        className="inline-flex items-center gap-1 bg-surface-subtle px-2 py-1 rounded border border-border-subtle text-[11px] font-sans text-text-secondary"
                       >
                         <span>{zc.label}</span>
                         {snapshot && (

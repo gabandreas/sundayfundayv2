@@ -665,14 +665,14 @@ export function buildAllocationDiffRows(
     },
     {
       categoryKey: 'SAVINGS',
-      label: 'Core Savings (Priority 1)',
+      label: 'Core Savings Reserve',
       tier: 'P1_SAVINGS',
       revisedTarget: input.currentTargets.savings,
       actualOutcome: input.actuals.actualSavings,
     },
     {
       categoryKey: 'SELF_REWARD',
-      label: 'Self-Reward / Surplus (Priority 2)',
+      label: 'Discretionary / Self-Reward',
       tier: 'P2_REWARD',
       revisedTarget: input.currentTargets.selfRewardTarget,
       actualOutcome: input.actuals.actualSelfReward,

@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { formatRupiah } from "@/lib/utils";
+import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 
 export interface AllocationSlice {
   id: string;
@@ -23,6 +24,7 @@ export function AllocationsDonutChart({
   bufferPocket = 0,
 }: AllocationsDonutChartProps) {
   const [hoveredSlice, setHoveredSlice] = useState<AllocationSlice | null>(null);
+  const { isAmountsMasked } = usePrivacyMask();
 
   const validTotal = totalIncome > 0 ? totalIncome : 1;
   const radius = 70;
@@ -88,7 +90,9 @@ export function AllocationsDonutChart({
             {hoveredSlice ? hoveredSlice.label : "Total Allocated"}
           </span>
           <span className="font-display text-lg font-normal text-text-primary tracking-tight mt-0.5">
-            {hoveredSlice ? formatRupiah(hoveredSlice.amount) : formatRupiah(totalIncome)}
+            {hoveredSlice
+              ? formatRupiah(hoveredSlice.amount, isAmountsMasked)
+              : formatRupiah(totalIncome, isAmountsMasked)}
           </span>
           <span className="text-[10px] font-mono text-text-tertiary mt-0.5">
             {hoveredSlice
@@ -141,7 +145,7 @@ export function AllocationsDonutChart({
                   {percent.toFixed(1)}%
                 </span>
                 <span className="w-28 text-right font-mono font-medium text-text-primary tabular-nums">
-                  {formatRupiah(slice.amount)}
+                  {formatRupiah(slice.amount, isAmountsMasked)}
                 </span>
               </div>
             </div>
@@ -152,7 +156,7 @@ export function AllocationsDonutChart({
         <div className="pt-2 border-t border-border-subtle flex items-center justify-between text-xs font-sans text-text-tertiary">
           <span>Emergency Buffer Pocket:</span>
           <span className="font-mono text-text-secondary">
-            {formatRupiah(bufferPocket)}
+            {formatRupiah(bufferPocket, isAmountsMasked)}
           </span>
         </div>
       </div>

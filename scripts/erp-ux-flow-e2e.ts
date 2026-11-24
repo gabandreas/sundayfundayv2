@@ -501,18 +501,11 @@ async function main() {
       const popText = pop?.innerText ?? '';
       acctBtn?.click();
 
-      const localeBtn = document.getElementById('locale-menu-trigger');
-      localeBtn?.click();
-      const localePop = document.getElementById('locale-menu-popover');
-      const localePopOpen = Boolean(localePop?.matches(':popover-open'));
-      if (localePopOpen) localeBtn?.click();
-
       const bodyText = document.body.innerText;
       return {
         eyeCount: eyeBtns.length,
         eyeInAside,
         eyeInHeader,
-        localePopOpen,
         hasPaceBreakdown: Boolean(document.querySelector('[data-testid="cycle-pace-breakdown"]')),
         hasAllocMix: Boolean(document.querySelector('[data-testid="cycle-allocation-mix"]')),
         acctTriggerText,
@@ -524,7 +517,18 @@ async function main() {
     assert.equal(headerAudit.eyeCount, 1, `Expected exactly 1 Privacy Eye button on Overview, got ${headerAudit.eyeCount}`);
     assert.equal(headerAudit.eyeInAside, true, 'Single Privacy Eye button must sit in Sidebar aside');
     assert.equal(headerAudit.eyeInHeader, false, 'Top header must not contain Privacy Eye button');
-    assert.equal(headerAudit.localePopOpen, true, 'Compact #locale-menu-trigger must open #locale-menu-popover');
+
+    await page.click('#locale-menu-trigger');
+    await page.waitForFunction(
+      () => Boolean(document.getElementById('locale-menu-popover')?.matches(':popover-open')),
+      { timeout: 5000 },
+    );
+    await page.click('#locale-menu-trigger');
+    await page.waitForFunction(
+      () => !document.getElementById('locale-menu-popover')?.matches(':popover-open'),
+      { timeout: 5000 },
+    );
+
     assert.equal(headerAudit.hasPaceBreakdown, true, 'Overview Col 1 must render Cycle Pace & Burn Forecast');
     assert.equal(headerAudit.hasAllocMix, true, 'Overview Col 2 must render Cycle Allocation Mix');
     assert.ok(
@@ -535,7 +539,30 @@ async function main() {
     assert.ok(!headerAudit.popText.includes('Switch Account'), 'Account menu must not show Switch Account');
     assert.ok(!headerAudit.hasAllCapsHeaderCopy, 'Overview must not show CAPSLOCK header strings');
 
-    // Verify custom ErpDatePicker, dark select styling, Title Case cycle label, and zero Marquee orb collision on PayLater tab
+    // Verify Privacy Mask Edit Guard blocks edit modal when masked and reveals via Toast CTA -> VerifyPasswordModal
+    await page.waitForFunction(() => document.body.innerText.includes('Rp •••••'), { timeout: 5000 });
+    await page.click('button[aria-label="Revise Self-Reward target"]');
+    await page.waitForFunction(
+      () => Boolean(document.querySelector('.erp-toast-viewport')?.matches(':popover-open')),
+      { timeout: 5000 },
+    );
+    const guardAudit = await page.evaluate(() => {
+      const toastText = (document.querySelector('.erp-toast-viewport') as HTMLElement | null)?.innerText ?? '';
+      const hasModal = Boolean(document.querySelector('[aria-labelledby="modal-title"]'));
+      return { toastText, hasModal };
+    });
+    assert.ok(
+      guardAudit.toastText.includes('Balances are hidden') && guardAudit.toastText.includes('Reveal Balances'),
+      `Masked edit must trigger Privacy Guard toast with Reveal Balances action, got "${guardAudit.toastText}"`,
+    );
+    assert.equal(guardAudit.hasModal, false, 'Masked edit must block opening Budget Revision Modal');
+    await page.click('.erp-toast-viewport button:not([aria-label="Dismiss notification"])');
+    await page.waitForSelector('input[type="password"][placeholder="Enter password"]', { timeout: 5000 });
+    await page.type('input[type="password"][placeholder="Enter password"]', 'Djakarta2026Nov!@#');
+    await page.click('button[type="submit"]');
+    await page.waitForFunction(() => !document.body.innerText.includes('Rp •••••'), { timeout: 15000 });
+
+    // Verify custom ErpDatePicker (toggle + #main-content scroll anchor/dismiss), Title Case cycle label, and zero Marquee orb collision on PayLater tab
     await page.evaluate(() => {
       const buttons = Array.from(document.querySelectorAll('button'));
       const paylaterTab = buttons.find((b) => b.textContent?.trim() === 'PayLater');
@@ -568,7 +595,48 @@ async function main() {
         hasUppercaseDec26: /\bDEC\s+'26\b/.test(bodyText),
       };
     });
-    await page.keyboard.press('Escape');
+    await page.click('[data-testid="erp-date-picker-trigger"]');
+    await page.waitForFunction(
+      () => !document.querySelector('.erp-popover-panel[aria-label="Purchase Date"]')?.matches(':popover-open'),
+      { timeout: 5000 },
+    );
+    await page.click('[data-testid="erp-date-picker-trigger"]');
+    await page.waitForFunction(
+      () => Boolean(document.querySelector('.erp-popover-panel[aria-label="Purchase Date"]')?.matches(':popover-open')),
+      { timeout: 5000 },
+    );
+    const beforeTop = await page.evaluate(() => {
+      const pop = document.querySelector('.erp-popover-panel[aria-label="Purchase Date"]') as HTMLElement | null;
+      return pop ? pop.getBoundingClientRect().top : -1;
+    });
+    await page.evaluate(() => {
+      const mainEl = document.getElementById('main-content');
+      if (mainEl) mainEl.scrollTop += 120;
+    });
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    const scrollTrackAudit = await page.evaluate(() => {
+      const pop = document.querySelector('.erp-popover-panel[aria-label="Purchase Date"]') as HTMLElement | null;
+      return {
+        isOpen: Boolean(pop?.matches(':popover-open')),
+        afterTop: pop ? pop.getBoundingClientRect().top : -1,
+      };
+    });
+    assert.ok(
+      !scrollTrackAudit.isOpen || Math.abs(scrollTrackAudit.afterTop - beforeTop) > 40,
+      `ErpDatePicker must track #main-content scroll or dismiss cleanly (before=${beforeTop}, after=${scrollTrackAudit.afterTop})`,
+    );
+    await page.evaluate(() => {
+      const mainEl = document.getElementById('main-content');
+      if (mainEl) mainEl.scrollTop = 1000;
+    });
+    await page.waitForFunction(
+      () => !document.querySelector('.erp-popover-panel[aria-label="Purchase Date"]')?.matches(':popover-open'),
+      { timeout: 5000 },
+    );
+    await page.evaluate(() => {
+      const mainEl = document.getElementById('main-content');
+      if (mainEl) mainEl.scrollTop = 0;
+    });
     assert.equal(paylaterAudit.rawDateInputs, 0, 'Overview DOM must have zero native <input type="date">');
     assert.equal(paylaterAudit.datePopOpen, true, 'ErpDatePicker trigger must open top-layer calendar popover');
     assert.equal(paylaterAudit.overlaps, false, 'Marquee launcher orb must not overlap + Record Expense button');
@@ -605,8 +673,30 @@ async function main() {
       !scenariosText.includes('999m target'),
       '/scenarios must not display raw "999m target" placeholder',
     );
+
+    // Verify /calendar filter bar placement, zero Priority 1 copy, and /payroll Dec 2026 THR accuracy
+    await page.goto(`${WEB_URL}/calendar?month=11&year=2026`, { waitUntil: 'networkidle2', timeout: 60000 });
+    await page.waitForSelector('[role="tablist"][aria-label="Calendar activity filter"]', { timeout: 15000 });
+    const calendarAudit = await page.evaluate(() => ({
+      hasFilterTablist: Boolean(document.querySelector('[role="tablist"][aria-label="Calendar activity filter"]')),
+      hasPriority1Copy: /Priority 1/i.test(document.body.innerText),
+      duplicateStepperInMain: document.querySelectorAll('main button[aria-label="Previous month"], main button[aria-label="Next month"]').length,
+    }));
+    assert.equal(calendarAudit.hasFilterTablist, true, '/calendar must render activity filter tablist below KPI cards');
+    assert.equal(calendarAudit.hasPriority1Copy, false, '/calendar must not render legacy "Priority 1" copy');
+    assert.equal(calendarAudit.duplicateStepperInMain, 0, '/calendar main area must not duplicate global header month stepper');
+
+    await page.goto(`${WEB_URL}/payroll?month=12&year=2026`, { waitUntil: 'networkidle2', timeout: 60000 });
+    await page.waitForFunction(() => document.body.innerText.includes('3.833.425'), { timeout: 15000 });
+    const payrollAudit = await page.evaluate(() => ({
+      hasExactDecThr: document.body.innerText.includes('3.833.425'),
+      hasDriftedDecThr: document.body.innerText.includes('3.833.667'),
+    }));
+    assert.equal(payrollAudit.hasExactDecThr, true, '/payroll Dec 2026 must display exact Rp 3.833.425 THR');
+    assert.equal(payrollAudit.hasDriftedDecThr, false, '/payroll Dec 2026 must not drift to Rp 3.833.667');
+
     console.log(
-      '  PASS [7/8]: Single Privacy Eye, monogram popover menu, zero CAPSLOCK labels, Marquee clean "hi" response, and Go /scenarios stress-test UI verified.',
+      '  PASS [7/8]: Privacy Mask guard, popover toggle/scroll, /calendar trajectory & filter bar, /payroll Dec THR, Marquee, and /scenarios verified.',
     );
 
     assert.equal(pageErrors.length, 0, `Uncaught pageerrors during E2E: ${pageErrors.join(' | ')}`);

@@ -100,11 +100,11 @@ function renderWaterfallSvg(lang: GuideLang): string {
           livingSub: "Belanja makan, kopi, harian",
           rem: "Sisa Dana Bebas (Disposable)",
           remSub: "Diteruskan ke 2 Prioritas",
-          p1: "Prioritas 1: Core Savings",
+          p1: "Core Savings Reserve",
           p1Sub: "Mengisi target tabungan utama dulu",
-          p2: "Prioritas 2: Discretionary & Buffer",
+          p2: "Discretionary & Buffer",
           p2Sub: "Dana Bebas & Emergency Buffer",
-          shortfall: "Jika Pemasukan Kurang: Prioritas 1 & 2 otomatis Rp 0 agar Dana Hidup Harian tetap positif semaksimal mungkin.",
+          shortfall: "Jika Pemasukan Kurang: Tabungan & Discretionary otomatis Rp 0 agar Dana Hidup Harian tetap positif semaksimal mungkin.",
         }
       : {
           income: "Final Net Income",
@@ -117,12 +117,12 @@ function renderWaterfallSvg(lang: GuideLang): string {
           living: "2. Daily Spending Pool",
           livingSub: "Food, coffee, day-to-day spend",
           rem: "Remaining Disposable Pool",
-          remSub: "Flows down to 2 Priorities",
-          p1: "Priority 1: Core Savings",
+          remSub: "Flows down to Reserves",
+          p1: "Core Savings Reserve",
           p1Sub: "Fills main savings reserve up to target",
-          p2: "Priority 2: Discretionary & Buffer",
+          p2: "Discretionary & Buffer",
           p2Sub: "Discretionary + Emergency Buffer",
-          shortfall: "On Income Shortfall: Priority 1 & 2 automatically drop to Rp 0 so Daily Spending Pool stays positive first.",
+          shortfall: "On Income Shortfall: Reserves & Discretionary automatically drop to Rp 0 so Daily Spending Pool stays positive first.",
         };
 
   return `
@@ -522,7 +522,7 @@ function buildGabrielPages(lang: GuideLang): GuideBookSpec {
             <li><strong>Period Switcher (&lt; Nov 2026 &gt;):</strong> Berpindah bulan siklus gaji atau klik <em>Initialize New Period</em> untuk menyiapkan bulan draft baru.</li>
             <li><strong>Locale Popover (EN / ID / 中文):</strong> Mengganti bahasa seluruh antarmuka seketika tanpa kehilangan konteks halaman.</li>
             <li><strong>Menu Akun Monogram (G):</strong> Buka <em>Profile Settings</em> atau <em>Sign Out</em> bersih yang langsung mencabut sesi aktif.</li>
-            <li><strong>Tombol Privasi Global (Sidebar Bawah + Alt+H):</strong> Menyembunyikan/membuka angka Rupiah (<code>Rp •••••</code>). Membuka angka pertama kali di tab baru wajib verifikasi password akun agar aman dari pengintip.</li>
+            <li><strong>Tombol Privasi Global (Sidebar Bawah + Alt+H):</strong> Menyembunyikan/membuka angka Rupiah (<code>Rp •••••</code>). Membuka angka pertama kali di tab baru wajib verifikasi password akun, dan selama saldo tersembunyi sistem otomatis mengunci aksi ubah target/saldo sambil memunculkan Toast satu-klik <em>Tampilkan Saldo</em>.</li>
           </ul>
         </div>
       </div>
@@ -550,7 +550,7 @@ function buildGabrielPages(lang: GuideLang): GuideBookSpec {
             <li><strong>Period Switcher (&lt; Nov 2026 &gt;):</strong> Steps across paycycles or opens <em>Initialize New Period</em> to generate a new draft cycle.</li>
             <li><strong>Locale Menu (EN / ID / 中文):</strong> Switches UI translations dynamically in one popover without leaving the active route.</li>
             <li><strong>Account Monogram (G):</strong> Opens Profile Settings or executes clean Sign Out.</li>
-            <li><strong>Global Balance Toggle (Sidebar Footer / Alt+H):</strong> Masks all currency outputs as <code>Rp •••••</code>. Unmasking for the first time in a tab requires account password verification.</li>
+            <li><strong>Global Balance Toggle (Sidebar Footer / Alt+H):</strong> Masks all currency outputs as <code>Rp •••••</code>. Unmasking for the first time in a tab requires account password verification, and while masked any budget edit or sync action pauses cleanly with a Toast prompt offering a one-click <em>Reveal Balances</em> action.</li>
           </ul>
         </div>
       </div>
@@ -618,8 +618,8 @@ function buildGabrielPages(lang: GuideLang): GuideBookSpec {
           <h3>Kolom 2: Living & Routine Bills + Allocation Mix</h3>
           <ul>
             <li><strong>Daily Food & Living Budget:</strong> Plafon uang makan/jajan satu siklus penuh. Klik ikon pensil untuk mengubah target bulan aktif (tercatat di Audit Revisi).</li>
-            <li><strong>Daftar Pos Rutin (Transport, Internet / Tagihan khusus):</strong> Setiap pos punya progres penggunaan dan tiga aksi cepat: <strong>Pay Full</strong> (lunas dari kuota), <strong>Roll to PayLater</strong> (lempar sisa kuota ke Matrix bulan depan agar kas tunai selamat), dan <strong>Log Partial</strong> (bayar cicil/sebagian).</li>
-            <li><strong>+ Enable / Adjust Routine Quota:</strong> Membuka pos bernilai Rp 0 hanya pada bulan tertentu saat dibutuhkan.</li>
+            <li><strong>Daftar Pos Rutin (Transport, Internet / Tagihan khusus):</strong> Setiap pos punya progres penggunaan dan tiga aksi cepat: <strong>Pay Full</strong> (lunas dari kuota), <strong>Roll to PayLater</strong> (lempar sisa kuota ke Matrix bulan depan agar kas tunai selamat), dan <strong>Log Partial</strong> (bayar cicil/sebagian). Bila sudah berstatus <em>Settled in full</em>, target kuota otomatis terkunci agar pencatatan tidak selisih (ubah/batalkan via Ledger bila perlu revisi).</li>
+            <li><strong>+ Enable / Adjust Routine Quota:</strong> Membuka pos bernilai Rp 0 hanya pada bulan tertentu saat siklus masih aktif.</li>
             <li><strong>Cycle Allocation Mix:</strong> Bar 4 warna yang merangkum proporsi gaji bulan ini ke Tagihan Tetap & Utang, Kas Hidup, Core Savings, serta Discretionary & Buffer, lengkap dengan link ke <code>Full Plan</code> dan <code>Due Calendar</code>.</li>
           </ul>
         </div>
@@ -645,8 +645,8 @@ function buildGabrielPages(lang: GuideLang): GuideBookSpec {
           <h3>Col 2: Living & Routine Bills + Cycle Allocation Mix</h3>
           <ul>
             <li><strong>Daily Food & Living Budget:</strong> Full-cycle allowance for everyday expenses; click the inline pencil to edit the target (logged with revision history).</li>
-            <li><strong>Routine Quotas:</strong> Track utilization per category and act in one click with <strong>Pay Full</strong>, <strong>Roll to PayLater</strong> (defer onto the Debt Matrix without spending cash today), or <strong>Log Partial</strong>.</li>
-            <li><strong>+ Enable / Adjust Routine Quota:</strong> Expand zero-target categories only during months you activate them.</li>
+            <li><strong>Routine Quotas:</strong> Track utilization per category and act in one click with <strong>Pay Full</strong>, <strong>Roll to PayLater</strong> (defer onto the Debt Matrix without spending cash today), or <strong>Log Partial</strong>. Settled-in-full items lock their revision button safely so settled balances stay intact unless adjusted in Ledger.</li>
+            <li><strong>+ Enable / Adjust Routine Quota:</strong> Expand zero-target categories only when active cycles are open.</li>
             <li><strong>Cycle Allocation Mix:</strong> Four-segment proportional strip comparing Fixed Bills & Debt, Daily Living Pool, Core Savings, and Surplus & Buffer with quick links to <code>Full Plan</code> and <code>Due Calendar</code>.</li>
           </ul>
         </div>
@@ -680,16 +680,15 @@ function buildGabrielPages(lang: GuideLang): GuideBookSpec {
           <div class="card">
             <h3>Cash Calendar (<code>/calendar</code>)</h3>
             <ul>
-              <li>Memproyeksikan saldo kas harian dari tanggal awal hingga akhir siklus gaji secara kronologis.</li>
-              <li><strong>Lowest Cash Point:</strong> Menyoroti tanggal spesifik saldo tertipis sebelum gajian berikutnya.</li>
-              <li>Menampilkan rincian tanggal jatuh tempo (tgl <code>11, 17, 23, 24, 25</code>) lengkap per item tagihan.</li>
+              <li>Memproyeksikan kurva kas harian dari awal hingga akhir siklus dengan <strong>tooltip interaktif saat kursor diarah</strong> pada tiap titik hari plus <strong>Lowest Cash Point</strong>.</li>
+              <li><strong>Navigasi Tunggal & Strip Filter Terpisah:</strong> Pindah bulan terpusat di bar atas dan filter jenis aktivitas rapi di atas kisi tanggal, lengkap rincian item jatuh tempo (tgl <code>11, 17, 23, 24, 25</code>) serta <em>Core Savings Transfer</em>.</li>
             </ul>
           </div>
           <div class="card">
             <h3>Payroll & Income (<code>/payroll</code>)</h3>
             <ul>
-              <li><strong>Slip Net Pay vs Transferred to Bank:</strong> Memisahkan gaji bersih slip (mis. Des '26 <code>Rp 5.904.000</code>), <strong>Direct Payroll Deductions</strong> (<code>Benefit by GreatDay -Rp 360.500</code> = pelunasan Rp 350.000 + fee Rp 10.500), menjadi transfer rekening Permata <code>Rp 5.543.500</code>, ditambah THR Des <code>Rp 3.833.425</code> (<code>Total Cycle Inflow Rp 9.376.925</code>).</li>
-              <li><strong>Modular THR & Templates:</strong> Kartu estimator THR tampil kondisional sesuai pengaturan di <em>Preferences</em> agar bulan reguler tetap rapi.</li>
+              <li><strong>Slip Net Pay vs Transferred to Bank:</strong> Memisahkan gaji bersih slip (mis. Des '26 <code>Rp 5.904.000</code>), <strong>Direct Payroll Deductions</strong> (<code>Benefit by GreatDay -Rp 360.500</code> = pelunasan Rp 350.000 + fee Rp 10.500), menjadi transfer rekening Permata <code>Rp 5.543.500</code>, ditambah THR Des tepat <code>264/365</code> hari = <code>Rp 3.833.425</code> (<code>Total Cycle Inflow Rp 9.376.925</code>).</li>
+              <li><strong>Panel Kerja 2-Kartu & Kontras Segmented:</strong> Area kanan memisahkan <em>Cycle Parameters & Payout</em> dan <em>Direct Payroll Deductions</em> lengkap dengan tombol pemilih modern (tanpa dropdown kaku) serta grid bawah yang simetris.</li>
             </ul>
           </div>
         </div>
@@ -706,16 +705,15 @@ function buildGabrielPages(lang: GuideLang): GuideBookSpec {
           <div class="card">
             <h3>Cash Calendar (<code>/calendar</code>)</h3>
             <ul>
-              <li>Maps projected bank balance day by day across the full payday-to-payday window.</li>
-              <li><strong>Lowest Cash Point:</strong> Pinpoints the exact date liquidity reaches its tightest buffer before next payday.</li>
-              <li>Displays itemized maturing charges on every due date within the selected period.</li>
+              <li>Maps projected bank balance day by day with an <strong>interactive hover tooltip curve</strong> showing exact balance, daily net delta, and <strong>Lowest Cash Point</strong>.</li>
+              <li><strong>Single Topbar Switcher & Filter Strip:</strong> Period navigation stays unified in the header bar while category pills sit cleanly above the date grid with itemized obligations and <em>Core Savings Transfer</em> entries.</li>
             </ul>
           </div>
           <div class="card">
             <h3>Payroll & Income (<code>/payroll</code>)</h3>
             <ul>
-              <li><strong>Slip Net Pay to Bank Transfer:</strong> Separates regular <em>Slip Net Pay</em> (e.g. Dec '26 <code>Rp 5.904.000</code>) minus itemized <strong>Direct Payroll Deductions</strong> (<em>Benefit by GreatDay</em> <code>-Rp 360.500</code>: Cash Advance Rp 350.000 + Fee Rp 10.500) to show exact <strong>Transferred to Bank</strong> (<code>Rp 5.543.500</code>) plus conditional THR (<code>Rp 3.833.425</code> = <code>Rp 9.376.925</code> total cycle inflow).</li>
-              <li><strong>Conditional THR & Custom Templates:</strong> THR estimator appears only when active/payout month or toggled on demand, configured per user in <em>Preferences</em>.</li>
+              <li><strong>Slip Net Pay to Bank Transfer:</strong> Separates regular <em>Slip Net Pay</em> (e.g. Dec '26 <code>Rp 5.904.000</code>) minus itemized <strong>Direct Payroll Deductions</strong> (<em>Benefit by GreatDay</em> <code>-Rp 360.500</code>) into exact <strong>Transferred to Bank</strong> (<code>Rp 5.543.500</code>) plus exact <code>264/365</code> prorated THR (<code>Rp 3.833.425</code> = <code>Rp 9.376.925</code> total cycle inflow).</li>
+              <li><strong>Two-Card Executive Workbench:</strong> Separates <em>Cycle Parameters & Payout Schedule</em> from <em>Direct Payroll Deductions</em> with segmented toggle pills and a balanced lower grid.</li>
             </ul>
           </div>
         </div>
@@ -852,7 +850,7 @@ function buildGabrielPages(lang: GuideLang): GuideBookSpec {
       </div>
       <div class="callout info">
         <div class="callout-title">Akurasi Saldo Tabungan (Epoch Isolation)</div>
-        <p>Saldo Core Savings P1 dihitung murni dari catatan mutasi nyata sejak periode epoch aktif (<code>10/2026</code>), bebas dari aset fiktif maupun pengembalian internal antar-kantong.</p>
+        <p>Saldo Core Savings Reserve dihitung murni dari catatan mutasi nyata sejak periode epoch aktif (<code>10/2026</code>), bebas dari aset fiktif maupun pengembalian internal antar-kantong.</p>
       </div>`
       : `
       <h2 class="chapter-title">08 · Savings & Emergency Fund + What-If Scenario Lab</h2>
@@ -1233,7 +1231,7 @@ function buildStandardPages(lang: GuideLang): GuideBookSpec {
             <li><strong>Search (Ctrl+K):</strong> Mencari transaksi apa pun atau menulis perintah entri cepat dari halaman mana saja.</li>
             <li><strong>Pemilih Periode (&lt; Nov 2026 &gt;):</strong> Melihat siklus lampau, siklus aktif, atau membuat periode draft baru via <em>Initialize New Period</em>.</li>
             <li><strong>Bahasa (EN / ID / 中文):</strong> Mengganti bahasa tampilan seketika melalui menu popover kanan atas.</li>
-            <li><strong>Saldo Tersembunyi (Sidebar Bawah / Alt+H):</strong> Mengubah seluruh nominal menjadi <code>Rp •••••</code>; membuka angka pertama kali pada suatu sesi memerlukan konfirmasi kata sandi akun Anda.</li>
+            <li><strong>Saldo Tersembunyi (Sidebar Bawah / Alt+H):</strong> Mengubah seluruh nominal menjadi <code>Rp •••••</code>; membuka angka pertama kali pada suatu sesi memerlukan konfirmasi kata sandi, dan selama saldo disembunyikan setiap aksi ubah nominal/tarik data otomatis terkunci dengan Toast <em>Tampilkan Saldo</em>.</li>
           </ul>
         </div>
       </div>`
@@ -1255,7 +1253,7 @@ function buildStandardPages(lang: GuideLang): GuideBookSpec {
             <li><strong>Command Search (Ctrl+K):</strong> Searches transactions across periods and supports instant quick-entry commands.</li>
             <li><strong>Period Switcher (&lt; Nov 2026 &gt;):</strong> Navigates across historical, active, or newly initialized draft periods.</li>
             <li><strong>Locale Menu (EN / ID / 中文):</strong> Compact popover switching English, Indonesian, and Chinese labels cleanly.</li>
-            <li><strong>Global Balance Toggle (Sidebar Footer / Alt+H):</strong> Masks all currency displays; first reveal in each session verifies your account password.</li>
+            <li><strong>Global Balance Toggle (Sidebar Footer / Alt+H):</strong> Masks all currency displays; first reveal verifies your password, and while masked any edit or sync trigger shows a protective Toast with a one-click <em>Reveal Balances</em> action.</li>
           </ul>
         </div>
       </div>`,
@@ -1317,7 +1315,7 @@ function buildStandardPages(lang: GuideLang): GuideBookSpec {
           <h3>Kolom 2: Living &amp; Routine Bills Kustom</h3>
           <ul>
             <li><strong>Pos Rutin Dinamis:</strong> Di edisi Standar, Anda bisa menambah kategori sendiri lewat <strong>+ Add Routine Category</strong>, mengganti namanya (ikon pensil), maupun menghapus pos kustom yang tidak dipakai lagi.</li>
-            <li><strong>Aksi Cepat per Pos:</strong> Gunakan <strong>Pay Full</strong>, <strong>Roll to PayLater</strong> (pindah ke tagihan kredit bulan depan), atau <strong>Log Partial</strong> (bayar sebagian).</li>
+            <li><strong>Aksi Cepat & Kunci Lunas:</strong> Gunakan <strong>Pay Full</strong>, <strong>Roll to PayLater</strong> (pindah ke tagihan kredit bulan depan), atau <strong>Log Partial</strong> (bayar sebagian). Pos berstatus <em>Settled in full</em> otomatis mengunci edit kuota agar pembukuan tetap konsisten.</li>
             <li><strong>Cycle Allocation Mix:</strong> Bar 4 segmen memetakan porsi pengeluaran tetap, kas hidup harian, tabungan utama, serta discretionary &amp; buffer.</li>
           </ul>
         </div>
@@ -1338,7 +1336,7 @@ function buildStandardPages(lang: GuideLang): GuideBookSpec {
           <h3>Col 2: Custom Living &amp; Routine Envelopes</h3>
           <ul>
             <li><strong>Manage Categories Dynamically:</strong> Add your own custom expense categories via <strong>+ Add Routine Category</strong>, rename labels inline, or remove unused custom pockets cleanly.</li>
-            <li><strong>One-Click Settlement Actions:</strong> Pay remaining quota with <strong>Pay Full</strong>, defer onto the debt schedule with <strong>Roll to PayLater</strong>, or record partial payments via <strong>Log Partial</strong>.</li>
+            <li><strong>One-Click Actions &amp; Settled Lock:</strong> Pay remaining quota with <strong>Pay Full</strong>, defer onto the debt schedule with <strong>Roll to PayLater</strong>, or record partial payments via <strong>Log Partial</strong>. Settled-in-full items lock quota edits until undone in Ledger.</li>
             <li><strong>Cycle Allocation Mix:</strong> Summarizes your cycle paycheck split across Fixed Bills &amp; Debt, Daily Living Pool, Core Savings, and Surplus &amp; Buffer.</li>
           </ul>
         </div>
@@ -1370,7 +1368,7 @@ function buildStandardPages(lang: GuideLang): GuideBookSpec {
           </div>
           <div class="card">
             <h3>Bills &amp; Cash Calendar (<code>/calendar</code>)</h3>
-            <p>Menampilkan garis waktu proyeksi kas harian dan menyorot <strong>Lowest Cash Point</strong> (hari dengan saldo paling ketat) supaya Anda bisa mengatur tempo transaksi sebelum tanggal gajian berikutnya tiba.</p>
+            <p>Menampilkan kurva proyeksi kas harian dengan tooltip interaktif saat kursor diarah, filter aktivitas terpisah di atas kalender, serta sorotan <strong>Lowest Cash Point</strong> dan <em>Core Savings Transfer</em> agar tempo belanja tetap terkendali.</p>
           </div>
         </div>
       </div>`
@@ -1389,7 +1387,7 @@ function buildStandardPages(lang: GuideLang): GuideBookSpec {
           </div>
           <div class="card">
             <h3>Cash Calendar (<code>/calendar</code>)</h3>
-            <p>Day-by-day liquidity calendar highlighting your <strong>Lowest Cash Point</strong> and itemized maturing obligations across the full paycycle window.</p>
+            <p>Interactive daily liquidity curve with hover tooltips, a dedicated activity filter strip above the date grid, <strong>Lowest Cash Point</strong> highlighting, and itemized maturing obligations across the paycycle window.</p>
           </div>
         </div>
       </div>`,
@@ -1404,8 +1402,8 @@ function buildStandardPages(lang: GuideLang): GuideBookSpec {
         <div class="card">
           <h3>Income &amp; Cash Flow (<code>/payroll</code>)</h3>
           <ul>
-            <li>Atur gaji pokok, penyesuaian, potongan langsung slip (mis. kasbon/salary advance), bonus/THR kondisional, dan tanggal masuk gaji aktual.</li>
-            <li>Simulasi pembagian tagihan hari gajian dan hitung upah bersih per jam kerja (opsional jam komuter).</li>
+            <li>Panel kerja 2-kartu memisahkan pengaturan siklus/gaji pokok/THR (termasuk tombol pemilih segmen tanpa dropdown kaku) dari daftar potongan langsung slip.</li>
+            <li>Simulasi pembagian tagihan hari gajian dan hitung upah bersih per jam kerja secara sejajar pada grid bawah.</li>
           </ul>
         </div>
         <div class="card">
@@ -1427,8 +1425,8 @@ function buildStandardPages(lang: GuideLang): GuideBookSpec {
         <div class="card">
           <h3>Income &amp; Cash Flow (<code>/payroll</code>)</h3>
           <ul>
-            <li>Configure monthly base income, pre-net or direct post-net payroll deductions (such as early salary advances), optional holiday bonus settings, and confirmed payout date.</li>
-            <li>Compute true net hourly wage to evaluate purchases in real work hours.</li>
+            <li>Two-card right workbench cleanly separates cycle parameters, payout schedule, and segmented bonus/THR controls from direct post-net payroll deductions.</li>
+            <li>Compare contractual base rates against quick inflow entries side by side while checking hourly net wages.</li>
           </ul>
         </div>
         <div class="card">

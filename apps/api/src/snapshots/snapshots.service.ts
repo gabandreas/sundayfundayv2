@@ -1251,11 +1251,11 @@ export class SnapshotsService {
               year: snapshot.year,
               category: BudgetRevisionCategory.SAVINGS,
               bucketKey: 'core_savings',
-              bucketLabel: 'Priority 1 Core Savings',
+              bucketLabel: 'Core Savings Reserve',
               previousValue: snapshot.savings,
               newValue: nextP1,
               difference: nextP1 - snapshot.savings,
-              reason: `P1 Vault forward-borrow (${reason}) -> Self-Reward P2, mandatory refund scheduled ${dto.refundMonth}/${dto.refundYear}`,
+              reason: `Temporary Savings Advance (${reason}) -> Discretionary, mandatory refund scheduled ${dto.refundMonth}/${dto.refundYear}`,
             },
           });
         } else {
@@ -1279,11 +1279,11 @@ export class SnapshotsService {
                 year: snapshot.year,
                 category: BudgetRevisionCategory.SAVINGS,
                 bucketKey: 'core_savings',
-                bucketLabel: 'Priority 1 Core Savings',
+                bucketLabel: 'Core Savings Reserve',
                 previousValue: snapshot.savings,
                 newValue: nextP1,
                 difference: nextP1 - snapshot.savings,
-                reason: `P1 Vault forward-borrow (${reason}) -> Living Cash, mandatory refund scheduled ${dto.refundMonth}/${dto.refundYear}`,
+                reason: `Temporary Savings Advance (${reason}) -> Daily Spending Pool, mandatory refund scheduled ${dto.refundMonth}/${dto.refundYear}`,
               },
               {
                 snapshotId,

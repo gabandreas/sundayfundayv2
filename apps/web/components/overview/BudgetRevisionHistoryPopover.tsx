@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { X, History } from "lucide-react";
 import { BudgetRevision } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
+import { usePrivacyGuard } from "@/hooks/usePrivacyGuard";
 
 interface BudgetRevisionHistoryPopoverProps {
   revisions: BudgetRevision[];
@@ -15,6 +16,7 @@ export function BudgetRevisionHistoryPopover({
   categoryLabel,
 }: BudgetRevisionHistoryPopoverProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const { isAmountsMasked, requireUnmasked } = usePrivacyGuard();
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -47,7 +49,14 @@ export function BudgetRevisionHistoryPopover({
     <div className="relative inline-block" ref={containerRef}>
       <button
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          if (isOpen) {
+            setIsOpen(false);
+            return;
+          }
+          if (!requireUnmasked(`${categoryLabel} History`)) return;
+          setIsOpen(true);
+        }}
         className="p-1 rounded text-text-tertiary hover:text-text-primary hover:bg-surface-subtle transition-colors inline-flex items-center gap-0.5 cursor-pointer"
         title={`View revision history (${revisions.length})`}
         aria-label={`View revision history (${revisions.length})`}
@@ -64,7 +73,7 @@ export function BudgetRevisionHistoryPopover({
         <div className="absolute right-0 z-40 mt-1.5 w-80 rounded-lg border border-border bg-surface p-4 shadow-xl text-left animate-in fade-in zoom-in-95 duration-100">
           <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-border-subtle">
             <div>
-              <span className="text-[10px] font-mono text-text-tertiary block">
+              <span className="text-[10px] font-sans text-text-tertiary block">
                 Audit Trail
               </span>
               <span className="text-xs font-semibold font-sans text-text-primary">
@@ -74,7 +83,7 @@ export function BudgetRevisionHistoryPopover({
             <button
               type="button"
               onClick={() => setIsOpen(false)}
-              className="text-text-tertiary hover:text-text-primary p-0.5 rounded transition-colors"
+              className="text-text-tertiary hover:text-text-primary p-0.5 rounded transition-colors cursor-pointer"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -108,17 +117,19 @@ export function BudgetRevisionHistoryPopover({
                           : "text-text-tertiary"
                       }`}
                     >
-                      {diff > 0 ? `+${formatRupiah(diff)}` : formatRupiah(diff)}
+                      {diff > 0
+                        ? `+${formatRupiah(diff, isAmountsMasked)}`
+                        : formatRupiah(diff, isAmountsMasked)}
                     </span>
                   </div>
 
                   <div className="flex items-center gap-1.5 font-mono text-[11px] tabular-nums text-text-primary">
                     <span className="text-text-tertiary line-through">
-                      {formatRupiah(rev.previousValue)}
+                      {formatRupiah(rev.previousValue, isAmountsMasked)}
                     </span>
                     <span className="text-text-tertiary">→</span>
                     <span className="font-semibold text-text-primary">
-                      {formatRupiah(rev.newValue)}
+                      {formatRupiah(rev.newValue, isAmountsMasked)}
                     </span>
                   </div>
 

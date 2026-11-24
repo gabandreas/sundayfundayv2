@@ -15,7 +15,7 @@ import {
   updateKillSwitch,
 } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
-import { usePrivacyMask } from "@/context/PrivacyMaskContext";
+import { usePrivacyGuard } from "@/hooks/usePrivacyGuard";
 import { useLanguage } from "@/context/LanguageContext";
 import { Copy, ExternalLink, Eye, Plus, X } from "lucide-react";
 import { SmtpControlPanel } from "./SmtpControlPanel";
@@ -153,7 +153,7 @@ export function SubscriptionKillSwitchTab({
   hideSmtpPanel = false,
 }: SubscriptionKillSwitchTabProps) {
   const { locale } = useLanguage();
-  const { isAmountsMasked } = usePrivacyMask();
+  const { isAmountsMasked, requireUnmasked } = usePrivacyGuard();
   const formDialogRef = useRef<HTMLDialogElement | null>(null);
   const noticeDialogRef = useRef<HTMLDialogElement | null>(null);
 
@@ -243,6 +243,7 @@ export function SubscriptionKillSwitchTab({
   };
 
   const openAddDialog = () => {
+    if (!requireUnmasked("Add subscription")) return;
     setEditingItem(null);
     setFormLabel("");
     setFormAmount(0);
@@ -256,6 +257,7 @@ export function SubscriptionKillSwitchTab({
   };
 
   const openEditDialog = (item: KillSwitchItem) => {
+    if (!requireUnmasked(`Edit ${item.label}`)) return;
     setEditingItem(item);
     setFormLabel(item.label);
     setFormAmount(item.amount);

@@ -1,4 +1,8 @@
-import React from "react";
+"use client";
+
+import React, { useState } from "react";
+import { usePrivacyMask } from "@/context/PrivacyMaskContext";
+import { formatRupiah } from "@/lib/utils";
 
 export interface MiniTrendChartProps {
   daysInCycle?: number;
@@ -49,6 +53,8 @@ export function MiniTrendChart({
   cycleStartDate,
   cycleEndDate,
 }: MiniTrendChartProps) {
+  const { isAmountsMasked } = usePrivacyMask();
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const safeDays = Math.max(daysInCycle || 30, 1);
   const isPrePayday = cycleTemporalState === "PRE_PAYDAY";
   const isCompleted = cycleTemporalState === "COMPLETED";
@@ -118,10 +124,24 @@ export function MiniTrendChart({
       </div>
 
       <div className="relative w-full h-9">
+        {hoveredIdx !== null && data[hoveredIdx] !== undefined && (
+          <div
+            style={{
+              left: `${Math.max(18, Math.min(82, ((hoveredIdx + 0.5) / safeDays) * 100))}%`,
+            }}
+            className="pointer-events-none absolute -top-1.5 -translate-y-full -translate-x-1/2 z-20 px-2 py-1 rounded border border-border-strong bg-surface-elevated shadow-xl text-[10px] whitespace-nowrap"
+          >
+            <span className="font-sans text-text-tertiary mr-1.5">Day {hoveredIdx + 1}:</span>
+            <span className="font-mono tabular-nums font-medium text-text-primary">
+              {formatRupiah(data[hoveredIdx], isAmountsMasked)}
+            </span>
+          </div>
+        )}
         <svg
           viewBox={`0 0 ${chartWidth} ${chartHeight}`}
           className="w-full h-full overflow-visible"
           preserveAspectRatio="none"
+          onMouseLeave={() => setHoveredIdx(null)}
         >
           <line
             x1="0"
@@ -138,17 +158,32 @@ export function MiniTrendChart({
             const height = spend > 0 ? (spend / maxSpend) * (chartHeight - 4) : 2;
             const x = index * (chartWidth / safeDays);
             const y = chartHeight - height;
+            const isHovered = hoveredIdx === index;
 
             return (
-              <rect
+              <g
                 key={day}
-                x={x}
-                y={y}
-                width={Math.max(barWidth, 1)}
-                height={Math.max(height, 2)}
-                rx={0.5}
-                className={`transition-colors ${getBarColor(spend, day)}`}
-              />
+                onMouseEnter={() => setHoveredIdx(index)}
+                className="cursor-pointer"
+              >
+                <rect
+                  x={x}
+                  y={0}
+                  width={Math.max(chartWidth / safeDays, 4)}
+                  height={chartHeight}
+                  fill="transparent"
+                />
+                <rect
+                  x={x}
+                  y={y}
+                  width={Math.max(barWidth, 1)}
+                  height={Math.max(height, 2)}
+                  rx={0.5}
+                  className={`transition-opacity ${getBarColor(spend, day)} ${
+                    isHovered ? "opacity-100 ring-1 ring-text-primary" : "opacity-90"
+                  }`}
+                />
+              </g>
             );
           })}
 

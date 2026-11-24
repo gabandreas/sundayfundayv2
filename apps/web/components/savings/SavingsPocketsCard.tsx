@@ -8,7 +8,7 @@ import {
   saveSavingsPockets,
 } from "@/lib/api";
 import { formatCurrencyInput, formatRupiah, parseCurrencyInput } from "@/lib/utils";
-import { usePrivacyMask } from "@/context/PrivacyMaskContext";
+import { usePrivacyGuard } from "@/hooks/usePrivacyGuard";
 import { useToast } from "@/context/ToastContext";
 
 const POCKET_CATEGORY_OPTIONS: Array<{
@@ -64,7 +64,7 @@ export function SavingsPocketsCard({
   initialPockets,
   onSaved,
 }: SavingsPocketsCardProps) {
-  const { isAmountsMasked } = usePrivacyMask();
+  const { isAmountsMasked, requireUnmasked } = usePrivacyGuard();
   const { toast } = useToast();
   const [pockets, setPockets] = useState<SavingsPocketConfig[]>(() =>
     initialPockets && initialPockets.length > 0 ? initialPockets : getDefaultPockets(),
@@ -87,6 +87,7 @@ export function SavingsPocketsCard({
   const isOverAllocated = unallocatedPool < 0;
 
   const updatePocket = (idx: number, patch: Partial<SavingsPocketConfig>) => {
+    if (!requireUnmasked("Adjust savings pocket")) return;
     setFeedback(null);
     setPockets((prev) =>
       prev.map((row, i) => (i === idx ? { ...row, ...patch } : row)),
@@ -95,6 +96,7 @@ export function SavingsPocketsCard({
 
   const handleAssignRemainder = (idx: number) => {
     if (unallocatedPool <= 0) return;
+    if (!requireUnmasked("Assign unallocated savings")) return;
     setFeedback(null);
     setPockets((prev) =>
       prev.map((row, i) =>
@@ -106,6 +108,7 @@ export function SavingsPocketsCard({
   };
 
   const handleAddPocket = () => {
+    if (!requireUnmasked("Add savings pocket")) return;
     setFeedback(null);
     const uid = `pocket_${Date.now()}`;
     setPockets((prev) => [
