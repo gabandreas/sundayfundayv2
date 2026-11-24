@@ -35,9 +35,15 @@ export function PayrollCashflowHighlights({
   const displayedNetTakeHome = bankTakeHomeSalary ?? netSalaryIncome;
 
   return (
-    <div className="grid grid-cols-12 gap-4">
+    <div
+      className={
+        isStandardMode
+          ? "grid grid-cols-3 gap-4"
+          : "grid grid-cols-[minmax(0,1.45fr)_minmax(0,1.15fr)_minmax(0,1fr)_minmax(0,0.95fr)] gap-4"
+      }
+    >
       {/* Centerpiece: Final Total Income */}
-      <div className={isStandardMode ? "col-span-4" : "col-span-4"}>
+      <div className="min-w-0">
         <MetricCard
           label={isStandardMode ? "Monthly Total Income" : "Total Cycle Inflow"}
           amount={finalTotalIncome}
@@ -54,7 +60,7 @@ export function PayrollCashflowHighlights({
       </div>
 
       {/* Transferred to Bank / Slip Net Pay */}
-      <div className={isStandardMode ? "col-span-4" : "col-span-3"}>
+      <div className="min-w-0">
         <MetricCard
           label={
             isStandardMode
@@ -78,7 +84,7 @@ export function PayrollCashflowHighlights({
       </div>
 
       {/* Windfall / Extra / THR */}
-      <div className={isStandardMode ? "col-span-4" : "col-span-3"}>
+      <div className="min-w-0">
         <MetricCard
           label={hasThrOrBonus ? "THR, Bonus & Windfall" : "Extra / Windfall"}
           amount={supplementalTotal}
@@ -95,7 +101,7 @@ export function PayrollCashflowHighlights({
 
       {/* Working Days (Corporate Attendance Payroll only) */}
       {!isStandardMode && (
-        <div className="col-span-2">
+        <div className="min-w-0">
           <MetricCard
             label="Working Days"
             value={`${workingDays} days`}

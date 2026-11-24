@@ -468,9 +468,9 @@ export function AdaptiveDailyPacingCard({
               )
             ) : (
               <span>
-                Daily allowance today · Target:{" "}
+                {t("overview.dailyAllowanceToday")}{" "}
                 <strong className="text-text-secondary font-mono">
-                  {formatIdr(pacing?.baselineDailyRate ?? 0)}/day
+                  {formatIdr(pacing?.baselineDailyRate ?? 0)}{t("overview.perDay")}
                 </strong>
               </span>
             )}
@@ -620,12 +620,12 @@ export function AdaptiveDailyPacingCard({
               >
                 {remainingRoutineBillsPool > 0
                   ? formatIdr(remainingRoutineBillsPool)
-                  : "All settled"}
+                  : t("overview.allSettled")}
               </span>
               <span className="text-[10px] font-sans text-text-tertiary truncate block">
                 {remainingRoutineBillsPool > 0
                   ? t("overview.atCurrentPace")
-                  : "no pending routine bills"}
+                  : t("overview.noPendingRoutineBills")}
               </span>
             </div>
           </div>
@@ -645,7 +645,7 @@ export function AdaptiveDailyPacingCard({
               </span>
               {remainingRoutineBillsPool > 0 && (
                 <span className="text-[10px] font-sans text-text-tertiary">
-                  includes {formatIdr(remainingRoutineBillsPool)} for bills
+                  {t("overview.includesForBills")} {formatIdr(remainingRoutineBillsPool)} {t("overview.forBillsSuffix")}
                 </span>
               )}
             </div>
@@ -664,14 +664,14 @@ export function AdaptiveDailyPacingCard({
                 }}
                 className="px-2.5 py-1 rounded text-[11px] font-sans font-medium border border-border bg-canvas text-text-primary hover:bg-surface-hover transition-colors cursor-pointer whitespace-nowrap"
               >
-                {showSyncPanel ? "Close" : "Update Bank Balance"}
+                {showSyncPanel ? t("datePicker.close") : t("overview.updateBankBalance")}
               </button>
             )}
             <Link
               href="/import"
               className="text-[11px] font-sans text-text-secondary hover:text-text-primary hover:underline whitespace-nowrap"
             >
-              Import Statement
+              {t("overview.importStatement")}
             </Link>
           </div>
         </div>
@@ -864,11 +864,11 @@ export function AdaptiveDailyPacingCard({
             className="w-full flex items-center justify-between text-[11px] text-text-tertiary hover:text-text-secondary transition-colors cursor-pointer py-1"
           >
             <span className="font-sans font-medium">
-              Balance History ({balanceHistory.length})
+              {t("overview.balanceHistory")} ({balanceHistory.length})
             </span>
             <div className="flex items-center gap-1">
               <span className="font-mono text-[10px]">
-                Adjustments: {formatIdr(netBalanceAdjustment)}
+                {t("overview.adjustmentsLabel")}: {formatIdr(netBalanceAdjustment)}
               </span>
               {showBalanceHistory ? (
                 <ChevronUp className="w-3.5 h-3.5" />
