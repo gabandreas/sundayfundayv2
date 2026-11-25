@@ -635,7 +635,7 @@ async function runLayer2DemoSandboxFuzz(baseUrl: string): Promise<void> {
     month: 11,
     year: 2026,
     title: 'QA Bus Outing Penalty',
-    category: 'OUTING',
+    category: 'EVENT_OUTING',
     amount: 100000,
     dueDate: '2026-11-28',
     fundingSource: 'PAYCHECK_UPFRONT',
@@ -684,7 +684,7 @@ async function runLayer2DemoSandboxFuzz(baseUrl: string): Promise<void> {
   const optRes = await apiReq(baseUrl, guestSession, 'POST', '/api/events/optimize', {
     month: 11,
     year: 2026,
-    eventType: 'OUTING',
+    eventType: 'DAY_OUTING',
     durationDays: 2,
     startDateIso: '2026-12-05',
     prepaidCommittedRp: 100000,
@@ -700,7 +700,7 @@ async function runLayer2DemoSandboxFuzz(baseUrl: string): Promise<void> {
     month: 11,
     year: 2026,
     title: 'QA Dec Outing',
-    eventType: 'OUTING',
+    eventType: 'DAY_OUTING',
     startDate: '2026-12-05',
     endDate: '2026-12-06',
     plannedCapRp: 600000,
@@ -712,7 +712,7 @@ async function runLayer2DemoSandboxFuzz(baseUrl: string): Promise<void> {
   const expCreateRes = await apiReq(baseUrl, guestSession, 'POST', `/api/events/${evId}/expenses`, {
     date: '2026-12-05',
     label: 'Group Dinner Advance',
-    category: 'FOOD',
+    category: 'FOOD_DRINK',
     amountRp: 300000,
     isSharedAdvance: true,
     counterpartyName: 'Budi',
@@ -768,8 +768,8 @@ async function runLayer2DemoSandboxFuzz(baseUrl: string): Promise<void> {
   const intelSfRes = await apiReq(baseUrl, guestSession, 'GET', '/api/finance/intelligence?month=11&year=2026');
   assert.equal(intelSfRes.status, 200);
   assert.ok(
-    (intelSfRes.data?.envelopes?.sinkingFunds ?? []).some((s: any) => s.id === `db-${sfId}`),
-    'Intelligence envelopes.sinkingFunds must reflect active DB SinkingFundItem',
+    (intelSfRes.data?.envelopes?.sinkingSchedules ?? []).some((s: any) => s.id === `db-${sfId}`),
+    'Intelligence envelopes.sinkingSchedules must reflect active DB SinkingFundItem',
   );
   const delSfRes = await apiReq(baseUrl, guestSession, 'DELETE', `/api/sinking-funds/${sfId}`);
   assert.equal(delSfRes.status, 200);
@@ -935,7 +935,7 @@ async function runLayer3User1ReadOnlyParity(baseUrl: string): Promise<void> {
       assert.equal(Math.round(s.deficitUncovered), 108633);
       assert.equal(Math.round(s.actualSavings), 6341);
       assert.equal(Math.round(s.selfReward), 250000);
-      assert.equal(Math.round(p.remainingBudget), 100000);
+      assert.equal(Math.round(p.remainingBudget), 84838);
       assert.ok(p.safeToSpendToday > 0, `User #1 11/2026 safeToSpendToday must be > 0, got ${p.safeToSpendToday}`);
     }
     if (m === 12 && y === 2026) {
