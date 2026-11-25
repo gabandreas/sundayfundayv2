@@ -5,6 +5,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"sundayfunday.erp/go-engine/internal/format"
 )
 
 type CategoryWeightInput struct {
@@ -336,7 +338,7 @@ func OptimizeTripBudget(req TripOptimizeRequest) TripOptimizeResult {
 		if balVar < consVar {
 			balVar = consVar
 		}
-		consGuidance = fmt.Sprintf("Uses 45%% of cycle discretionary cash while keeping Rp %d headroom before next payday.", lowest-consVar)
+		consGuidance = fmt.Sprintf("Uses 45%% of cycle discretionary cash while keeping Rp %s headroom before next payday.", format.Rp(lowest-consVar))
 		balGuidance = "Uses up to 75% of discretionary surplus cleanly without touching Core Savings or dropping cycle lowest cash below zero."
 	} else {
 		shortfall := -lowest
@@ -347,8 +349,8 @@ func OptimizeTripBudget(req TripOptimizeRequest) TripOptimizeResult {
 		availableHeadroom = tightPool
 		consVar = (tightPool*50 + 50) / 100
 		balVar = tightPool
-		consGuidance = fmt.Sprintf("Scaled to 50%% of post-shortfall discretionary space (Rp %d shortfall in cycle).", shortfall)
-		balGuidance = fmt.Sprintf("Full post-shortfall discretionary ceiling after accounting for Rp %d cycle shortfall.", shortfall)
+		consGuidance = fmt.Sprintf("Scaled to 50%% of post-shortfall discretionary space (Rp %s shortfall in cycle).", format.Rp(shortfall))
+		balGuidance = fmt.Sprintf("Full post-shortfall discretionary ceiling after accounting for Rp %s cycle shortfall.", format.Rp(shortfall))
 	}
 
 	rawMax := disc + (buf*50+50)/100

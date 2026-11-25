@@ -13,6 +13,7 @@ import {
   syncConfigToPeriod,
 } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
+import { formatHumanStatus } from "@/lib/format-labels";
 import { useConfirmDialog } from "@/context/ConfirmDialogContext";
 
 interface AllocationBucketsTabProps {
@@ -431,14 +432,14 @@ export function AllocationBucketsTab({
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="border-b border-[#282e3d] text-text-tertiary text-[10px]">
-                <th className="py-2 px-3">Status</th>
-                <th className="py-2 px-3">Tier</th>
-                <th className="py-2 px-3">Bucket Label</th>
-                <th className="py-2 px-3">Group</th>
-                <th className="py-2 px-3">Formula Mode</th>
-                <th className="py-2 px-3">Value</th>
-                <th className="py-2 px-3">Floor / Cap (Optional)</th>
-                <th className="py-2 px-3 text-right">Action</th>
+                <th className="py-2 px-2">Status</th>
+                <th className="py-2 px-2">Tier</th>
+                <th className="py-2 px-2 min-w-[130px]">Bucket Label</th>
+                <th className="py-2 px-2">Group</th>
+                <th className="py-2 px-2">Formula Mode</th>
+                <th className="py-2 px-2">Value</th>
+                <th className="py-2 px-2">Floor / Cap (Optional)</th>
+                <th className="py-2 px-2 text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#282e3d]">
@@ -446,34 +447,34 @@ export function AllocationBucketsTab({
                 const realIdx = buckets.findIndex((b) => b.id === bucket.id);
                 return (
                   <tr key={bucket.id} className={bucket.isActive ? "" : "opacity-40"}>
-                    <td className="py-2.5 px-3">
+                    <td className="py-2.5 px-2 whitespace-nowrap">
                       <button
                         type="button"
                         onClick={() => handleToggleBucket(realIdx)}
-                        className={`px-2 py-0.5 rounded text-[10px] font-mono border ${
+                        className={`px-2 py-0.5 rounded text-[10px] font-sans font-medium border ${
                           bucket.isActive
                             ? "bg-[#16231c] border-[#204e35] text-[#4ade80]"
                             : "bg-[#1f2430] border-[#282e3d] text-text-tertiary"
                         }`}
                       >
-                        {bucket.isActive ? "ACTIVE" : "OFF"}
+                        {bucket.isActive ? "Active" : "Off"}
                       </button>
                     </td>
-                    <td className="py-2.5 px-3">
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-mono border border-[#282e3d] bg-[#0c0e14] text-text-secondary">
+                    <td className="py-2.5 px-2 whitespace-nowrap">
+                      <span className="inline-flex items-center whitespace-nowrap px-1.5 py-0.5 rounded text-[10px] font-mono border border-[#282e3d] bg-[#0c0e14] text-text-secondary">
                         Tier {bucket.priorityTier}
                       </span>
                     </td>
-                    <td className="py-2.5 px-3 font-medium text-text-primary">
+                    <td className="py-2.5 px-2 font-medium text-text-primary min-w-[130px]">
                       <input
                         type="text"
                         value={bucket.label}
                         onChange={(e) => handleUpdateBucketField(realIdx, "label", e.target.value)}
-                        className="bg-transparent border-b border-transparent hover:border-[#282e3d] focus:border-accent-primary px-1 py-0.5 text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 w-full"
+                        className="bg-transparent border-b border-transparent hover:border-[#282e3d] focus:border-accent-primary px-1 py-0.5 text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 w-full min-w-[125px]"
                       />
                     </td>
-                    <td className="py-2.5 px-3 text-text-tertiary text-[11px] font-mono">
-                      {bucket.group}
+                    <td className="py-2.5 px-2 text-text-secondary text-[11px] font-sans whitespace-nowrap">
+                      {formatHumanStatus(bucket.group)}
                     </td>
                     <td className="py-2.5 px-3">
                       <select

@@ -383,11 +383,11 @@ export function RoutineBillsQuotaCard({
     <div className="rounded-lg border border-border bg-surface p-5 flex flex-col justify-between h-full">
       <div>
         {/* Header */}
-        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+        <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 mb-2 pr-0.5">
           <span className="text-[11px] font-semibold text-text-tertiary font-sans">
             {t("overview.routineBills")}
           </span>
-          <span className="text-[11px] erp-tabular-currency text-accent font-medium whitespace-nowrap shrink-0">
+          <span className="text-[10.5px] erp-tabular-currency text-accent font-medium whitespace-nowrap shrink-0">
             {t("overview.remainingBillsQuota")}: {formatIdr(totalRoutinePoolRemaining)}
           </span>
         </div>

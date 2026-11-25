@@ -2787,6 +2787,11 @@ export function optimizeTripBudgetTs(req: TripOptimizeRequest): TripOptimizeResu
   const catWeights =
     customWeights.length > 0 ? customWeights : resolveTripCategoryWeights(eventType);
 
+  const formatRpDot = (n: number): string => {
+    const abs = String(Math.abs(Math.trunc(n))).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return n < 0 ? `-${abs}` : abs;
+  };
+
   let consVar = 0;
   let balVar = 0;
   let availableHeadroom = 0;
@@ -2799,7 +2804,7 @@ export function optimizeTripBudgetTs(req: TripOptimizeRequest): TripOptimizeResu
     consVar = Math.min(rawCons, headroom);
     const rawBal = Math.floor((disc * 75 + 50) / 100);
     balVar = Math.max(consVar, Math.min(rawBal, headroom));
-    consGuidance = `Uses 45% of cycle discretionary cash while keeping Rp ${lowest - consVar} headroom before next payday.`;
+    consGuidance = `Uses 45% of cycle discretionary cash while keeping Rp ${formatRpDot(lowest - consVar)} headroom before next payday.`;
     balGuidance =
       'Uses up to 75% of discretionary surplus cleanly without touching Core Savings or dropping cycle lowest cash below zero.';
   } else {
@@ -2808,8 +2813,8 @@ export function optimizeTripBudgetTs(req: TripOptimizeRequest): TripOptimizeResu
     availableHeadroom = tightPool;
     consVar = Math.floor((tightPool * 50 + 50) / 100);
     balVar = tightPool;
-    consGuidance = `Scaled to 50% of post-shortfall discretionary space (Rp ${shortfall} shortfall in cycle).`;
-    balGuidance = `Full post-shortfall discretionary ceiling after accounting for Rp ${shortfall} cycle shortfall.`;
+    consGuidance = `Scaled to 50% of post-shortfall discretionary space (Rp ${formatRpDot(shortfall)} shortfall in cycle).`;
+    balGuidance = `Full post-shortfall discretionary ceiling after accounting for Rp ${formatRpDot(shortfall)} cycle shortfall.`;
   }
 
   const rawMax = disc + Math.floor((buf * 50 + 50) / 100);

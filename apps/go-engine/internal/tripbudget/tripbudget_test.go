@@ -1,6 +1,9 @@
 package tripbudget
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestOptimizeTripBudgetTiersAndConservation(t *testing.T) {
 	res := OptimizeTripBudget(TripOptimizeRequest{
@@ -131,6 +134,12 @@ func TestOptimizeTripBudgetShortfallPreservesTiersAndHeadroom(t *testing.T) {
 	}
 	if res.Conservative.SavingsSafe || res.Balanced.SavingsSafe {
 		t.Fatalf("expected SavingsSafe=false during shortfall cycle")
+	}
+	if !strings.Contains(res.Conservative.Guidance, "Rp 108.633") || strings.Contains(res.Conservative.Guidance, "Rp 108633") {
+		t.Fatalf("expected dot-formatted Rp 108.633 in shortfall guidance, got %q", res.Conservative.Guidance)
+	}
+	if !strings.Contains(res.Balanced.Guidance, "Rp 108.633") || strings.Contains(res.Balanced.Guidance, "Rp 108633") {
+		t.Fatalf("expected dot-formatted Rp 108.633 in balanced shortfall guidance, got %q", res.Balanced.Guidance)
 	}
 }
 

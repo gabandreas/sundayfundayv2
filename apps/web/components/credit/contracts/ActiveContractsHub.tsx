@@ -636,23 +636,24 @@ export function ActiveContractsHub({
                   key={m.key}
                   type="button"
                   onClick={() => setSelectedMilestoneKey(selected ? null : m.key)}
-                  className={`text-left rounded border px-3.5 py-2.5 transition-colors cursor-pointer space-y-1 ${
+                  className={`min-w-0 overflow-hidden text-left rounded border px-3 py-2.5 transition-colors cursor-pointer space-y-1 ${
                     selected
                       ? "border-delta-positive bg-[rgba(16,183,141,0.10)]"
                       : "border-border-subtle bg-surface-subtle/50 hover:border-border-strong"
                   }`}
                 >
-                  <div className="flex items-center justify-between gap-2 text-xs font-mono">
-                    <span className="font-semibold text-text-primary">{m.label}</span>
-                    <span className="text-delta-positive font-semibold erp-tabular-currency">
+                  <div className="flex items-center justify-between gap-2 text-xs font-mono min-w-0">
+                    <span className="font-semibold text-text-primary shrink-0">{m.label}</span>
+                    <span className="text-delta-positive font-semibold erp-tabular-currency truncate">
                       +{formatRp(m.freedMonthly)}/mo
                     </span>
                   </div>
                   <div className="text-[11px] text-text-tertiary truncate" title={m.titles.join(", ")}>
                     {m.titles.join(" · ")}
                   </div>
-                  <div className="text-[10px] font-mono text-text-secondary erp-tabular-currency">
-                    Cumulative relief: +{formatRp(m.cumulative)}/mo
+                  <div className="flex items-center justify-between gap-1 text-[10px] font-mono text-text-secondary min-w-0">
+                    <span className="truncate">Cumulative</span>
+                    <span className="erp-tabular-currency shrink-0">+{formatRp(m.cumulative)}/mo</span>
                   </div>
                 </button>
               );

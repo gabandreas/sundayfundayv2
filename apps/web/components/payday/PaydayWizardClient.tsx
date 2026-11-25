@@ -346,7 +346,7 @@ export function PaydayWizardClient({
       )}
 
       {/* 4 Guided Steps (Balanced 2x2 Grid on Desktop) */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-stretch">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
         {/* STEP 1: CONFIRM PAYCHECK & WORKING DAYS */}
         <section className="rounded-lg border border-border bg-surface p-5 space-y-4">
           <div className="flex items-center justify-between border-b border-border-subtle pb-3">

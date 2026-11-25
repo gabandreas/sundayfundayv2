@@ -95,8 +95,9 @@ describe('EventsService & Go/TS Trip Optimizer (TDD RED->GREEN)', () => {
 
   it('rejects backdated startDate & inverted endDate, differentiates TODAY vs UPCOMING, and resolves target paycycle + modular weights', async () => {
     const todayIso = getJakartaTodayIso();
-    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-    const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    const todayUtcMs = Date.parse(`${todayIso}T00:00:00.000Z`);
+    const yesterday = new Date(todayUtcMs - 86400000).toISOString().slice(0, 10);
+    const tomorrow = new Date(todayUtcMs + 86400000).toISOString().slice(0, 10);
     const nextDecIso = '2026-12-05';
 
     const createdRows: any[] = [];

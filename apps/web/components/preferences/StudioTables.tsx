@@ -1575,22 +1575,22 @@ export function RoutineTemplatesTableCard({ initialConfig }: { initialConfig?: M
       <SaveBanner savedMsg={savedMsg} errorMsg={null} />
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[780px] text-xs text-left">
+        <table className="w-full text-xs text-left">
           <thead className="bg-surface-subtle text-[10px] font-mono text-text-tertiary border-b border-border">
             <tr>
-              <th className="px-2.5 py-2">Template Label</th>
-              <th className="px-2.5 py-2">Slot Key</th>
-              <th className="px-2.5 py-2">Monthly Quota (Rp)</th>
-              <th className="px-2.5 py-2">Due Day</th>
-              <th className="px-2.5 py-2">End-of-Cycle Rollover Policy</th>
-              <th className="px-2.5 py-2">Active</th>
-              <th className="px-2.5 py-2 text-right">Remove</th>
+              <th className="px-2 py-2">Template Label</th>
+              <th className="px-2 py-2">Slot Key</th>
+              <th className="px-2 py-2">Monthly Quota (Rp)</th>
+              <th className="px-2 py-2">Due Day</th>
+              <th className="px-2 py-2">Rollover Policy</th>
+              <th className="px-2 py-2">Active</th>
+              <th className="px-2 py-2 text-right">Remove</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border-subtle">
             {rows.map((row, idx) => (
               <tr key={row.id} className="hover:bg-surface-hover/40">
-                <td className="px-2.5 py-2">
+                <td className="px-2 py-2">
                   <input
                     type="text"
                     value={row.name}
@@ -1599,11 +1599,11 @@ export function RoutineTemplatesTableCard({ initialConfig }: { initialConfig?: M
                       next[idx] = { ...row, name: e.target.value };
                       setRows(next);
                     }}
-                    className="w-52 bg-canvas border border-border rounded px-2 py-1 text-xs text-text-primary"
+                    className="w-full min-w-[120px] max-w-[165px] bg-canvas border border-border rounded px-2 py-1 text-xs text-text-primary"
                   />
                 </td>
-                <td className="px-2.5 py-2 font-mono text-text-tertiary">{row.slotKey}</td>
-                <td className="px-2.5 py-2">
+                <td className="px-2 py-2 font-mono text-[11px] text-text-tertiary whitespace-nowrap">{row.slotKey}</td>
+                <td className="px-2 py-2">
                   <input
                     type="number"
                     min={0}
@@ -1614,10 +1614,10 @@ export function RoutineTemplatesTableCard({ initialConfig }: { initialConfig?: M
                       next[idx] = { ...row, monthlyQuotaRp: Number(e.target.value) || 0 };
                       setRows(next);
                     }}
-                    className="w-28 bg-canvas border border-border rounded px-2 py-1 font-mono text-xs text-text-primary"
+                    className="w-24 bg-canvas border border-border rounded px-2 py-1 font-mono text-xs text-text-primary"
                   />
                 </td>
-                <td className="px-2.5 py-2">
+                <td className="px-2 py-2">
                   <input
                     type="number"
                     min={1}
@@ -1628,10 +1628,10 @@ export function RoutineTemplatesTableCard({ initialConfig }: { initialConfig?: M
                       next[idx] = { ...row, targetDueDay: Number(e.target.value) || 25 };
                       setRows(next);
                     }}
-                    className="w-16 bg-canvas border border-border rounded px-2 py-1 font-mono text-xs text-text-primary"
+                    className="w-14 bg-canvas border border-border rounded px-2 py-1 font-mono text-xs text-text-primary"
                   />
                 </td>
-                <td className="px-2.5 py-2">
+                <td className="px-2 py-2">
                   <select
                     value={row.rolloverPolicy}
                     onChange={(e) => {
@@ -1642,13 +1642,13 @@ export function RoutineTemplatesTableCard({ initialConfig }: { initialConfig?: M
                       };
                       setRows(next);
                     }}
-                    className="bg-canvas border border-border rounded px-2 py-1 text-xs text-text-secondary"
+                    className="max-w-[175px] bg-canvas border border-border rounded px-2 py-1 text-xs text-text-secondary"
                   >
                     <option value="SWEEP_TO_P1">Sweep Unspent to Core Savings</option>
                     <option value="ROLLOVER_NEXT_MONTH">Roll Over to Next Month Quota</option>
                   </select>
                 </td>
-                <td className="px-2.5 py-2">
+                <td className="px-2 py-2">
                   <input
                     type="checkbox"
                     checked={row.active}
@@ -1659,7 +1659,7 @@ export function RoutineTemplatesTableCard({ initialConfig }: { initialConfig?: M
                     }}
                   />
                 </td>
-                <td className="px-2.5 py-2 text-right">
+                <td className="px-2 py-2 text-right">
                   <button
                     type="button"
                     onClick={() => setRows(rows.filter((_, i) => i !== idx))}

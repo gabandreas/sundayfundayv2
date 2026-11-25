@@ -55,7 +55,7 @@ export function MetricCard({
 
   return (
     <div
-      className={`relative flex flex-col justify-between rounded-lg border bg-surface p-5 transition-colors duration-150 ${statusBorderStyles[statusVariant]} ${className}`}
+      className={`relative min-w-0 flex flex-col justify-between rounded-lg border bg-surface p-4 sm:p-5 transition-colors duration-150 ${statusBorderStyles[statusVariant]} ${className}`}
     >
       {/* Top section: small muted label */}
       <div className="flex items-center justify-between gap-2 mb-2">
@@ -85,7 +85,7 @@ export function MetricCard({
         <span
           className={`erp-tabular-currency whitespace-nowrap leading-tight ${
             isCenterpiece
-              ? "font-display text-[24px] sm:text-[26px] xl:text-[28px] font-normal tracking-tight text-text-primary"
+              ? "font-display text-[20px] sm:text-[22px] xl:text-[25px] font-normal tracking-tight text-text-primary"
               : "font-mono text-[18px] xl:text-[20px] font-semibold tracking-tight text-text-primary"
           }`}
         >

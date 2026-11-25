@@ -544,15 +544,15 @@ export function ReportsClientView({
          ===================================================================== */}
       {isExecutiveTab && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
-            <div className="xl:col-span-7">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+            <div className="lg:col-span-7 min-w-0">
               <ReportsEquityChart
                 periods={comp.periods}
                 selectedMonth={cs.month}
                 selectedYear={cs.year}
               />
             </div>
-            <div className="xl:col-span-5">
+            <div className="lg:col-span-5 min-w-0">
               <ReportsSpendingBreakdown statement={cs} />
             </div>
           </div>
@@ -1644,28 +1644,28 @@ export function ReportsClientView({
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-xs border-collapse">
+            <table className="w-full text-[11px] border-collapse">
               <thead>
                 <tr className="border-b border-border text-[10px] text-text-tertiary bg-surface-subtle/30">
-                  <th className="py-2.5 px-4 text-left font-medium">Month</th>
-                  <th className="py-2.5 px-3 text-left font-medium">Status</th>
-                  <th className="py-2.5 px-4 text-right font-medium">Money In</th>
-                  <th className="py-2.5 px-4 text-right font-medium">
+                  <th className="py-2.5 px-2.5 text-left font-medium">Month</th>
+                  <th className="py-2.5 px-2 text-left font-medium">Status</th>
+                  <th className="py-2.5 px-2.5 text-right font-medium">Money In</th>
+                  <th className="py-2.5 px-2.5 text-right font-medium">
                     Debt Bills
                   </th>
-                  <th className="py-2.5 px-3 text-right font-medium">
+                  <th className="py-2.5 px-2 text-right font-medium">
                     Debt %
                   </th>
-                  <th className="py-2.5 px-4 text-right font-medium">
-                    Routine & Daily Living
+                  <th className="py-2.5 px-2.5 text-right font-medium">
+                    Routine &amp; Living
                   </th>
-                  <th className="py-2.5 px-4 text-right font-medium">
+                  <th className="py-2.5 px-2.5 text-right font-medium">
                     Core Savings
                   </th>
-                  <th className="py-2.5 px-4 text-right font-medium">
+                  <th className="py-2.5 px-2.5 text-right font-medium">
                     Discretionary
                   </th>
-                  <th className="py-2.5 px-5 text-left font-medium">
+                  <th className="py-2.5 px-2.5 text-left font-medium">
                     Change vs Last Month
                   </th>
                 </tr>
@@ -1675,6 +1675,10 @@ export function ReportsClientView({
                   const isSelected =
                     row.month === report.selectedMonth &&
                     row.year === report.selectedYear;
+                  const driverText =
+                    horizon?.periodDrivers.find(
+                      (d) => d.month === row.month && d.year === row.year
+                    )?.narrativeDriver ?? row.changeVsLastMonthSummary;
                   return (
                     <tr
                       key={`${row.month}-${row.year}`}
@@ -1686,14 +1690,14 @@ export function ReportsClientView({
                       }`}
                       title="Click any period row or category cell to inspect itemized drill-down"
                     >
-                      <td className="py-2.5 px-4 font-mono font-medium text-text-primary underline decoration-dotted underline-offset-4 whitespace-nowrap">
+                      <td className="py-2.5 px-2.5 font-mono font-medium text-text-primary underline decoration-dotted underline-offset-4 whitespace-nowrap">
                         {row.periodLabel}
                       </td>
-                      <td className="py-2.5 px-3 text-text-secondary whitespace-nowrap">
+                      <td className="py-2.5 px-2 text-text-secondary whitespace-nowrap">
                         {row.status === "LOCKED" ? "Closed" : "Draft"}
                       </td>
                       <td
-                        className="py-2.5 px-4 text-right font-mono text-text-primary hover:underline whitespace-nowrap"
+                        className="py-2.5 px-2.5 text-right font-mono text-text-primary hover:underline whitespace-nowrap"
                         onClick={(e) => {
                           e.stopPropagation();
                           setDrillDownTarget({ row, filter: "INCOME" });
@@ -1702,7 +1706,7 @@ export function ReportsClientView({
                         {formatIDR(row.finalTotalIncome)}
                       </td>
                       <td
-                        className="py-2.5 px-4 text-right font-mono text-text-primary hover:underline whitespace-nowrap"
+                        className="py-2.5 px-2.5 text-right font-mono text-text-primary hover:underline whitespace-nowrap"
                         onClick={(e) => {
                           e.stopPropagation();
                           setDrillDownTarget({ row, filter: "DEBT" });
@@ -1711,7 +1715,7 @@ export function ReportsClientView({
                         {formatIDR(row.creditBillsAmount)}
                       </td>
                       <td
-                        className={`py-2.5 px-3 text-right font-mono whitespace-nowrap ${
+                        className={`py-2.5 px-2 text-right font-mono whitespace-nowrap ${
                           row.creditDebtRatioPercent > 35
                             ? "text-negative"
                             : row.creditDebtRatioPercent > 20
@@ -1722,7 +1726,7 @@ export function ReportsClientView({
                         {row.creditDebtRatioPercent}%
                       </td>
                       <td
-                        className="py-2.5 px-4 text-right font-mono text-text-secondary hover:underline whitespace-nowrap"
+                        className="py-2.5 px-2.5 text-right font-mono text-text-secondary hover:underline whitespace-nowrap"
                         onClick={(e) => {
                           e.stopPropagation();
                           setDrillDownTarget({ row, filter: "LIVING" });
@@ -1731,7 +1735,7 @@ export function ReportsClientView({
                         {formatIDR(row.routineAndDailyLivingAmount)}
                       </td>
                       <td
-                        className="py-2.5 px-4 text-right font-mono text-positive hover:underline whitespace-nowrap"
+                        className="py-2.5 px-2.5 text-right font-mono text-positive hover:underline whitespace-nowrap"
                         onClick={(e) => {
                           e.stopPropagation();
                           setDrillDownTarget({ row, filter: "SAVINGS" });
@@ -1740,7 +1744,7 @@ export function ReportsClientView({
                         {formatIDR(row.actualSavings)}
                       </td>
                       <td
-                        className="py-2.5 px-4 text-right font-mono text-text-secondary hover:underline whitespace-nowrap"
+                        className="py-2.5 px-2.5 text-right font-mono text-text-secondary hover:underline whitespace-nowrap"
                         onClick={(e) => {
                           e.stopPropagation();
                           setDrillDownTarget({ row, filter: "SELF_REWARD" });
@@ -1748,30 +1752,31 @@ export function ReportsClientView({
                       >
                         {formatIDR(row.selfReward)}
                       </td>
-                      <td className="py-2.5 px-5 font-mono text-[11px] text-text-secondary">
-                        {horizon?.periodDrivers.find(
-                          (d) => d.month === row.month && d.year === row.year
-                        )?.narrativeDriver ?? row.changeVsLastMonthSummary}
+                      <td
+                        className="py-2.5 px-2.5 font-mono text-[10.5px] text-text-secondary max-w-[180px] truncate"
+                        title={driverText}
+                      >
+                        {driverText}
                       </td>
                     </tr>
                   );
                 })}
               </tbody>
               <tfoot>
-                <tr className="border-t-2 border-border bg-surface-elevated font-mono text-xs font-semibold">
-                  <td className="py-3 px-4 text-text-primary" colSpan={2}>
-                    Total / Average ({comp.periodCount} Months)
+                <tr className="border-t-2 border-border bg-surface-elevated font-mono text-[11px] font-semibold">
+                  <td className="py-3 px-2.5 text-text-primary whitespace-nowrap" colSpan={2}>
+                    Total / Avg ({comp.periodCount}M)
                   </td>
-                  <td className="py-3 px-4 text-right text-text-primary">
+                  <td className="py-3 px-2.5 text-right text-text-primary whitespace-nowrap">
                     {formatIDR(comp.totals.totalIncome)}
                   </td>
-                  <td className="py-3 px-4 text-right text-text-primary">
+                  <td className="py-3 px-2.5 text-right text-text-primary whitespace-nowrap">
                     {formatIDR(comp.totals.totalCreditBills)}
                   </td>
-                  <td className="py-3 px-3 text-right text-text-primary">
+                  <td className="py-3 px-2 text-right text-text-primary whitespace-nowrap">
                     {comp.totals.averageCreditDebtRatioPercent}%
                   </td>
-                  <td className="py-3 px-4 text-right text-text-primary">
+                  <td className="py-3 px-2.5 text-right text-text-primary whitespace-nowrap">
                     {formatIDR(
                       comp.totals.totalFixedEssentials +
                         comp.totals.totalDailyOperational +
@@ -1779,14 +1784,14 @@ export function ReportsClientView({
                         comp.totals.totalManualDeductions
                     )}
                   </td>
-                  <td className="py-3 px-4 text-right text-positive">
+                  <td className="py-3 px-2.5 text-right text-positive whitespace-nowrap">
                     {formatIDR(comp.totals.totalSavings)}
                   </td>
-                  <td className="py-3 px-4 text-right text-text-primary">
+                  <td className="py-3 px-2.5 text-right text-text-primary whitespace-nowrap">
                     {formatIDR(comp.totals.totalSelfReward)}
                   </td>
-                  <td className="py-3 px-5 text-left text-text-secondary">
-                    Avg Savings Rate: {comp.totals.averageSavingsRatePercent}% · Avg Score: {comp.totals.averageDisciplineScore}/100
+                  <td className="py-3 px-2.5 text-left text-text-secondary">
+                    Savings {comp.totals.averageSavingsRatePercent}% · Score {comp.totals.averageDisciplineScore}/100
                   </td>
                 </tr>
               </tfoot>
