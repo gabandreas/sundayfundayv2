@@ -735,10 +735,14 @@ async function main() {
     assert.equal(eventPlannerCheck.hasThreeTiers, true, 'Event & Activity Budgets must render all 3 tiers');
 
     await page.goto(`${WEB_URL}/calendar?month=11&year=2026`, { waitUntil: 'networkidle2', timeout: 60000 });
-    await page.waitForSelector('aside [data-testid="privacy-eye-toggle"]', { timeout: 15000 });
-    const wasMasked = await page.evaluate(() => document.body.innerText.includes('Rp •'));
-    if (!wasMasked) {
-      await page.click('aside [data-testid="privacy-eye-toggle"]');
+    await page.waitForSelector('aside button[aria-label="Hide amounts"], aside button[aria-label="Show amounts"]', {
+      timeout: 15000,
+    });
+    const isCurrentlyMasked = await page.evaluate(() =>
+      Boolean(document.querySelector('aside button[aria-label="Show amounts"]')),
+    );
+    if (!isCurrentlyMasked) {
+      await page.click('aside button[aria-label="Hide amounts"]');
       await page.waitForFunction(() => document.body.innerText.includes('Rp •'), { timeout: 10000 });
     }
     const calendarMaskedCheck = await page.evaluate(() => {
@@ -750,8 +754,8 @@ async function main() {
     });
     assert.equal(calendarMaskedCheck.hasMaskedGlyph, true, '/calendar must display masked glyphs when Privacy Mask is ON');
     assert.equal(calendarMaskedCheck.unmaskedRpInGrid, false, '/calendar main area must not leak unmasked Rp figures when Privacy Mask is ON');
-    if (!wasMasked) {
-      await page.click('aside [data-testid="privacy-eye-toggle"]');
+    if (!isCurrentlyMasked) {
+      await page.click('aside button[aria-label="Show amounts"]');
       await new Promise((r) => setTimeout(r, 200));
     }
 
