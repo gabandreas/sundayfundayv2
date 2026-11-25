@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
+import { ArrowUpRight } from "lucide-react";
 import {
   ActiveInstallmentPlanDto,
   CreditCardSummary,
@@ -34,9 +36,7 @@ import { CreditStudio } from "@/components/credit/CreditStudio";
 import { CreditUsageLimitPanel } from "@/components/credit/CreditUsageLimitPanel";
 import { SafeSpendSimulatorPanel } from "@/components/credit/matrix/SafeSpendSimulatorPanel";
 import { ActiveContractsHub } from "@/components/credit/contracts/ActiveContractsHub";
-import { DebtFreedomTimeline } from "@/components/credit/contracts/DebtFreedomTimeline";
 import { CreditContractsTable } from "@/components/credit/contracts/CreditContractsTable";
-import { CreditWishlistEmbed } from "@/components/credit/CreditWishlistEmbed";
 import { CreditCommitmentsEmbed } from "@/components/credit/CreditCommitmentsEmbed";
 import { OneOffCommitmentsPanel } from "@/components/commitments/OneOffCommitmentsPanel";
 import { usePeriod } from "@/context/PeriodContext";
@@ -87,6 +87,9 @@ export function CreditPageClient({
     },
   );
   const [intel, setIntel] = useState<IntelligenceBundleResponse | null>(null);
+  const [simulatorMode, setSimulatorMode] = useState<"strategy" | "safespend">(
+    initialTool === "cutoff" || initialTool === "safespend" ? "safespend" : "strategy",
+  );
   const { refreshPeriod } = usePeriod();
   const { month, year, revisionTick, data, setData, isPreBoundary } =
     usePeriodSlice<CreditPeriodData>({
@@ -288,22 +291,82 @@ export function CreditPageClient({
       )}
 
       {activeSub === "simulator" && (
-        <div className="space-y-6">
-          <ActiveContractsHub
-            contracts={contracts}
-            installmentPlans={installmentPlans}
-            matrixData={matrixData}
-            currentMonth={month}
-            currentYear={year}
-            initialIntel={intel}
-            onSelectSub={(s) => selectSub(s === "matrix" ? "matrix" : "simulator")}
-            onMutated={refreshPeriod}
-          />
+        <div className="space-y-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div
+              role="tablist"
+              aria-label="Payoff strategy and safe-spend tools"
+              className="inline-flex rounded-md border border-border bg-surface p-0.5 text-xs font-sans"
+            >
+              <button
+                type="button"
+                role="tab"
+                aria-selected={simulatorMode === "strategy"}
+                onClick={() => setSimulatorMode("strategy")}
+                className={`px-3.5 py-1.5 rounded transition-colors cursor-pointer ${
+                  simulatorMode === "strategy"
+                    ? "bg-surface-active text-text-primary font-medium"
+                    : "text-text-secondary hover:text-text-primary"
+                }`}
+              >
+                Payoff Strategy &amp; Contracts
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={simulatorMode === "safespend"}
+                onClick={() => setSimulatorMode("safespend")}
+                className={`px-3.5 py-1.5 rounded transition-colors cursor-pointer ${
+                  simulatorMode === "safespend"
+                    ? "bg-surface-active text-text-primary font-medium"
+                    : "text-text-secondary hover:text-text-primary"
+                }`}
+              >
+                Safe-Spend &amp; Cutoff Check
+              </button>
+            </div>
 
-          {matrixData ? (
+            <Link
+              href={`/allocations?month=${month}&year=${year}&sub=scenarios&tool=wishlist`}
+              className="inline-flex items-center gap-1.5 text-xs font-sans text-text-secondary hover:text-text-primary transition-colors"
+            >
+              <span>Purchase Wishlist in Allocations</span>
+              <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
+            </Link>
+          </div>
+
+          {simulatorMode === "strategy" ? (
+            <div className="space-y-5">
+              <ActiveContractsHub
+                contracts={contracts}
+                installmentPlans={installmentPlans}
+                matrixData={matrixData}
+                currentMonth={month}
+                currentYear={year}
+                initialIntel={intel}
+                onSelectSub={(s) => selectSub(s === "matrix" ? "matrix" : "simulator")}
+                onMutated={refreshPeriod}
+              />
+
+              <details className="rounded-lg border border-border-subtle bg-surface overflow-hidden">
+                <summary className="px-5 py-3.5 cursor-pointer flex items-center justify-between text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-surface-subtle/40 transition-colors">
+                  <span>All Active Installment &amp; Credit Contracts ({contracts.length + installmentPlans.length})</span>
+                  <span className="font-mono text-[10px] text-text-tertiary">Expand full contract list</span>
+                </summary>
+                <div className="border-t border-border-subtle p-4">
+                  <CreditContractsTable
+                    contracts={contracts}
+                    installmentPlans={installmentPlans}
+                    currentMonth={month}
+                    currentYear={year}
+                  />
+                </div>
+              </details>
+            </div>
+          ) : matrixData ? (
             <SafeSpendSimulatorPanel
               isOpen={true}
-              onClose={() => selectSub("matrix")}
+              onClose={() => setSimulatorMode("strategy")}
               matrix={matrixData}
               currentMonth={month}
               currentYear={year}
@@ -314,23 +377,6 @@ export function CreditPageClient({
               Loading schedule context for cutoff timing check...
             </div>
           )}
-
-          <DebtFreedomTimeline
-            contracts={contracts}
-            installmentPlans={installmentPlans}
-            currentMonth={month}
-            currentYear={year}
-            matrixData={matrixData}
-          />
-
-          <CreditContractsTable
-            contracts={contracts}
-            installmentPlans={installmentPlans}
-            currentMonth={month}
-            currentYear={year}
-          />
-
-          <CreditWishlistEmbed month={month} year={year} />
         </div>
       )}
     </div>

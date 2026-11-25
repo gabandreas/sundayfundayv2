@@ -20,10 +20,10 @@ Implemented across `apps/web/components/preferences/PreferencesStudio.tsx`, `Pre
    - Two-Stage Payroll (`payslipAnchorDay`, `payslipShiftRule`, `reviewLagWorkingDays`, `paydayAnchorDay`, `periodOverrides`, `holidayDatesIso`), **Configurable Priority Tiers (`priorityTiers`)** defining human labels & allocation rank end-to-end without `P1`/`P2`/`P3` badges, plus 7 Formula DSL expressions (`Verify Live`).
 2. **`instruments` (*Payment Methods & Cutoffs*):**
    - Full-width responsive table editing custom cards, PayLater lines, and loans (`cutoffDay`, `dueDay`, `dueRule`, `monthlyInterestPct`, `adminFeePct`, `creditLimitRp`, `utilizationWarnPct`) with zero right-edge column clipping and zero hardcoded brands.
-3. **`templates` (*Routine Bills, Accounts & Savings Pockets*):**
-   - Unified Routine Envelope templates (propagating identically across Overview, Allocations, and Envelopes), `enableExternalAssetPortfolio` / `assetAccountsTable`, and default `savingsPockets` templates.
+3. **`templates` (*Routine Bills, Categories, Accounts & Savings Pockets*):**
+   - Unified Routine Envelope templates, **Modular Category Master Data (`eventCategoriesTable`, `commitmentCategoriesTable`, `sinkingFundCategoriesTable` via `CategoryMasterTableCard`)** with weights, `enableExternalAssetPortfolio` / `assetAccountsTable`, and default `savingsPockets` templates.
 4. **`display` (*Account, Privacy & Display*):**
-   - Profile details + **Change Account Password (`POST /api/auth/change-password`)**, Privacy Mask defaults (`maskBalancesByDefault`, `requirePasswordToReveal`), default Language (`EN`/`ID`/`ZH`), Number Format (`id-ID` / `en-US`), UI Density (`Command Cockpit` / `Simple Clarity`), and Sidebar Visibility/Ordering (`SidebarMenuBuilderCard`).
+   - Profile details + **Change Account Password (`POST /api/auth/change-password`)**, Privacy Mask defaults (`maskBalancesByDefault`, `requirePasswordToReveal`), default Language (`EN`/`ID`/`ZH`), Number Format (`id-ID` / `en-US`), UI Density (`Command Cockpit` / `Simple Clarity`), and Sidebar Visibility/Ordering (`SidebarMenuBuilderCard`). Also keeps `/preferences?sub=modules` focused strictly on App Registry & Workspace Blueprints without duplicating UI Density controls.
 5. **`notifications` (*Notifications & Promo Watch*):**
    - Separated cleanly into Promotional Auto-Renew Watchlist and SMTP Email / WhatsApp Dispatch Controls (`SmtpControlPanel`).
 6. **`backup` (*Backup, Restore & Data*):**

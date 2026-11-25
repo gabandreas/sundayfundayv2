@@ -10,6 +10,11 @@ import { GoBridgeService } from '../calculator/go-bridge.service';
 import { SnapshotsService } from '../snapshots/snapshots.service';
 import { AuditLogService } from '../audit/audit-log.service';
 import { FinanceSelectors } from '../finance/finance.selectors';
+import { ConfigSelectors } from '../config/config.selectors';
+import {
+  DEFAULT_EVENT_CATEGORIES,
+  EventCategoryConfigRow,
+} from '../config/studio.defaults';
 import {
   CreateTripEventDto,
   CreateTripExpenseDto,
@@ -17,6 +22,37 @@ import {
   UpdateTripEventDto,
   UpdateTripExpenseDto,
 } from './dto/event.dto';
+
+const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+export function getJakartaTodayIso(): string {
+  const nowJakarta = new Date(Date.now() + 7 * 3600 * 1000);
+  return nowJakarta.toISOString().slice(0, 10);
+}
+
+function normalizeEventTypeCode(raw?: string): string {
+  const clean = String(raw || '')
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  if (!clean) return 'DAY_OUTING';
+  const aliases: Record<string, string> = {
+    OUTING: 'DAY_OUTING',
+    WEEKEND: 'WEEKEND_TRIP',
+    DINNER: 'DINING_GATHERING',
+    CONCERT: 'CONCERT_EVENT',
+    OTHER: 'GENERAL_EVENT',
+  };
+  return aliases[clean] ?? clean;
+}
+
+function diffIsoDays(fromIso: string, toIso: string): number {
+  const a = new Date(`${fromIso.slice(0, 10)}T00:00:00Z`).getTime();
+  const b = new Date(`${toIso.slice(0, 10)}T00:00:00Z`).getTime();
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return 0;
+  return Math.round((b - a) / 86400000);
+}
 
 @Injectable()
 export class EventsService {
@@ -26,7 +62,88 @@ export class EventsService {
     private readonly snapshotsService: SnapshotsService,
     private readonly auditService: AuditLogService,
     private readonly financeSelectors?: FinanceSelectors,
+    private readonly configSelectors?: ConfigSelectors,
   ) {}
+
+  private async resolveTargetPeriodForDate(
+    userId: number,
+    dateIso: string,
+    fallbackMonth: number,
+    fallbackYear: number,
+  ): Promise<{ month: number; year: number; snapshot: any | null }> {
+    const snapshots =
+      typeof this.prisma.monthlySnapshot?.findMany === 'function'
+        ? await this.prisma.monthlySnapshot.findMany({
+            where: { userId },
+            orderBy: [{ year: 'asc' }, { month: 'asc' }],
+          })
+        : [];
+
+    if (snapshots.length > 0 && /^\d{4}-\d{2}-\d{2}$/.test(dateIso)) {
+      const sorted = snapshots.map((s) => ({
+        ...s,
+        startIso: s.payrollPayoutDate
+          ? new Date(s.payrollPayoutDate).toISOString().slice(0, 10)
+          : `${s.year}-${String(s.month).padStart(2, '0')}-01`,
+      }));
+
+      for (let i = 0; i < sorted.length; i++) {
+        const cur = sorted[i];
+        const next = sorted[i + 1];
+        if (dateIso >= cur.startIso && (!next || dateIso < next.startIso)) {
+          if (!next) {
+            const daysBeyond = diffIsoDays(cur.startIso, dateIso);
+            if (daysBeyond > 35) {
+              break;
+            }
+          }
+          return { month: cur.month, year: cur.year, snapshot: cur };
+        }
+      }
+
+      const [calY, calM] = dateIso.split('-').map(Number);
+      const byCal = sorted.find((s) => s.year === calY && s.month === calM);
+      if (byCal) return { month: byCal.month, year: byCal.year, snapshot: byCal };
+    }
+
+    const snap = await this.prisma.monthlySnapshot.findFirst({
+      where: { userId, month: fallbackMonth, year: fallbackYear },
+    });
+    return { month: fallbackMonth, year: fallbackYear, snapshot: snap };
+  }
+
+  private async resolveEventCategoryConfig(
+    userId: number,
+    eventTypeCode: string,
+  ): Promise<EventCategoryConfigRow> {
+    let table: EventCategoryConfigRow[] = DEFAULT_EVENT_CATEGORIES;
+    if (this.configSelectors) {
+      try {
+        const cfg: any = await this.configSelectors.getConfig(userId);
+        const rawTable = cfg?.studioConfig?.eventCategoriesTable;
+        if (Array.isArray(rawTable) && rawTable.length > 0) {
+          table = rawTable;
+        }
+      } catch {
+        table = DEFAULT_EVENT_CATEGORIES;
+      }
+    }
+    const found =
+      table.find((r) => String(r.code).toUpperCase() === eventTypeCode) ??
+      DEFAULT_EVENT_CATEGORIES.find((r) => r.code === eventTypeCode);
+    if (found) return found;
+    return {
+      id: `evt_${eventTypeCode.toLowerCase()}`,
+      code: eventTypeCode,
+      label: eventTypeCode,
+      foodPct: 40,
+      transportPct: 20,
+      activitiesPct: 25,
+      contingencyPct: 15,
+      weekendWeightPct: 120,
+      active: true,
+    };
+  }
 
   private async assertEventOwnership(id: number, userId: number) {
     const row = await this.prisma.tripEventPlan.findUnique({
@@ -43,64 +160,142 @@ export class EventsService {
   }
 
   async optimizeForPeriod(dto: OptimizeTripEventDto, userId: number) {
-    const [snap, radar] = await Promise.all([
-      this.prisma.monthlySnapshot.findFirst({
-        where: { userId, month: dto.month, year: dto.year },
-      }),
-      this.financeSelectors
-        ? this.financeSelectors.getCashRadarProjection(dto.month, dto.year, userId)
-        : Promise.resolve(null),
-    ]);
+    const todayIso = getJakartaTodayIso();
+    const startIso =
+      dto.startDateIso && /^\d{4}-\d{2}-\d{2}$/.test(dto.startDateIso.slice(0, 10))
+        ? dto.startDateIso.slice(0, 10)
+        : todayIso;
+    const timingMode: 'PAST' | 'TODAY' | 'UPCOMING' =
+      startIso < todayIso ? 'PAST' : startIso === todayIso ? 'TODAY' : 'UPCOMING';
+    const daysUntilEvent = Math.max(0, diffIsoDays(todayIso, startIso));
+
+    const resolved = await this.resolveTargetPeriodForDate(
+      userId,
+      startIso,
+      dto.month,
+      dto.year,
+    );
+    const targetMonth = resolved.month;
+    const targetYear = resolved.year;
+    const snap = resolved.snapshot;
+
+    const radar = this.financeSelectors
+      ? await this.financeSelectors.getCashRadarProjection(targetMonth, targetYear, userId)
+      : null;
 
     const cycleDiscretionaryRp = Math.max(0, Math.round(snap?.selfReward ?? 0));
     const cycleEmergencyBufferRp = Math.max(0, Math.round(snap?.bufferPocket ?? 0));
     const cycleCoreSavingsRp = Math.max(0, Math.round(snap?.actualSavings ?? 0));
+    const cycleShortfallRp = Math.max(0, Math.round(snap?.deficitUncovered ?? 0));
     const cashRadarLowestPointRp = radar
-      ? Math.round(radar.lowestCashPoint.balanceRp)
-      : cycleDiscretionaryRp + cycleEmergencyBufferRp;
+      ? Math.round(radar.lowestCashPoint?.balanceRp ?? 0)
+      : cycleShortfallRp > 0
+        ? -cycleShortfallRp
+        : cycleDiscretionaryRp + cycleEmergencyBufferRp;
+    const remainingDaysInCycle = Math.max(
+      1,
+      Math.round((radar as any)?.daysRemaining ?? 30),
+    );
 
-    return this.goBridge.optimizeTripBudget({
-      eventType: dto.eventType,
+    const normalizedType = normalizeEventTypeCode(dto.eventType);
+    const catCfg = await this.resolveEventCategoryConfig(userId, normalizedType);
+    const customCategoryWeights = [
+      { code: 'FOOD_DRINK', label: 'Food & Drinks', pct: Math.max(1, Math.round(catCfg.foodPct || 40)) },
+      { code: 'LOCAL_TRANSPORT', label: 'Local Transport', pct: Math.max(1, Math.round(catCfg.transportPct || 20)) },
+      { code: 'ACTIVITIES', label: 'Activities & Entry', pct: Math.max(1, Math.round(catCfg.activitiesPct || 25)) },
+      { code: 'CONTINGENCY', label: 'Contingency', pct: Math.max(1, Math.round(catCfg.contingencyPct || 15)) },
+    ];
+
+    const opt = await this.goBridge.optimizeTripBudget({
+      eventType: normalizedType,
       durationDays: dto.durationDays,
-      startDateIso: dto.startDateIso,
+      startDateIso: startIso,
       prepaidCommittedRp: Math.max(0, Math.round(dto.prepaidCommittedRp ?? 0)),
       cycleDiscretionaryRp,
       cycleEmergencyBufferRp,
       cycleCoreSavingsRp,
       cashRadarLowestPointRp,
-      remainingDaysInCycle: 15,
+      remainingDaysInCycle,
+      weekendWeightPct: Math.round(catCfg.weekendWeightPct || 120),
+      customCategoryWeights,
     });
+
+    const targetPeriodLabel = `${SHORT_MONTHS[(targetMonth - 1) % 12]} ${targetYear}`;
+    const prepDailySetAsideRp =
+      daysUntilEvent > 0 && opt?.balanced?.variableSpendCapRp > 0
+        ? Math.round(opt.balanced.variableSpendCapRp / daysUntilEvent)
+        : 0;
+
+    return {
+      ...opt,
+      targetMonth,
+      targetYear,
+      targetPeriodLabel,
+      timingMode,
+      daysUntilEvent,
+      isPastDate: timingMode === 'PAST',
+      cycleDiscretionaryRp,
+      cycleEmergencyBufferRp,
+      cycleShortfallRp,
+      prepDailySetAsideRp,
+    };
   }
 
   async create(dto: CreateTripEventDto, userId: number) {
-    const startDate = new Date(dto.startDate);
-    const endDate = new Date(dto.endDate);
-    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+    const startIso = String(dto.startDate || '').slice(0, 10);
+    const endIso = String(dto.endDate || '').slice(0, 10);
+    const startDate = new Date(`${startIso}T00:00:00.000Z`);
+    const endDate = new Date(`${endIso}T00:00:00.000Z`);
+    if (
+      !/^\d{4}-\d{2}-\d{2}$/.test(startIso) ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(endIso) ||
+      Number.isNaN(startDate.getTime()) ||
+      Number.isNaN(endDate.getTime())
+    ) {
       throw new BadRequestException('Invalid startDate or endDate.');
     }
 
-    const snap = await this.prisma.monthlySnapshot.findFirst({
-      where: { userId, month: dto.month, year: dto.year },
-    });
-    if (snap && snap.status === 'LOCKED') {
-      throw new BadRequestException(`Period ${dto.month}/${dto.year} is locked.`);
+    const todayIso = getJakartaTodayIso();
+    if (startIso < todayIso) {
+      throw new BadRequestException(
+        'Event start date cannot be in the past. Select today or a future date.',
+      );
+    }
+    if (endIso < startIso) {
+      throw new BadRequestException('End date cannot be earlier than start date.');
     }
 
+    const resolved = await this.resolveTargetPeriodForDate(
+      userId,
+      startIso,
+      dto.month,
+      dto.year,
+    );
+    const targetMonth = resolved.month;
+    const targetYear = resolved.year;
+    const snap = resolved.snapshot;
+
+    if (snap && snap.status === 'LOCKED') {
+      throw new BadRequestException(`Period ${targetMonth}/${targetYear} is locked.`);
+    }
+
+    const initialStatus = startIso === todayIso ? 'ACTIVE' : 'PLANNING';
+    const normalizedType = normalizeEventTypeCode(dto.eventType);
     const prepaidAmountRp = Math.max(0, Math.round(dto.prepaidAmountRp ?? 0));
     const created = await this.prisma.tripEventPlan.create({
       data: {
         userId,
-        month: dto.month,
-        year: dto.year,
+        month: targetMonth,
+        year: targetYear,
         title: dto.title.trim(),
-        eventType: dto.eventType ?? 'DAY_OUTING',
+        eventType: normalizedType,
         startDate,
         endDate,
         plannedCapRp: Math.max(0, Math.round(dto.plannedCapRp)),
         recommendedTier: dto.recommendedTier ?? 'BALANCED',
         fundingSource: dto.fundingSource ?? 'DISCRETIONARY',
         prepaidAmountRp,
-        status: 'ACTIVE',
+        status: initialStatus,
         notes: dto.notes?.trim() || null,
       },
     });
@@ -109,8 +304,8 @@ export class EventsService {
       await this.prisma.periodCommitment.create({
         data: {
           userId,
-          month: dto.month,
-          year: dto.year,
+          month: targetMonth,
+          year: targetYear,
           title: `${dto.title.trim()} Prepaid`,
           category: 'EVENT_OUTING',
           amount: prepaidAmountRp,
@@ -129,7 +324,7 @@ export class EventsService {
       userId,
       action: 'TRIP_EVENT_CREATED',
       category: 'BUDGET',
-      summary: `Created event pod "${created.title}" with cap Rp ${Math.round(created.plannedCapRp).toLocaleString('id-ID')}`,
+      summary: `Created event budget "${created.title}" with cap Rp ${Math.round(created.plannedCapRp).toLocaleString('id-ID')}`,
       month: created.month,
       year: created.year,
     });

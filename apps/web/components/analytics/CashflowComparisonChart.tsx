@@ -3,20 +3,19 @@
 import React, { useState } from "react";
 import { CashflowPeriodEntry, TrajectorySummary } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
+import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 
 interface CashflowComparisonChartProps {
   series: CashflowPeriodEntry[];
   trajectory: TrajectorySummary;
 }
 
-function formatRp(amount: number): string {
-  return formatRupiah(amount);
-}
-
 export function CashflowComparisonChart({
   series,
   trajectory,
 }: CashflowComparisonChartProps) {
+  const { isAmountsMasked } = usePrivacyMask();
+  const formatRp = (amount: number) => formatRupiah(amount, isAmountsMasked);
   const [selectedIndex, setSelectedIndex] = useState<number>(
     series.length > 0 ? series.length - 1 : 0
   );

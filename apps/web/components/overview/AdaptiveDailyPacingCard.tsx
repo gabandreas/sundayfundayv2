@@ -611,7 +611,7 @@ export function AdaptiveDailyPacingCard({
                 <span>{formatIdr(dailyAverageSpend)}</span>
                 <span className="text-[10px] font-normal text-text-tertiary">{t("overview.perDay")}</span>
               </span>
-              <span className="text-[10px] font-mono text-text-tertiary truncate block">
+              <span className="text-[10px] font-mono text-text-tertiary block leading-tight">
                 vs {formatIdr(pacing?.baselineDailyRate ?? 0)} {t("overview.baselineLabel")}
               </span>
             </div>

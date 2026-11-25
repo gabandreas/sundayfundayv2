@@ -232,7 +232,7 @@ export function CustomRequestStudio({ initialRequests }: CustomRequestStudioProp
             <p className="text-xs font-sans text-text-tertiary mt-0.5">
               {isSuperadmin
                 ? "Review custom calculation requests from Standard Edition users, quote setup fees, and approve rules for rollout."
-                : "Request custom math formulas, non-standard waterfall sequences, or tailored export modules from the engineering team."}
+                : "Request custom math formulas, non-standard waterfall sequences, or tailored export layouts."}
             </p>
           </div>
         </div>
@@ -251,7 +251,7 @@ export function CustomRequestStudio({ initialRequests }: CustomRequestStudioProp
                 Submit New Rule or Feature Request
               </h4>
               <p className="text-xs font-sans text-text-tertiary mt-0.5">
-                Every request receives engineer review, setup quote, and isolated test sandbox verification.
+                Every request receives technical review, setup quote, and isolated verification before activation.
               </p>
             </div>
             <FileCode2 className="w-4 h-4 text-text-tertiary" />

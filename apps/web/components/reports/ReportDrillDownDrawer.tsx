@@ -4,7 +4,9 @@ import React from "react";
 import Link from "next/link";
 import { X, ArrowUpRight } from "lucide-react";
 import { ComparativePeriodRow, ExecutiveReportPayload } from "@/lib/api";
-import { formatIDR } from "@/lib/utils";
+import { formatIDR as formatIDRUtil } from "@/lib/utils";
+import { usePrivacyMask } from "@/context/PrivacyMaskContext";
+import { formatHumanStatus } from "@/lib/format-labels";
 
 export type DrillDownCategoryFilter =
   | "ALL"
@@ -29,6 +31,8 @@ export function ReportDrillDownDrawer({
   categoryFilter,
   report,
 }: ReportDrillDownDrawerProps) {
+  const { isAmountsMasked } = usePrivacyMask();
+  const formatIDR = (val: number | null | undefined) => formatIDRUtil(val, isAmountsMasked);
   const [activeFilter, setActiveFilter] =
     React.useState<DrillDownCategoryFilter>(categoryFilter);
 
@@ -166,7 +170,7 @@ export function ReportDrillDownDrawer({
                           {li.title}
                         </div>
                         <div className="text-[10px] font-mono text-text-tertiary">
-                          {li.category} · {li.merchantOrPlatform} · Due {li.dueDateIso}
+                          {formatHumanStatus(li.category)} · {li.merchantOrPlatform} · Due {li.dueDateIso}
                         </div>
                       </div>
                       <div className="text-right shrink-0 font-mono tabular-nums">
@@ -182,7 +186,7 @@ export function ReportDrillDownDrawer({
                                 : "text-text-tertiary"
                           }`}
                         >
-                          {li.settlementState}
+                          {formatHumanStatus(li.settlementState)}
                         </div>
                       </div>
                     </div>
@@ -194,7 +198,7 @@ export function ReportDrillDownDrawer({
                           {cc.label}
                         </div>
                         <div className="text-[10px] font-mono text-text-tertiary">
-                          CREDIT CARD · {cc.chargeType}
+                          Credit Card · {formatHumanStatus(cc.chargeType)}
                           {cc.sliceBadge ? ` · ${cc.sliceBadge}` : ""} · Due {cc.dueDateIso}
                         </div>
                       </div>
@@ -202,7 +206,9 @@ export function ReportDrillDownDrawer({
                         <div className="text-text-primary font-semibold">
                           {formatIDR(cc.amount)}
                         </div>
-                        <div className="text-[10px] text-text-tertiary">{cc.settlementState}</div>
+                        <div className="text-[10px] text-text-tertiary">
+                          {formatHumanStatus(cc.settlementState)}
+                        </div>
                       </div>
                     </div>
                   ))}

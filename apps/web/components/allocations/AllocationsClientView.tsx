@@ -20,7 +20,6 @@ import { useLanguage } from "@/context/LanguageContext";
 import { usePerspective } from "@/context/PerspectiveContext";
 import { PageHeader } from "@/components/primitives/PageHeader";
 import { SubModuleNav } from "@/components/primitives/SubModuleNav";
-import { EnvelopesAndSinkingPanel } from "@/components/finance/ModuleGoPanels";
 import { SinkingFundsPanel } from "@/components/allocations/SinkingFundsPanel";
 import { TripEventsPlannerPanel } from "@/components/events/TripEventsPlannerPanel";
 import { ScenarioLabClient } from "@/components/scenarios/ScenarioLabClient";
@@ -35,6 +34,7 @@ import { FormulaEngineSelectorCard } from "@/components/allocations/FormulaEngin
 import { DeficitAlert } from "@/components/overview/DeficitAlert";
 import { PaydayTimelineSimulator } from "@/components/finance/PaydayTimelineSimulator";
 import { PreBoundaryNotice } from "@/components/shell/PreBoundaryNotice";
+import { formatAuditCategoryLabel } from "@/lib/format-labels";
 import { formatRupiah } from "@/lib/utils";
 
 export interface AllocationsPeriodData {
@@ -58,7 +58,7 @@ export function AllocationsClientView({
   initialYear,
   initialData,
 }: AllocationsClientViewProps) {
-  const { t } = useLanguage();
+  const { locale, t } = useLanguage();
   const { studioConfig } = usePerspective();
   const savingsLabel = resolvePriorityTierLabel(studioConfig, "SAVINGS", "Core Savings");
   const surplusLabel = resolvePriorityTierLabel(studioConfig, "DISCRETIONARY", "Discretionary");
@@ -91,6 +91,28 @@ export function AllocationsClientView({
   const [quotaSaving, setQuotaSaving] = useState<boolean>(false);
   const [quotaMsg, setQuotaMsg] = useState<string | null>(null);
   const [quotaError, setQuotaError] = useState<string | null>(null);
+  const [scenarioTool, setScenarioTool] = useState<"cashflow" | "wishlist">("cashflow");
+
+  useEffect(() => {
+    const syncTool = () => {
+      if (typeof window === "undefined") return;
+      const params = new URLSearchParams(window.location.search);
+      const toolParam = params.get("tool");
+      const subParam = params.get("sub");
+      if (toolParam === "wishlist" || subParam === "wishlist") {
+        setScenarioTool("wishlist");
+      } else if (toolParam === "cashflow" || toolParam === "whatif") {
+        setScenarioTool("cashflow");
+      }
+    };
+    syncTool();
+    window.addEventListener("popstate", syncTool);
+    window.addEventListener("erp:sub-change", syncTool);
+    return () => {
+      window.removeEventListener("popstate", syncTool);
+      window.removeEventListener("erp:sub-change", syncTool);
+    };
+  }, []);
   const { month, year, revisionTick, data, isPreBoundary } =
     usePeriodSlice<AllocationsPeriodData>({
       initialMonth,
@@ -279,80 +301,63 @@ export function AllocationsClientView({
       />
 
       {activeSub === "plan" && (
-        <div className="space-y-8">
+        <div className="space-y-6">
 
-      {/* SECTION 1: Donut Visualization & Pocket Proportions */}
-      <section className="space-y-3">
-        <div className="text-[11px] font-sans font-medium text-text-tertiary">
-          Allocation Architecture &amp; Distribution
+      {/* SECTION 1: Donut Visualization & 2x2 Pocket Metrics */}
+      <section className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
+        <div className="xl:col-span-5">
+          <AllocationsDonutChart
+            totalIncome={finalTotalIncome}
+            slices={slices}
+            bufferPocket={bufferPocket}
+          />
         </div>
 
-        <AllocationsDonutChart
-          totalIncome={finalTotalIncome}
-          slices={slices}
-          bufferPocket={bufferPocket}
-        />
-      </section>
+        <div className="xl:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <MetricCard
+            label="Liabilities / Deductions"
+            amount={totalDeductions}
+            value={formatRupiah(totalDeductions)}
+            footer="Upfront: KPR, installments & bills"
+            statusVariant="default"
+          />
 
-      {/* SECTION 2: Exact Metric Cards for Precision */}
-      <section className="space-y-3">
-        <div className="text-[11px] font-sans font-medium text-text-tertiary">
-          Exact Pocket Distributions
-        </div>
+          <MetricCard
+            label={
+              deficitUncovered > 0
+                ? "Survival Baseline Need"
+                : "Survival Pocket"
+            }
+            amount={survivalPocket}
+            value={formatRupiah(survivalPocket)}
+            footer={
+              deficitUncovered > 0
+                ? `Baseline need (${formatRupiah(deficitUncovered)} shortfall)`
+                : "Upfront: Essentials & daily operational"
+            }
+            statusVariant={deficitUncovered > 0 ? "urgency" : "default"}
+            statusLabel={deficitUncovered > 0 ? "Shortfall" : undefined}
+          />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4">
-          <div className="lg:col-span-3">
-            <MetricCard
-              label="Liabilities / Deductions"
-              amount={totalDeductions}
-              value={formatRupiah(totalDeductions)}
-              footer="Upfront: KPR, installments & bills"
-              statusVariant="default"
-            />
-          </div>
+          <MetricCard
+            label={savingsLabel}
+            amount={actualSavings}
+            value={formatRupiah(actualSavings)}
+            footer={`Target: ${formatRupiah(snapshot?.savings ?? 0)}`}
+            statusVariant="default"
+          />
 
-          <div className="lg:col-span-3">
-            <MetricCard
-              label={
-                deficitUncovered > 0
-                  ? "Survival Baseline Need"
-                  : "Survival Pocket"
-              }
-              amount={survivalPocket}
-              value={formatRupiah(survivalPocket)}
-              footer={
-                deficitUncovered > 0
-                  ? `Baseline need (${formatRupiah(deficitUncovered)} shortfall)`
-                  : "Upfront: Essentials & daily operational"
-              }
-              statusVariant={deficitUncovered > 0 ? "urgency" : "default"}
-              statusLabel={deficitUncovered > 0 ? "DEFICIT RISK" : undefined}
-            />
-          </div>
-
-          <div className="lg:col-span-3">
-            <MetricCard
-              label={savingsLabel}
-              amount={actualSavings}
-              value={formatRupiah(actualSavings)}
-              footer={`Target: ${formatRupiah(snapshot?.savings ?? 0)}`}
-              statusVariant="default"
-            />
-          </div>
-
-          <div className="lg:col-span-3">
-            <MetricCard
-              label={surplusLabel}
-              amount={selfReward}
-              value={formatRupiah(selfReward)}
-              footer="Unallocated discretionary pool"
-              statusVariant="default"
-            />
-          </div>
+          <MetricCard
+            label={surplusLabel}
+            amount={selfReward}
+            value={formatRupiah(selfReward)}
+            footer="Unallocated discretionary pool"
+            statusVariant="default"
+          />
         </div>
       </section>
 
-      {/* SECTION 3: Detailed Breakdown Tables */}
+      {/* SECTION 2: Detailed Breakdown Tables */}
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         <div className="lg:col-span-7">
           <FixedEssentialsTable
@@ -372,7 +377,7 @@ export function AllocationsClientView({
               Waterfall Execution Order
             </h3>
             <p className="text-xs font-sans text-text-tertiary mt-0.5">
-              Strict sequential capital distribution rules governed by ERP core.
+              Sequential capital allocation rules governed by your cycle settings.
             </p>
           </div>
 
@@ -518,7 +523,15 @@ export function AllocationsClientView({
         </div>
       </section>
 
-      <PaydayTimelineSimulator month={month} year={year} />
+      <details className="rounded-lg border border-border-subtle bg-surface overflow-hidden">
+        <summary className="px-5 py-3.5 cursor-pointer flex items-center justify-between text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-surface-subtle/40 transition-colors">
+          <span>Payday Cashflow Timeline ({month}/{year})</span>
+          <span className="font-mono text-[10px] text-text-tertiary">Expand timeline view</span>
+        </summary>
+        <div className="border-t border-border-subtle p-4">
+          <PaydayTimelineSimulator month={month} year={year} />
+        </div>
+      </details>
 
       {/* SECTION 5: Interactive Living & Routine Quota Planner */}
       <section className="rounded-lg border border-border bg-surface p-5 space-y-4">
@@ -644,7 +657,7 @@ export function AllocationsClientView({
             Quota &amp; Target Change Log ({month}/{year}) · {revisions.length} revision(s)
           </span>
           <span className="font-mono text-[10px] text-text-tertiary">
-            {snapshot?.isManualOverride ? "Manual Override Active" : "Auto-Engine Active"}
+            {snapshot?.isManualOverride ? "Manual Override" : "Automatic"}
           </span>
         </summary>
         <div className="border-t border-border-subtle">
@@ -673,7 +686,7 @@ export function AllocationsClientView({
                         {new Date(rev.createdAt).toLocaleDateString("en-GB")}
                       </td>
                       <td className="px-4 py-2.5 font-mono text-text-primary whitespace-nowrap">
-                        {rev.category}
+                        {formatAuditCategoryLabel(rev.category, locale)}
                       </td>
                       <td className="px-4 py-2.5 font-mono text-right tabular-nums text-text-secondary">
                         {formatRupiah(rev.previousValue)}
@@ -700,7 +713,6 @@ export function AllocationsClientView({
       </details>
 
       <SinkingFundsPanel isLocked={isLocked} />
-      <EnvelopesAndSinkingPanel intel={intel} />
         </div>
       )}
 
@@ -709,9 +721,61 @@ export function AllocationsClientView({
       )}
 
       {activeSub === "scenarios" && (
-        <div className="space-y-8">
-          <ScenarioLabClient initialMonth={month} initialYear={year} />
-          <CreditWishlistEmbed month={month} year={year} />
+        <div className="space-y-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div
+              role="tablist"
+              aria-label="Scenario and wishlist workspaces"
+              className="inline-flex rounded-md border border-border bg-surface p-0.5 text-xs font-sans"
+            >
+              <button
+                type="button"
+                role="tab"
+                aria-selected={scenarioTool === "cashflow"}
+                onClick={() => {
+                  setScenarioTool("cashflow");
+                  if (typeof window !== "undefined") {
+                    const url = new URL(window.location.href);
+                    url.searchParams.delete("tool");
+                    window.history.replaceState({}, "", url.toString());
+                  }
+                }}
+                className={`px-3.5 py-1.5 rounded transition-colors cursor-pointer ${
+                  scenarioTool === "cashflow"
+                    ? "bg-surface-active text-text-primary font-medium"
+                    : "text-text-secondary hover:text-text-primary"
+                }`}
+              >
+                Cashflow What-If
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={scenarioTool === "wishlist"}
+                onClick={() => {
+                  setScenarioTool("wishlist");
+                  if (typeof window !== "undefined") {
+                    const url = new URL(window.location.href);
+                    url.searchParams.set("tool", "wishlist");
+                    window.history.replaceState({}, "", url.toString());
+                  }
+                }}
+                className={`px-3.5 py-1.5 rounded transition-colors cursor-pointer ${
+                  scenarioTool === "wishlist"
+                    ? "bg-surface-active text-text-primary font-medium"
+                    : "text-text-secondary hover:text-text-primary"
+                }`}
+              >
+                Purchase Wishlist
+              </button>
+            </div>
+          </div>
+
+          {scenarioTool === "cashflow" ? (
+            <ScenarioLabClient embedded={true} initialMonth={month} initialYear={year} />
+          ) : (
+            <CreditWishlistEmbed month={month} year={year} />
+          )}
         </div>
       )}
     </div>

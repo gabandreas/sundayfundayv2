@@ -726,7 +726,7 @@ describe('System-Wide Anti-AI-Slop Visual Design, Temporal Chart Axis & Human Co
       'utf8',
     );
     expect(scenariosSrc).toContain('runScenarioStressTest');
-    expect(scenariosSrc).toContain('Monte Carlo');
+    expect(scenariosSrc).toContain('Cashflow Resilience');
     expect(scenariosSrc).toContain('Surplus Allocation Frontier');
   });
 
@@ -1243,5 +1243,100 @@ describe('System-Wide Anti-AI-Slop Visual Design, Temporal Chart Axis & Human Co
       }
     }
     expect(violations).toEqual([]);
+  });
+
+  it('enforces Phase 4 UX polish, modular category master data, zero tech-jargon leakage, and Privacy Mask hardening', () => {
+    const checkZeroTechJargon = [
+      'components/events/TripEventsPlannerPanel.tsx',
+      'components/scenarios/ScenarioLabClient.tsx',
+      'components/guide/UserGuideClientView.tsx',
+      'components/primitives/HttpErrorState.tsx',
+      'components/preferences/DatabaseBackupRestoreCard.tsx',
+      'components/preferences/RiskPolicyTab.tsx',
+      'components/preferences/StudioTables.tsx',
+    ];
+    for (const relPath of checkZeroTechJargon) {
+      const content = fs.readFileSync(path.join(WEB_DIR, relPath), 'utf8');
+      expect({ relPath, hit: content.match(/\b(Go Engine|GO_BINARY|TS_MIRROR|Monte Carlo|Pareto|NestJS|PostgreSQL)\b/i)?.[0] ?? null }).toEqual({
+        relPath,
+        hit: null,
+      });
+    }
+
+    const catMasterSrc = fs.readFileSync(
+      path.join(WEB_DIR, 'components', 'preferences', 'CategoryMasterTableCard.tsx'),
+      'utf8',
+    );
+    expect(catMasterSrc).toContain('eventCategoriesTable');
+
+    const prefsStudioSrc = fs.readFileSync(
+      path.join(WEB_DIR, 'components', 'preferences', 'PreferencesStudio.tsx'),
+      'utf8',
+    );
+    expect(prefsStudioSrc).toContain('CategoryMasterTableCard');
+
+    const studioDefaultsSrc = fs.readFileSync(
+      path.join(API_SRC_DIR, 'config', 'studio.defaults.ts'),
+      'utf8',
+    );
+    expect(studioDefaultsSrc).toContain('DEFAULT_EVENT_CATEGORIES');
+    expect(studioDefaultsSrc).toContain('DEFAULT_COMMITMENT_CATEGORIES');
+    expect(studioDefaultsSrc).toContain('DEFAULT_SINKING_FUND_CATEGORIES');
+
+    const formatLabelsSrc = fs.readFileSync(
+      path.join(WEB_DIR, 'lib', 'format-labels.ts'),
+      'utf8',
+    );
+    expect(formatLabelsSrc).toContain('formatHumanStatus');
+
+    for (const relPath of [
+      'components/calendar/CashRadarCalendarClient.tsx',
+      'components/reports/ReportsClientView.tsx',
+      'components/reports/ReportDrillDownDrawer.tsx',
+      'components/audit/AuditScorecardView.tsx',
+      'components/audit/AuditDebtBurdenView.tsx',
+      'components/audit/AuditOperationalView.tsx',
+      'components/audit/AuditRewardsView.tsx',
+      'components/audit/AuditLedgerView.tsx',
+    ]) {
+      const src = fs.readFileSync(path.join(WEB_DIR, relPath), 'utf8');
+      expect({ relPath, hasMask: src.includes('usePrivacyMask') }).toEqual({
+        relPath,
+        hasMask: true,
+      });
+    }
+
+    const pickerSrc = fs.readFileSync(
+      path.join(WEB_DIR, 'components', 'primitives', 'ErpDatePicker.tsx'),
+      'utf8',
+    );
+    expect(pickerSrc).toContain('isTodayOutOfBounds');
+
+    const allocSrc = fs.readFileSync(
+      path.join(WEB_DIR, 'components', 'allocations', 'AllocationsClientView.tsx'),
+      'utf8',
+    );
+    expect(allocSrc).not.toContain('EnvelopesAndSinkingPanel');
+
+    const creditSrc = fs.readFileSync(
+      path.join(WEB_DIR, 'components', 'credit', 'CreditPageClient.tsx'),
+      'utf8',
+    );
+    expect(creditSrc).not.toContain('CreditWishlistEmbed');
+    expect(creditSrc).not.toContain('DebtFreedomTimeline');
+
+    const modMgrSrc = fs.readFileSync(
+      path.join(WEB_DIR, 'components', 'preferences', 'ModuleManagerTab.tsx'),
+      'utf8',
+    );
+    expect(modMgrSrc).not.toContain('COMMAND_COCKPIT');
+    expect(modMgrSrc).not.toContain('SIMPLE_CLARITY');
+
+    const wishlistPageSrc = fs.readFileSync(
+      path.join(WEB_DIR, 'app', 'wishlist', 'page.tsx'),
+      'utf8',
+    );
+    expect(wishlistPageSrc).toContain('/allocations');
+    expect(wishlistPageSrc).toContain('wishlist');
   });
 });

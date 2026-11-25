@@ -9,7 +9,6 @@ import {
   LIFE_STAGE_PRESET_CATALOG,
   ModuleKey,
   LifeStagePreset,
-  UiDensityMode,
   updateGlobalConfig,
 } from "@/lib/api";
 
@@ -20,7 +19,6 @@ interface ModuleManagerTabProps {
 export function ModuleManagerTab({ config }: ModuleManagerTabProps) {
   const {
     enabledModules,
-    uiDensityMode,
     lifeStagePreset,
     setEnabledModules,
     setUiDensityMode,
@@ -51,16 +49,6 @@ export function ModuleManagerTab({ config }: ModuleManagerTabProps) {
     setTimeout(() => setSavingMessage(null), 2500);
   };
 
-  const handleSelectDensity = async (mode: UiDensityMode) => {
-    await setUiDensityMode(mode);
-    setSavingMessage(
-      mode === "SIMPLE_CLARITY"
-        ? "Switched to Simple Clarity Mode (Senior / Minimalist)."
-        : "Switched to Command Cockpit Mode (Full ERP)."
-    );
-    setTimeout(() => setSavingMessage(null), 2500);
-  };
-
   const handleApplyPresetModules = async (presetId: LifeStagePreset) => {
     const presetMeta = LIFE_STAGE_PRESET_CATALOG.find((p) => p.id === presetId);
     if (!presetMeta) return;
@@ -85,87 +73,29 @@ export function ModuleManagerTab({ config }: ModuleManagerTabProps) {
         </div>
       )}
 
-      {/* Section 1: UI Density Mode Switcher */}
+      {/* Modular App Registry */}
       <div className="bg-surface border border-border rounded-md p-5 space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-sm font-semibold text-text-primary">
-              UI Density & Accessibility Mode
+              Modular App Registry
             </h2>
             <p className="text-xs text-text-tertiary mt-0.5">
-              Choose between the dense 3-column financial command cockpit or the high-contrast 4-card layout designed for quick clarity and senior accessibility.
+              Toggle pluggable modules ON or OFF. Disabled modules are hidden from the Sidebar navigation without deleting historical records. Display density lives under General &amp; Display.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setIsOnboardingOpen(true)}
-            className="px-3 py-1.5 text-xs font-medium rounded border border-border-strong bg-surface-subtle text-text-primary hover:bg-surface transition-colors"
-          >
-            Launch Workspace Setup
-          </button>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <button
-            type="button"
-            onClick={() => handleSelectDensity("COMMAND_COCKPIT")}
-            className={`text-left p-4 rounded border transition-colors ${
-              uiDensityMode === "COMMAND_COCKPIT"
-                ? "border-accent/50 bg-accent/[0.06] ring-1 ring-accent/20"
-                : "border-border bg-surface hover:bg-surface-subtle/50"
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-text-primary">
-                Command Cockpit (Default ERP)
-              </span>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded border border-border text-text-secondary">
-                {uiDensityMode === "COMMAND_COCKPIT" ? "ACTIVE" : "SELECT"}
-              </span>
-            </div>
-            <p className="text-xs text-text-tertiary mt-1.5">
-              Full Overview dashboard, daily safe-to-spend pacing, 12-month liability matrix, and modular bucket breakdowns.
-            </p>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleSelectDensity("SIMPLE_CLARITY")}
-            className={`text-left p-4 rounded border transition-colors ${
-              uiDensityMode === "SIMPLE_CLARITY"
-                ? "border-accent/50 bg-accent/[0.06] ring-1 ring-accent/20"
-                : "border-border bg-surface hover:bg-surface-subtle/50"
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-text-primary">
-                Simple Clarity (Senior / Minimalist Mode)
-              </span>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded border border-border text-text-secondary">
-                {uiDensityMode === "SIMPLE_CLARITY" ? "ACTIVE" : "SELECT"}
-              </span>
-            </div>
-            <p className="text-xs text-text-tertiary mt-1.5">
-              Enlarged 16px–18px typography, high-contrast 4-card Overview (Monthly Income, Safe Daily Spend, Routine Bills, Savings), and simplified controls.
-            </p>
-          </button>
-        </div>
-      </div>
-
-      {/* Section 2: Odoo-Style Pluggable Module Registry */}
-      <div className="bg-surface border border-border rounded-md p-5 space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-sm font-semibold text-text-primary">
-              Odoo-Style Modular App Registry
-            </h2>
-            <p className="text-xs text-text-tertiary mt-0.5">
-              Toggle pluggable ERP modules ON or OFF. Disabled modules are hidden from the Sidebar navigation without deleting any underlying historical records.
-            </p>
+          <div className="flex items-center gap-3 shrink-0">
+            <span className="text-xs font-mono text-text-secondary">
+              {enabledModules.length} Modules Enabled
+            </span>
+            <button
+              type="button"
+              onClick={() => setIsOnboardingOpen(true)}
+              className="px-3 py-1.5 text-xs font-medium rounded border border-border-strong bg-surface-subtle text-text-primary hover:bg-surface transition-colors cursor-pointer"
+            >
+              Launch Workspace Setup
+            </button>
           </div>
-          <span className="text-xs font-mono text-text-secondary">
-            {enabledModules.length} Modules Enabled
-          </span>
         </div>
 
         <div className="grid grid-cols-2 gap-3">

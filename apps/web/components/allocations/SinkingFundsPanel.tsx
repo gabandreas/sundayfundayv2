@@ -12,13 +12,22 @@ import {
 } from "@/lib/api";
 import { useLanguage } from "@/context/LanguageContext";
 import { usePeriod } from "@/context/PeriodContext";
+import { usePerspective } from "@/context/PerspectiveContext";
 import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 import { usePrivacyGuard } from "@/hooks/usePrivacyGuard";
 import { useConfirmDialog } from "@/context/ConfirmDialogContext";
 import { useToast } from "@/context/ToastContext";
 import { formatCurrencyInput, formatRupiah, parseCurrencyInput } from "@/lib/utils";
+import { titleCaseCode } from "@/lib/format-labels";
 
-const CATEGORIES = ["TRAVEL", "EMERGENCY", "GADGET", "EDUCATION", "VEHICLE", "GENERAL"] as const;
+const DEFAULT_SF_CATEGORIES = [
+  { code: "TRAVEL", label: "Travel & Holiday" },
+  { code: "EMERGENCY", label: "Emergency Reserve" },
+  { code: "GADGET", label: "Device & Gear" },
+  { code: "VEHICLE", label: "Vehicle Service / Tax" },
+  { code: "EDUCATION", label: "Course & Education" },
+  { code: "GENERAL", label: "General Reserve" },
+];
 
 const COPY = {
   en: {
@@ -98,6 +107,7 @@ const COPY = {
 export function SinkingFundsPanel({ isLocked = false }: { isLocked?: boolean }) {
   const { locale } = useLanguage();
   const { month, year, revisionTick, refreshPeriod } = usePeriod();
+  const { studioConfig, updateStudioConfig } = usePerspective();
   const { isAmountsMasked } = usePrivacyMask();
   const { requireUnmasked } = usePrivacyGuard();
   const { confirmDialog } = useConfirmDialog();
@@ -105,6 +115,18 @@ export function SinkingFundsPanel({ isLocked = false }: { isLocked?: boolean }) 
 
   const t = COPY[locale] ?? COPY.en;
   const formatRp = (n: number) => formatRupiah(n, isAmountsMasked);
+  const categories = React.useMemo(() => {
+    const table = studioConfig?.sinkingFundCategoriesTable;
+    const rows = Array.isArray(table) && table.length > 0 ? table.filter((r) => r.active !== false) : DEFAULT_SF_CATEGORIES;
+    return rows.length > 0 ? rows : DEFAULT_SF_CATEGORIES;
+  }, [studioConfig?.sinkingFundCategoriesTable]);
+  const labelByCode = React.useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of studioConfig?.sinkingFundCategoriesTable ?? DEFAULT_SF_CATEGORIES) {
+      map.set(String(c.code).toUpperCase(), c.label);
+    }
+    return map;
+  }, [studioConfig?.sinkingFundCategoriesTable]);
 
   const [data, setData] = useState<SinkingFundsResponse>({
     items: [],
@@ -289,18 +311,18 @@ export function SinkingFundsPanel({ isLocked = false }: { isLocked?: boolean }) 
 
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-1.5">
-              {CATEGORIES.map((cat) => (
+              {categories.map((cat) => (
                 <button
-                  key={cat}
+                  key={cat.code}
                   type="button"
-                  onClick={() => setCategory(cat)}
+                  onClick={() => setCategory(cat.code)}
                   className={`px-2 py-1 rounded text-[11px] font-sans border cursor-pointer ${
-                    category === cat
+                    category === cat.code
                       ? "border-accent bg-accent/15 text-text-primary font-medium"
                       : "border-border-subtle bg-surface text-text-tertiary hover:text-text-primary"
                   }`}
                 >
-                  {cat}
+                  {cat.label}
                 </button>
               ))}
             </div>
@@ -369,9 +391,12 @@ export function SinkingFundsPanel({ isLocked = false }: { isLocked?: boolean }) 
                   <div className="text-xs font-semibold font-sans text-text-primary">
                     {item.name}
                   </div>
-                  <div className="text-[11px] font-mono tabular-nums text-text-tertiary mt-0.5">
-                    {item.category} · {String(item.targetMonth).padStart(2, "0")}/{item.targetYear} ·{" "}
-                    {item.monthsRemaining} {t.monthsLeft}
+                  <div className="text-[11px] font-sans text-text-tertiary mt-0.5">
+                    {labelByCode.get(String(item.category).toUpperCase()) ?? titleCaseCode(item.category)} ·{" "}
+                    <span className="font-mono tabular-nums">
+                      {String(item.targetMonth).padStart(2, "0")}/{item.targetYear} · {item.monthsRemaining}{" "}
+                      {t.monthsLeft}
+                    </span>
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5">

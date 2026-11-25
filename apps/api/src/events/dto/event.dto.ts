@@ -6,14 +6,18 @@ import {
   IsOptional,
   IsString,
   Max,
+  MaxLength,
   Min,
+  MinLength,
 } from 'class-validator';
 
 export const EVENT_TYPES = [
   'DAY_OUTING',
   'WEEKEND_TRIP',
   'VACATION',
+  'DINING_GATHERING',
   'CONCERT_EVENT',
+  'GENERAL_EVENT',
 ] as const;
 
 export const EVENT_TIERS = ['CONSERVATIVE', 'BALANCED', 'MAX_SAFE'] as const;
@@ -36,7 +40,9 @@ export class OptimizeTripEventDto {
   @Max(2035)
   year: number;
 
-  @IsIn(EVENT_TYPES as unknown as string[])
+  @IsString()
+  @MinLength(2)
+  @MaxLength(48)
   eventType: string;
 
   @IsInt()
@@ -69,7 +75,9 @@ export class CreateTripEventDto {
   title: string;
 
   @IsOptional()
-  @IsIn(EVENT_TYPES as unknown as string[])
+  @IsString()
+  @MinLength(2)
+  @MaxLength(48)
   eventType?: string;
 
   @IsString()
@@ -110,7 +118,9 @@ export class UpdateTripEventDto {
   title?: string;
 
   @IsOptional()
-  @IsIn(EVENT_TYPES as unknown as string[])
+  @IsString()
+  @MinLength(2)
+  @MaxLength(48)
   eventType?: string;
 
   @IsOptional()
@@ -147,7 +157,9 @@ export class CreateTripExpenseDto {
   label: string;
 
   @IsOptional()
-  @IsIn(EVENT_EXPENSE_CATEGORIES as unknown as string[])
+  @IsString()
+  @MinLength(2)
+  @MaxLength(48)
   category?: string;
 
   @IsNumber()
@@ -178,7 +190,9 @@ export class UpdateTripExpenseDto {
   label?: string;
 
   @IsOptional()
-  @IsIn(EVENT_EXPENSE_CATEGORIES as unknown as string[])
+  @IsString()
+  @MinLength(2)
+  @MaxLength(48)
   category?: string;
 
   @IsOptional()

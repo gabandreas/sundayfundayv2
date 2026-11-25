@@ -238,6 +238,15 @@ export class ConfigService {
                 ...patch.privacyPreferences,
               }
             : curStudio.privacyPreferences,
+          eventCategoriesTable: Array.isArray(patch?.eventCategoriesTable)
+            ? patch.eventCategoriesTable
+            : curStudio.eventCategoriesTable,
+          commitmentCategoriesTable: Array.isArray(patch?.commitmentCategoriesTable)
+            ? patch.commitmentCategoriesTable
+            : curStudio.commitmentCategoriesTable,
+          sinkingFundCategoriesTable: Array.isArray(patch?.sinkingFundCategoriesTable)
+            ? patch.sinkingFundCategoriesTable
+            : curStudio.sinkingFundCategoriesTable,
         },
       },
       existing,

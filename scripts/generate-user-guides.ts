@@ -341,7 +341,7 @@ function buildCoverSheet(spec: GuideBookSpec): string {
       ? [
           ["Siklus Payday-ke-Payday", "Uang gaji dikawal penuh dari tanggal cair hingga H-1 gajian berikutnya."],
           ["Zero-Friction Wallet Sync", "Tidak wajib catat transaksi kecil harian; samakan saldo real kapan saja dalam 10 detik."],
-          ["Angka Deterministik (Go + TS)", "Semua kuota, cutoff tagihan, dan simulasi utang dihitung dari satu sumber kebenaran."],
+          ["Angka Deterministik & Konsisten", "Semua kuota, cutoff tagihan, dan simulasi utang dihitung dari satu sumber kebenaran."],
         ]
       : [
           ["Payday-to-Payday Horizon", "Every cycle tracks cashflow from actual payday through the day before the next payday."],
@@ -413,9 +413,9 @@ function buildGabrielPages(lang: GuideLang): GuideBookSpec {
         { num: "03", title: "Overview Kolom 1: Spending Balance & Bank Sync", desc: "Days to Payday, Daily Average, Bank Balance Sync", page: 5 },
         { num: "04", title: "Overview Kolom 2, Kolom 3 & Panel Bawah", desc: "Routine Bills, Bank / QRIS, Record Expense, Checklist", page: 6 },
         { num: "05", title: "Income & Payday + Cashflow Calendar (8-Hub IA)", desc: "Payday Closing (/payroll?sub=closing), Ledger, THR & Cash Radar", page: 7 },
-        { num: "06", title: "Plan & Events + Sinking Funds + Trip Budget Planner", desc: "Sinking Funds, Go 3-Tier Event Optimizer & Shared Advance, KlikBCA Import", page: 8 },
+        { num: "06", title: "Plan & Events + Sinking Funds + Anggaran Acara & Kegiatan", desc: "Sinking Funds, Penasihat 3-Tier Anggaran Acara & Shared Advance, KlikBCA Import", page: 8 },
         { num: "07", title: "Bills & Credit (Hukum Cutoff, One-Off Bills & Matrix)", desc: "One-Off Commitments (0% DSR), SPayLater M-15d, CC 25th, Optimizer", page: 9 },
-        { num: "08", title: "Savings & Net Worth + What-If Scenarios (/allocations)", desc: "Milestone dana darurat, Net Worth, Go Monte Carlo Stress Test", page: 10 },
+        { num: "08", title: "Savings & Net Worth + Skenario What-If (/allocations)", desc: "Milestone dana darurat, Net Worth, Simulasi Stress Test 12 Bulan", page: 10 },
         { num: "09", title: "Reports & Insights (Statement, Trends, Audit & Export)", desc: "Audit disiplin, Multi-Period Analytics, Excel/PDF & Email", page: 11 },
         { num: "10", title: "Marquee AI Co-Pilot, Ctrl+K & Preferences 6-Tab", desc: "Stage-Commit aman, Template GreatDay, THR & Pacing Mode", page: 12 },
         { num: "11", title: "Superadmin Console & SQL Query Studio", desc: "Buat akun user + temp password, Audit Log, Safe SQL Browser", page: 13 },
@@ -427,9 +427,9 @@ function buildGabrielPages(lang: GuideLang): GuideBookSpec {
         { num: "03", title: "Overview Col 1: Spending Balance & Bank Sync", desc: "Days to Payday, Daily Average, Bank Balance Sync", page: 5 },
         { num: "04", title: "Overview Col 2, Col 3 & Activity Tables", desc: "Routine Bills, Allocation Mix, Bank / QRIS, Checklist", page: 6 },
         { num: "05", title: "Income & Payday + Cashflow & Ledger (8-Hub IA)", desc: "Payday Closing (/payroll?sub=closing), Cash Radar, Ledger & THR", page: 7 },
-        { num: "06", title: "Plan & Events + Sinking Funds + Trip Budget Planner", desc: "Active Sinking Funds, Go 3-Tier Trip Optimizer, KlikBCA Import", page: 8 },
+        { num: "06", title: "Plan & Events + Sinking Funds + Event & Activity Budgets", desc: "Active Sinking Funds, 3-Tier Event Budget Advisor, KlikBCA Import", page: 8 },
         { num: "07", title: "Bills & Credit (Cutoff Law, One-Off Bills & Matrix)", desc: "One-Off Commitments (0% DSR), SPayLater M-15d, Permata CC 25th", page: 9 },
-        { num: "08", title: "Savings & Net Worth + What-If Scenarios (/allocations)", desc: "Emergency milestones, Net Worth, Go Monte Carlo stress testing", page: 10 },
+        { num: "08", title: "Savings & Net Worth + What-If Scenarios (/allocations)", desc: "Emergency milestones, Net Worth, 12-Month Cashflow Stress Testing", page: 10 },
         { num: "09", title: "Reports & Insights (Statement, Trends, Audit & Export)", desc: "Discipline audit, Multi-Period Trends, Excel/PDF & Email", page: 11 },
         { num: "10", title: "Marquee AI Co-Pilot, Ctrl+K & Preferences", desc: "Stage-Commit confirmation, Direct Deductions, THR & Pacing", page: 12 },
         { num: "11", title: "Superadmin Console & SQL Query Studio", desc: "User provisioning + temp password, IP whitelist, SQL Studio", page: 13 },
@@ -739,7 +739,7 @@ function buildGabrielPages(lang: GuideLang): GuideBookSpec {
           <h3>Safe Statement Import (<code>/import</code>)</h3>
           <ul>
             <li><strong>Monthly Plan &amp; Active Sinking Funds (<code>/allocations?sub=plan</code>):</strong> Mengatur simulasi kuota, perilaku rollover amplop, dan membuat target dana berkala dengan tombol <strong>+ Contribute</strong>.</li>
-            <li><strong>Trip &amp; Event Budget Planner (<code>/allocations?sub=events</code>):</strong> Merencanakan budget liburan/outing memakai rekomendasi 3 tingkat Go Engine (<em>Conservative</em>, <em>Balanced</em>, <em>Max Safe</em>), mencatat talangan teman (<em>Shared Advance</em>), dan menutup sisa budget dengan <strong>Close &amp; Sweep</strong> ke Core Savings/Discretionary tanpa merusak anggaran makan harian.</li>
+            <li><strong>Anggaran Acara &amp; Kegiatan (<code>/allocations?sub=events</code>):</strong> Merencanakan budget acara, jalan-jalan, atau outing dengan default tanggal hari ini, rekomendasi 3 tingkat (<em>Conservative</em>, <em>Balanced</em>, <em>Max Safe</em>) yang menyesuaikan siklus tanggal acara, catatan talangan teman (<em>Shared Advance</em>), dan <strong>Close &amp; Sweep</strong> ke Core Savings/Discretionary.</li>
             <li><strong>Statement Import (<code>/calendar?sub=import</code>):</strong> Terpadu rapi di tab ke-3 hub <em>Cashflow &amp; Ledger</em>.</li>
           </ul>
         </div>
@@ -756,7 +756,7 @@ function buildGabrielPages(lang: GuideLang): GuideBookSpec {
           <h3>Monthly Plan / Allocations (<code>/allocations</code>)</h3>
           <ul>
             <li><strong>Monthly Plan &amp; Active Sinking Funds (<code>/allocations?sub=plan</code>):</strong> Previews Daily Living or Savings targets before applying and manages active sinking fund goals with instant <strong>+ Contribute</strong> deposits.</li>
-            <li><strong>Trip &amp; Event Budget Planner (<code>/allocations?sub=events</code>):</strong> Computes 3 Go-optimized event caps (<em>Conservative</em>, <em>Balanced</em>, <em>Max Safe</em>), isolates friend shared advances, and sweeps unused balance cleanly via <strong>Close &amp; Sweep</strong>.</li>
+            <li><strong>Event &amp; Activity Budgets (<code>/allocations?sub=events</code>):</strong> Defaults to today's date, resolves the exact paycycle containing your event date, computes 3 deterministic tiers (<em>Conservative</em>, <em>Balanced</em>, <em>Max Safe</em>) using modular category weights, isolates friend advances, and sweeps unused balance cleanly via <strong>Close &amp; Sweep</strong>.</li>
             <li><strong>Statement Import (<code>/calendar?sub=import</code>):</strong> Consolidated directly inside <em>Cashflow &amp; Ledger</em> alongside the Cash Calendar and Transaction Ledger.</li>
           </ul>
         </div>
@@ -826,8 +826,8 @@ function buildGabrielPages(lang: GuideLang): GuideBookSpec {
   sheets.push(
     isId
       ? `
-      <h2 class="chapter-title">08 · Savings & Emergency Fund + What-If Scenario Lab</h2>
-      <p class="chapter-sub">Membangun ketahanan dana darurat dan menguji ketahanan kas 12 bulan dengan mesin Go.</p>
+      <h2 class="chapter-title">08 · Savings & Net Worth + Cashflow What-If Lab</h2>
+      <p class="chapter-sub">Membangun ketahanan dana darurat dan menguji ketahanan kas 12 bulan lintas skenario.</p>
       <div class="two-col">
         <div class="card">
           <h3>Savings & Emergency Fund (<code>/savings</code> — 2 Sub-Tab)</h3>
@@ -838,11 +838,11 @@ function buildGabrielPages(lang: GuideLang): GuideBookSpec {
           </ul>
         </div>
         <div class="card">
-          <h3>What-If Scenario Lab (<code>/scenarios</code>)</h3>
+          <h3>Cashflow What-If Lab &amp; Wishlist (<code>/allocations?sub=scenarios</code>)</h3>
           <ul>
             <li><strong>Scenario Inputs & 3 Preset Cepat:</strong> Geser slider <em>Extra Monthly Savings</em>, <em>One-Time Bonus / THR</em>, <em>Monthly Living Adjustment</em>, <em>Extra Debt Prepayment</em>, dan <em>Variable Expense Shock (%)</em>, atau gunakan preset instan <strong>Debt-Free Sprint</strong>, <strong>Bonus Prepayment</strong>, dan <strong>+15% Expense Shock</strong>.</li>
             <li><strong>Baseline vs Simulated 12-Month Curve:</strong> Membandingkan kurva kekayaan bersih dan tanggal bebas utang (DSR &lt; 15%).</li>
-            <li><strong>Go Monte Carlo Cashflow Stress Test & Allocation Frontier:</strong> Menjalankan ribuan simulasi stokastik lintas skenario untuk menghitung <em>12-Month Survival Rate (%)</em> serta batas optimal alokasi surplus.</li>
+            <li><strong>12-Month Cashflow Resilience &amp; Surplus Split Advisor:</strong> Menguji ribuan simulasi fluktuasi pemasukan/pengeluaran untuk menghitung <em>12-Month Survival Rate (%)</em> serta rekomendasi pembagian surplus bulanan terbaik.</li>
           </ul>
         </div>
       </div>
@@ -851,8 +851,8 @@ function buildGabrielPages(lang: GuideLang): GuideBookSpec {
         <p>Saldo Core Savings Reserve dihitung murni dari catatan mutasi nyata sejak periode epoch aktif (<code>10/2026</code>), bebas dari aset fiktif maupun pengembalian internal antar-kantong.</p>
       </div>`
       : `
-      <h2 class="chapter-title">08 · Savings & Emergency Fund + What-If Scenario Lab</h2>
-      <p class="chapter-sub">Tracking verified cash reserves, debt milestones, and stochastic Go-engine stress simulations.</p>
+      <h2 class="chapter-title">08 · Savings & Net Worth + Cashflow What-If Lab</h2>
+      <p class="chapter-sub">Tracking verified cash reserves, debt milestones, and 12-month cashflow stress simulations.</p>
       <div class="two-col">
         <div class="card">
           <h3>Savings & Emergency Fund (<code>/savings</code> — 2 Sub-Tabs)</h3>
@@ -863,11 +863,11 @@ function buildGabrielPages(lang: GuideLang): GuideBookSpec {
           </ul>
         </div>
         <div class="card">
-          <h3>What-If Scenario Lab (<code>/scenarios</code>)</h3>
+          <h3>Cashflow What-If Lab &amp; Wishlist (<code>/allocations?sub=scenarios</code>)</h3>
           <ul>
             <li><strong>Scenario Inputs & Presets:</strong> Test <em>Extra Monthly Savings</em>, <em>Bonus / THR Inflows</em>, <em>Living Adjustments</em>, <em>Extra Debt Prepayments</em>, and <em>Expense Shocks</em>, or trigger <strong>Debt-Free Sprint</strong>, <strong>Bonus Prepayment</strong>, and <strong>+15% Expense Shock</strong> presets.</li>
             <li><strong>Wealth Trajectory Curve:</strong> Overlays simulated 12-month net cash accumulation and DSR &lt; 15% milestones over baseline.</li>
-            <li><strong>Monte Carlo Stress Test & Allocation Frontier:</strong> Go-powered stochastic engine computing 12-month cashflow survival rates and debt vs savings frontier curves.</li>
+            <li><strong>Cashflow Resilience &amp; Surplus Split Advisor:</strong> Computes 12-month cashflow survival probabilities under volatility and optimal monthly surplus split strategies.</li>
           </ul>
         </div>
       </div>
@@ -952,7 +952,7 @@ function buildGabrielPages(lang: GuideLang): GuideBookSpec {
       </div>
       <div class="card tight">
         <h3>Preferences 6-Tab (<code>/preferences</code>)</h3>
-        <p><strong>1. Paycycle & Priorities:</strong> Engine formula gaji & DSL (variabel <code>DAYS_IN_MONTH</code>, <code>PAYDAY_DAY</code>, dst.) plus aturan hari gajian. <strong>2. Payment Methods & Cutoffs:</strong> Atur cutoff kartu kredit/PayLater memakai formula aman serta daftar akun kas/aset eksternal. <strong>3. Routine & Savings Pockets:</strong> Template pos rutin dan target tabungan. <strong>4. Account, Privacy & Display:</strong> Visibilitas modul sidebar, pintasan custom, & key API AI. <strong>5. Notifications & Promo Watch:</strong> Konfigurasi SMTP terenkripsi. <strong>6. Backup, Restore & Data:</strong> Ekspor/pulihkan backup JSON pribadi.</p>
+        <p><strong>1. Paycycle & Priorities:</strong> Rumus gaji & DSL (variabel <code>DAYS_IN_MONTH</code>, <code>PAYDAY_DAY</code>, dst.) plus aturan hari gajian. <strong>2. Payment Methods & Cutoffs:</strong> Atur cutoff kartu kredit/PayLater memakai formula aman serta daftar akun kas/aset eksternal. <strong>3. Templates & Category Master Data:</strong> Template pos rutin, kategori kustom Acara/Komitmen/Dana Berkala (<code>CategoryMasterTableCard</code>), &amp; target tabungan. <strong>4. Account, Privacy & Display:</strong> UI Density, visibilitas modul sidebar, pintasan custom, &amp; key API AI. <strong>5. Notifications & Promo Watch:</strong> Konfigurasi SMTP terenkripsi. <strong>6. Backup, Restore & Data:</strong> Ekspor/pulihkan backup JSON pribadi.</p>
       </div>`
       : `
       <h2 class="chapter-title">10 · Marquee AI Co-Pilot, Ctrl+K & 6-Tab Preferences</h2>
@@ -979,7 +979,7 @@ function buildGabrielPages(lang: GuideLang): GuideBookSpec {
       </div>
       <div class="card tight">
         <h3>6-Tab Preferences Studio (<code>/preferences</code>)</h3>
-        <p><strong>1. Formula:</strong> Payday & allocation priority rules using safe formula DSL tokens. <strong>2. Instruments & Accounts:</strong> Custom cutoff expressions and external asset accounts. <strong>3. Templates:</strong> Routine & savings pocket defaults. <strong>4. Display & AI:</strong> Sidebar module overrides, custom shortcuts, and AES-256-GCM BYOK AI provider keys. <strong>5. Notifications:</strong> Encrypted SMTP and Renewal Notice alert thresholds. <strong>6. Backup:</strong> Tenant-scoped JSON backup & restore.</p>
+        <p><strong>1. Formula:</strong> Payday & allocation priority rules using safe formula DSL tokens. <strong>2. Instruments & Accounts:</strong> Custom cutoff expressions and external asset accounts. <strong>3. Templates & Categories:</strong> Routine bills, savings pockets, and custom Category Master Data tables (Event, Commitment, and Sinking Fund categories). <strong>4. Display & AI:</strong> UI Density mode, sidebar module overrides, custom shortcuts, and AES-256-GCM BYOK AI provider keys. <strong>5. Notifications:</strong> Encrypted SMTP and Renewal Notice alert thresholds. <strong>6. Backup:</strong> Tenant-scoped JSON backup & restore.</p>
       </div>`,
   );
 
@@ -1111,7 +1111,7 @@ function buildGabrielPages(lang: GuideLang): GuideBookSpec {
       : "End-to-end documentation covering paycycle logic, Bank Balance Sync, Benefit by GreatDay payroll deductions, KlikBCA CSV import, and Superadmin controls.",
     editionBadge: isId ? "Edisi Khusus Gabriel + Superadmin" : "Gabriel Bespoke + Superadmin Edition",
     audienceLabel: isId ? "Gabriel (Bespoke Client) & Superadmin" : "Gabriel (Bespoke Client) & Platform Admin",
-    versionLabel: "v3.0 · Nov 2026 · ID/EN",
+    versionLabel: "v3.1 · Nov 2026 · ID/EN",
     sheetsHtml: [],
   };
   spec.sheetsHtml = [buildCoverSheet(spec), ...pageBodies];
@@ -1131,7 +1131,7 @@ function buildStandardPages(lang: GuideLang): GuideBookSpec {
         { num: "05", title: "Transactions Ledger, Payday & Closing & Calendar", desc: "Filter buku transaksi, ekspor Excel, titik kas terendah", page: 7 },
         { num: "06", title: "Income & Cash Flow, Budgets & Impor Mutasi", desc: "Potongan langsung gaji, Rollover amplop, KlikBCA CSV", page: 8 },
         { num: "07", title: "Installments & Bills (Cutoff & Debt Matrix)", desc: "Aturan cutoff kartu/PayLater, Matrix 12 bulan & Payoff Optimizer", page: 9 },
-        { num: "08", title: "Accounts & Goals, Wishlist & Scenario Planner", desc: "Kantong tabungan, simulasi wishlist vs jam kerja, Go Stress Test", page: 10 },
+        { num: "08", title: "Accounts & Goals, Wishlist & Cashflow What-If", desc: "Kantong tabungan, simulasi wishlist vs jam kerja, Simulasi Ketahanan 12 Bulan", page: 10 },
         { num: "09", title: "Analytics, Reports, Subscriptions & Preferences", desc: "Laporan XLSX/PDF, Renewal Alerts, AI Co-Pilot & Setup", page: 11 },
         { num: "10", title: "Playbook 2 Menit/Minggu, Glosarium & Shortcuts", desc: "Kebiasaan ringan tanpa mencatat tiap kopi + kamus istilah", page: 12 },
       ]
@@ -1141,9 +1141,9 @@ function buildStandardPages(lang: GuideLang): GuideBookSpec {
         { num: "03", title: "Overview Col 1: Spending Balance & Bank Sync", desc: "Days to Payday, Daily Average, Bank Balance Sync", page: 5 },
         { num: "04", title: "Overview Col 2 & 3: Custom Categories & Expense Log", desc: "Add/rename routine bills, Allocation Mix, Bank / QRIS", page: 6 },
         { num: "05", title: "Cashflow & Ledger (/calendar) & Payday Closing (/payroll)", desc: "Ledger filtering, integrated Payday Closing & Lowest Cash Point", page: 7 },
-        { num: "06", title: "Plan & Events (/allocations): Sinking Funds & Trip Planner", desc: "Active Sinking Funds, Go 3-Tier Event Caps & KlikBCA CSV Import", page: 8 },
+        { num: "06", title: "Plan & Events (/allocations): Sinking Funds & Event Budgets", desc: "Active Sinking Funds, 3-Tier Event Budget Advisor & KlikBCA CSV Import", page: 8 },
         { num: "07", title: "Bills & Credit (/credit): One-Off Bills, Cutoffs & Matrix", desc: "One-Off Commitments (0% DSR), 12-Month Matrix & Safe-Spend", page: 9 },
-        { num: "08", title: "Savings & Net Worth (/savings) + Scenario Planner", desc: "Savings goals, wishlist work-hour check, Monte Carlo lab", page: 10 },
+        { num: "08", title: "Savings & Net Worth (/savings) + Wishlist & What-If", desc: "Savings goals, wishlist work-hour check, Cashflow Resilience Lab", page: 10 },
         { num: "09", title: "Reports & Insights (/reports) & Preferences (6-Tab)", desc: "Trends, audit, XLSX/PDF exports, Marquee AI & Setup", page: 11 },
         { num: "10", title: "2-Minute Routine Playbook, Glossary & Shortcuts", desc: "Stress-free habit loop, A-Z definitions & keyboard keys", page: 12 },
       ];
@@ -1428,10 +1428,10 @@ function buildStandardPages(lang: GuideLang): GuideBookSpec {
           </ul>
         </div>
         <div class="card">
-          <h3>Plan &amp; Events: Sinking Funds &amp; Trip Planner (<code>/allocations</code>)</h3>
+          <h3>Plan &amp; Events: Sinking Funds &amp; Event Budgets (<code>/allocations</code>)</h3>
           <ul>
-            <li>Preview Daily Living or Savings quota shifts with real-time impact before applying, and manage persistent Active Sinking Funds with instant <strong>+ Contribute</strong> progress tracking.</li>
-            <li>Use <strong>Trip &amp; Event Budget Planner</strong> (<code>?sub=events</code>) for outings/travel: get Go 3-tier caps (<em>Conservative</em>, <em>Balanced</em>, <em>Max Safe</em>), track shared friend advances separately, and sweep unused amounts back cleanly.</li>
+            <li>Preview Daily Living or Savings quota shifts with real-time impact before applying, and manage persistent Active Sinking Funds with instant <strong>+ Contribute</strong> progress tracking and modular categories from Preferences.</li>
+            <li>Use <strong>Event &amp; Activity Budgets</strong> (<code>?sub=events</code>) for outings/travel: defaults to today's date, resolves the exact paycycle window, gives 3 deterministic tiers (<em>Conservative</em>, <em>Balanced</em>, <em>Max Safe</em>), tracks shared friend advances, and sweeps unused balances cleanly.</li>
           </ul>
         </div>
       </div>
@@ -1505,7 +1505,7 @@ function buildStandardPages(lang: GuideLang): GuideBookSpec {
             </ul>
           </div>
           <div class="card">
-            <h3>Wishlist Simulator (<code>/wishlist</code> — Khusus Edisi Standar)</h3>
+            <h3>Wishlist Simulator (<code>/allocations?sub=scenarios&amp;tool=wishlist</code>)</h3>
             <ul>
               <li>Tambahkan barang incaran Anda beserta harga dan target bulan beli.</li>
               <li>Sistem menghitung harga barang dalam satuan <strong>Jam Kerja Riil</strong>, menguji dampaknya terhadap rasio utang bila dicicil, dan memungkinkan Anda menautkan barang wishlist langsung menjadi <em>Savings Goal</em> atau mengonversinya menjadi rencana cicilan.</li>
@@ -1513,13 +1513,13 @@ function buildStandardPages(lang: GuideLang): GuideBookSpec {
           </div>
         </div>
         <div class="card">
-          <h3>Scenario & Goal Planner (<code>/scenarios</code>)</h3>
-          <p>Uji skenario <em>what-if</em> selama 12 bulan ke depan memakai tuas tabungan ekstra, bonus, penghematan living, atau simulasi guncangan biaya <code>+15% Expense Shock</code>. Mesin Go menjalankan simulasi <strong>Monte Carlo Stress Test</strong> (tingkat ketahanan kas 12 bulan) dan menampilkan kurva perbandingan kekayaan bersih antara <em>Baseline</em> vs <em>Simulated</em>.</p>
+          <h3>Cashflow What-If Lab (<code>/allocations?sub=scenarios</code>)</h3>
+          <p>Uji skenario <em>what-if</em> selama 12 bulan ke depan memakai tuas tabungan ekstra, bonus, penghematan living, atau simulasi guncangan biaya <code>+15% Expense Shock</code>. Jalankan <strong>Simulasi Ketahanan Kas 12 Bulan</strong> (tingkat ketahanan kas &amp; opsi pembagian surplus optimal) sambil membandingkan kurva kekayaan bersih <em>Baseline</em> vs <em>Simulated</em>.</p>
         </div>
       </div>`
       : `
-      <h2 class="chapter-title">08 · Accounts & Goals, Wishlist Simulator & Scenario Planner</h2>
-      <p class="chapter-sub">Building goal-oriented savings reserves, testing wishlist purchases against work hours, and running Go stress tests.</p>
+      <h2 class="chapter-title">08 · Accounts & Goals, Wishlist Simulator & Cashflow What-If</h2>
+      <p class="chapter-sub">Building goal-oriented savings reserves, testing wishlist purchases against work hours, and running 12-month stress tests.</p>
       <div class="stack">
         <div class="two-col">
           <div class="card">
@@ -1530,7 +1530,7 @@ function buildStandardPages(lang: GuideLang): GuideBookSpec {
             </ul>
           </div>
           <div class="card">
-            <h3>Wishlist Simulator (<code>/wishlist</code> — Standard Workspace)</h3>
+            <h3>Wishlist Simulator (<code>/allocations?sub=scenarios&amp;tool=wishlist</code>)</h3>
             <ul>
               <li>Catalog target purchases with expected prices and timing.</li>
               <li>Evaluates affordability impact in real <strong>Work Hours</strong> and Debt Service Ratio, letting you track items as Savings Goals or convert into structured installment plans.</li>
@@ -1538,8 +1538,8 @@ function buildStandardPages(lang: GuideLang): GuideBookSpec {
           </div>
         </div>
         <div class="card">
-          <h3>Scenario & Goal Planner (<code>/scenarios</code>)</h3>
-          <p>Model 12-month projections using adjustments for extra savings, bonuses, living changes, debt prepayments, or expense shocks (with 1-click <em>Debt-Free Sprint</em>, <em>Bonus Prepayment</em>, and <em>+15% Expense Shock</em> presets). Powered by the Go <strong>Monte Carlo Cashflow Stress Test</strong> and Surplus Allocation Frontier.</p>
+          <h3>Cashflow What-If Lab (<code>/allocations?sub=scenarios</code>)</h3>
+          <p>Model 12-month projections using adjustments for extra savings, bonuses, living changes, debt prepayments, or expense shocks (with 1-click <em>Debt-Free Sprint</em>, <em>Bonus Prepayment</em>, and <em>+15% Expense Shock</em> presets) paired with our <strong>Cashflow Resilience &amp; Surplus Split Advisor</strong>.</p>
         </div>
       </div>`,
   );
@@ -1661,7 +1661,7 @@ function buildStandardPages(lang: GuideLang): GuideBookSpec {
       : "Complete end-to-end guide to zero-friction Wallet Syncing, custom budgets, cutoff routing, savings goals, wishlist simulations, and Marquee AI.",
     editionBadge: isId ? "Edisi Pengguna Standar" : "Standard Client Edition",
     audienceLabel: isId ? "Pengguna Standar (Standard General)" : "Standard General Workspace Users",
-    versionLabel: "v3.0 · Nov 2026 · ID/EN",
+    versionLabel: "v3.1 · Nov 2026 · ID/EN",
     sheetsHtml: [],
   };
   spec.sheetsHtml = [buildCoverSheet(spec), ...pageBodies];

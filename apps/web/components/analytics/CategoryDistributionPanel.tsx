@@ -1,3 +1,5 @@
+"use client";
+
 import React from "react";
 import {
   AnalyticsKpis,
@@ -6,6 +8,7 @@ import {
   MacroCategoryKey,
 } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
+import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 
 interface CategoryDistributionPanelProps {
   categories: CategoryDistributionEntry[];
@@ -23,17 +26,14 @@ const CATEGORY_COLORS: Record<MacroCategoryKey, string> = {
   BUFFER_POCKET: "#A855F7",
 };
 
-function formatRp(amount: number): string {
-  return formatRupiah(amount);
-}
-
 export function CategoryDistributionPanel({
   categories,
   series,
   kpis,
   periodCount,
 }: CategoryDistributionPanelProps) {
-  // Build SVG donut segments using stroke-dasharray on a circle of radius 62 (circumference ~ 389.557)
+  const { isAmountsMasked } = usePrivacyMask();
+  const formatRp = (amount: number) => formatRupiah(amount, isAmountsMasked);
   const radius = 62;
   const circumference = 2 * Math.PI * radius;
   let cumulativeFraction = 0;
@@ -41,9 +41,9 @@ export function CategoryDistributionPanel({
   const nonZeroCategories = categories.filter((c) => c.totalAmount > 0);
 
   return (
-    <div className="grid grid-cols-12 gap-5 items-start">
-      {/* Left 4 Columns: 100%-Accounted Income Allocation & Category Breakdown */}
-      <div className="col-span-4 rounded-lg border border-border bg-surface p-5 space-y-4">
+    <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
+      {/* Left 5 Columns: 100%-Accounted Income Allocation & Category Breakdown */}
+      <div className="xl:col-span-5 rounded-lg border border-border bg-surface p-5 space-y-4">
         <div className="border-b border-border-subtle pb-3">
           <span className="text-[11px] font-semibold text-text-tertiary font-sans block">
             100% Income Conservation
@@ -143,7 +143,7 @@ export function CategoryDistributionPanel({
                       className="w-2.5 h-2.5 rounded-xs shrink-0"
                       style={{ backgroundColor: CATEGORY_COLORS[cat.key] }}
                     />
-                    <span className="text-xs font-medium font-sans text-text-primary truncate">
+                    <span className="text-xs font-medium font-sans text-text-primary leading-tight">
                       {cat.label}
                     </span>
                   </div>
@@ -194,8 +194,8 @@ export function CategoryDistributionPanel({
         </div>
       </div>
 
-      {/* Right 8 Columns: Period-by-Period Cashflow & Savings Rate Ledger Table */}
-      <div className="col-span-8 rounded-lg border border-border bg-surface overflow-hidden">
+      {/* Right 7 Columns: Period-by-Period Cashflow & Savings Rate Ledger Table */}
+      <div className="xl:col-span-7 rounded-lg border border-border bg-surface overflow-hidden">
         <div className="p-5 border-b border-border-subtle flex items-center justify-between">
           <div>
             <span className="text-[11px] font-semibold text-text-tertiary font-sans block">

@@ -6,8 +6,8 @@ export default async function WishlistRedirectPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const sp = await searchParams;
-  const q = new URLSearchParams({ sub: "simulator" });
+  const q = new URLSearchParams({ sub: "scenarios", tool: "wishlist" });
   if (typeof sp.month === "string") q.set("month", sp.month);
   if (typeof sp.year === "string") q.set("year", sp.year);
-  redirect(`/credit?${q.toString()}`);
+  redirect(`/allocations?${q.toString()}`);
 }

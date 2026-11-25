@@ -4,10 +4,12 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { IntelligenceBundleResponse, fetchIntelligenceBundle, getCached } from "@/lib/api";
 import { usePeriod } from "@/context/PeriodContext";
+import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 import { formatRupiah } from "@/lib/utils";
 
 export function AnalyticsGoTelemetryStrip() {
   const { month, year, revisionTick } = usePeriod();
+  const { isAmountsMasked } = usePrivacyMask();
   const [intel, setIntel] = useState<IntelligenceBundleResponse | null>(null);
 
   useEffect(() => {
@@ -36,7 +38,7 @@ export function AnalyticsGoTelemetryStrip() {
         <p className="text-xs font-sans text-text-secondary mt-0.5">
           Net position{" "}
           <span className="font-mono tabular-nums font-medium text-text-primary">
-            {formatRupiah(intel.networth.totalNetWorthRp)}
+            {formatRupiah(intel.networth.totalNetWorthRp, isAmountsMasked)}
           </span>
           {" · "}
           Spending pace{" "}

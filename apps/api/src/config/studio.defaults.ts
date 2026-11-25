@@ -146,6 +146,113 @@ export interface DisplayPreferencesConfig {
   hidePriorityCodesInUi: boolean;
 }
 
+export interface EventCategoryConfigRow {
+  id: string;
+  code: string;
+  label: string;
+  foodPct: number;
+  transportPct: number;
+  activitiesPct: number;
+  contingencyPct: number;
+  weekendWeightPct: number;
+  active: boolean;
+}
+
+export interface SimpleCategoryConfigRow {
+  id: string;
+  code: string;
+  label: string;
+  active: boolean;
+}
+
+export const DEFAULT_EVENT_CATEGORIES: EventCategoryConfigRow[] = [
+  {
+    id: 'evt_day_outing',
+    code: 'DAY_OUTING',
+    label: 'Day Outing',
+    foodPct: 45,
+    transportPct: 20,
+    activitiesPct: 20,
+    contingencyPct: 15,
+    weekendWeightPct: 120,
+    active: true,
+  },
+  {
+    id: 'evt_weekend_trip',
+    code: 'WEEKEND_TRIP',
+    label: 'Weekend Trip',
+    foodPct: 38,
+    transportPct: 22,
+    activitiesPct: 28,
+    contingencyPct: 12,
+    weekendWeightPct: 135,
+    active: true,
+  },
+  {
+    id: 'evt_vacation',
+    code: 'VACATION',
+    label: 'Vacation',
+    foodPct: 34,
+    transportPct: 24,
+    activitiesPct: 30,
+    contingencyPct: 12,
+    weekendWeightPct: 135,
+    active: true,
+  },
+  {
+    id: 'evt_dining',
+    code: 'DINING_GATHERING',
+    label: 'Dining & Gathering',
+    foodPct: 60,
+    transportPct: 15,
+    activitiesPct: 15,
+    contingencyPct: 10,
+    weekendWeightPct: 115,
+    active: true,
+  },
+  {
+    id: 'evt_concert',
+    code: 'CONCERT_EVENT',
+    label: 'Concert & Ticketed Event',
+    foodPct: 25,
+    transportPct: 20,
+    activitiesPct: 45,
+    contingencyPct: 10,
+    weekendWeightPct: 120,
+    active: true,
+  },
+  {
+    id: 'evt_general',
+    code: 'GENERAL_EVENT',
+    label: 'Other Occasion',
+    foodPct: 40,
+    transportPct: 20,
+    activitiesPct: 25,
+    contingencyPct: 15,
+    weekendWeightPct: 115,
+    active: true,
+  },
+];
+
+export const DEFAULT_COMMITMENT_CATEGORIES: SimpleCategoryConfigRow[] = [
+  { id: 'cmt_outing', code: 'EVENT_OUTING', label: 'Event / Outing', active: true },
+  { id: 'cmt_penalty', code: 'PENALTY_FEE', label: 'Penalty / Cancellation', active: true },
+  { id: 'cmt_force', code: 'FORCE_MAJEURE', label: 'Unexpected Expense', active: true },
+  { id: 'cmt_tax', code: 'ANNUAL_TAX', label: 'Annual Tax / Licensing', active: true },
+  { id: 'cmt_med', code: 'MEDICAL', label: 'Medical / Health', active: true },
+  { id: 'cmt_gift', code: 'GIFT', label: 'Gift / Contribution', active: true },
+  { id: 'cmt_other', code: 'OTHER', label: 'Other', active: true },
+];
+
+export const DEFAULT_SINKING_FUND_CATEGORIES: SimpleCategoryConfigRow[] = [
+  { id: 'sf_travel', code: 'TRAVEL', label: 'Travel & Holiday', active: true },
+  { id: 'sf_emergency', code: 'EMERGENCY', label: 'Emergency Reserve', active: true },
+  { id: 'sf_gadget', code: 'GADGET', label: 'Device & Gear', active: true },
+  { id: 'sf_vehicle', code: 'VEHICLE', label: 'Vehicle Service / Tax', active: true },
+  { id: 'sf_edu', code: 'EDUCATION', label: 'Course & Education', active: true },
+  { id: 'sf_gen', code: 'GENERAL', label: 'General Reserve', active: true },
+];
+
 export interface PrivacyPreferencesConfig {
   maskBalancesByDefault: boolean;
   requirePasswordToReveal: boolean;
@@ -180,6 +287,9 @@ export interface ModularStudioConfig {
   privacyPreferences: PrivacyPreferencesConfig;
   thrConfig: ThrConfig;
   overviewPreferences: OverviewPreferencesConfig;
+  eventCategoriesTable: EventCategoryConfigRow[];
+  commitmentCategoriesTable: SimpleCategoryConfigRow[];
+  sinkingFundCategoriesTable: SimpleCategoryConfigRow[];
 }
 
 const FABRICATED_U1_ASSET_IDS = new Set([
@@ -706,6 +816,9 @@ export function buildDefaultStudioConfig(
       defaultPacingMode: 'FLAT',
       showDiscretionaryCard: true,
     },
+    eventCategoriesTable: DEFAULT_EVENT_CATEGORIES,
+    commitmentCategoriesTable: DEFAULT_COMMITMENT_CATEGORIES,
+    sinkingFundCategoriesTable: DEFAULT_SINKING_FUND_CATEGORIES,
   };
 }
 
@@ -960,5 +1073,17 @@ export function resolveStudioConfig(
           ? raw.overviewPreferences.showDiscretionaryCard
           : defaults.overviewPreferences.showDiscretionaryCard,
     },
+    eventCategoriesTable:
+      Array.isArray(raw?.eventCategoriesTable) && raw.eventCategoriesTable.length > 0
+        ? raw.eventCategoriesTable
+        : DEFAULT_EVENT_CATEGORIES,
+    commitmentCategoriesTable:
+      Array.isArray(raw?.commitmentCategoriesTable) && raw.commitmentCategoriesTable.length > 0
+        ? raw.commitmentCategoriesTable
+        : DEFAULT_COMMITMENT_CATEGORIES,
+    sinkingFundCategoriesTable:
+      Array.isArray(raw?.sinkingFundCategoriesTable) && raw.sinkingFundCategoriesTable.length > 0
+        ? raw.sinkingFundCategoriesTable
+        : DEFAULT_SINKING_FUND_CATEGORIES,
   };
 }

@@ -245,4 +245,34 @@ describe('V2.6 Configurable Priorities, Savings Pockets, Account Password, Go Sc
     expect(pc.optimalDebtRatioPercent).toBe(20);
     expect(pc.maxSafeDebtRatioPercent).toBe(35);
   });
+
+  it('resolves modular event, commitment, and sinking fund category master tables with custom user rows', () => {
+    const def: any = resolveStudioConfig(2, { studioConfig: {} });
+    expect(Array.isArray(def.eventCategoriesTable)).toBe(true);
+    expect(def.eventCategoriesTable.some((c: any) => c.code === 'DAY_OUTING')).toBe(true);
+    expect(Array.isArray(def.commitmentCategoriesTable)).toBe(true);
+    expect(def.commitmentCategoriesTable.some((c: any) => c.code === 'EVENT_OUTING')).toBe(true);
+    expect(Array.isArray(def.sinkingFundCategoriesTable)).toBe(true);
+    expect(def.sinkingFundCategoriesTable.some((c: any) => c.code === 'TRAVEL')).toBe(true);
+
+    const custom: any = resolveStudioConfig(2, {
+      studioConfig: {
+        eventCategoriesTable: [
+          {
+            id: 'evt_retreat',
+            code: 'TEAM_RETREAT',
+            label: 'Team Retreat',
+            foodPct: 50,
+            transportPct: 20,
+            activitiesPct: 20,
+            contingencyPct: 10,
+            weekendWeightPct: 140,
+            active: true,
+          },
+        ],
+      },
+    });
+    expect(custom.eventCategoriesTable).toHaveLength(1);
+    expect(custom.eventCategoriesTable[0].code).toBe('TEAM_RETREAT');
+  });
 });

@@ -92,6 +92,7 @@ export function PaydayClosingEmbed({
 
   return (
     <PaydayWizardClient
+      embedded={true}
       initialMonth={month}
       initialYear={year}
       initialData={{

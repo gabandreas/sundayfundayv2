@@ -7,16 +7,24 @@ import (
 	"time"
 )
 
+type CategoryWeightInput struct {
+	Code  string `json:"code"`
+	Label string `json:"label"`
+	Pct   int    `json:"pct"`
+}
+
 type TripOptimizeRequest struct {
-	EventType              string `json:"eventType"`
-	DurationDays           int    `json:"durationDays"`
-	StartDateIso           string `json:"startDateIso"`
-	PrepaidCommittedRp     int64  `json:"prepaidCommittedRp"`
-	CycleDiscretionaryRp   int64  `json:"cycleDiscretionaryRp"`
-	CycleEmergencyBufferRp int64  `json:"cycleEmergencyBufferRp"`
-	CycleCoreSavingsRp     int64  `json:"cycleCoreSavingsRp"`
-	CashRadarLowestPointRp int64  `json:"cashRadarLowestPointRp"`
-	RemainingDaysInCycle   int    `json:"remainingDaysInCycle"`
+	EventType              string                `json:"eventType"`
+	DurationDays           int                   `json:"durationDays"`
+	StartDateIso           string                `json:"startDateIso"`
+	PrepaidCommittedRp     int64                 `json:"prepaidCommittedRp"`
+	CycleDiscretionaryRp   int64                 `json:"cycleDiscretionaryRp"`
+	CycleEmergencyBufferRp int64                 `json:"cycleEmergencyBufferRp"`
+	CycleCoreSavingsRp     int64                 `json:"cycleCoreSavingsRp"`
+	CashRadarLowestPointRp int64                 `json:"cashRadarLowestPointRp"`
+	RemainingDaysInCycle   int                   `json:"remainingDaysInCycle"`
+	WeekendWeightPct       int                   `json:"weekendWeightPct,omitempty"`
+	CustomCategoryWeights  []CategoryWeightInput `json:"customCategoryWeights,omitempty"`
 }
 
 type TripCategoryCap struct {
@@ -48,13 +56,14 @@ type TripTierRecommendation struct {
 }
 
 type TripOptimizeResult struct {
-	EventType          string                 `json:"eventType"`
-	DurationDays       int                    `json:"durationDays"`
-	PrepaidCommittedRp int64                  `json:"prepaidCommittedRp"`
-	RecommendedTier    string                 `json:"recommendedTier"`
-	Conservative       TripTierRecommendation `json:"conservative"`
-	Balanced           TripTierRecommendation `json:"balanced"`
-	MaxSafe            TripTierRecommendation `json:"maxSafe"`
+	EventType           string                 `json:"eventType"`
+	DurationDays        int                    `json:"durationDays"`
+	PrepaidCommittedRp  int64                  `json:"prepaidCommittedRp"`
+	AvailableHeadroomRp int64                  `json:"availableHeadroomRp"`
+	RecommendedTier     string                 `json:"recommendedTier"`
+	Conservative        TripTierRecommendation `json:"conservative"`
+	Balanced            TripTierRecommendation `json:"balanced"`
+	MaxSafe             TripTierRecommendation `json:"maxSafe"`
 }
 
 type categoryWeight struct {
@@ -253,12 +262,16 @@ func OptimizeTripBudget(req TripOptimizeRequest) TripOptimizeResult {
 	}
 	startTime, err := time.Parse("2006-01-02", startStr)
 	if err != nil {
-		startTime = time.Date(2026, 12, 5, 0, 0, 0, 0, time.UTC)
+		now := time.Now().UTC()
+		startTime = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 	}
 
 	weekendBoost := int64(120)
 	if eventType == "VACATION" || eventType == "WEEKEND_TRIP" {
 		weekendBoost = 135
+	}
+	if req.WeekendWeightPct >= 100 && req.WeekendWeightPct <= 300 {
+		weekendBoost = int64(req.WeekendWeightPct)
 	}
 
 	dayInfos := make([]struct {
@@ -285,23 +298,36 @@ func OptimizeTripBudget(req TripOptimizeRequest) TripOptimizeResult {
 		}
 	}
 
-	catWeights := resolveCategoryWeights(eventType)
+	var catWeights []categoryWeight
+	for _, cw := range req.CustomCategoryWeights {
+		if cw.Pct > 0 && strings.TrimSpace(cw.Code) != "" {
+			lbl := strings.TrimSpace(cw.Label)
+			if lbl == "" {
+				lbl = strings.TrimSpace(cw.Code)
+			}
+			catWeights = append(catWeights, categoryWeight{
+				code:  strings.ToUpper(strings.TrimSpace(cw.Code)),
+				label: lbl,
+				pct:   cw.Pct,
+			})
+		}
+	}
+	if len(catWeights) == 0 {
+		catWeights = resolveCategoryWeights(eventType)
+	}
 
-	rawCons := (disc*45 + 50) / 100
-	var consVar int64
+	var consVar, balVar, availableHeadroom int64
+	var consGuidance, balGuidance string
+
 	if lowest >= 0 {
+		availableHeadroom = headroom
+		rawCons := (disc*45 + 50) / 100
 		if rawCons < headroom {
 			consVar = rawCons
 		} else {
 			consVar = headroom
 		}
-	} else {
-		consVar = 0
-	}
-
-	rawBal := (disc*75 + 50) / 100
-	var balVar int64
-	if lowest >= 0 {
+		rawBal := (disc*75 + 50) / 100
 		if rawBal < headroom {
 			balVar = rawBal
 		} else {
@@ -310,8 +336,19 @@ func OptimizeTripBudget(req TripOptimizeRequest) TripOptimizeResult {
 		if balVar < consVar {
 			balVar = consVar
 		}
+		consGuidance = fmt.Sprintf("Uses 45%% of cycle discretionary cash while keeping Rp %d headroom before next payday.", lowest-consVar)
+		balGuidance = "Uses up to 75% of discretionary surplus cleanly without touching Core Savings or dropping cycle lowest cash below zero."
 	} else {
-		balVar = consVar
+		shortfall := -lowest
+		tightPool := disc - shortfall
+		if tightPool < 0 {
+			tightPool = 0
+		}
+		availableHeadroom = tightPool
+		consVar = (tightPool*50 + 50) / 100
+		balVar = tightPool
+		consGuidance = fmt.Sprintf("Scaled to 50%% of post-shortfall discretionary space (Rp %d shortfall in cycle).", shortfall)
+		balGuidance = fmt.Sprintf("Full post-shortfall discretionary ceiling after accounting for Rp %d cycle shortfall.", shortfall)
 	}
 
 	rawMax := disc + (buf*50+50)/100
@@ -335,11 +372,11 @@ func OptimizeTripBudget(req TripOptimizeRequest) TripOptimizeResult {
 		catWeights,
 		disc,
 		lowest,
-		fmt.Sprintf("Uses 45%% of cycle discretionary cash while keeping Rp %d headroom before next payday.", lowest-consVar),
+		consGuidance,
 	)
 	bal := buildTier(
 		"BALANCED",
-		"Optimal Recommended",
+		"Balanced",
 		balVar,
 		prepaid,
 		dur,
@@ -347,11 +384,11 @@ func OptimizeTripBudget(req TripOptimizeRequest) TripOptimizeResult {
 		catWeights,
 		disc,
 		lowest,
-		fmt.Sprintf("Uses up to 75%% of discretionary surplus cleanly without touching Core Savings or dropping cycle lowest cash below zero."),
+		balGuidance,
 	)
 	maxT := buildTier(
 		"MAX_SAFE",
-		"Max Safe Cap",
+		"Max Safe",
 		maxVar,
 		prepaid,
 		dur,
@@ -363,12 +400,13 @@ func OptimizeTripBudget(req TripOptimizeRequest) TripOptimizeResult {
 	)
 
 	return TripOptimizeResult{
-		EventType:          eventType,
-		DurationDays:       dur,
-		PrepaidCommittedRp: prepaid,
-		RecommendedTier:    recTier,
-		Conservative:       cons,
-		Balanced:           bal,
-		MaxSafe:            maxT,
+		EventType:           eventType,
+		DurationDays:        dur,
+		PrepaidCommittedRp:  prepaid,
+		AvailableHeadroomRp: availableHeadroom,
+		RecommendedTier:     recTier,
+		Conservative:        cons,
+		Balanced:            bal,
+		MaxSafe:             maxT,
 	}
 }

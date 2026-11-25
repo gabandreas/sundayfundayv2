@@ -29,6 +29,7 @@ import { useSubModule } from "@/hooks/useSubModule";
 import { CASHFLOW_SUB_KEYS, CashflowSubKey } from "@/lib/tabs";
 import { useLanguage } from "@/context/LanguageContext";
 import { usePeriod } from "@/context/PeriodContext";
+import { usePerspective } from "@/context/PerspectiveContext";
 import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 import { usePrivacyGuard } from "@/hooks/usePrivacyGuard";
 import { useToast } from "@/context/ToastContext";
@@ -252,6 +253,7 @@ export function CashRadarCalendarClient({
 }: CashRadarCalendarClientProps) {
   const { locale, t: tGlobal } = useLanguage();
   const { refreshPeriod } = usePeriod();
+  const { studioConfig } = usePerspective();
   const { isAmountsMasked } = usePrivacyMask();
   const { requireUnmasked } = usePrivacyGuard();
   const { toast } = useToast();
@@ -259,7 +261,7 @@ export function CashRadarCalendarClient({
   const [showQuickCommit, setShowQuickCommit] = useState(false);
   const [qcTitle, setQcTitle] = useState("");
   const [qcAmount, setQcAmount] = useState("100.000");
-  const [qcCategory, setQcCategory] = useState<CommitmentCategory>("OUTING");
+  const [qcCategory, setQcCategory] = useState<CommitmentCategory>("EVENT_OUTING");
   const [qcSource, setQcSource] = useState<CommitmentFundingSource>("PAYCHECK_UPFRONT");
   const [qcSaving, setQcSaving] = useState(false);
   const t = COPY_BY_LOCALE[locale] ?? COPY_BY_LOCALE.en;
@@ -489,7 +491,7 @@ export function CashRadarCalendarClient({
       )}
 
       {activeSub === "import" && (
-        <StatementImportClient />
+        <StatementImportClient embedded={true} />
       )}
 
       {activeSub === "calendar" && (
@@ -915,7 +917,7 @@ export function CashRadarCalendarClient({
                                   </span>
                                   {ev.signedAmountRp !== 0 && (
                                     <span className="shrink-0">
-                                      {formatCompactRp(ev.signedAmountRp)}
+                                      {isAmountsMasked ? "•••••" : formatCompactRp(ev.signedAmountRp)}
                                     </span>
                                   )}
                                 </div>
@@ -1201,18 +1203,23 @@ export function CashRadarCalendarClient({
                       className="w-full px-2.5 py-1.5 rounded border border-border bg-surface text-xs font-mono tabular-nums text-text-primary"
                     />
                     <div className="flex flex-wrap gap-1">
-                      {(["OUTING", "PENALTY", "EVENT", "OTHER"] as CommitmentCategory[]).map((c) => (
+                      {(studioConfig?.commitmentCategoriesTable?.filter((c) => c.active !== false) ?? [
+                        { code: "EVENT_OUTING", label: "Outing" },
+                        { code: "PENALTY_FEE", label: "Penalty" },
+                        { code: "FORCE_MAJEURE", label: "Unexpected" },
+                        { code: "OTHER", label: "Other" },
+                      ]).slice(0, 5).map((c) => (
                         <button
-                          key={c}
+                          key={c.code}
                           type="button"
-                          onClick={() => setQcCategory(c)}
+                          onClick={() => setQcCategory(c.code)}
                           className={`px-2 py-0.5 rounded text-[10px] font-sans border cursor-pointer ${
-                            qcCategory === c
+                            qcCategory === c.code
                               ? "border-accent bg-accent/15 text-text-primary"
                               : "border-border-subtle bg-surface text-text-tertiary"
                           }`}
                         >
-                          {c}
+                          {c.label}
                         </button>
                       ))}
                     </div>

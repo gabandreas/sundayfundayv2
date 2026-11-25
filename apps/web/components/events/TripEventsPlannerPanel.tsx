@@ -1,8 +1,19 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Plus, Trash2, Compass, CheckCircle2, Users, ArrowRight } from "lucide-react";
 import {
+  Plus,
+  X,
+  Trash2,
+  Compass,
+  CheckCircle2,
+  Users,
+  ArrowRight,
+  AlertCircle,
+  CalendarClock,
+} from "lucide-react";
+import {
+  EventCategoryConfigRow,
   TripEventPlanDto,
   TripEventType,
   TripExpenseItemDto,
@@ -20,153 +31,263 @@ import {
 } from "@/lib/api";
 import { useLanguage } from "@/context/LanguageContext";
 import { usePeriod } from "@/context/PeriodContext";
+import { usePerspective } from "@/context/PerspectiveContext";
 import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 import { usePrivacyGuard } from "@/hooks/usePrivacyGuard";
 import { useConfirmDialog } from "@/context/ConfirmDialogContext";
 import { useToast } from "@/context/ToastContext";
 import { ErpDatePicker } from "@/components/primitives/ErpDatePicker";
-import { formatCurrencyInput, formatRupiah, parseCurrencyInput } from "@/lib/utils";
+import {
+  formatCurrencyInput,
+  formatRupiah,
+  getJakartaDateParts,
+  parseCurrencyInput,
+} from "@/lib/utils";
+import {
+  formatEventExpenseCategoryLabel,
+  formatEventTierLabel,
+  formatHumanStatus,
+  titleCaseCode,
+} from "@/lib/format-labels";
 
-const EVENT_TYPES: TripEventType[] = [
-  "OUTING",
-  "VACATION",
-  "WEEKEND",
-  "DINNER",
-  "CONCERT",
-  "OTHER",
+const DEFAULT_EVENT_CATEGORIES: EventCategoryConfigRow[] = [
+  {
+    id: "evt_day_outing",
+    code: "DAY_OUTING",
+    label: "Day Outing",
+    foodPct: 45,
+    transportPct: 20,
+    activitiesPct: 20,
+    contingencyPct: 15,
+    weekendWeightPct: 120,
+    active: true,
+  },
+  {
+    id: "evt_weekend_trip",
+    code: "WEEKEND_TRIP",
+    label: "Weekend Trip",
+    foodPct: 38,
+    transportPct: 22,
+    activitiesPct: 28,
+    contingencyPct: 12,
+    weekendWeightPct: 135,
+    active: true,
+  },
+  {
+    id: "evt_vacation",
+    code: "VACATION",
+    label: "Vacation",
+    foodPct: 34,
+    transportPct: 24,
+    activitiesPct: 30,
+    contingencyPct: 12,
+    weekendWeightPct: 135,
+    active: true,
+  },
+  {
+    id: "evt_dining",
+    code: "DINING_GATHERING",
+    label: "Dining & Gathering",
+    foodPct: 60,
+    transportPct: 15,
+    activitiesPct: 15,
+    contingencyPct: 10,
+    weekendWeightPct: 115,
+    active: true,
+  },
+  {
+    id: "evt_concert",
+    code: "CONCERT_EVENT",
+    label: "Concert & Ticketed Event",
+    foodPct: 25,
+    transportPct: 20,
+    activitiesPct: 45,
+    contingencyPct: 10,
+    weekendWeightPct: 120,
+    active: true,
+  },
+  {
+    id: "evt_general",
+    code: "GENERAL_EVENT",
+    label: "Other Occasion",
+    foodPct: 40,
+    transportPct: 20,
+    activitiesPct: 25,
+    contingencyPct: 15,
+    weekendWeightPct: 115,
+    active: true,
+  },
 ];
 
-const EXPENSE_CATEGORIES = ["TRANSPORT", "FOOD", "STAY", "ACTIVITIES", "OTHER"] as const;
+const EXPENSE_CATEGORIES = [
+  "FOOD_DRINK",
+  "LOCAL_TRANSPORT",
+  "ACTIVITIES",
+  "CONTINGENCY",
+] as const;
 
 const COPY = {
   en: {
-    title: "Trip & Event Budget Planner",
+    title: "Event & Activity Budgets",
     subtitle:
-      "Ring-fenced outing, travel, or event budget powered by the Go 3-tier cap optimizer. Isolates trip spend and shared friend advances so your daily living rate stays accurate.",
-    newEvent: "Plan New Event",
+      "Separate outings, trips, and special events from your everyday allowance while tracking shared friend advances.",
+    newEvent: "Plan Event",
     cancel: "Cancel",
-    createEvent: "Save Event Plan",
+    createEvent: "Save Event Budget",
     fieldTitle: "Event Name",
     fieldTitlePlaceholder: "e.g. Bandung Team Outing",
-    fieldType: "Event Type",
+    fieldType: "Activity Category",
+    customTypePlaceholder: "Custom category...",
+    addCustomType: "Add",
     fieldStart: "Start Date",
     fieldEnd: "End Date",
     fieldCap: "Event Budget Cap (Rp)",
-    fieldPrepaid: "Prepaid Deposit / Fee (Rp)",
-    createCommitmentCheck: "Also create Paycheck Upfront commitment for this deposit",
-    goRecommendation: "Go Engine Budget Recommendation",
-    calculatingGo: "Calculating safe discretionary headroom...",
+    fieldPrepaid: "Prepaid Deposit / Ticket (Rp)",
+    createCommitmentCheck: "Also reserve deposit from Paycheck Upfront",
+    budgetOptionsTitle: "Suggested Budget Tiers",
+    calculatingRec: "Calculating safe discretionary room...",
     tierRecommended: "Recommended",
-    dailyCap: "Daily cap",
-    freshNeeded: "Fresh cash needed",
-    empty: "No trip or event budgets planned for this period.",
-    grossSpent: "Gross Spent",
-    friendReimbursed: "Friend Reimbursed",
-    pendingAdvance: "Friend Advance Pending",
-    netPersonal: "Net Personal Spend",
-    remainingCap: "Remaining Event Cap",
+    dailyAvg: "Daily avg",
+    varCap: "On-trip pool",
+    headroomLabel: "safe room",
+    startsTodayBadge: "Starts today · Activated immediately in current cycle",
+    upcomingPrefix: "Starts in",
+    upcomingDaysUnit: "days",
+    cycleFundingPrefix: "Funded from",
+    prepSetAside: "Prep set-aside",
+    shortfallNotePrefix: "Current cycle has a shortfall of",
+    shortfallNoteSuffix: "Keep caps modest or defer until the next paycheck.",
+    backdateError: "Start date cannot be in the past. Choose today or a future date.",
+    endBeforeStartError: "End date cannot be earlier than start date.",
+    empty: "No event budgets scheduled yet.",
+    grossSpent: "Total Paid",
+    friendReimbursed: "Reimbursed",
+    pendingAdvance: "Pending Friend Share",
+    netPersonal: "Your Net Share",
+    remainingCap: "Remaining Cap",
     logExpense: "Log Event Expense",
     expenseLabel: "Description",
     expenseLabelPlaceholder: "e.g. Group dinner / split bill",
     expenseAmount: "Amount Paid (Rp)",
-    sharedAdvanceToggle: "Paid for group / friend advance (expecting reimbursement)",
+    sharedAdvanceToggle: "Paid for friend / group (expecting payback)",
     counterpartyPlaceholder: "Who owes you? (e.g. Andi)",
-    reimbursedRp: "Reimbursed (Rp)",
-    markReimbursed: "Mark Settled",
-    closeSweepBtn: "Close & Sweep Unused",
-    sweepCoreSavings: "Sweep Unused to Core Savings",
-    sweepDiscretionary: "Keep Unused in Discretionary",
+    markReimbursed: "Mark Paid Back",
+    closeSweepBtn: "Close & Move Unused",
+    sweepCoreSavings: "Move Unused to Core Savings",
+    sweepDiscretionary: "Return Unused to Discretionary",
     completedBadge: "Closed & Swept",
-    deleteEventTitle: "Delete Event Plan",
-    deleteEventDesc: "Delete this event plan and its expense ledger?",
+    deleteEventTitle: "Delete Event Budget",
+    deleteEventDesc: "Delete this event budget and its logged expenses?",
     deleteConfirm: "Delete",
-    categorySplitLabel: "Suggested Split",
+    splitPrefix: "Split",
   },
   id: {
-    title: "Perencana Anggaran Acara & Liburan",
+    title: "Anggaran Acara & Kegiatan",
     subtitle:
-      "Pos anggaran khusus untuk outing atau liburan dengan kalkulator 3 opsi dari Go Engine. Memisahkan talangan teman agar anggaran makan harian Anda tetap akurat.",
-    newEvent: "Buat Rencana Acara",
+      "Pisahkan pengeluaran liburan, outing, atau acara khusus dari jatah makan harian sekaligus mencatat talangan teman.",
+    newEvent: "Buat Anggaran Acara",
     cancel: "Batal",
-    createEvent: "Simpan Rencana Acara",
-    fieldTitle: "Nama Acara / Liburan",
-    fieldTitlePlaceholder: "contoh: Outing Kantor 5 Des",
-    fieldType: "Jenis Acara",
+    createEvent: "Simpan Anggaran Acara",
+    fieldTitle: "Nama Acara / Kegiatan",
+    fieldTitlePlaceholder: "contoh: Outing Tim Bandung",
+    fieldType: "Kategori Acara",
+    customTypePlaceholder: "Kategori baru...",
+    addCustomType: "Tambah",
     fieldStart: "Tanggal Mulai",
     fieldEnd: "Tanggal Selesai",
     fieldCap: "Batas Anggaran Acara (Rp)",
-    fieldPrepaid: "DP / Biaya Awal Dibayar Dulu (Rp)",
-    createCommitmentCheck: "Buat juga catatan Komitmen Potong Gaji untuk biaya awal ini",
-    goRecommendation: "Rekomendasi Anggaran Aman (Go Engine)",
-    calculatingGo: "Menghitung ruang anggaran aman...",
+    fieldPrepaid: "DP / Tiket Dibayar Awal (Rp)",
+    createCommitmentCheck: "Sisihkan juga DP ini di Komitmen Awal Gajian",
+    budgetOptionsTitle: "Opsi Batas Anggaran Aman",
+    calculatingRec: "Menghitung ruang anggaran aman...",
     tierRecommended: "Direkomendasikan",
-    dailyCap: "Batas harian",
-    freshNeeded: "Dana baru dibutuhkan",
-    empty: "Belum ada rencana liburan atau acara di periode ini.",
-    grossSpent: "Total Belanja Kotor",
-    friendReimbursed: "Sudah Diganti Teman",
-    pendingAdvance: "Talangan Belum Lunas",
+    dailyAvg: "Rata-rata/hari",
+    varCap: "Dana saat acara",
+    headroomLabel: "ruang aman",
+    startsTodayBadge: "Mulai hari ini · Langsung aktif di siklus berjalan",
+    upcomingPrefix: "Mulai dalam",
+    upcomingDaysUnit: "hari",
+    cycleFundingPrefix: "Menggunakan dana siklus",
+    prepSetAside: "Sisihkan persiapan",
+    shortfallNotePrefix: "Siklus ini sedang defisit",
+    shortfallNoteSuffix: "Pilih batas hemat atau jadwalkan setelah gajian berikutnya.",
+    backdateError: "Tanggal mulai tidak boleh lewat dari hari ini.",
+    endBeforeStartError: "Tanggal selesai tidak boleh lebih awal dari tanggal mulai.",
+    empty: "Belum ada rencana anggaran acara.",
+    grossSpent: "Total Dibayar",
+    friendReimbursed: "Sudah Diganti",
+    pendingAdvance: "Talangan Belum Diganti",
     netPersonal: "Beban Pribadi Bersih",
-    remainingCap: "Sisa Anggaran Acara",
+    remainingCap: "Sisa Batas Anggaran",
     logExpense: "Catat Pengeluaran Acara",
     expenseLabel: "Keterangan",
     expenseLabelPlaceholder: "contoh: Makan malam rombongan",
     expenseAmount: "Nominal Dibayar (Rp)",
-    sharedAdvanceToggle: "Bayari teman / talangan grup (akan diganti)",
+    sharedAdvanceToggle: "Talangan grup / bayari teman dulu",
     counterpartyPlaceholder: "Nama teman (mis. Andi)",
-    reimbursedRp: "Sudah Diganti (Rp)",
     markReimbursed: "Tandai Lunas",
-    closeSweepBtn: "Tutup & Sapu Sisa Dana",
-    sweepCoreSavings: "Kirim Sisa ke Tabungan Inti",
-    sweepDiscretionary: "Kembalikan ke Alokasi Bebas",
+    closeSweepBtn: "Tutup & Pindahkan Sisa",
+    sweepCoreSavings: "Pindahkan Sisa ke Tabungan Inti",
+    sweepDiscretionary: "Kembalikan ke Dana Bebas",
     completedBadge: "Selesai & Ditutup",
-    deleteEventTitle: "Hapus Rencana Acara",
+    deleteEventTitle: "Hapus Anggaran Acara",
     deleteEventDesc: "Hapus rencana acara beserta daftar pengeluarannya?",
     deleteConfirm: "Hapus",
-    categorySplitLabel: "Pembagian Disarankan",
+    splitPrefix: "Pembagian",
   },
   zh: {
-    title: "出行与活动预算规划",
+    title: "活动与专项预算",
     subtitle:
-      "由 Go 引擎测算三档安全预算上限，独立记账并追踪代垫回款，确保日常餐饮限额不被活动消费打乱。",
+      "将出游、聚会及专项活动支出与日常餐费隔离记账，并追踪朋友AA代垫回款。",
     newEvent: "新建活动预算",
     cancel: "取消",
-    createEvent: "保存活动计划",
+    createEvent: "保存活动预算",
     fieldTitle: "活动名称",
-    fieldTitlePlaceholder: "例如：12月团队出游",
-    fieldType: "活动类型",
+    fieldTitlePlaceholder: "例如：周末团队出游",
+    fieldType: "活动分类",
+    customTypePlaceholder: "自定义分类...",
+    addCustomType: "添加",
     fieldStart: "开始日期",
     fieldEnd: "结束日期",
     fieldCap: "活动预算上限 (Rp)",
-    fieldPrepaid: "已预付定金或费用 (Rp)",
-    createCommitmentCheck: "同步生成发薪优先预扣的单次承诺记录",
-    goRecommendation: "Go 引擎三档预算建议",
-    calculatingGo: "正在测算本周期可用空间...",
+    fieldPrepaid: "已预付定金或门票 (Rp)",
+    createCommitmentCheck: "同步从发薪优先预扣该定金",
+    budgetOptionsTitle: "三档安全预算建议",
+    calculatingRec: "正在测算本周期可用空间...",
     tierRecommended: "推荐方案",
-    dailyCap: "日均上限",
-    freshNeeded: "还需准备现金",
-    empty: "本周期暂无出行或活动预算。",
-    grossSpent: "垫付总额",
-    friendReimbursed: "朋友已还回款",
+    dailyAvg: "日均限额",
+    varCap: "活动期可用",
+    headroomLabel: "可用安全空间",
+    startsTodayBadge: "今日开始 · 立即生效为进行中",
+    upcomingPrefix: "距离开始还有",
+    upcomingDaysUnit: "天",
+    cycleFundingPrefix: "预算归属周期",
+    prepSetAside: "每日提前留存",
+    shortfallNotePrefix: "当前周期存在资金缺口",
+    shortfallNoteSuffix: "建议采用稳健档或延后至下一发薪周期。",
+    backdateError: "开始日期不能早于今天。",
+    endBeforeStartError: "结束日期不能早于开始日期。",
+    empty: "暂未创建活动预算计划。",
+    grossSpent: "累计实付",
+    friendReimbursed: "朋友已还",
     pendingAdvance: "待收回代垫",
-    netPersonal: "个人实际净支出",
+    netPersonal: "个人净支出",
     remainingCap: "剩余活动预算",
     logExpense: "记录活动消费",
-    expenseLabel: "消费描述",
+    expenseLabel: "消费说明",
     expenseLabelPlaceholder: "例如：团队聚餐",
-    expenseAmount: "支付金额 (Rp)",
-    sharedAdvanceToggle: "代人垫付 / AA 聚餐待回收",
+    expenseAmount: "实付金额 (Rp)",
+    sharedAdvanceToggle: "代朋友垫付 / AA 聚餐",
     counterpartyPlaceholder: "垫付对象（例如 Andi）",
-    reimbursedRp: "已收回金额 (Rp)",
     markReimbursed: "标为已结清",
     closeSweepBtn: "结束活动并归集结余",
     sweepCoreSavings: "结余转入核心储蓄",
-    sweepDiscretionary: "结余退回自由支配",
+    sweepDiscretionary: "结余退回弹性支配",
     completedBadge: "已结束归档",
-    deleteEventTitle: "删除活动计划",
-    deleteEventDesc: "确定删除该活动计划及其名下消费流水？",
+    deleteEventTitle: "删除活动预算",
+    deleteEventDesc: "确定删除该活动预算及其明细流水？",
     deleteConfirm: "删除",
-    categorySplitLabel: "建议分类拆分",
+    splitPrefix: "预算分配",
   },
 };
 
@@ -188,6 +309,7 @@ export function TripEventsPlannerPanel({
 }) {
   const { locale } = useLanguage();
   const { revisionTick, refreshPeriod } = usePeriod();
+  const { studioConfig, updateStudioConfig } = usePerspective();
   const { isAmountsMasked } = usePrivacyMask();
   const { requireUnmasked } = usePrivacyGuard();
   const { confirmDialog } = useConfirmDialog();
@@ -195,35 +317,57 @@ export function TripEventsPlannerPanel({
 
   const t = COPY[locale] ?? COPY.en;
   const formatRp = (n: number) => formatRupiah(n, isAmountsMasked);
+  const todayIso = getJakartaDateParts().isoDate;
+
+  const eventCategoryList = useMemo(() => {
+    const raw = studioConfig?.eventCategoriesTable;
+    const activeRows =
+      Array.isArray(raw) && raw.length > 0
+        ? raw.filter((r) => r.active !== false)
+        : DEFAULT_EVENT_CATEGORIES;
+    return activeRows.length > 0 ? activeRows : DEFAULT_EVENT_CATEGORIES;
+  }, [studioConfig?.eventCategoriesTable]);
+
+  const categoryLabelByCode = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const r of studioConfig?.eventCategoriesTable ?? DEFAULT_EVENT_CATEGORIES) {
+      map.set(String(r.code).toUpperCase(), r.label);
+    }
+    return map;
+  }, [studioConfig?.eventCategoriesTable]);
 
   const [events, setEvents] = useState<TripEventPlanDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
   const [showCreate, setShowCreate] = useState(false);
 
-  const padM = String(month).padStart(2, "0");
   const [title, setTitle] = useState("");
-  const [eventType, setEventType] = useState<TripEventType>("OUTING");
-  const [startDate, setStartDate] = useState(`${year}-${padM}-05`);
-  const [endDate, setEndDate] = useState(`${year}-${padM}-05`);
-  const [capInput, setCapInput] = useState("600.000");
+  const [eventType, setEventType] = useState<TripEventType>(
+    () => eventCategoryList[0]?.code ?? "DAY_OUTING",
+  );
+  const [startDate, setStartDate] = useState<string>(todayIso);
+  const [endDate, setEndDate] = useState<string>(todayIso);
+  const [capInput, setCapInput] = useState("0");
   const [prepaidInput, setPrepaidInput] = useState("0");
   const [createPrepaidCommit, setCreatePrepaidCommit] = useState(false);
   const [selectedTier, setSelectedTier] = useState<TripTierCode>("BALANCED");
   const [optResult, setOptResult] = useState<TripOptimizeResult | null>(null);
+  const [optError, setOptError] = useState<string | null>(null);
   const [optimizing, setOptimizing] = useState(false);
   const [savingEvent, setSavingEvent] = useState(false);
 
+  const [addingCustomType, setAddingCustomType] = useState(false);
+  const [customTypeLabel, setCustomTypeLabel] = useState("");
+
   // Expense form state
-  const [expDate, setExpDate] = useState(`${year}-${padM}-05`);
+  const [expDate, setExpDate] = useState<string>(todayIso);
   const [expLabel, setExpLabel] = useState("");
-  const [expCategory, setExpCategory] = useState<string>("FOOD");
+  const [expCategory, setExpCategory] = useState<string>("FOOD_DRINK");
   const [expAmountInput, setExpAmountInput] = useState("100.000");
   const [isSharedAdvance, setIsSharedAdvance] = useState(false);
   const [counterpartyName, setCounterpartyName] = useState("");
   const [savingExp, setSavingExp] = useState(false);
 
-  // Close & sweep panel
   const [sweepOpenForId, setSweepOpenForId] = useState<number | null>(null);
 
   const loadEvents = useCallback(async () => {
@@ -232,7 +376,7 @@ export function TripEventsPlannerPanel({
       const list = await fetchTripEvents(month, year);
       setEvents(list);
       setSelectedEventId((cur) =>
-        cur && list.some((e) => e.id === cur) ? cur : list[0]?.id ?? null
+        cur && list.some((e) => e.id === cur) ? cur : list[0]?.id ?? null,
       );
     } finally {
       setLoading(false);
@@ -243,13 +387,22 @@ export function TripEventsPlannerPanel({
     void loadEvents();
   }, [loadEvents, revisionTick]);
 
-  // Live debounced Go 3-tier optimizer when planning a new event
+  // Live debounced budget tier calculator when creating an event
   useEffect(() => {
     if (!showCreate) return;
+    if (startDate < todayIso) {
+      setOptError(t.backdateError);
+      return;
+    }
+    if (endDate < startDate) {
+      setOptError(t.endBeforeStartError);
+      return;
+    }
     const durationDays = countDurationDays(startDate, endDate);
     const prepaidCommittedRp = parseCurrencyInput(prepaidInput);
     const timer = setTimeout(async () => {
       setOptimizing(true);
+      setOptError(null);
       try {
         const res = await optimizeTripEvent({
           month,
@@ -269,27 +422,79 @@ export function TripEventsPlannerPanel({
                 ? res.data.maxSafe
                 : res.data.balanced;
           setCapInput(formatCurrencyInput(String(recTier.totalCapRp)));
+        } else {
+          setOptResult(null);
+          setOptError(res.error || "Unable to compute budget recommendation.");
         }
       } finally {
         setOptimizing(false);
       }
-    }, 250);
+    }, 220);
     return () => clearTimeout(timer);
-  }, [showCreate, month, year, eventType, startDate, endDate, prepaidInput]);
+  }, [showCreate, month, year, eventType, startDate, endDate, prepaidInput, todayIso, t.backdateError, t.endBeforeStartError]);
 
   const activeEvent = useMemo(
     () => events.find((e) => e.id === selectedEventId) ?? events[0] ?? null,
-    [events, selectedEventId]
+    [events, selectedEventId],
   );
 
+  useEffect(() => {
+    if (activeEvent) {
+      const sIso = String(activeEvent.startDate).slice(0, 10);
+      setExpDate(sIso >= todayIso ? sIso : todayIso);
+    }
+  }, [activeEvent?.id]);
+
   const handleApplyTier = (tier: TripTierAllocation) => {
-    setSelectedTier(tier.tier);
+    setSelectedTier(tier.tierCode);
     setCapInput(formatCurrencyInput(String(tier.totalCapRp)));
+  };
+
+  const handleSaveCustomCategory = async () => {
+    const clean = customTypeLabel.trim();
+    if (!clean) return;
+    const code =
+      clean
+        .toUpperCase()
+        .replace(/[^A-Z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "")
+        .slice(0, 32) || `EVENT_${Date.now()}`;
+    const current = studioConfig?.eventCategoriesTable?.length
+      ? studioConfig.eventCategoriesTable
+      : DEFAULT_EVENT_CATEGORIES;
+    if (!current.some((r) => r.code === code)) {
+      const next: EventCategoryConfigRow[] = [
+        ...current,
+        {
+          id: `evt_${Date.now()}`,
+          code,
+          label: clean,
+          foodPct: 40,
+          transportPct: 20,
+          activitiesPct: 25,
+          contingencyPct: 15,
+          weekendWeightPct: 120,
+          active: true,
+        },
+      ];
+      await updateStudioConfig({ eventCategoriesTable: next });
+    }
+    setEventType(code);
+    setCustomTypeLabel("");
+    setAddingCustomType(false);
   };
 
   const handleCreateEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!requireUnmasked(t.title)) return;
+    if (startDate < todayIso) {
+      toast({ title: t.title, description: t.backdateError, variant: "error" });
+      return;
+    }
+    if (endDate < startDate) {
+      toast({ title: t.title, description: t.endBeforeStartError, variant: "error" });
+      return;
+    }
     const plannedCapRp = parseCurrencyInput(capInput);
     const prepaidAmountRp = parseCurrencyInput(prepaidInput);
     if (!title.trim() || plannedCapRp <= 0) return;
@@ -416,9 +621,13 @@ export function TripEventsPlannerPanel({
     await loadEvents();
   };
 
+  const formatEventTypeHuman = (code: string) => {
+    const hit = categoryLabelByCode.get(String(code || "").toUpperCase());
+    return hit || titleCaseCode(code);
+  };
+
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="rounded-lg border border-border bg-surface p-5 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h2 className="text-base font-semibold font-sans text-text-primary">
@@ -437,13 +646,12 @@ export function TripEventsPlannerPanel({
             }}
             className="erp-btn-primary inline-flex items-center gap-1.5 px-3.5 py-2 rounded text-xs font-sans font-medium cursor-pointer"
           >
-            <Plus className="w-3.5 h-3.5" />
+            {showCreate ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
             <span>{showCreate ? t.cancel : t.newEvent}</span>
           </button>
         )}
       </div>
 
-      {/* Create Event + Go 3-Tier Optimizer Drawer */}
       {showCreate && !isLocked && (
         <form
           onSubmit={handleCreateEvent}
@@ -469,6 +677,7 @@ export function TripEventsPlannerPanel({
               </label>
               <ErpDatePicker
                 value={startDate}
+                min={todayIso}
                 onChange={(iso) => {
                   setStartDate(iso);
                   if (endDate < iso) setEndDate(iso);
@@ -487,53 +696,112 @@ export function TripEventsPlannerPanel({
             <span className="text-[11px] font-sans text-text-secondary mr-1">
               {t.fieldType}:
             </span>
-            {EVENT_TYPES.map((tp) => (
+            {eventCategoryList.map((cat) => (
               <button
-                key={tp}
+                key={cat.code}
                 type="button"
-                onClick={() => setEventType(tp)}
-                className={`px-2.5 py-1 rounded text-[11px] font-sans border cursor-pointer ${
-                  eventType === tp
+                onClick={() => setEventType(cat.code)}
+                className={`px-2.5 py-1 rounded text-[11px] font-sans border cursor-pointer transition-colors ${
+                  eventType === cat.code
                     ? "border-accent bg-accent/15 text-text-primary font-medium"
                     : "border-border-subtle bg-canvas text-text-tertiary hover:text-text-primary"
                 }`}
               >
-                {tp}
+                {cat.label}
               </button>
             ))}
+            {addingCustomType ? (
+              <div className="inline-flex items-center gap-1.5">
+                <input
+                  type="text"
+                  value={customTypeLabel}
+                  onChange={(e) => setCustomTypeLabel(e.target.value)}
+                  placeholder={t.customTypePlaceholder}
+                  className="px-2 py-1 rounded border border-border bg-canvas text-[11px] font-sans text-text-primary w-36"
+                />
+                <button
+                  type="button"
+                  onClick={handleSaveCustomCategory}
+                  className="px-2 py-1 rounded erp-btn-secondary text-[11px] font-sans cursor-pointer"
+                >
+                  {t.addCustomType}
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setAddingCustomType(true)}
+                className="px-2 py-1 rounded text-[11px] font-sans border border-dashed border-border text-text-tertiary hover:text-text-primary cursor-pointer"
+              >
+                + {t.addCustomType}
+              </button>
+            )}
           </div>
 
-          {/* Go 3-Tier Recommendation Panel */}
           <div className="rounded-lg border border-border-subtle bg-canvas p-4 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2 text-xs font-semibold font-sans text-text-primary">
                 <Compass className="w-3.5 h-3.5 text-accent" />
-                <span>{t.goRecommendation}</span>
-                {optResult?.engineSource && (
-                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface border border-border-subtle text-text-tertiary">
-                    {optResult.engineSource}
-                  </span>
-                )}
+                <span>{t.budgetOptionsTitle}</span>
               </div>
               {optResult && (
                 <span className="text-[11px] font-mono tabular-nums text-text-tertiary">
-                  {optResult.durationDays}d · {formatRp(optResult.availableHeadroomRp)} headroom
+                  {optResult.durationDays}d · {formatRp(optResult.availableHeadroomRp)}{" "}
+                  {t.headroomLabel}
                 </span>
               )}
             </div>
 
-            {optimizing && !optResult ? (
+            {optResult && !optError && (
+              <div className="flex flex-wrap items-center gap-2 text-[11px] font-sans text-text-secondary bg-surface/60 border border-border-subtle rounded px-3 py-2">
+                <CalendarClock className="w-3.5 h-3.5 text-accent shrink-0" />
+                {optResult.timingMode === "TODAY" ? (
+                  <span>
+                    {t.startsTodayBadge}
+                    {optResult.targetPeriodLabel
+                      ? ` (${optResult.targetPeriodLabel})`
+                      : ""}
+                    .
+                  </span>
+                ) : (
+                  <span>
+                    {t.upcomingPrefix} {optResult.daysUntilEvent ?? 0} {t.upcomingDaysUnit} ·{" "}
+                    {t.cycleFundingPrefix} {optResult.targetPeriodLabel ?? `${month}/${year}`}
+                    {(optResult.prepDailySetAsideRp ?? 0) > 0
+                      ? ` · ${t.prepSetAside}: ${formatRp(optResult.prepDailySetAsideRp ?? 0)}/day`
+                      : ""}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {optResult && (optResult.cycleShortfallRp ?? 0) > 0 && !optError && (
+              <div className="flex items-center gap-2 text-[11px] font-sans text-caution bg-caution/10 border border-caution/30 rounded px-3 py-2">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>
+                  {t.shortfallNotePrefix} {formatRp(optResult.cycleShortfallRp ?? 0)}.{" "}
+                  {t.shortfallNoteSuffix}
+                </span>
+              </div>
+            )}
+
+            {optError ? (
+              <div className="flex items-center gap-2 text-xs font-sans text-urgency bg-urgency/10 border border-urgency/30 rounded px-3 py-2">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{optError}</span>
+              </div>
+            ) : optimizing && !optResult ? (
               <div className="text-xs font-sans text-text-tertiary py-3">
-                {t.calculatingGo}
+                {t.calculatingRec}
               </div>
             ) : optResult ? (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 {[optResult.conservative, optResult.balanced, optResult.maxSafe].map((tier) => {
-                  const isSel = selectedTier === tier.tier;
-                  const isRec = optResult.recommendedTier === tier.tier;
+                  const isSel = selectedTier === tier.tierCode;
+                  const isRec = optResult.recommendedTier === tier.tierCode;
                   return (
                     <button
-                      key={tier.tier}
+                      key={tier.tierCode}
                       type="button"
                       onClick={() => handleApplyTier(tier)}
                       className={`text-left rounded-lg border p-3.5 space-y-2 transition-colors cursor-pointer ${
@@ -544,7 +812,7 @@ export function TripEventsPlannerPanel({
                     >
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-xs font-semibold font-sans text-text-primary">
-                          {tier.tier}
+                          {formatEventTierLabel(tier.tierCode, locale)}
                         </span>
                         {isRec && (
                           <span className="px-1.5 py-0.5 rounded text-[10px] font-sans bg-delta-positive/15 text-delta-positive">
@@ -556,12 +824,20 @@ export function TripEventsPlannerPanel({
                         {formatRp(tier.totalCapRp)}
                       </div>
                       <div className="text-[11px] font-mono tabular-nums text-text-tertiary">
-                        {t.dailyCap}: {formatRp(tier.dailyCapRp)} · {t.freshNeeded}:{" "}
-                        {formatRp(tier.freshBudgetNeededRp)}
+                        {t.dailyAvg}: {formatRp(tier.dailyAverageCapRp)} · {t.varCap}:{" "}
+                        {formatRp(tier.variableSpendCapRp)}
                       </div>
-                      <div className="text-[11px] font-sans text-text-secondary">
-                        {t.categorySplitLabel}: Transport {formatRp(tier.categorySplit.transportRp)} ·
-                        Food {formatRp(tier.categorySplit.foodRp)}
+                      {Array.isArray(tier.categorySplit) && tier.categorySplit.length > 0 && (
+                        <div className="text-[11px] font-sans text-text-secondary leading-relaxed">
+                          {t.splitPrefix}:{" "}
+                          {tier.categorySplit
+                            .slice(0, 3)
+                            .map((s) => `${s.label} ${formatRp(s.amountRp)}`)
+                            .join(" · ")}
+                        </div>
+                      )}
+                      <div className="text-[10px] font-sans text-text-tertiary leading-snug">
+                        {tier.guidance}
                       </div>
                     </button>
                   );
@@ -618,7 +894,7 @@ export function TripEventsPlannerPanel({
               </button>
               <button
                 type="submit"
-                disabled={savingEvent}
+                disabled={savingEvent || Boolean(optError)}
                 className="erp-btn-primary px-4 py-1.5 rounded text-xs font-sans font-medium cursor-pointer disabled:opacity-50"
               >
                 {t.createEvent}
@@ -628,7 +904,6 @@ export function TripEventsPlannerPanel({
         </form>
       )}
 
-      {/* Event Selector + Active Event Workspace */}
       {loading && events.length === 0 ? (
         <div className="rounded-lg border border-border bg-surface p-8 text-center text-xs font-sans text-text-tertiary">
           ...
@@ -639,7 +914,6 @@ export function TripEventsPlannerPanel({
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-          {/* Event List */}
           <div className="lg:col-span-4 space-y-2.5">
             {events.map((ev) => {
               const selected = activeEvent?.id === ev.id;
@@ -669,7 +943,9 @@ export function TripEventsPlannerPanel({
                           : "bg-surface-subtle text-text-secondary border border-border-subtle"
                       }`}
                     >
-                      {ev.status === "COMPLETED" ? t.completedBadge : ev.eventType}
+                      {ev.status === "COMPLETED"
+                        ? t.completedBadge
+                        : formatEventTypeHuman(ev.eventType)}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-xs font-mono tabular-nums">
@@ -681,7 +957,6 @@ export function TripEventsPlannerPanel({
             })}
           </div>
 
-          {/* Selected Event Details */}
           {activeEvent && (
             <div className="lg:col-span-8 rounded-lg border border-border bg-surface p-5 space-y-5">
               <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border-subtle pb-4">
@@ -689,9 +964,14 @@ export function TripEventsPlannerPanel({
                   <h3 className="text-base font-semibold font-sans text-text-primary">
                     {activeEvent.title}
                   </h3>
-                  <div className="text-xs font-mono tabular-nums text-text-tertiary mt-0.5">
-                    {activeEvent.recommendedTier} · {String(activeEvent.startDate).slice(0, 10)} to{" "}
-                    {String(activeEvent.endDate).slice(0, 10)}
+                  <div className="text-xs font-sans text-text-tertiary mt-0.5">
+                    {formatEventTierLabel(activeEvent.recommendedTier, locale)} ·{" "}
+                    {formatHumanStatus(activeEvent.status, locale)} ·{" "}
+                    <span className="font-mono tabular-nums">
+                      {String(activeEvent.startDate).slice(0, 10)} to{" "}
+                      {String(activeEvent.endDate).slice(0, 10)}
+                    </span>{" "}
+                    · Cycle {String(activeEvent.month).padStart(2, "0")}/{activeEvent.year}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -701,7 +981,7 @@ export function TripEventsPlannerPanel({
                       onClick={() => {
                         if (!requireUnmasked(t.closeSweepBtn)) return;
                         setSweepOpenForId((cur) =>
-                          cur === activeEvent.id ? null : activeEvent.id
+                          cur === activeEvent.id ? null : activeEvent.id,
                         );
                       }}
                       className="erp-btn-secondary px-3 py-1.5 rounded text-xs font-sans font-medium cursor-pointer"
@@ -750,7 +1030,6 @@ export function TripEventsPlannerPanel({
                 </div>
               )}
 
-              {/* Metrics Grid */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div className="rounded border border-border-subtle bg-canvas p-3">
                   <div className="text-[11px] font-sans text-text-tertiary">{t.grossSpent}</div>
@@ -784,7 +1063,6 @@ export function TripEventsPlannerPanel({
                 </div>
               </div>
 
-              {/* Log Event Expense */}
               {activeEvent.status !== "COMPLETED" && !isLocked && (
                 <form
                   onSubmit={handleLogExpense}
@@ -815,7 +1093,13 @@ export function TripEventsPlannerPanel({
                       />
                     </div>
                     <div>
-                      <ErpDatePicker value={expDate} onChange={setExpDate} compact />
+                      <ErpDatePicker
+                        value={expDate}
+                        min={String(activeEvent.startDate).slice(0, 10)}
+                        max={String(activeEvent.endDate).slice(0, 10)}
+                        onChange={setExpDate}
+                        compact
+                      />
                     </div>
                   </div>
 
@@ -832,7 +1116,7 @@ export function TripEventsPlannerPanel({
                               : "border-border-subtle bg-surface text-text-tertiary"
                           }`}
                         >
-                          {cat}
+                          {formatEventExpenseCategoryLabel(cat, locale)}
                         </button>
                       ))}
                     </div>
@@ -868,7 +1152,6 @@ export function TripEventsPlannerPanel({
                 </form>
               )}
 
-              {/* Expenses Table */}
               <div className="divide-y divide-border-subtle border border-border-subtle rounded-lg">
                 {activeEvent.expenses.length === 0 ? (
                   <div className="py-5 text-center text-xs font-sans text-text-tertiary">
@@ -886,7 +1169,7 @@ export function TripEventsPlannerPanel({
                             {exp.label}
                           </span>
                           <span className="px-1.5 py-0.5 rounded text-[10px] font-sans bg-surface-subtle text-text-tertiary">
-                            {exp.category}
+                            {formatEventExpenseCategoryLabel(exp.category, locale)}
                           </span>
                           {exp.isSharedAdvance && (
                             <span className="px-1.5 py-0.5 rounded text-[10px] font-sans bg-caution/15 text-caution">

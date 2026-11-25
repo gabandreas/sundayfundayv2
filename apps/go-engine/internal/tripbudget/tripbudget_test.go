@@ -100,3 +100,74 @@ func TestOptimizeTripBudgetVacationWeekendWeighting(t *testing.T) {
 		)
 	}
 }
+
+func TestOptimizeTripBudgetShortfallPreservesTiersAndHeadroom(t *testing.T) {
+	// Reproduces Nov 2026 condition where CashRadarLowestPointRp is -108633 and Discretionary is 250000:
+	// Conservative/Balanced must derive from post-shortfall discretionary pool (250000 - 108633 = 141367),
+	// NOT collapse to 0 / 0 / 250000.
+	res := OptimizeTripBudget(TripOptimizeRequest{
+		EventType:              "VACATION",
+		DurationDays:           2,
+		StartDateIso:           "2026-12-05",
+		PrepaidCommittedRp:     0,
+		CycleDiscretionaryRp:   250000,
+		CycleEmergencyBufferRp: 0,
+		CycleCoreSavingsRp:     6341,
+		CashRadarLowestPointRp: -108633,
+		RemainingDaysInCycle:   2,
+	})
+
+	if res.AvailableHeadroomRp != 141367 {
+		t.Fatalf("expected post-shortfall headroom 141367, got %d", res.AvailableHeadroomRp)
+	}
+	if res.Balanced.VariableSpendCapRp != 141367 {
+		t.Fatalf("expected balanced variable cap 141367, got %d", res.Balanced.VariableSpendCapRp)
+	}
+	if res.Conservative.VariableSpendCapRp != 70684 {
+		t.Fatalf("expected conservative 50%% of tight pool (70684), got %d", res.Conservative.VariableSpendCapRp)
+	}
+	if res.MaxSafe.VariableSpendCapRp != 250000 {
+		t.Fatalf("expected max safe cap 250000, got %d", res.MaxSafe.VariableSpendCapRp)
+	}
+	if res.Conservative.SavingsSafe || res.Balanced.SavingsSafe {
+		t.Fatalf("expected SavingsSafe=false during shortfall cycle")
+	}
+}
+
+func TestOptimizeTripBudgetCustomCategoryAndWeekendWeights(t *testing.T) {
+	res := OptimizeTripBudget(TripOptimizeRequest{
+		EventType:              "DINING_GATHERING",
+		DurationDays:           2,
+		StartDateIso:           "2026-12-04",
+		PrepaidCommittedRp:     0,
+		CycleDiscretionaryRp:   1000000,
+		CycleEmergencyBufferRp: 200000,
+		CycleCoreSavingsRp:     1000000,
+		CashRadarLowestPointRp: 1200000,
+		RemainingDaysInCycle:   15,
+		WeekendWeightPct:       160,
+		CustomCategoryWeights: []CategoryWeightInput{
+			{Code: "FOOD_DRINK", Label: "Food & Drinks", Pct: 60},
+			{Code: "LOCAL_TRANSPORT", Label: "Local Transport", Pct: 15},
+			{Code: "ACTIVITIES", Label: "Activities & Hosting", Pct: 15},
+			{Code: "CONTINGENCY", Label: "Contingency", Pct: 10},
+		},
+	})
+
+	if len(res.Balanced.CategorySplit) != 4 || res.Balanced.CategorySplit[0].SharePct != 60 {
+		t.Fatalf("expected custom 60%% Food & Drinks split, got %+v", res.Balanced.CategorySplit)
+	}
+	var sum int64
+	for _, c := range res.Balanced.CategorySplit {
+		sum += c.AmountRp
+	}
+	if sum != res.Balanced.VariableSpendCapRp {
+		t.Fatalf("custom category split sum %d != variable cap %d", sum, res.Balanced.VariableSpendCapRp)
+	}
+	if res.Balanced.DailyPlan[1].RecommendedCapRp <= res.Balanced.DailyPlan[0].RecommendedCapRp {
+		t.Fatalf("weekend multiplier 160%% should give Saturday (%d) > Friday (%d)",
+			res.Balanced.DailyPlan[1].RecommendedCapRp,
+			res.Balanced.DailyPlan[0].RecommendedCapRp,
+		)
+	}
+}

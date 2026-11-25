@@ -163,7 +163,7 @@ export function RiskPolicyTab({ config }: RiskPolicyTabProps) {
           Financial Advisory & Discipline Audit Thresholds
         </h2>
         <p className="text-xs text-text-tertiary mb-4">
-          Defines the mathematical boundaries used by the Discipline Audit and Credit Limit Recommendation engines.
+          Defines the mathematical boundaries used by Discipline Audit and Credit Limit calculators.
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -380,7 +380,7 @@ export function RiskPolicyTab({ config }: RiskPolicyTabProps) {
               className="w-4 h-4 rounded border-[#282e3d] accent-accent cursor-pointer"
             />
             <label htmlFor="autoCloseEnabled" className="text-xs text-text-primary font-medium cursor-pointer">
-              Enable Auto-Close Engine
+              Enable Automatic Period Closing
               <span className="block text-[10px] text-text-tertiary font-normal mt-0.5">
                 Automatically finalizes draft periods
               </span>

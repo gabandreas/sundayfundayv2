@@ -1,16 +1,27 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { getJakartaTodayIso } from './events.service';
 
 @Injectable()
 export class EventsSelectors {
   constructor(private readonly prisma: PrismaService) {}
 
   async listForPeriod(userId: number, month?: number, year?: number) {
-    const where: any = { userId };
-    if (month && year) {
-      where.month = month;
-      where.year = year;
-    }
+    const todayIso = getJakartaTodayIso();
+    const todayUtcStart = new Date(`${todayIso}T00:00:00.000Z`);
+    const where: any =
+      month && year
+        ? {
+            OR: [
+              { userId, month, year },
+              {
+                userId,
+                status: { in: ['PLANNING', 'ACTIVE'] },
+                endDate: { gte: todayUtcStart },
+              },
+            ],
+          }
+        : { userId };
 
     const events = await this.prisma.tripEventPlan.findMany({
       where,

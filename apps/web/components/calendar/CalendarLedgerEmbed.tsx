@@ -62,6 +62,7 @@ export function CalendarLedgerEmbed({ month, year }: { month: number; year: numb
     <LedgerPageClient
       initialMonth={month}
       initialYear={year}
+      embedded={true}
       initialData={{
         snapshot: loaded.snapshot,
         transactions: loaded.transactions,

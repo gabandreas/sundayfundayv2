@@ -1,11 +1,19 @@
+"use client";
+
 import React from "react";
 import { SelfRewardAuditEntry } from "@/lib/api";
+import { formatRupiah } from "@/lib/utils";
+import { usePrivacyMask } from "@/context/PrivacyMaskContext";
+import { useLanguage } from "@/context/LanguageContext";
+import { formatHumanStatus } from "@/lib/format-labels";
 
 interface AuditRewardsViewProps {
   entries: SelfRewardAuditEntry[];
 }
 
 export function AuditRewardsView({ entries }: AuditRewardsViewProps) {
+  const { isAmountsMasked } = usePrivacyMask();
+  const { locale } = useLanguage();
   if (entries.length === 0) {
     return (
       <div className="p-8 text-center border border-border-subtle rounded-lg text-text-tertiary text-sm">
@@ -46,19 +54,19 @@ export function AuditRewardsView({ entries }: AuditRewardsViewProps) {
                     {entry.month}/{entry.year}
                   </td>
                   <td className="py-3 px-4 text-right font-mono text-sm tabular-nums text-text-secondary">
-                    {entry.targetAmount.toLocaleString("id-ID")}
+                    {formatRupiah(entry.targetAmount, isAmountsMasked)}
                   </td>
                   <td className="py-3 px-4 text-right font-mono text-sm tabular-nums text-text-primary">
-                    {entry.actualAmount.toLocaleString("id-ID")}
+                    {formatRupiah(entry.actualAmount, isAmountsMasked)}
                   </td>
                   <td className="py-3 px-4 text-center">
                     {entry.isAchieved ? (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono font-medium border bg-delta-positive/10 text-delta-positive border-delta-positive/20">
-                        FUNDED
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-sans font-medium border bg-delta-positive/10 text-delta-positive border-delta-positive/20">
+                        {formatHumanStatus("FUNDED", locale)}
                       </span>
                     ) : (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono font-medium border bg-surface-subtle text-text-tertiary border-border-subtle">
-                        SKIPPED
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-sans font-medium border bg-surface-subtle text-text-tertiary border-border-subtle">
+                        {formatHumanStatus("SKIPPED", locale)}
                       </span>
                     )}
                   </td>

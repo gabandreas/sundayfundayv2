@@ -6318,6 +6318,25 @@ export interface PrivacyPreferencesConfig {
   requirePasswordToReveal: boolean;
 }
 
+export interface EventCategoryConfigRow {
+  id: string;
+  code: string;
+  label: string;
+  foodPct: number;
+  transportPct: number;
+  activitiesPct: number;
+  contingencyPct: number;
+  weekendWeightPct: number;
+  active: boolean;
+}
+
+export interface SimpleCategoryConfigRow {
+  id: string;
+  code: string;
+  label: string;
+  active: boolean;
+}
+
 export interface ModularStudioConfig {
   enableExternalAssetPortfolio?: boolean;
   actualP1VaultBalanceRp?: number | null;
@@ -6332,6 +6351,9 @@ export interface ModularStudioConfig {
   privacyPreferences?: PrivacyPreferencesConfig;
   thrConfig?: ThrConfig;
   overviewPreferences?: OverviewPreferencesConfig;
+  eventCategoriesTable?: EventCategoryConfigRow[];
+  commitmentCategoriesTable?: SimpleCategoryConfigRow[];
+  sinkingFundCategoriesTable?: SimpleCategoryConfigRow[];
 }
 
 export function resolvePriorityTierLabel(
@@ -7684,14 +7706,7 @@ export async function runScenarioStressTest(payload: {
 // PHASE 3: ONE-OFF COMMITMENTS, TRIP & EVENT PLANNER, AND SINKING FUNDS
 // =========================================================================
 
-export type CommitmentCategory =
-  | "OUTING"
-  | "PENALTY"
-  | "EVENT"
-  | "FAMILY"
-  | "MEDICAL"
-  | "TRAVEL"
-  | "OTHER";
+export type CommitmentCategory = string;
 
 export type CommitmentFundingSource =
   | "PAYCHECK_UPFRONT"
@@ -7881,50 +7896,59 @@ export async function deleteCommitment(
   }
 }
 
-export type TripEventType =
-  | "OUTING"
-  | "VACATION"
-  | "WEEKEND"
-  | "DINNER"
-  | "CONCERT"
-  | "OTHER";
+export type TripEventType = string;
 
 export type TripEventStatus = "PLANNING" | "ACTIVE" | "COMPLETED" | "CANCELLED";
 
 export type TripTierCode = "CONSERVATIVE" | "BALANCED" | "MAX_SAFE";
 
+export interface TripCategoryCap {
+  category: string;
+  label: string;
+  amountRp: number;
+  sharePct: number;
+}
+
+export interface TripDayCap {
+  dayIndex: number;
+  dateIso: string;
+  isWeekend: boolean;
+  recommendedCapRp: number;
+}
+
 export interface TripTierAllocation {
-  tier: TripTierCode;
+  tierCode: TripTierCode;
+  label: string;
+  variableSpendCapRp: number;
   totalCapRp: number;
-  dailyCapRp: number;
-  prepaidCommittedRp: number;
-  freshBudgetNeededRp: number;
-  discretionarySharePct: number;
-  categorySplit: {
-    transportRp: number;
-    foodRp: number;
-    stayRp: number;
-    activitiesRp: number;
-    contingencyRp: number;
-  };
-  dailyCaps: Array<{
-    dayIndex: number;
-    dateIso: string;
-    isWeekend: boolean;
-    capRp: number;
-  }>;
-  rationale: string;
+  dailyAverageCapRp: number;
+  postTripLowestCashRp: number;
+  usesBufferRp: number;
+  savingsSafe: boolean;
+  guidance: string;
+  categorySplit: TripCategoryCap[];
+  dailyPlan: TripDayCap[];
 }
 
 export interface TripOptimizeResult {
   eventType: string;
   durationDays: number;
+  prepaidCommittedRp: number;
   availableHeadroomRp: number;
   recommendedTier: TripTierCode;
   conservative: TripTierAllocation;
   balanced: TripTierAllocation;
   maxSafe: TripTierAllocation;
-  engineSource?: string;
+  targetMonth?: number;
+  targetYear?: number;
+  targetPeriodLabel?: string;
+  timingMode?: "PAST" | "TODAY" | "UPCOMING";
+  daysUntilEvent?: number;
+  isPastDate?: boolean;
+  cycleDiscretionaryRp?: number;
+  cycleEmergencyBufferRp?: number;
+  cycleShortfallRp?: number;
+  prepDailySetAsideRp?: number;
 }
 
 export interface TripExpenseItemDto {
@@ -7964,9 +7988,10 @@ export interface TripEventPlanDto {
   plannedCapRp: number;
   recommendedTier: TripTierCode;
   fundingSource: string;
+  prepaidAmountRp?: number;
   status: TripEventStatus;
-  sweptUnusedRp: number;
-  sweptTo: string | null;
+  sweptAmountRp: number;
+  sweptDestination: string | null;
   notes: string | null;
   expenses: TripExpenseItemDto[];
   commitments: PeriodCommitmentDto[];

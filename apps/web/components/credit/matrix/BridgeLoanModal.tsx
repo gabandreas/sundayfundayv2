@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { X } from "lucide-react";
 import { LiabilityMatrixColumn, createBridgeLoan } from "@/lib/api";
 import { formatRupiah, formatCurrencyInput, parseCurrencyInput } from "@/lib/utils";
+import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 
 interface BridgeLoanModalProps {
   isOpen: boolean;
@@ -20,6 +21,7 @@ export function BridgeLoanModal({
   currentMonth,
   currentYear,
 }: BridgeLoanModalProps) {
+  const { isAmountsMasked } = usePrivacyMask();
 
   const currentIdx = Math.max(
     0,
@@ -213,7 +215,7 @@ export function BridgeLoanModal({
                 Cash Inflow Split
               </span>
               <span className="text-[11px] font-mono tabular-nums text-text-secondary">
-                Allocated: {formatRupiah(totalAllocated, false)} / {formatRupiah(principal, false)}
+                Allocated: {formatRupiah(totalAllocated, isAmountsMasked)} / {formatRupiah(principal, isAmountsMasked)}
               </span>
             </div>
 

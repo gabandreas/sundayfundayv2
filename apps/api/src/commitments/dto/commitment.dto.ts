@@ -5,7 +5,9 @@ import {
   IsOptional,
   IsString,
   Max,
+  MaxLength,
   Min,
+  MinLength,
 } from 'class-validator';
 
 export const COMMITMENT_CATEGORIES = [
@@ -41,7 +43,9 @@ export class CreateCommitmentDto {
   title: string;
 
   @IsOptional()
-  @IsIn(COMMITMENT_CATEGORIES as unknown as string[])
+  @IsString()
+  @MinLength(2)
+  @MaxLength(48)
   category?: string;
 
   @IsNumber()
@@ -70,7 +74,9 @@ export class UpdateCommitmentDto {
   title?: string;
 
   @IsOptional()
-  @IsIn(COMMITMENT_CATEGORIES as unknown as string[])
+  @IsString()
+  @MinLength(2)
+  @MaxLength(48)
   category?: string;
 
   @IsOptional()

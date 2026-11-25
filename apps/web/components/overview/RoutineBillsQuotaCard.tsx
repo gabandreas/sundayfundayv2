@@ -387,7 +387,7 @@ export function RoutineBillsQuotaCard({
           <span className="text-[11px] font-semibold text-text-tertiary font-sans">
             {t("overview.routineBills")}
           </span>
-          <span className="text-[11px] erp-tabular-currency text-accent font-medium">
+          <span className="text-[11px] erp-tabular-currency text-accent font-medium whitespace-nowrap shrink-0">
             {t("overview.remainingBillsQuota")}: {formatIdr(totalRoutinePoolRemaining)}
           </span>
         </div>

@@ -19,7 +19,8 @@ import {
   setCached,
   sendMonthlyStatementEmail,
 } from "@/lib/api";
-import { formatIDR, formatDate } from "@/lib/utils";
+import { formatIDR as formatIDRUtil, formatDate } from "@/lib/utils";
+import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 import { MetricCard } from "@/components/primitives/MetricCard";
 import { AnalyticsGoTelemetryStrip } from "@/components/analytics/AnalyticsGoTelemetryStrip";
 import { ReportsAuditEmbed } from "@/components/reports/ReportsAuditEmbed";
@@ -77,6 +78,17 @@ export function ReportsClientView({
   activeTab,
 }: ReportsClientViewProps) {
   const { month: periodMonth, year: periodYear, revisionTick } = usePeriod();
+  const { isAmountsMasked } = usePrivacyMask();
+  const formatIDR = React.useCallback(
+    (amount: number | null | undefined) => formatIDRUtil(amount, isAmountsMasked),
+    [isAmountsMasked],
+  );
+  const [summarySectionTab, setSummarySectionTab] = React.useState<
+    "income" | "obligations" | "savings"
+  >("income");
+  const [insightsSubTab, setInsightsSubTab] = React.useState<"trends" | "audit">(
+    "trends",
+  );
   const [report, setReport] = React.useState<ExecutiveReportPayload>(initialReport);
   const [scope, setScope] = React.useState<ReportScope>(initialReport.scope);
   const [isLoadingReport, setIsLoadingReport] = React.useState(false);
@@ -506,7 +518,7 @@ export function ReportsClientView({
             </div>
             <div className="col-span-2 lg:col-span-1">
               <div className="text-[10px] text-text-tertiary">Next Payoff Relief</div>
-              <div className="font-semibold text-delta-positive mt-0.5 truncate" title={horizon.nextMilestoneLabel}>
+              <div className="font-semibold text-delta-positive mt-0.5 leading-snug">
                 {horizon.nextMilestoneLabel}
               </div>
             </div>
@@ -532,13 +544,49 @@ export function ReportsClientView({
          ===================================================================== */}
       {isExecutiveTab && (
         <div className="space-y-6">
-          <ReportsEquityChart
-            periods={comp.periods}
-            selectedMonth={cs.month}
-            selectedYear={cs.year}
-          />
-          <ReportsSpendingBreakdown statement={cs} />
-          {/* 2. "Where Your Money Went & Why This Month Changed" (Deterministic Driver & Spike Callout) */}
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
+            <div className="xl:col-span-7">
+              <ReportsEquityChart
+                periods={comp.periods}
+                selectedMonth={cs.month}
+                selectedYear={cs.year}
+              />
+            </div>
+            <div className="xl:col-span-5">
+              <ReportsSpendingBreakdown statement={cs} />
+            </div>
+          </div>
+
+          <div className="print-hidden flex flex-wrap items-center justify-between gap-3">
+            <div
+              role="tablist"
+              aria-label="Statement breakdown sections"
+              className="inline-flex rounded-md border border-border bg-surface p-0.5 text-xs font-sans"
+            >
+              {[
+                { key: "income" as const, label: "Income & Allocation" },
+                { key: "obligations" as const, label: "Obligations & Installments" },
+                { key: "savings" as const, label: "Savings & Net Worth" },
+              ].map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={summarySectionTab === tab.key}
+                  onClick={() => setSummarySectionTab(tab.key)}
+                  className={`px-3.5 py-1.5 rounded transition-colors cursor-pointer ${
+                    summarySectionTab === tab.key
+                      ? "bg-surface-active text-text-primary font-medium"
+                      : "text-text-secondary hover:text-text-primary"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className={summarySectionTab === "income" ? "" : "hidden print:block"}>
           <section className="bg-surface border border-border rounded-lg overflow-hidden print-avoid-break">
             <div className="px-5 py-3.5 border-b border-border flex items-center justify-between bg-surface-subtle/40">
               <div>
@@ -649,8 +697,10 @@ export function ReportsClientView({
               </div>
             </div>
           </section>
+          </div>
 
           {/* 3. Actionable "Payday Execution Checklist" (Transfer & Payment Guide) */}
+          <div className={summarySectionTab === "obligations" ? "" : "hidden print:block"}>
           <section className="bg-surface border border-border rounded-lg overflow-hidden print-avoid-break">
             <div className="px-5 py-3.5 border-b border-border flex items-center justify-between bg-surface-subtle/40">
               <div>
@@ -866,12 +916,10 @@ export function ReportsClientView({
               </div>
             </div>
           </section>
-
-          {/* =================================================================
-              4. THE 5-STEP END-TO-END MONEY CYCLE BREAKDOWN
-             ================================================================= */}
+          </div>
 
           {/* STEP 1: MONEY IN (PAYROLL & EXTRA INFLOW) */}
+          <div className={summarySectionTab === "income" ? "" : "hidden print:block"}>
           <section className="bg-surface border border-border rounded-lg overflow-hidden print-avoid-break">
             <div className="px-5 py-3.5 border-b border-border flex items-center justify-between bg-surface-subtle/40">
               <div>
@@ -987,7 +1035,10 @@ export function ReportsClientView({
               </div>
             </div>
           </section>
+          </div>
 
+          {/* STEP 2 & 3: DEBT & ROUTINE BILLS */}
+          <div className={summarySectionTab === "obligations" ? "space-y-6" : "hidden print:block print:space-y-6"}>
           {/* STEP 2: DEBT & CREDIT BILLS (DEDUCTED FIRST) */}
           <section className="bg-surface border border-border rounded-lg overflow-hidden print-avoid-break">
             <div className="px-5 py-3.5 border-b border-border flex items-center justify-between bg-surface-subtle/40">
@@ -1249,8 +1300,10 @@ export function ReportsClientView({
               </table>
             </div>
           </section>
+          </div>
 
           {/* STEP 4: DAILY LIVING & FOOD BUDGET (DAILY OPERATIONAL) */}
+          <div className={summarySectionTab === "income" ? "" : "hidden print:block"}>
           <section className="bg-surface border border-border rounded-lg overflow-hidden print-avoid-break">
             <div className="px-5 py-3.5 border-b border-border flex items-center justify-between bg-surface-subtle/40">
               <div>
@@ -1403,8 +1456,10 @@ export function ReportsClientView({
               )}
             </div>
           </section>
+          </div>
 
           {/* STEP 5: SAVINGS & BOTTOM LINE (WHAT YOU KEPT) */}
+          <div className={summarySectionTab === "savings" ? "" : "hidden print:block"}>
           <section className="bg-surface border border-border rounded-lg overflow-hidden print-avoid-break">
             <div className="px-5 py-3.5 border-b border-border flex items-center justify-between bg-surface-subtle/40">
               <div>
@@ -1530,6 +1585,7 @@ export function ReportsClientView({
               </div>
             </div>
           </section>
+          </div>
         </div>
       )}
 
@@ -1537,6 +1593,43 @@ export function ReportsClientView({
           TAB 2: MONTH-TO-MONTH COMPARISON & HEALTH CHECK
          ===================================================================== */}
       {isVarianceTab && (
+        <div className="space-y-5">
+          <div className="print-hidden flex flex-wrap items-center justify-between gap-3">
+            <div
+              role="tablist"
+              aria-label="Financial insights views"
+              className="inline-flex rounded-md border border-border bg-surface p-0.5 text-xs font-sans"
+            >
+              <button
+                type="button"
+                role="tab"
+                aria-selected={insightsSubTab === "trends"}
+                onClick={() => setInsightsSubTab("trends")}
+                className={`px-3.5 py-1.5 rounded transition-colors cursor-pointer ${
+                  insightsSubTab === "trends"
+                    ? "bg-surface-active text-text-primary font-medium"
+                    : "text-text-secondary hover:text-text-primary"
+                }`}
+              >
+                Spending Trends &amp; Variance
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={insightsSubTab === "audit"}
+                onClick={() => setInsightsSubTab("audit")}
+                className={`px-3.5 py-1.5 rounded transition-colors cursor-pointer ${
+                  insightsSubTab === "audit"
+                    ? "bg-surface-active text-text-primary font-medium"
+                    : "text-text-secondary hover:text-text-primary"
+                }`}
+              >
+                Discipline &amp; Audit Scorecard
+              </button>
+            </div>
+          </div>
+
+        {insightsSubTab === "trends" && (
         <div className="space-y-6">
         <div className="bg-surface border border-border rounded-lg overflow-hidden">
           <div className="px-5 py-3.5 border-b border-border flex items-center justify-between">
@@ -1702,6 +1795,8 @@ export function ReportsClientView({
         </div>
 
         <ReportsInsightsTrendEmbed scope={scope} />
+      </div>
+        )}
       </div>
       )}
 
@@ -1887,8 +1982,8 @@ export function ReportsClientView({
       )}
 
       {/* Audit Trail & Health Check Section (shown inside Variance tab) */}
-      {isVarianceTab && (
-      <div className="space-y-6 pt-2">
+      {isVarianceTab && insightsSubTab === "audit" && (
+      <div className="space-y-6 pt-1">
           <ReportsAuditEmbed />
 
           {/* Chronological Mid-Month Budget Edits Log */}

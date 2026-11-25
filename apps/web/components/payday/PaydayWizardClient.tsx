@@ -33,6 +33,7 @@ import {
 } from "@/lib/api";
 import { usePeriodSlice } from "@/hooks/usePeriodSlice";
 import { usePeriod } from "@/context/PeriodContext";
+import { formatHumanStatus } from "@/lib/format-labels";
 import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 import { useToast } from "@/context/ToastContext";
 import { formatRupiah } from "@/lib/utils";
@@ -52,6 +53,7 @@ interface PaydayWizardClientProps {
   initialMonth: number;
   initialYear: number;
   initialData: PaydayWizardData;
+  embedded?: boolean;
 }
 
 const MONTH_SHORT = [
@@ -77,6 +79,7 @@ export function PaydayWizardClient({
   initialMonth,
   initialYear,
   initialData,
+  embedded = false,
 }: PaydayWizardClientProps) {
   const { refreshPeriod } = usePeriod();
   const { isAmountsMasked } = usePrivacyMask();
@@ -283,31 +286,52 @@ export function PaydayWizardClient({
   };
 
   return (
-    <div className="space-y-6 w-full max-w-full pb-16">
-      <PageHeader
-        title="4-Step Paycycle Activation Checklist"
-        subtitle="Confirm take-home pay, lock the prior cycle, settle fixed obligations, and release daily living cashflow."
-        periodLabel={periodLabel}
-        rightActions={
-          <div className="flex items-center gap-4">
+    <div className={`space-y-5 w-full max-w-full ${embedded ? "pb-6" : "pb-16"}`}>
+      {embedded ? (
+        <div className="rounded-lg border border-border bg-surface p-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-text-primary">
+              4-Step Paycycle Activation Checklist
+            </h2>
+            <p className="text-xs text-text-tertiary mt-0.5">
+              Confirm pay, lock prior cycle, settle mandatory bills, and verify core savings deposit.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
             <div className="text-right">
-              <div className="text-[10px] font-mono text-text-tertiary">
-                Checklist Progress
-              </div>
-              <div className="font-display text-2xl text-text-primary tabular-nums">
+              <div className="text-[10px] font-mono text-text-tertiary">Progress</div>
+              <div className="font-serif text-xl text-text-primary tabular-nums">
                 {completedSteps} / 4 Steps
               </div>
             </div>
-            <Link
-              href={`/?month=${month}&year=${year}`}
-              className="erp-btn-secondary inline-flex items-center gap-1.5 px-3 py-2 rounded text-xs font-medium"
-            >
-              <span>Open Overview</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
           </div>
-        }
-      />
+        </div>
+      ) : (
+        <PageHeader
+          title="4-Step Paycycle Activation Checklist"
+          subtitle="Confirm take-home pay, lock the prior cycle, settle fixed obligations, and release daily living cashflow."
+          periodLabel={periodLabel}
+          rightActions={
+            <div className="flex items-center gap-4">
+              <div className="text-right">
+                <div className="text-[10px] font-mono text-text-tertiary">
+                  Checklist Progress
+                </div>
+                <div className="font-display text-2xl text-text-primary tabular-nums">
+                  {completedSteps} / 4 Steps
+                </div>
+              </div>
+              <Link
+                href={`/?month=${month}&year=${year}`}
+                className="erp-btn-secondary inline-flex items-center gap-1.5 px-3 py-2 rounded text-xs font-medium"
+              >
+                <span>Open Overview</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+          }
+        />
+      )}
 
       {statusMessage && (
         <div
@@ -321,8 +345,8 @@ export function PaydayWizardClient({
         </div>
       )}
 
-      {/* 4 Guided Steps */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      {/* 4 Guided Steps (Balanced 2x2 Grid on Desktop) */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-stretch">
         {/* STEP 1: CONFIRM PAYCHECK & WORKING DAYS */}
         <section className="rounded-lg border border-border bg-surface p-5 space-y-4">
           <div className="flex items-center justify-between border-b border-border-subtle pb-3">
@@ -448,7 +472,7 @@ export function PaydayWizardClient({
         </section>
 
         {/* STEP 3: SETTLE MANDATORY DUE-DATE BILLS */}
-        <section className="rounded-lg border border-border bg-surface p-5 space-y-4 lg:col-span-2">
+        <section className="rounded-lg border border-border bg-surface p-5 space-y-4 flex flex-col">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle pb-3">
             <div className="flex items-center gap-2">
               {step3Done ? (
@@ -487,11 +511,11 @@ export function PaydayWizardClient({
               No itemized PayLater or Personal Debt line items recorded for {periodLabel}.
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 max-h-80 overflow-y-auto pr-1">
+            <div className="grid grid-cols-1 gap-2 max-h-56 overflow-y-auto pr-1">
               {lineItems.map((item) => (
                 <div
                   key={item.id}
-                  className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded border text-xs ${
+                  className={`flex items-center justify-between gap-3 px-3 py-2 rounded border text-xs ${
                     item.isSettled
                       ? "border-delta-positive/30 bg-[rgba(16,183,141,0.05)]"
                       : "border-border-subtle bg-surface-subtle/30"
@@ -500,7 +524,7 @@ export function PaydayWizardClient({
                   <div className="min-w-0">
                     <div className="font-medium text-text-primary truncate">{item.title}</div>
                     <div className="text-[10px] font-mono text-text-tertiary mt-0.5">
-                      {item.category.replace(/_/g, " ")}
+                      {formatHumanStatus(item.category)}
                       {item.dueDateIso ? ` · Due ${item.dueDateIso.slice(0, 10)}` : ""}
                     </div>
                   </div>
@@ -528,7 +552,7 @@ export function PaydayWizardClient({
         </section>
 
         {/* STEP 4: ACTIVATE DAILY LIVING POOL & CONFIRM P1 SAVINGS */}
-        <section className="rounded-lg border border-border bg-surface p-5 space-y-4 lg:col-span-2">
+        <section className="rounded-lg border border-border bg-surface p-5 space-y-4 flex flex-col justify-between">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle pb-3">
             <div className="flex items-center gap-2">
               {step4Done ? (
@@ -545,12 +569,12 @@ export function PaydayWizardClient({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-12 divide-y md:divide-y-0 md:divide-x divide-border-subtle border-y border-border-subtle py-3 text-xs">
-            <div className="md:col-span-5 md:pr-4 pb-3 md:pb-0">
+          <div className="grid grid-cols-1 sm:grid-cols-12 divide-y sm:divide-y-0 sm:divide-x divide-border-subtle border-y border-border-subtle py-3 text-xs">
+            <div className="sm:col-span-4 sm:pr-3 pb-3 sm:pb-0">
               <div className="text-[10px] font-mono text-text-tertiary">
                 Funded Daily Living Pool
               </div>
-              <div className="font-display text-2xl text-text-primary mt-1 tabular-nums">
+              <div className="font-display text-xl text-text-primary mt-1 tabular-nums">
                 {formatRp(snapshot?.actualDailyOperational ?? 0)}
               </div>
               {(snapshot?.deficitUncovered ?? 0) > 0 && (
@@ -560,11 +584,11 @@ export function PaydayWizardClient({
               )}
             </div>
 
-            <div className="md:col-span-3 md:px-4 py-3 md:py-0">
+            <div className="sm:col-span-4 sm:px-3 py-3 sm:py-0">
               <div className="text-[10px] font-mono text-text-tertiary">
                 Routine Envelopes Funded
               </div>
-              <div className="font-mono text-lg font-semibold text-text-primary mt-1 tabular-nums">
+              <div className="font-mono text-base font-semibold text-text-primary mt-1 tabular-nums">
                 {formatRp(
                   (snapshot?.transport ?? 0) +
                     (snapshot?.internet ?? 0) +
@@ -577,7 +601,7 @@ export function PaydayWizardClient({
               </div>
             </div>
 
-            <div className="md:col-span-4 md:pl-4 pt-3 md:pt-0 flex flex-col justify-between">
+            <div className="sm:col-span-4 sm:pl-3 pt-3 sm:pt-0 flex flex-col justify-between">
               <div>
                 <div className="text-[10px] font-mono text-text-tertiary">
                   Core Savings Transfer

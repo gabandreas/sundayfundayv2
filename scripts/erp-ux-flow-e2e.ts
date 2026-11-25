@@ -249,9 +249,10 @@ async function main() {
       { path: '/credit?sub=contracts&month=11&year=2026', expectedSubstring: 'Active Installment Plans' },
       { path: '/credit?sub=commitments&month=11&year=2026', expectedSubstring: 'One-Off Commitments' },
       { path: '/credit?sub=simulator&month=11&year=2026', expectedSubstring: 'Wishlist' },
-      { path: '/allocations?sub=events&month=11&year=2026', expectedSubstring: 'Trip & Event Budget Planner' },
+      { path: '/allocations?sub=events&month=11&year=2026', expectedSubstring: 'Event & Activity Budgets' },
+      { path: '/wishlist?month=11&year=2026', expectedSubstring: 'Purchase Wishlist' },
       { path: '/import?month=11&year=2026', expectedSubstring: 'Statement Import' },
-      { path: '/scenarios?month=11&year=2026', expectedSubstring: 'What-If Scenario Lab' },
+      { path: '/scenarios?month=11&year=2026', expectedSubstring: 'Cashflow What-If Lab' },
       { path: '/savings?sub=pockets&month=11&year=2026', expectedSubstring: 'Savings Pockets' },
       { path: '/reports?sub=executive&month=12&year=2026', expectedSubstring: 'Where Your Money Went' },
       { path: '/analytics', expectedSubstring: 'Month-to-Month Comparison' },
@@ -704,8 +705,58 @@ async function main() {
     assert.equal(payrollAudit.hasExactDecThr, true, '/payroll Dec 2026 must display exact Rp 3.833.425 THR');
     assert.equal(payrollAudit.hasDriftedDecThr, false, '/payroll Dec 2026 must not drift to Rp 3.833.667');
 
+    // Phase 4 read-only UI check: Event & Activity Budgets form (no save) + Calendar Privacy Mask chip masking
+    await page.goto(`${WEB_URL}/allocations?sub=events&month=11&year=2026`, { waitUntil: 'networkidle2', timeout: 60000 });
+    await page.waitForFunction(() => document.body.innerText.includes('Event & Activity Budgets'), { timeout: 15000 });
+    const clickedPlanEvent = await page.evaluate(() => {
+      const btn = Array.from(document.querySelectorAll('button')).find((b) =>
+        b.textContent?.includes('Plan Event'),
+      );
+      if (!btn) return false;
+      (btn as HTMLElement).click();
+      return true;
+    });
+    assert.equal(clickedPlanEvent, true, '/allocations?sub=events must expose Plan Event button');
+    await page.waitForFunction(
+      () => document.body.innerText.includes('Daily avg:') && !document.body.innerText.includes('Go Engine'),
+      { timeout: 15000 },
+    );
+    const eventPlannerCheck = await page.evaluate(() => {
+      const txt = document.body.innerText;
+      return {
+        hasGoEngineLeak: /\b(Go Engine|GO_BINARY|TS_MIRROR)\b/i.test(txt),
+        hasDailyAvg: txt.includes('Daily avg:'),
+        hasThreeTiers:
+          txt.includes('Conservative') && txt.includes('Balanced') && txt.includes('Max Safe'),
+      };
+    });
+    assert.equal(eventPlannerCheck.hasGoEngineLeak, false, 'Event & Activity Budgets must not leak backend engine labels');
+    assert.equal(eventPlannerCheck.hasDailyAvg, true, 'Event & Activity Budgets must display Daily avg per tier');
+    assert.equal(eventPlannerCheck.hasThreeTiers, true, 'Event & Activity Budgets must render all 3 tiers');
+
+    await page.goto(`${WEB_URL}/calendar?month=11&year=2026`, { waitUntil: 'networkidle2', timeout: 60000 });
+    await page.waitForSelector('aside [data-testid="privacy-eye-toggle"]', { timeout: 15000 });
+    const wasMasked = await page.evaluate(() => document.body.innerText.includes('Rp •'));
+    if (!wasMasked) {
+      await page.click('aside [data-testid="privacy-eye-toggle"]');
+      await page.waitForFunction(() => document.body.innerText.includes('Rp •'), { timeout: 10000 });
+    }
+    const calendarMaskedCheck = await page.evaluate(() => {
+      const gridText = document.querySelector('main')?.innerText ?? '';
+      return {
+        hasMaskedGlyph: gridText.includes('•'),
+        unmaskedRpInGrid: /\bRp\s+\d[\d.]*/.test(gridText),
+      };
+    });
+    assert.equal(calendarMaskedCheck.hasMaskedGlyph, true, '/calendar must display masked glyphs when Privacy Mask is ON');
+    assert.equal(calendarMaskedCheck.unmaskedRpInGrid, false, '/calendar main area must not leak unmasked Rp figures when Privacy Mask is ON');
+    if (!wasMasked) {
+      await page.click('aside [data-testid="privacy-eye-toggle"]');
+      await new Promise((r) => setTimeout(r, 200));
+    }
+
     console.log(
-      '  PASS [7/8]: Privacy Mask guard, popover toggle/scroll, /calendar trajectory & filter bar, /payroll Dec THR, Marquee, and /scenarios verified.',
+      '  PASS [7/8]: Privacy Mask guard + calendar mask, Event & Activity Budgets, popover toggle/scroll, /calendar filter bar, /payroll Dec THR, Marquee, and /scenarios verified.',
     );
 
     // 8. Demo Sandbox Realtime Cross-Route Reactivity Check (PayLater on / -> Sidebar link -> /credit without reload)

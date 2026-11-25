@@ -54,6 +54,7 @@ export function PayrollClientView({
   const { refreshPeriod } = usePeriod();
   const { isBespokeWorkspace, isModuleEnabled } = usePerspective();
   const showCorporatePayroll = isBespokeWorkspace || isModuleEnabled("corporate_payroll");
+  const [secondaryToolTab, setSecondaryToolTab] = useState<"rates" | "income">("rates");
   const [activeSub, selectSub] = useSubModule<PayrollSubKey>(
     PAYROLL_SUB_KEYS,
     "payslip",
@@ -267,6 +268,56 @@ export function PayrollClientView({
                 />
               )}
 
+              {showCorporatePayroll && (
+                <div className="rounded-lg border border-border-default bg-surface p-4 space-y-4">
+                  <div
+                    role="tablist"
+                    aria-label="Payroll setup and extra income"
+                    className="inline-flex rounded border border-border-subtle bg-canvas p-0.5 text-xs font-sans"
+                  >
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={secondaryToolTab === "rates"}
+                      onClick={() => setSecondaryToolTab("rates")}
+                      className={`px-3 py-1 rounded transition-colors cursor-pointer ${
+                        secondaryToolTab === "rates"
+                          ? "bg-surface text-text-primary font-medium"
+                          : "text-text-secondary hover:text-text-primary"
+                      }`}
+                    >
+                      Base Salary Rates
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={secondaryToolTab === "income"}
+                      onClick={() => setSecondaryToolTab("income")}
+                      className={`px-3 py-1 rounded transition-colors cursor-pointer ${
+                        secondaryToolTab === "income"
+                          ? "bg-surface text-text-primary font-medium"
+                          : "text-text-secondary hover:text-text-primary"
+                      }`}
+                    >
+                      Extra Income
+                    </button>
+                  </div>
+
+                  {secondaryToolTab === "rates" ? (
+                    <ContractualBaseRateEditor
+                      key={`contract-rates-${month}-${year}`}
+                      month={month}
+                      year={year}
+                      isLocked={isLocked}
+                      config={config}
+                      hideAllowances={false}
+                    />
+                  ) : (
+                    <QuickIncomeForm month={month} year={year} isLocked={isLocked} />
+                  )}
+                </div>
+              )}
+
               {!showCorporatePayroll && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
                   <ContractualBaseRateEditor
@@ -282,21 +333,6 @@ export function PayrollClientView({
               )}
             </div>
           </section>
-
-          {showCorporatePayroll && (
-            <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-              <ContractualBaseRateEditor
-                key={`contract-rates-${month}-${year}`}
-                month={month}
-                year={year}
-                isLocked={isLocked}
-                config={config}
-                hideAllowances={false}
-              />
-
-              <QuickIncomeForm month={month} year={year} isLocked={isLocked} />
-            </section>
-          )}
         </div>
       )}
 

@@ -183,7 +183,7 @@ export function DatabaseBackupRestoreCard() {
               <strong className="text-text-primary font-medium">
                 Atomic Full-State Replacement:
               </strong>{" "}
-              Restoring from a backup replaces all current rows in PostgreSQL inside a single database transaction and resets auto-increment sequences. Download a current backup before proceeding.
+              Restoring from a backup replaces all current account records inside a single transaction and resets sequences. Download a current backup before proceeding.
             </div>
           </div>
 

@@ -135,7 +135,7 @@ export function SavingsPocketsCard({
     if (isOverAllocated) {
       setFeedback({
         type: "err",
-        text: `Allocated pockets exceed confirmed savings by ${formatRupiah(Math.abs(unallocatedPool), false)}.`,
+        text: `Allocated pockets exceed confirmed savings by ${formatRupiah(Math.abs(unallocatedPool), isAmountsMasked)}.`,
       });
       return;
     }

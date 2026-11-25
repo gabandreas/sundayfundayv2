@@ -52,7 +52,7 @@ const STATEMENT_PRESETS: Array<{
   },
 ];
 
-export function StatementImportClient() {
+export function StatementImportClient({ embedded = false }: { embedded?: boolean } = {}) {
   const { t } = useLanguage();
   const { month, year, refreshPeriod } = usePeriod();
   const { toast } = useToast();
@@ -116,12 +116,17 @@ export function StatementImportClient() {
   };
 
   return (
-    <div className="space-y-6 w-full max-w-full pb-20">
-      <PageHeader
-        title={t("nav.import")}
-        subtitle="Import KlikBCA CSV exports or copied myBCA, Permata, PayLater, and Credit Card statements safely without linking banking credentials."
-        periodLabel={`${month}/${year}`}
-        rightActions={
+    <div className={`space-y-5 w-full max-w-full ${embedded ? "pb-6" : "pb-20"}`}>
+      {embedded ? (
+        <div className="rounded-lg border border-border bg-surface p-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold font-sans text-text-primary">
+              {t("nav.import")}
+            </h2>
+            <p className="text-xs font-sans text-text-tertiary mt-0.5">
+              Load KlikBCA CSV exports or copied bank/PayLater statements cleanly into {month}/{year}.
+            </p>
+          </div>
           <div className="flex flex-wrap items-center gap-2">
             {STATEMENT_PRESETS.map((preset) => (
               <button
@@ -145,13 +150,49 @@ export function StatementImportClient() {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".csv,.txt,text/csv,text/plain"
+              accept=".csv,.txt"
               onChange={handleFileUpload}
               className="hidden"
             />
           </div>
-        }
-      />
+        </div>
+      ) : (
+        <PageHeader
+          title={t("nav.import")}
+          subtitle="Import KlikBCA CSV exports or copied myBCA, Permata, PayLater, and Credit Card statements safely without linking banking credentials."
+          periodLabel={`${month}/${year}`}
+          rightActions={
+            <div className="flex flex-wrap items-center gap-2">
+              {STATEMENT_PRESETS.map((preset) => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => loadSample(preset.sample, preset.label, preset.defaultMethod)}
+                  className="erp-btn-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium cursor-pointer"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>{preset.label}</span>
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="erp-btn-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium cursor-pointer"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>Upload CSV / TXT</span>
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,.txt"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+            </div>
+          }
+        />
+      )}
 
       <div className="rounded-lg border border-border-subtle bg-surface p-4 flex flex-wrap items-start justify-between gap-4 text-xs">
         <div className="flex items-start gap-2.5 max-w-3xl">

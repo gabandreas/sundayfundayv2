@@ -1,11 +1,23 @@
+"use client";
+
 import React from "react";
 import { PaginatedAuditLogs } from "@/lib/api";
+import { useLanguage } from "@/context/LanguageContext";
+import { usePrivacyMask } from "@/context/PrivacyMaskContext";
+import { formatAuditActionLabel, formatAuditCategoryLabel } from "@/lib/format-labels";
+
+function maskAuditText(text: string, isMasked: boolean): string {
+  if (!isMasked) return text;
+  return text.replace(/Rp\s*[\d.,]+/g, "Rp •••••");
+}
 
 interface AuditLedgerViewProps {
   logs: PaginatedAuditLogs;
 }
 
 export function AuditLedgerView({ logs }: AuditLedgerViewProps) {
+  const { locale } = useLanguage();
+  const { isAmountsMasked } = usePrivacyMask();
   if (logs.items.length === 0) {
     return (
       <div className="p-8 text-center border border-border-subtle rounded-lg text-text-tertiary text-sm">
@@ -55,18 +67,18 @@ export function AuditLedgerView({ logs }: AuditLedgerViewProps) {
                     {log.month && log.year ? `${log.month}/${log.year}` : "-"}
                   </td>
                   <td className="py-3 px-4">
-                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono border border-border-subtle bg-surface-subtle text-text-tertiary">
-                      {log.category}
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-sans border border-border-subtle bg-surface-subtle text-text-tertiary whitespace-nowrap">
+                      {formatAuditCategoryLabel(log.category, locale)}
                     </span>
                   </td>
-                  <td className="py-3 px-4 font-mono text-xs font-semibold text-text-primary">
-                    {log.action}
+                  <td className="py-3 px-4 font-sans text-xs font-medium text-text-primary whitespace-nowrap">
+                    {formatAuditActionLabel(log.action, locale)}
                   </td>
                   <td className="py-3 px-4 text-sm text-text-primary">
-                    {log.summary}
+                    {maskAuditText(log.summary, isAmountsMasked)}
                     {log.details && (
                       <p className="text-xs text-text-tertiary mt-0.5 break-all">
-                        {log.details}
+                        {maskAuditText(log.details, isAmountsMasked)}
                       </p>
                     )}
                   </td>

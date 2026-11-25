@@ -816,7 +816,7 @@ export function MatrixCellDrawer({
                           Monthly slice ({tenorMonths}x {amountMode === "PRINCIPAL_SPLIT" ? "split" : "fixed"})
                         </span>
                         <span className="text-text-primary font-semibold tabular-nums">
-                          {formatRupiah(firstSlicePreview, false)} / mo
+                          {formatRupiah(firstSlicePreview, isAmountsMasked)} / mo
                         </span>
                       </div>
                       {cutoffPreview && (
@@ -830,8 +830,8 @@ export function MatrixCellDrawer({
                           {cutoffPreview.slices.length > 1 && (
                             <div className="text-text-tertiary truncate">
                               {cutoffPreview.slices
-                                .map((s) => `${s.periodLabel}: Rp ${s.amount.toLocaleString("id-ID")}`)
-                                .join(" → ")}
+                                .map((s) => `${s.periodLabel}: ${formatRupiah(s.amount, isAmountsMasked)}`)
+                                .join(" -> ")}
                             </div>
                           )}
                         </div>

@@ -1,5 +1,6 @@
 import { GoBridgeService } from './go-bridge.service';
 import { resolveStudioConfig } from '../config/studio.defaults';
+import { optimizeTripBudgetTs } from './erp-engines';
 import {
   buildExecutiveHorizonTs,
   computeLifeEnergyTs,
@@ -723,5 +724,29 @@ describe('Hybrid Engine (Go <-> TypeScript Parity & Financial Precision)', () =>
     expect(bGoUs).toBeGreaterThan(0);
     expect(bGoW).toBe(8);
     expect(bGo).toEqual(bTs);
+
+    // 9. tripbudget parity (custom category weights, weekend boost & shortfall headroom)
+    const tbReq = {
+      eventType: 'DINING_GATHERING',
+      durationDays: 2,
+      startDateIso: '2026-12-04',
+      prepaidCommittedRp: 100000,
+      cycleDiscretionaryRp: 250000,
+      cycleEmergencyBufferRp: 0,
+      cycleCoreSavingsRp: 6341,
+      cashRadarLowestPointRp: -108633,
+      remainingDaysInCycle: 2,
+      weekendWeightPct: 160,
+      customCategoryWeights: [
+        { code: 'FOOD_DRINK', label: 'Food & Drinks', pct: 60 },
+        { code: 'LOCAL_TRANSPORT', label: 'Local Transport', pct: 15 },
+        { code: 'ACTIVITIES', label: 'Activities & Hosting', pct: 15 },
+        { code: 'CONTINGENCY', label: 'Contingency', pct: 10 },
+      ],
+    };
+    const { engineSource: tbSrc, ...tbGo } = await bridge.optimizeTripBudget(tbReq);
+    expect(tbSrc).toBe('GO_BINARY');
+    expect(tbGo.availableHeadroomRp).toBe(141367);
+    expect(tbGo).toEqual(optimizeTripBudgetTs(tbReq));
   });
 });

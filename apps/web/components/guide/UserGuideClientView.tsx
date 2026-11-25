@@ -152,8 +152,8 @@ const GUIDE_CONTENT: Record<LocaleCode, LocalizedGuideContent> = {
         targetLabel: "Open Preferences",
         blocks: [
           {
-            heading: "Paycycle Horizon Law & Go Calculation Engines",
-            body: "Every cycle anchors on Payslip Drop -> HR Review Lag -> Payday (with automatic holiday/weekend shift) and funds daily living through the day before next payday. Integer-safe Go engines drive Cash vs Debt Runway, Scenario Simulation, Burn Pace alerts, Envelope Rollovers, and CSV Auto-Reconciliation.",
+            heading: "Paycycle Schedule Rules & Cashflow Forecasting",
+            body: "Every cycle anchors on Payslip Drop -> HR Review Lag -> Payday (with automatic holiday/weekend adjustment) and funds daily living through the day before next payday. Deterministic calculators power Cash vs Debt Runway, Scenario Simulation, Spend Pace alerts, Envelope Rollovers, and CSV Auto-Reconciliation.",
           },
           {
             heading: "6-Tab Preferences Studio",
@@ -327,8 +327,8 @@ const GUIDE_CONTENT: Record<LocaleCode, LocalizedGuideContent> = {
         targetLabel: "Buka Preferensi",
         blocks: [
           {
-            heading: "Hukum Siklus Gaji & Mesin Kalkulasi Go",
-            body: "Setiap periode berjangkar dari tanggal slip gaji hingga hari transfer aktual (dengan penyesuaian akhir pekan). Mesin Go menghitung proyeksi kekayaan, deteksi laju belanja, rollover amplop, optimasi utang, upah per jam riil, dan rekonsiliasi mutasi CSV.",
+            heading: "Hukum Siklus Gaji & Kalkulator Arus Kas",
+            body: "Setiap periode berjangkar dari tanggal slip gaji hingga hari transfer aktual (dengan penyesuaian akhir pekan). Kalkulator siklus menghitung proyeksi kekayaan, deteksi laju belanja, rollover amplop, optimasi utang, upah per jam riil, dan rekonsiliasi mutasi CSV.",
           },
           {
             heading: "Preferensi Modular 6-Tab",
@@ -502,8 +502,8 @@ const GUIDE_CONTENT: Record<LocaleCode, LocalizedGuideContent> = {
         targetLabel: "打开系统设置",
         blocks: [
           {
-            heading: "薪资周期与 Go 纯整数计算引擎",
-            body: "核心引擎实时驱动净值趋势、12个月情景预测、支出速度警报、信封结转、雪崩还债优化及账单批量对账导入。",
+            heading: "薪资周期与财务测算模型",
+            body: "全周期测算实时驱动净值趋势、12个月情景预测、支出速度警报、信封结转、雪崩还债优化及账单批量对账导入。",
           },
           {
             heading: "6 大系统设置面板",

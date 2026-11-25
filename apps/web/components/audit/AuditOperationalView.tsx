@@ -1,11 +1,19 @@
+"use client";
+
 import React from "react";
 import { OperationalAuditEntry } from "@/lib/api";
+import { formatRupiah } from "@/lib/utils";
+import { usePrivacyMask } from "@/context/PrivacyMaskContext";
+import { useLanguage } from "@/context/LanguageContext";
+import { formatHumanStatus } from "@/lib/format-labels";
 
 interface AuditOperationalViewProps {
   entries: OperationalAuditEntry[];
 }
 
 export function AuditOperationalView({ entries }: AuditOperationalViewProps) {
+  const { isAmountsMasked } = usePrivacyMask();
+  const { locale } = useLanguage();
   if (entries.length === 0) {
     return (
       <div className="p-8 text-center border border-border-subtle rounded-lg text-text-tertiary text-sm">
@@ -55,21 +63,21 @@ export function AuditOperationalView({ entries }: AuditOperationalViewProps) {
                           : "bg-urgency/10 text-urgency border-urgency/20"
                       }`}
                     >
-                      {entry.status}
+                      {formatHumanStatus(entry.status, locale)}
                     </span>
                   </td>
                   <td className="py-3 px-4 text-right font-mono text-sm tabular-nums text-text-secondary">
-                    {entry.targetAmount.toLocaleString("id-ID")}
+                    {formatRupiah(entry.targetAmount, isAmountsMasked)}
                   </td>
                   <td
                     className={`py-3 px-4 text-right font-mono text-sm tabular-nums font-medium ${
                       entry.isDeficit ? "text-urgency" : "text-text-primary"
                     }`}
                   >
-                    {entry.actualAmount.toLocaleString("id-ID")}
+                    {formatRupiah(entry.actualAmount, isAmountsMasked)}
                   </td>
                   <td className="py-3 px-4 text-right font-mono text-sm tabular-nums text-text-tertiary">
-                    {entry.shortfall > 0 ? entry.shortfall.toLocaleString("id-ID") : "-"}
+                    {entry.shortfall > 0 ? formatRupiah(entry.shortfall, isAmountsMasked) : "-"}
                   </td>
                 </tr>
               );

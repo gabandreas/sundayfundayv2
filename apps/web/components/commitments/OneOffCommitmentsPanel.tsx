@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
-import { Plus, Trash2, CheckCircle2, Clock, Pencil } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Plus, X, Trash2, CheckCircle2, Clock, Pencil } from "lucide-react";
 import {
   CommitmentCategory,
   CommitmentFundingSource,
@@ -16,12 +16,14 @@ import {
 } from "@/lib/api";
 import { useLanguage } from "@/context/LanguageContext";
 import { usePeriod } from "@/context/PeriodContext";
+import { usePerspective } from "@/context/PerspectiveContext";
 import { usePrivacyMask } from "@/context/PrivacyMaskContext";
 import { usePrivacyGuard } from "@/hooks/usePrivacyGuard";
 import { useConfirmDialog } from "@/context/ConfirmDialogContext";
 import { useToast } from "@/context/ToastContext";
 import { ErpDatePicker } from "@/components/primitives/ErpDatePicker";
 import { formatCurrencyInput, formatRupiah, getJakartaDateParts, parseCurrencyInput } from "@/lib/utils";
+import { titleCaseCode } from "@/lib/format-labels";
 
 interface OneOffCommitmentsPanelProps {
   month: number;
@@ -29,14 +31,14 @@ interface OneOffCommitmentsPanelProps {
   isLocked?: boolean;
 }
 
-const CATEGORIES: CommitmentCategory[] = [
-  "OUTING",
-  "PENALTY",
-  "EVENT",
-  "FAMILY",
-  "MEDICAL",
-  "TRAVEL",
-  "OTHER",
+const DEFAULT_CATEGORIES: Array<{ code: string; label: string }> = [
+  { code: "EVENT_OUTING", label: "Event / Outing" },
+  { code: "PENALTY_FEE", label: "Penalty / Cancellation" },
+  { code: "FORCE_MAJEURE", label: "Unexpected Expense" },
+  { code: "ANNUAL_TAX", label: "Annual Tax / Licensing" },
+  { code: "MEDICAL", label: "Medical / Health" },
+  { code: "GIFT", label: "Gift / Contribution" },
+  { code: "OTHER", label: "Other" },
 ];
 
 const FUNDING_SOURCES: Array<{
@@ -65,10 +67,15 @@ const FUNDING_SOURCES: Array<{
   },
 ];
 
-const CATEGORY_LABELS: Record<CommitmentCategory, { en: string; id: string; zh: string }> = {
-  OUTING: { en: "Outing", id: "Acara / Outing", zh: "团建出游" },
+const CATEGORY_LABELS: Record<string, { en: string; id: string; zh: string }> = {
+  EVENT_OUTING: { en: "Event / Outing", id: "Acara / Outing", zh: "团建活动" },
+  OUTING: { en: "Event / Outing", id: "Acara / Outing", zh: "团建出游" },
+  PENALTY_FEE: { en: "Penalty / Cancellation", id: "Penalti / Biaya", zh: "违约金/手续费" },
   PENALTY: { en: "Penalty / Fee", id: "Penalti / Biaya", zh: "违约金/手续费" },
+  FORCE_MAJEURE: { en: "Unexpected Expense", id: "Biaya Tak Terduga", zh: "突发支出" },
   EVENT: { en: "Event", id: "Acara", zh: "活动" },
+  ANNUAL_TAX: { en: "Annual Tax", id: "Pajak / Izin", zh: "年税/年审" },
+  GIFT: { en: "Gift / Family", id: "Hadiah / Keluarga", zh: "礼金/家庭" },
   FAMILY: { en: "Family", id: "Keluarga", zh: "家庭支出" },
   MEDICAL: { en: "Medical", id: "Kesehatan", zh: "医疗健康" },
   TRAVEL: { en: "Travel", id: "Perjalanan", zh: "交通出行" },
@@ -172,7 +179,24 @@ export function OneOffCommitmentsPanel({
   const { toast } = useToast();
 
   const t = COPY[locale] ?? COPY.en;
+  const { studioConfig } = usePerspective();
   const formatRp = (n: number) => formatRupiah(n, isAmountsMasked);
+  const categories = useMemo(() => {
+    const raw = studioConfig?.commitmentCategoriesTable;
+    const rows =
+      Array.isArray(raw) && raw.length > 0
+        ? raw.filter((c) => c.active !== false)
+        : DEFAULT_CATEGORIES;
+    return rows.length > 0 ? rows : DEFAULT_CATEGORIES;
+  }, [studioConfig?.commitmentCategoriesTable]);
+  const getCategoryLabel = (code: string) => {
+    const norm = String(code || "").toUpperCase();
+    const fromConfig = studioConfig?.commitmentCategoriesTable?.find(
+      (c) => c.code.toUpperCase() === norm,
+    );
+    if (locale === "en" && fromConfig?.label) return fromConfig.label;
+    return CATEGORY_LABELS[norm]?.[locale] ?? fromConfig?.label ?? titleCaseCode(code);
+  };
 
   const [data, setData] = useState<CommitmentsResponse>({
     items: [],
@@ -190,14 +214,18 @@ export function OneOffCommitmentsPanel({
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
 
-  const defaultDue = `${year}-${String(month).padStart(2, "0")}-${String(
-    Math.min(28, getJakartaDateParts().day || 25)
-  ).padStart(2, "0")}`;
+  const jakartaNow = getJakartaDateParts();
+  const defaultDue =
+    year === jakartaNow.year && month === jakartaNow.month
+      ? jakartaNow.isoDate
+      : `${year}-${String(month).padStart(2, "0")}-${String(
+          Math.min(28, jakartaNow.day || 25),
+        ).padStart(2, "0")}`;
 
   const [title, setTitle] = useState("");
   const [amountInput, setAmountInput] = useState("100.000");
   const [dueDate, setDueDate] = useState(defaultDue);
-  const [category, setCategory] = useState<CommitmentCategory>("OUTING");
+  const [category, setCategory] = useState<CommitmentCategory>("EVENT_OUTING");
   const [fundingSource, setFundingSource] =
     useState<CommitmentFundingSource>("PAYCHECK_UPFRONT");
   const [notes, setNotes] = useState("");
@@ -222,7 +250,7 @@ export function OneOffCommitmentsPanel({
     setTitle("");
     setAmountInput("100.000");
     setDueDate(defaultDue);
-    setCategory("OUTING");
+    setCategory(categories[0]?.code ?? "EVENT_OUTING");
     setFundingSource("PAYCHECK_UPFRONT");
     setNotes("");
     setShowForm(false);
@@ -343,7 +371,7 @@ export function OneOffCommitmentsPanel({
             }}
             className="erp-btn-primary inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-sans font-medium cursor-pointer"
           >
-            <Plus className="w-3.5 h-3.5" />
+            {showForm ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
             <span>{showForm ? t.cancel : t.addBtn}</span>
           </button>
         )}
@@ -432,18 +460,18 @@ export function OneOffCommitmentsPanel({
                 {t.fieldCategory}
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {CATEGORIES.map((cat) => (
+                {categories.map((cat) => (
                   <button
-                    key={cat}
+                    key={cat.code}
                     type="button"
-                    onClick={() => setCategory(cat)}
+                    onClick={() => setCategory(cat.code)}
                     className={`px-2.5 py-1 rounded text-[11px] font-sans border transition-colors cursor-pointer ${
-                      category === cat
+                      category === cat.code
                         ? "border-accent bg-accent/15 text-text-primary font-medium"
                         : "border-border-subtle bg-surface text-text-tertiary hover:text-text-primary"
                     }`}
                   >
-                    {CATEGORY_LABELS[cat][locale] ?? CATEGORY_LABELS[cat].en}
+                    {getCategoryLabel(cat.code)}
                   </button>
                 ))}
               </div>
@@ -521,7 +549,7 @@ export function OneOffCommitmentsPanel({
                     {item.title}
                   </span>
                   <span className="px-1.5 py-0.5 rounded text-[10px] font-sans bg-surface-subtle border border-border-subtle text-text-secondary">
-                    {CATEGORY_LABELS[item.category]?.[locale] ?? item.category}
+                    {getCategoryLabel(item.category)}
                   </span>
                   <span className="px-1.5 py-0.5 rounded text-[10px] font-sans bg-canvas border border-border-subtle text-text-tertiary">
                     {getFundingLabel(item.fundingSource)}

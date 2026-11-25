@@ -680,7 +680,38 @@ async function runLayer2DemoSandboxFuzz(baseUrl: string): Promise<void> {
   const delCommitRes = await apiReq(baseUrl, guestSession, 'DELETE', `/api/commitments/${commitId}`);
   assert.equal(delCommitRes.status, 200);
 
-  // Trip & Event Planner + Go 3-tier optimizer + Shared Advance + Close & Sweep
+  // Phase 4: Event & Activity Budgets backdate validation, target paycycle resolution & modular categories
+  const backdateEvRes = await apiReq(baseUrl, guestSession, 'POST', '/api/events', {
+    month: 11,
+    year: 2026,
+    title: 'Blocked Backdate Event',
+    eventType: 'DAY_OUTING',
+    startDate: '2020-01-01',
+    endDate: '2020-01-02',
+    plannedCapRp: 250000,
+  });
+  assert.equal(
+    backdateEvRes.status,
+    400,
+    `Backdated event creation must fail with 400, got ${backdateEvRes.status}: ${backdateEvRes.rawText}`,
+  );
+
+  const invertedEvRes = await apiReq(baseUrl, guestSession, 'POST', '/api/events', {
+    month: 12,
+    year: 2026,
+    title: 'Blocked Inverted Date Event',
+    eventType: 'DAY_OUTING',
+    startDate: '2026-12-10',
+    endDate: '2026-12-08',
+    plannedCapRp: 250000,
+  });
+  assert.equal(
+    invertedEvRes.status,
+    400,
+    `Inverted event end date must fail with 400, got ${invertedEvRes.status}: ${invertedEvRes.rawText}`,
+  );
+
+  // Event & Activity Budgets + 3-tier optimizer + Shared Advance + Close & Sweep
   const optRes = await apiReq(baseUrl, guestSession, 'POST', '/api/events/optimize', {
     month: 11,
     year: 2026,
@@ -690,11 +721,36 @@ async function runLayer2DemoSandboxFuzz(baseUrl: string): Promise<void> {
     prepaidCommittedRp: 100000,
   });
   assert.ok(optRes.status === 200 || optRes.status === 201, `Event optimize failed: ${optRes.rawText}`);
+  assert.equal(optRes.data.targetMonth, 12, 'Event starting 2026-12-05 must resolve to target paycycle 12/2026');
+  assert.equal(optRes.data.targetYear, 2026, 'Event starting 2026-12-05 must resolve to targetYear 2026');
+  assert.equal(optRes.data.timingMode, 'UPCOMING', 'Future event 2026-12-05 must resolve to timingMode UPCOMING');
   assert.ok(
     optRes.data.conservative.totalCapRp <= optRes.data.balanced.totalCapRp &&
-      optRes.data.balanced.totalCapRp <= optRes.data.maxSafe.totalCapRp,
-    'Trip optimizer caps must preserve Conservative <= Balanced <= Max Safe monotonicity',
+      optRes.data.balanced.totalCapRp <= optRes.data.maxSafe.totalCapRp &&
+      typeof optRes.data.conservative.dailyAverageCapRp === 'number' &&
+      Array.isArray(optRes.data.balanced.categorySplit) &&
+      optRes.data.balanced.categorySplit.length >= 3 &&
+      typeof optRes.data.availableHeadroomRp === 'number' &&
+      optRes.data.availableHeadroomRp >= 0,
+    'Event optimizer caps must preserve Conservative <= Balanced <= Max Safe monotonicity and return categorySplit + headroom',
   );
+
+  const customEvRes = await apiReq(baseUrl, guestSession, 'POST', '/api/events', {
+    month: 12,
+    year: 2026,
+    title: 'Modular Custom Retreat QA',
+    eventType: 'TEAM_RETREAT',
+    startDate: '2026-12-05',
+    endDate: '2026-12-06',
+    plannedCapRp: 450000,
+    recommendedTier: 'CONSERVATIVE',
+  });
+  assert.ok(
+    customEvRes.status === 200 || customEvRes.status === 201,
+    `Custom modular eventType TEAM_RETREAT must succeed, got ${customEvRes.status}: ${customEvRes.rawText}`,
+  );
+  const customEvDelRes = await apiReq(baseUrl, guestSession, 'DELETE', `/api/events/${customEvRes.data.id}`);
+  assert.equal(customEvDelRes.status, 200);
 
   const evCreateRes = await apiReq(baseUrl, guestSession, 'POST', '/api/events', {
     month: 11,

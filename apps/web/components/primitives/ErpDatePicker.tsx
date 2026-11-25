@@ -210,7 +210,12 @@ export function ErpDatePicker({
     setViewMonth((total % 12) + 1);
   };
 
+  const isTodayOutOfBounds = Boolean((min && todayIso < min) || (max && todayIso > max));
+
   const selectDate = (iso: string) => {
+    if (iso && ((min && iso < min) || (max && iso > max))) {
+      return;
+    }
     onChange(iso);
     try {
       panelRef.current?.hidePopover?.();
@@ -382,8 +387,9 @@ export function ErpDatePicker({
           <div className="flex items-center gap-2">
             <button
               type="button"
+              disabled={isTodayOutOfBounds}
               onClick={() => selectDate(todayIso)}
-              className="px-2 py-0.5 rounded text-delta-positive hover:bg-surface-hover transition-colors cursor-pointer font-medium"
+              className="px-2 py-0.5 rounded text-delta-positive hover:bg-surface-hover transition-colors cursor-pointer font-medium disabled:opacity-35 disabled:cursor-not-allowed"
             >
               {t("datePicker.today", "Today")}
             </button>

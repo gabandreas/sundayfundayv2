@@ -2618,6 +2618,12 @@ export function runIntelligenceBatchTs(req: IntelligenceBatchRequest): Intellige
 // Engine 12: Go-Parity Trip & Event Budget Optimizer
 // ---------------------------------------------------------------------------
 
+export interface TripCategoryWeightInput {
+  code: string;
+  label: string;
+  pct: number;
+}
+
 export interface TripOptimizeRequest {
   eventType: string;
   durationDays: number;
@@ -2628,6 +2634,8 @@ export interface TripOptimizeRequest {
   cycleCoreSavingsRp: number;
   cashRadarLowestPointRp: number;
   remainingDaysInCycle: number;
+  weekendWeightPct?: number;
+  customCategoryWeights?: TripCategoryWeightInput[];
 }
 
 export interface TripCategoryCap {
@@ -2662,6 +2670,7 @@ export interface TripOptimizeResult {
   eventType: string;
   durationDays: number;
   prepaidCommittedRp: number;
+  availableHeadroomRp: number;
   recommendedTier: 'CONSERVATIVE' | 'BALANCED' | 'MAX_SAFE';
   conservative: TripTierRecommendation;
   balanced: TripTierRecommendation;
@@ -2742,8 +2751,19 @@ export function optimizeTripBudgetTs(req: TripOptimizeRequest): TripOptimizeResu
 
   const rawStart = String(req.startDateIso || '').trim().slice(0, 10);
   const parsed = /^\d{4}-\d{2}-\d{2}$/.test(rawStart) ? new Date(`${rawStart}T00:00:00Z`) : null;
-  const startTime = parsed && !Number.isNaN(parsed.getTime()) ? parsed : new Date('2026-12-05T00:00:00Z');
-  const weekendBoost = eventType === 'VACATION' || eventType === 'WEEKEND_TRIP' ? 135 : 120;
+  const nowUtc = new Date();
+  const startTime =
+    parsed && !Number.isNaN(parsed.getTime())
+      ? parsed
+      : new Date(Date.UTC(nowUtc.getUTCFullYear(), nowUtc.getUTCMonth(), nowUtc.getUTCDate()));
+  let weekendBoost = eventType === 'VACATION' || eventType === 'WEEKEND_TRIP' ? 135 : 120;
+  if (
+    typeof req.weekendWeightPct === 'number' &&
+    req.weekendWeightPct >= 100 &&
+    req.weekendWeightPct <= 300
+  ) {
+    weekendBoost = Math.trunc(req.weekendWeightPct);
+  }
 
   const dayInfos: Array<{ iso: string; weekend: boolean; weight: number }> = [];
   for (let i = 0; i < dur; i++) {
@@ -2757,13 +2777,40 @@ export function optimizeTripBudgetTs(req: TripOptimizeRequest): TripOptimizeResu
     });
   }
 
-  const catWeights = resolveTripCategoryWeights(eventType);
+  const customWeights = (req.customCategoryWeights ?? [])
+    .filter((cw) => cw && cw.pct > 0 && String(cw.code || '').trim().length > 0)
+    .map((cw) => ({
+      code: String(cw.code).trim().toUpperCase(),
+      label: String(cw.label || cw.code).trim(),
+      pct: Math.trunc(cw.pct),
+    }));
+  const catWeights =
+    customWeights.length > 0 ? customWeights : resolveTripCategoryWeights(eventType);
 
-  const rawCons = Math.floor((disc * 45 + 50) / 100);
-  const consVar = lowest >= 0 ? Math.min(rawCons, headroom) : 0;
+  let consVar = 0;
+  let balVar = 0;
+  let availableHeadroom = 0;
+  let consGuidance = '';
+  let balGuidance = '';
 
-  const rawBal = Math.floor((disc * 75 + 50) / 100);
-  const balVar = lowest >= 0 ? Math.max(consVar, Math.min(rawBal, headroom)) : consVar;
+  if (lowest >= 0) {
+    availableHeadroom = headroom;
+    const rawCons = Math.floor((disc * 45 + 50) / 100);
+    consVar = Math.min(rawCons, headroom);
+    const rawBal = Math.floor((disc * 75 + 50) / 100);
+    balVar = Math.max(consVar, Math.min(rawBal, headroom));
+    consGuidance = `Uses 45% of cycle discretionary cash while keeping Rp ${lowest - consVar} headroom before next payday.`;
+    balGuidance =
+      'Uses up to 75% of discretionary surplus cleanly without touching Core Savings or dropping cycle lowest cash below zero.';
+  } else {
+    const shortfall = -lowest;
+    const tightPool = Math.max(0, disc - shortfall);
+    availableHeadroom = tightPool;
+    consVar = Math.floor((tightPool * 50 + 50) / 100);
+    balVar = tightPool;
+    consGuidance = `Scaled to 50% of post-shortfall discretionary space (Rp ${shortfall} shortfall in cycle).`;
+    balGuidance = `Full post-shortfall discretionary ceiling after accounting for Rp ${shortfall} cycle shortfall.`;
+  }
 
   const rawMax = disc + Math.floor((buf * 50 + 50) / 100);
   const maxVar = Math.max(balVar, rawMax);
@@ -2815,22 +2862,13 @@ export function optimizeTripBudgetTs(req: TripOptimizeRequest): TripOptimizeResu
     eventType,
     durationDays: dur,
     prepaidCommittedRp: prepaid,
+    availableHeadroomRp: availableHeadroom,
     recommendedTier: balVar === 0 && consVar === 0 ? 'CONSERVATIVE' : 'BALANCED',
-    conservative: buildTier(
-      'CONSERVATIVE',
-      'Conservative',
-      consVar,
-      `Uses 45% of cycle discretionary cash while keeping Rp ${lowest - consVar} headroom before next payday.`,
-    ),
-    balanced: buildTier(
-      'BALANCED',
-      'Optimal Recommended',
-      balVar,
-      'Uses up to 75% of discretionary surplus cleanly without touching Core Savings or dropping cycle lowest cash below zero.',
-    ),
+    conservative: buildTier('CONSERVATIVE', 'Conservative', consVar, consGuidance),
+    balanced: buildTier('BALANCED', 'Balanced', balVar, balGuidance),
     maxSafe: buildTier(
       'MAX_SAFE',
-      'Max Safe Cap',
+      'Max Safe',
       maxVar,
       'Upper limit combining full discretionary surplus and half of cycle emergency buffer before risking core savings.',
     ),

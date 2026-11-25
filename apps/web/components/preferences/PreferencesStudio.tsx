@@ -25,6 +25,7 @@ import { MarqueeAiSettingsPanel } from "./MarqueeAiSettingsPanel";
 import { AccountDisplayPanel } from "./AccountDisplayPanel";
 import { PriorityTiersEditor } from "./PriorityTiersEditor";
 import { DatabaseBackupRestoreCard } from "./DatabaseBackupRestoreCard";
+import { CategoryMasterTableCard } from "./CategoryMasterTableCard";
 import {
   AssetAccountsTableCard,
   InstrumentsTableCard,
@@ -122,6 +123,7 @@ export function PreferencesStudio({
         {effectiveTab === "templates" && (
           <div id="preferences-panel-templates" className="space-y-6">
             <RoutineTemplatesTableCard initialConfig={config.studioConfig} />
+            <CategoryMasterTableCard initialConfig={config.studioConfig} />
             <AllocationBucketsTab
               config={config}
               activeMonth={currentMonth}

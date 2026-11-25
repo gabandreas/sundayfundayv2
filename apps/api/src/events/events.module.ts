@@ -2,12 +2,13 @@ import { Module } from '@nestjs/common';
 import { AuditModule } from '../audit/audit.module';
 import { SnapshotsModule } from '../snapshots/snapshots.module';
 import { FinanceModule } from '../finance/finance.module';
+import { ConfigModule } from '../config/config.module';
 import { EventsController } from './events.controller';
 import { EventsSelectors } from './events.selectors';
 import { EventsService } from './events.service';
 
 @Module({
-  imports: [AuditModule, SnapshotsModule, FinanceModule],
+  imports: [AuditModule, SnapshotsModule, FinanceModule, ConfigModule],
   controllers: [EventsController],
   providers: [EventsSelectors, EventsService],
   exports: [EventsSelectors, EventsService],

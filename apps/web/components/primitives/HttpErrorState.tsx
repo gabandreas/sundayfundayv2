@@ -53,14 +53,14 @@ const ERROR_CATALOG: Record<SupportedHttpStatusCode, ErrorCatalogEntry> = {
     codeLabel: "BAD_GATEWAY",
     title: "Upstream API unreachable",
     description:
-      "The web tier received an invalid response from the NestJS backend gateway.",
+      "The web app received an invalid response from the API service.",
     accentClass: "text-urgency",
   },
   503: {
     codeLabel: "SERVICE_UNAVAILABLE",
     title: "Service temporarily unavailable",
     description:
-      "The backend API or PostgreSQL connection pool is temporarily unavailable. Retry in a few seconds.",
+      "The API service or database connection pool is temporarily unavailable. Retry in a few seconds.",
     accentClass: "text-caution",
   },
 };

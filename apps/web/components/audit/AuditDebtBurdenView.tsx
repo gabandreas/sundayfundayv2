@@ -1,11 +1,19 @@
+"use client";
+
 import React from "react";
 import { DebtBurdenAuditEntry } from "@/lib/api";
+import { formatRupiah } from "@/lib/utils";
+import { usePrivacyMask } from "@/context/PrivacyMaskContext";
+import { useLanguage } from "@/context/LanguageContext";
+import { formatHumanStatus } from "@/lib/format-labels";
 
 interface AuditDebtBurdenViewProps {
   entries: DebtBurdenAuditEntry[];
 }
 
 export function AuditDebtBurdenView({ entries }: AuditDebtBurdenViewProps) {
+  const { isAmountsMasked } = usePrivacyMask();
+  const { locale } = useLanguage();
   if (entries.length === 0) {
     return (
       <div className="p-8 text-center border border-border-subtle rounded-lg text-text-tertiary text-sm">
@@ -52,10 +60,10 @@ export function AuditDebtBurdenView({ entries }: AuditDebtBurdenViewProps) {
                     {entry.month}/{entry.year}
                   </td>
                   <td className="py-3 px-4 text-right font-mono text-sm tabular-nums text-text-secondary">
-                    {entry.totalIncome.toLocaleString("id-ID")}
+                    {formatRupiah(entry.totalIncome, isAmountsMasked)}
                   </td>
                   <td className="py-3 px-4 text-right font-mono text-sm tabular-nums text-text-primary">
-                    {entry.totalBills.toLocaleString("id-ID")}
+                    {formatRupiah(entry.totalBills, isAmountsMasked)}
                   </td>
                   <td className="py-3 px-4 text-right font-mono text-xs tabular-nums">
                     <span
@@ -65,11 +73,11 @@ export function AuditDebtBurdenView({ entries }: AuditDebtBurdenViewProps) {
                           : "text-text-primary"
                       }
                     >
-                      {(entry.ccUsage ?? 0).toLocaleString("id-ID")}
+                      {formatRupiah(entry.ccUsage ?? 0, isAmountsMasked)}
                     </span>
                     <span className="text-text-tertiary">
                       {entry.ccUsageLimit > 0
-                        ? ` / ${entry.ccUsageLimit.toLocaleString("id-ID")}`
+                        ? ` / ${formatRupiah(entry.ccUsageLimit, isAmountsMasked)}`
                         : " / —"}
                     </span>
                   </td>
@@ -82,11 +90,11 @@ export function AuditDebtBurdenView({ entries }: AuditDebtBurdenViewProps) {
                           : "text-text-primary"
                       }
                     >
-                      {(entry.paylaterUsage ?? 0).toLocaleString("id-ID")}
+                      {formatRupiah(entry.paylaterUsage ?? 0, isAmountsMasked)}
                     </span>
                     <span className="text-text-tertiary">
                       {entry.paylaterUsageLimit > 0
-                        ? ` / ${entry.paylaterUsageLimit.toLocaleString("id-ID")}`
+                        ? ` / ${formatRupiah(entry.paylaterUsageLimit, isAmountsMasked)}`
                         : " / —"}
                     </span>
                   </td>
@@ -95,14 +103,14 @@ export function AuditDebtBurdenView({ entries }: AuditDebtBurdenViewProps) {
                   </td>
                   <td className="py-3 px-4 text-center">
                     {entry.isHeavyBurden || entry.isCreditLimitExceeded ? (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono font-medium border bg-urgency/10 text-urgency border-urgency/20">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-sans font-medium border bg-urgency/10 text-urgency border-urgency/20">
                         {entry.isCreditLimitExceeded && !entry.isHeavyBurden
-                          ? "LIMIT BREACHED"
-                          : "HEAVY BURDEN"}
+                          ? formatHumanStatus("LIMIT_BREACHED", locale)
+                          : formatHumanStatus("HEAVY_BURDEN", locale)}
                       </span>
                     ) : (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono font-medium border bg-delta-positive/10 text-delta-positive border-delta-positive/20">
-                        HEALTHY
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-sans font-medium border bg-delta-positive/10 text-delta-positive border-delta-positive/20">
+                        {formatHumanStatus("HEALTHY", locale)}
                       </span>
                     )}
                   </td>

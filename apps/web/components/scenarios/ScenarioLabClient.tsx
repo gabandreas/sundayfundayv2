@@ -19,11 +19,13 @@ import { PageHeader } from "@/components/primitives/PageHeader";
 interface ScenarioLabClientProps {
   initialMonth: number;
   initialYear: number;
+  embedded?: boolean;
 }
 
 export function ScenarioLabClient({
   initialMonth,
   initialYear,
+  embedded = false,
 }: ScenarioLabClientProps) {
   const { t } = useLanguage();
   const { isAmountsMasked } = usePrivacyMask();
@@ -43,7 +45,7 @@ export function ScenarioLabClient({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
 
-  // Concurrent Go Monte Carlo & Surplus Allocation Frontier states
+  // Stress Test & Surplus Allocation Frontier states
   const [incomeVolatilityPct, setIncomeVolatilityPct] = useState<number>(12);
   const [expenseShockProbPct, setExpenseShockProbPct] = useState<number>(20);
   const [expenseShockMagnitudePct, setExpenseShockMagnitudePct] = useState<number>(25);
@@ -77,16 +79,16 @@ export function ScenarioLabClient({
       });
       setStressLoading(false);
       if (!res.success || !res.data) {
-        const msg = res.error || "Unable to compute Monte Carlo stress test.";
+        const msg = res.error || "Unable to run cashflow resilience simulation.";
         setStressError(msg);
-        if (notify) toast({ title: "Stress test failed", description: msg, variant: "error" });
+        if (notify) toast({ title: "Simulation failed", description: msg, variant: "error" });
         return;
       }
       setStressResult(res.data);
       if (notify) {
         toast({
-          title: "Stress test complete",
-          description: `${res.data.monteCarlo.trialsRun.toLocaleString()} simulated paths across ${res.data.monteCarlo.workerGoroutines} workers.`,
+          title: "Simulation complete",
+          description: `${res.data.monteCarlo.trialsRun.toLocaleString()} simulated paths computed.`,
           variant: "success",
         });
       }
@@ -207,12 +209,15 @@ export function ScenarioLabClient({
   const activePoint = hoverIdx !== null ? series[hoverIdx] : series[series.length - 1];
 
   return (
-    <div className="space-y-6 w-full max-w-full pb-20">
-      <PageHeader
-        title={t("nav.scenarios")}
-        subtitle="Stress-test 12-month savings growth, extra debt payoffs, and daily living changes before altering your live budget."
-        periodLabel={`${activeMonth}/${activeYear}`}
-        rightActions={
+    <div className={`space-y-6 w-full max-w-full ${embedded ? "pb-6" : "pb-20"}`}>
+      {embedded ? (
+        <div className="rounded-lg border border-border bg-surface p-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-text-primary">Cashflow What-If Lab</h2>
+            <p className="text-xs text-text-tertiary mt-0.5">
+              Test 12-month savings, debt prepayments, and living changes without altering your live budget.
+            </p>
+          </div>
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
@@ -244,8 +249,47 @@ export function ScenarioLabClient({
               <span>Reset</span>
             </button>
           </div>
-        }
-      />
+        </div>
+      ) : (
+        <PageHeader
+          title={t("nav.scenarios")}
+          subtitle="Stress-test 12-month savings growth, extra debt payoffs, and daily living changes before altering your live budget."
+          periodLabel={`${activeMonth}/${activeYear}`}
+          rightActions={
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => applyPreset("sprint")}
+                className="erp-btn-secondary px-2.5 py-1.5 rounded text-xs font-medium cursor-pointer"
+              >
+                Debt-Free Sprint
+              </button>
+              <button
+                type="button"
+                onClick={() => applyPreset("bonus")}
+                className="erp-btn-secondary px-2.5 py-1.5 rounded text-xs font-medium cursor-pointer"
+              >
+                Bonus Prepayment
+              </button>
+              <button
+                type="button"
+                onClick={() => applyPreset("shock")}
+                className="erp-btn-secondary px-2.5 py-1.5 rounded text-xs font-medium cursor-pointer"
+              >
+                +15% Expense Shock
+              </button>
+              <button
+                type="button"
+                onClick={() => applyPreset("reset")}
+                className="erp-btn-secondary inline-flex items-center gap-1 px-2.5 py-1.5 rounded text-xs font-medium cursor-pointer"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>Reset</span>
+              </button>
+            </div>
+          }
+        />
+      )}
 
       {errorMsg && (
         <div className="p-3 rounded erp-callout-urgency text-xs text-urgency">
@@ -260,7 +304,7 @@ export function ScenarioLabClient({
             <div>
               <h2 className="text-sm font-semibold text-text-primary">Scenario Inputs</h2>
               <p className="text-[11px] text-text-tertiary mt-0.5">
-                Adjust any lever to recalculate Go forward trajectory.
+                Adjust any lever to update your forward cashflow projection.
               </p>
             </div>
             <button
@@ -554,8 +598,8 @@ export function ScenarioLabClient({
                 </svg>
               </div>
             ) : (
-              <div className="h-44 flex items-center justify-center text-xs font-mono text-text-tertiary">
-                {isLoading ? "Running Go scenario projection..." : "No trajectory points returned."}
+              <div className="h-44 flex items-center justify-center text-xs font-sans text-text-tertiary">
+                {isLoading ? "Calculating forward trajectory..." : "No trajectory points returned."}
               </div>
             )}
 
@@ -583,67 +627,26 @@ export function ScenarioLabClient({
               </div>
             )}
           </div>
-
-          {/* Debt Strategy Comparison */}
-          {result && result.debtStrategies.length > 0 && (
-            <div className="rounded-lg border border-border bg-surface p-5 space-y-3">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-delta-positive" aria-hidden="true" />
-                <h3 className="text-sm font-semibold text-text-primary">
-                  Debt Prepayment Allocation Comparison
-                </h3>
-              </div>
-              <div className="grid grid-cols-1 xl:grid-cols-3 divide-y xl:divide-y-0 xl:divide-x divide-border-subtle border-t border-border-subtle">
-                {result.debtStrategies.map((st) => {
-                  const strategyName =
-                    st.strategy.charAt(0).toUpperCase() + st.strategy.slice(1).toLowerCase();
-                  return (
-                    <div
-                      key={st.strategy}
-                      className="py-3 xl:px-4 first:xl:pl-0 last:xl:pr-0 space-y-1.5"
-                    >
-                      <div className="flex items-center justify-between gap-2 text-xs font-semibold text-text-primary">
-                        <span>{strategyName}</span>
-                        <span className="text-delta-positive erp-tabular-currency">
-                          +{formatRupiah(st.immediateFreedMonthlyRp, isAmountsMasked)}/mo
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-text-tertiary leading-relaxed">{st.summary}</p>
-                      <div className="pt-1.5 border-t border-border-subtle flex items-center justify-between gap-2 text-[11px] font-mono">
-                        <span className="text-text-secondary">Interest Saved</span>
-                        <span className="text-delta-positive font-semibold erp-tabular-currency">
-                          {formatRupiah(st.estimatedInterestSavedRp, isAmountsMasked)} ({st.monthsShaved}m)
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
-      {/* Go Concurrent Monte Carlo Cashflow Stress Test & Surplus Allocation Frontier */}
+      {/* Cashflow Resilience Stress Test & Optimal Surplus Split */}
       <section className="space-y-4 pt-2 border-t border-border-subtle">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
               <Activity className="w-4 h-4 text-delta-positive" />
               <h2 className="text-base font-semibold text-text-primary tracking-tight">
-                Monte Carlo Cashflow Stress Test &amp; Surplus Allocation Frontier
+                Cashflow Resilience &amp; Surplus Split Advisor
               </h2>
             </div>
             <p className="text-xs text-text-secondary mt-0.5">
-              Probabilistic 12-month cashflow simulation under income volatility and unexpected expenses, paired with Pareto surplus optimization.
+              12-month cashflow stress simulation under income variability and unexpected expenses, paired with optimal monthly surplus split options.
             </p>
           </div>
           {stressResult && (
             <span className="text-[11px] font-mono text-text-tertiary bg-surface border border-border-subtle rounded px-2.5 py-1 tabular-nums">
-              {stressResult.monteCarlo.trialsRun.toLocaleString()} trials · {stressResult.monteCarlo.workerGoroutines} workers ·{" "}
-              {stressResult.monteCarlo.computeDurationUs < 1000
-                ? `${stressResult.monteCarlo.computeDurationUs} µs`
-                : `${(stressResult.monteCarlo.computeDurationUs / 1000).toFixed(2)} ms`}
+              {stressResult.monteCarlo.trialsRun.toLocaleString()} simulated paths
             </span>
           )}
         </div>
@@ -898,7 +901,7 @@ export function ScenarioLabClient({
                     <svg
                       viewBox={`0 0 ${fW} ${fH}`}
                       className="w-full h-52 select-none"
-                      aria-label="Monte Carlo P10 to P90 confidence trajectory chart"
+                      aria-label="Cashflow P10 to P90 confidence trajectory chart"
                     >
                       <polygon points={bandPolygon} fill="rgba(16, 183, 141, 0.12)" />
                       <path
@@ -986,7 +989,7 @@ export function ScenarioLabClient({
               );
             })()}
 
-            {/* Surplus Allocation Frontier (3 Pareto Optimal Strategies) */}
+            {/* Surplus Allocation Frontier (3 Optimal Split Strategies) */}
             {stressResult && stressResult.optimizer.strategies.length > 0 && (
               <div className="rounded-lg border border-border bg-surface p-5 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">

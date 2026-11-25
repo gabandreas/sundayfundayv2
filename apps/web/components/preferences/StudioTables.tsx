@@ -309,7 +309,7 @@ export function PaycycleFormulaStudioCard({ initialConfig }: { initialConfig?: M
         setLiveVars(res.variables);
         setServerEval(res.evaluation.results);
         if (res.evaluation.allValid) {
-          setSavedMsg("All 7 custom formulas verified against server engine.");
+          setSavedMsg("All 7 custom formulas verified cleanly.");
         } else {
           setErrorMsg("One or more formula expressions contain syntax errors.");
         }
@@ -890,7 +890,7 @@ export function InstrumentsTableCard({ initialConfig }: { initialConfig?: Modula
     setErrorMsg(null);
     try {
       await updateStudioConfig({ instrumentsTable: rows });
-      setSavedMsg("Instruments & cutoff rules saved to active engine.");
+      setSavedMsg("Payment instruments and cutoff rules saved.");
     } catch (e: any) {
       setErrorMsg(e?.message || "Failed to save instruments table.");
     } finally {

@@ -109,6 +109,7 @@ export function SavingsClientView({
       : "",
   );
   const [savingP1Override, setSavingP1Override] = useState(false);
+  const [ledgerView, setLedgerView] = useState<"transactions" | "accumulation">("transactions");
 
   useEffect(() => {
     setP1OverrideInput(
@@ -214,21 +215,11 @@ export function SavingsClientView({
       />
 
       {activeSub === "pockets" && (
-        <div className="space-y-6">
-          {/* Top Reserve & Reconciliation Strip */}
-          <div className="rounded-lg border border-border-default bg-surface grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 lg:divide-x divide-border-subtle">
-            <div className="p-3.5 min-w-0">
-              <span className="text-[11px] font-sans font-medium text-text-tertiary block">
-                Emergency Fund Pool
-              </span>
-              <span className="font-mono text-lg font-semibold text-text-primary erp-tabular-currency mt-1 block">
-                {formatRupiah(activeVault.balance ?? 0, isAmountsMasked)}
-              </span>
-              <span className="text-[11px] font-sans text-text-tertiary mt-0.5 block">
-                {runwayCoveragePct}% of 3-month floor ({formatRupiah(threeMonthRunwayTarget, isAmountsMasked)})
-              </span>
-            </div>
+        <div className="space-y-5">
+          {/* Reserve Summary Card + Cycle Metrics */}
+          <SavingsBalanceCard vault={activeVault} />
 
+          <div className="rounded-lg border border-border-default bg-surface grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-border-subtle">
             <div className="p-3.5 min-w-0">
               <span className="text-[11px] font-sans font-medium text-text-tertiary block">
                 Active {savingsTierLabel} ({month}/{year})
@@ -261,81 +252,126 @@ export function SavingsClientView({
                 {formatRupiah(activeVault.overview?.kpi.totalPlanned2026P1 ?? 0, isAmountsMasked)}
               </span>
               <span className="text-[11px] font-sans text-text-tertiary mt-0.5 block">
-                Avg {formatRupiah(avgMonthlySavings, isAmountsMasked)} / cycle
+                Avg {formatRupiah(avgMonthlySavings, isAmountsMasked)} / cycle ({runwayCoveragePct}% of 3-month floor)
               </span>
             </div>
           </div>
 
-          <SavingsBalanceCard vault={activeVault} />
-
-          <SavingsPocketsCard
-            totalConfirmedSavingsRp={
-              activeVault.pocketsSummary?.totalConfirmedSavingsRp ?? activeVault.balance ?? 0
-            }
-            initialPockets={activeVault.pocketsSummary?.pockets ?? studioConfig?.savingsPockets}
-            onSaved={(saved) => {
-              updateStudioConfig({ savingsPockets: saved.pockets });
-              window.dispatchEvent(new Event("erp:data-mutated"));
-            }}
-          />
-
-          {/* Closed-Cycles Balance Override */}
-          <div className="rounded-lg border border-border-default bg-surface p-4 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div className="text-xs font-semibold font-sans text-text-primary">
-                Actual Closed-Cycles Savings Balance
-              </div>
-              <p className="text-[11px] font-sans text-text-tertiary mt-0.5">
-                Optional real-world balance override for past closed cycles (leave blank to compute strictly from verified savings entries).
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 shrink-0">
-              <input
-                type="number"
-                min={0}
-                step={10000}
-                placeholder="Auto (from ledger)"
-                value={p1OverrideInput}
-                onChange={(e) => setP1OverrideInput(e.target.value)}
-                className="w-40 px-2.5 py-1.5 rounded bg-canvas border border-border text-xs font-mono text-text-primary tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
+            <div className="xl:col-span-7 space-y-5">
+              <SavingsPocketsCard
+                totalConfirmedSavingsRp={
+                  activeVault.pocketsSummary?.totalConfirmedSavingsRp ?? activeVault.balance ?? 0
+                }
+                initialPockets={activeVault.pocketsSummary?.pockets ?? studioConfig?.savingsPockets}
+                onSaved={(saved) => {
+                  updateStudioConfig({ savingsPockets: saved.pockets });
+                  window.dispatchEvent(new Event("erp:data-mutated"));
+                }}
               />
-              <button
-                type="button"
-                disabled={savingP1Override}
-                onClick={() => handleSaveP1Override(false)}
-                className="px-3 py-1.5 rounded erp-btn-primary text-xs font-medium hover:opacity-90 disabled:opacity-50 cursor-pointer"
-              >
-                {savingP1Override ? "Saving..." : "Apply Override"}
-              </button>
-              {studioConfig?.actualP1VaultBalanceRp !== null &&
-                studioConfig?.actualP1VaultBalanceRp !== undefined && (
+
+              <SavingsGoalsCard goals={goals} avgMonthlySavings={avgMonthlySavings} />
+            </div>
+
+            <div className="xl:col-span-5 space-y-5">
+              <ManualSavingsForm
+                untransferredLockedPeriods={
+                  activeVault.untransferredLockedPeriods ?? []
+                }
+              />
+
+              {(activeVault.milestones?.length ?? 0) > 0 && (
+                <SavingsMilestonesCard
+                  milestones={activeVault.milestones ?? []}
+                  currentBalance={activeVault.balance ?? 0}
+                  monthlyPace={avgMonthlySavings}
+                />
+              )}
+
+              {/* Closed-Cycles Balance Override */}
+              <div className="rounded-lg border border-border-default bg-surface p-4 space-y-3">
+                <div>
+                  <div className="text-xs font-semibold font-sans text-text-primary">
+                    Actual Closed-Cycles Savings Balance
+                  </div>
+                  <p className="text-[11px] font-sans text-text-tertiary mt-0.5">
+                    Optional balance override for past closed cycles (blank uses verified ledger entries).
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    type="number"
+                    min={0}
+                    step={10000}
+                    placeholder="Auto (from ledger)"
+                    value={p1OverrideInput}
+                    onChange={(e) => setP1OverrideInput(e.target.value)}
+                    className="flex-1 min-w-[140px] px-2.5 py-1.5 rounded bg-canvas border border-border text-xs font-mono text-text-primary tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
+                  />
                   <button
                     type="button"
                     disabled={savingP1Override}
-                    onClick={() => handleSaveP1Override(true)}
-                    className="px-2.5 py-1.5 rounded border border-border text-xs font-mono text-text-secondary hover:bg-surface-hover cursor-pointer"
+                    onClick={() => handleSaveP1Override(false)}
+                    className="px-3 py-1.5 rounded erp-btn-primary text-xs font-medium hover:opacity-90 disabled:opacity-50 cursor-pointer"
                   >
-                    Clear
+                    {savingP1Override ? "Saving..." : "Apply Override"}
                   </button>
-                )}
+                  {studioConfig?.actualP1VaultBalanceRp !== null &&
+                    studioConfig?.actualP1VaultBalanceRp !== undefined && (
+                      <button
+                        type="button"
+                        disabled={savingP1Override}
+                        onClick={() => handleSaveP1Override(true)}
+                        className="px-2.5 py-1.5 rounded border border-border text-xs font-mono text-text-secondary hover:bg-surface-hover cursor-pointer"
+                      >
+                        Clear
+                      </button>
+                    )}
+                </div>
+              </div>
             </div>
           </div>
 
-          {(activeVault.milestones?.length ?? 0) > 0 && (
-            <SavingsMilestonesCard
-              milestones={activeVault.milestones ?? []}
-              currentBalance={activeVault.balance ?? 0}
-              monthlyPace={avgMonthlySavings}
-            />
-          )}
-          <SavingsAccumulationTable ledger={ledger} />
-          <SavingsGoalsCard goals={goals} avgMonthlySavings={avgMonthlySavings} />
-          <ManualSavingsForm
-            untransferredLockedPeriods={
-              activeVault.untransferredLockedPeriods ?? []
-            }
-          />
-          <SavingsTransactionsTable transactions={activeVault.transactions} />
+          <div className="space-y-3">
+            <div
+              role="tablist"
+              aria-label="Savings history views"
+              className="inline-flex rounded-md border border-border bg-surface p-0.5 text-xs font-sans"
+            >
+              <button
+                type="button"
+                role="tab"
+                aria-selected={ledgerView === "transactions"}
+                onClick={() => setLedgerView("transactions")}
+                className={`px-3.5 py-1.5 rounded transition-colors cursor-pointer ${
+                  ledgerView === "transactions"
+                    ? "bg-surface-active text-text-primary font-medium"
+                    : "text-text-secondary hover:text-text-primary"
+                }`}
+              >
+                Deposit &amp; Withdrawal Ledger
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={ledgerView === "accumulation"}
+                onClick={() => setLedgerView("accumulation")}
+                className={`px-3.5 py-1.5 rounded transition-colors cursor-pointer ${
+                  ledgerView === "accumulation"
+                    ? "bg-surface-active text-text-primary font-medium"
+                    : "text-text-secondary hover:text-text-primary"
+                }`}
+              >
+                Monthly Accumulation
+              </button>
+            </div>
+
+            {ledgerView === "transactions" ? (
+              <SavingsTransactionsTable transactions={activeVault.transactions} />
+            ) : (
+              <SavingsAccumulationTable ledger={ledger} />
+            )}
+          </div>
         </div>
       )}
 

@@ -1,15 +1,22 @@
+"use client";
+
 import React from "react";
 import { AuditEvaluationResult } from "@/lib/api";
 import { MetricCard } from "@/components/primitives/MetricCard";
+import { formatRupiah } from "@/lib/utils";
+import { usePrivacyMask } from "@/context/PrivacyMaskContext";
+import { useLanguage } from "@/context/LanguageContext";
+import { formatAuditCategoryLabel, formatHumanStatus } from "@/lib/format-labels";
 
 interface AuditScorecardViewProps {
   report: AuditEvaluationResult;
 }
 
 export function AuditScorecardView({ report }: AuditScorecardViewProps) {
+  const { isAmountsMasked } = usePrivacyMask();
+  const { locale } = useLanguage();
   const { healthScorecard, flags, debtBurdenAudit } = report;
 
-  // Derive styling for health status
   let statusVariant: "default" | "caution" | "urgency" = "default";
   if (healthScorecard.healthStatus === "CAUTION") statusVariant = "caution";
   if (healthScorecard.healthStatus === "CRITICAL") statusVariant = "urgency";
@@ -28,8 +35,8 @@ export function AuditScorecardView({ report }: AuditScorecardViewProps) {
             subvalue="/ 100"
             isCenterpiece
             statusVariant={statusVariant}
-            statusLabel={healthScorecard.healthStatus}
-            footer={`${healthScorecard.totalChecks} Total Checks Analyzed`}
+            statusLabel={formatHumanStatus(healthScorecard.healthStatus, locale)}
+            footer={`${healthScorecard.totalChecks} Checks Analyzed`}
           />
         </div>
         <div className="md:col-span-2 grid grid-cols-2 gap-4">
@@ -100,7 +107,7 @@ export function AuditScorecardView({ report }: AuditScorecardViewProps) {
                     />
                   </div>
                   <div className="text-[10px] font-mono text-text-tertiary tabular-nums">
-                    Rp {Math.round(entry.totalBills).toLocaleString("id-ID")}
+                    {formatRupiah(Math.round(entry.totalBills), isAmountsMasked)}
                   </div>
                 </div>
               );
@@ -135,8 +142,8 @@ export function AuditScorecardView({ report }: AuditScorecardViewProps) {
                         <span className="font-semibold text-sm text-text-primary">
                           {flag.title}
                         </span>
-                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface-subtle border border-border-subtle text-text-tertiary">
-                          {flag.category}
+                        <span className="text-[10px] font-sans px-1.5 py-0.5 rounded bg-surface-subtle border border-border-subtle text-text-tertiary">
+                          {formatAuditCategoryLabel(flag.category, locale)}
                         </span>
                       </div>
                       <span className="font-mono text-xs text-text-tertiary tabular-nums shrink-0">
@@ -146,7 +153,7 @@ export function AuditScorecardView({ report }: AuditScorecardViewProps) {
                     <p className="text-sm text-text-secondary">{flag.description}</p>
                     {flag.amount !== undefined && (
                       <div className="font-mono text-xs tabular-nums text-text-tertiary pt-1">
-                        Rp {flag.amount.toLocaleString("id-ID")}
+                        {formatRupiah(flag.amount, isAmountsMasked)}
                       </div>
                     )}
                   </div>
