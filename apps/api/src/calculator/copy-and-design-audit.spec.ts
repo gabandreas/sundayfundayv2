@@ -1221,4 +1221,27 @@ describe('System-Wide Anti-AI-Slop Visual Design, Temporal Chart Axis & Human Co
     expect(analyticsStripSrc).not.toContain('<NetWorthReservoirsPanel');
     expect(analyticsStripSrc).not.toContain('<WealthForecaster12MPanel');
   });
+
+  it('enforces /api/<domain> route prefix across all domain controllers (no missing api/ prefix)', () => {
+    const apiSrcDir = path.join(REPO_ROOT, 'apps', 'api', 'src');
+    const controllerFiles = collectFiles(apiSrcDir, ['.controller.ts']).filter(
+      (f) => path.basename(f) !== 'app.controller.ts',
+    );
+    expect(controllerFiles.length).toBeGreaterThanOrEqual(10);
+
+    const violations: Array<{ file: string; decorator: string }> = [];
+    for (const file of controllerFiles) {
+      const content = fs.readFileSync(file, 'utf8');
+      const matches = content.match(/@Controller\([^)]*\)/g) ?? [];
+      for (const dec of matches) {
+        if (!/@Controller\(\s*['"]api\/[a-z0-9-/]+['"]\s*\)/.test(dec)) {
+          violations.push({
+            file: path.relative(REPO_ROOT, file),
+            decorator: dec,
+          });
+        }
+      }
+    }
+    expect(violations).toEqual([]);
+  });
 });

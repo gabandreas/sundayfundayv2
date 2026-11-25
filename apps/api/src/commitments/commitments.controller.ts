@@ -19,7 +19,7 @@ import {
   UpdateCommitmentDto,
 } from './dto/commitment.dto';
 
-@Controller('commitments')
+@Controller('api/commitments')
 export class CommitmentsController {
   constructor(
     private readonly selectors: CommitmentsSelectors,

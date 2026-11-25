@@ -18,7 +18,7 @@ import {
   UpdateSinkingFundDto,
 } from './dto/sinking-fund.dto';
 
-@Controller('sinking-funds')
+@Controller('api/sinking-funds')
 export class SinkingFundsController {
   constructor(
     private readonly selectors: SinkingFundsSelectors,

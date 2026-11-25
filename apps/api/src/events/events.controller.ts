@@ -22,7 +22,7 @@ import {
   UpdateTripExpenseDto,
 } from './dto/event.dto';
 
-@Controller('events')
+@Controller('api/events')
 export class EventsController {
   constructor(
     private readonly selectors: EventsSelectors,

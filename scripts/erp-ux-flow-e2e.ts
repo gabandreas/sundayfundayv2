@@ -724,44 +724,85 @@ async function main() {
       demoBody.user,
     );
     await page.goto(`${WEB_URL}/?month=11&year=2026`, { waitUntil: 'networkidle2', timeout: 60000 });
-    await page.waitForSelector('input[placeholder*="Lunch"]', { timeout: 15000 });
-    const payLaterTab = await page.evaluateHandle(() =>
-      Array.from(document.querySelectorAll('button')).find((b) => b.textContent?.trim() === 'PayLater'),
-    );
-    if (payLaterTab) await (payLaterTab as any).click();
-    await page.type('input[placeholder*="Lunch"]', 'QA Realtime PayLater Sync');
-    const amtInput = await page.$('input[placeholder="Rp Amount"]');
-    if (amtInput) {
-      await amtInput.click({ clickCount: 3 });
-      await amtInput.type('120000');
-    }
-    const submitBtn = await page.evaluateHandle(() =>
-      Array.from(document.querySelectorAll('button[type="submit"]')).find((b) =>
-        b.textContent?.includes('Record Expense'),
-      ),
-    );
-    if (submitBtn) await (submitBtn as any).click();
-    await new Promise((r) => setTimeout(r, 1500));
-
-    // Client-side navigate via Sidebar link to /credit WITHOUT page.reload()
-    const creditNavLink = await page.$('aside a[href*="/credit"]');
-    assert.ok(creditNavLink, 'Sidebar link to /credit must exist');
-    await creditNavLink!.click();
-    await page.waitForFunction(
-      () =>
-        window.location.pathname === '/credit' &&
-        document.body.innerText.includes('QA Realtime PayLater Sync'),
-      { timeout: 15000 },
-    );
-
-    // Clean up Demo Sandbox
-    await page.evaluate(async (apiUrl, token) => {
-      await fetch(`${apiUrl}/api/auth/reset-demo`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    try {
+      await page.waitForSelector('input[placeholder*="Lunch"]', { timeout: 15000 });
+      const clickedPayLater = await page.evaluate(() => {
+        const btn = Array.from(document.querySelectorAll('button')).find(
+          (b) => b.textContent?.trim() === 'PayLater',
+        );
+        if (!btn) return false;
+        btn.click();
+        return true;
       });
-    }, API_URL, demoBody.accessToken);
-    console.log('  PASS [8/8]: Realtime cross-route reactivity verified (/ PayLater -> /credit client navigation without hard reload).');
+      assert.equal(clickedPayLater, true, 'Demo Sandbox / must render PayLater payment method button');
+
+      await page.waitForFunction(
+        () => Array.from(document.querySelectorAll('button')).some((b) => b.textContent?.trim() === '3x'),
+        { timeout: 5000 },
+      );
+      await page.evaluate(() => {
+        const btn3x = Array.from(document.querySelectorAll('button')).find(
+          (b) => b.textContent?.trim() === '3x',
+        );
+        btn3x?.click();
+      });
+
+      await page.type('input[placeholder*="Lunch"]', 'QA Realtime PayLater Sync');
+      const amtInput = await page.$('input[placeholder="Amount"]');
+      assert.ok(amtInput, 'Amount input must exist');
+      await amtInput!.click({ clickCount: 3 });
+      await amtInput!.type('120000');
+
+      const [postRes] = await Promise.all([
+        page.waitForResponse(
+          (res) =>
+            res.url().includes('/api/finance/transactions') &&
+            res.request().method() === 'POST',
+          { timeout: 15000 },
+        ),
+        page.click('button[data-testid="record-expense-submit"]'),
+      ]);
+      assert.ok(
+        postRes.status() === 200 || postRes.status() === 201,
+        `Expected POST /api/finance/transactions to return 200/201, got ${postRes.status()}`,
+      );
+
+      // Client-side navigate via Sidebar link to /credit WITHOUT page.reload()
+      const creditNavLink = await page.$('aside a[href*="/credit"]');
+      assert.ok(creditNavLink, 'Sidebar link to /credit must exist');
+      await creditNavLink!.click();
+      await page.waitForFunction(() => window.location.pathname === '/credit', { timeout: 15000 });
+
+      await page.waitForFunction(
+        () =>
+          Array.from(document.querySelectorAll('button')).some((b) =>
+            b.textContent?.includes('Payoff & Cutoff Check'),
+          ),
+        { timeout: 20000 },
+      );
+      await page.evaluate(() => {
+        const simTab = Array.from(document.querySelectorAll('button')).find((b) =>
+          b.textContent?.includes('Payoff & Cutoff Check'),
+        );
+        (simTab as HTMLElement | undefined)?.click();
+      });
+
+      await page.waitForFunction(
+        () =>
+          window.location.pathname === '/credit' &&
+          document.body.innerText.includes('QA Realtime PayLater Sync'),
+        { timeout: 15000 },
+      );
+      console.log('  PASS [8/8]: Realtime cross-route reactivity verified (/ PayLater 3x -> /credit simulator without hard reload).');
+    } finally {
+      // Clean up Demo Sandbox even if assertions fail
+      await page.evaluate(async (apiUrl, token) => {
+        await fetch(`${apiUrl}/api/auth/reset-demo`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        });
+      }, API_URL, demoBody.accessToken);
+    }
 
     assert.equal(pageErrors.length, 0, `Uncaught pageerrors during E2E: ${pageErrors.join(' | ')}`);
     assert.equal(consoleErrors.length, 0, `Console errors during E2E: ${consoleErrors.join(' | ')}`);
