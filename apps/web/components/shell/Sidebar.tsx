@@ -198,6 +198,13 @@ export function Sidebar({
         ? isModuleEnabled("corporate_payroll") || isModuleEnabled("income")
         : isModuleEnabled("income") || isModuleEnabled("corporate_payroll");
     }
+    if (route.moduleKey === "credit_liabilities") {
+      return isBespokeWorkspace
+        ? isModuleEnabled("credit_liabilities")
+        : isModuleEnabled("credit_liabilities") ||
+            isModuleEnabled("ledger") ||
+            isModuleEnabled("cash_radar");
+    }
     return isModuleEnabled(route.moduleKey);
   });
 
