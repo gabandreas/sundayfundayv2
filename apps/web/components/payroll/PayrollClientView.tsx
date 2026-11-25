@@ -30,7 +30,7 @@ import { PayrollArchetypeSelector } from "@/components/payroll/PayrollArchetypeS
 import { ContractualBaseRateEditor } from "@/components/payroll/ContractualBaseRateEditor";
 import { QuickIncomeForm } from "@/components/payroll/QuickIncomeForm";
 import { ThrBonusEstimatorCard } from "@/components/payroll/ThrBonusEstimatorCard";
-import { PaydayTimelineSimulator } from "@/components/finance/PaydayTimelineSimulator";
+import { PaydayClosingEmbed } from "@/components/payroll/PaydayClosingEmbed";
 import { PreBoundaryNotice } from "@/components/shell/PreBoundaryNotice";
 
 export interface PayrollPeriodData {
@@ -54,10 +54,18 @@ export function PayrollClientView({
   const { refreshPeriod } = usePeriod();
   const { isBespokeWorkspace, isModuleEnabled } = usePerspective();
   const showCorporatePayroll = isBespokeWorkspace || isModuleEnabled("corporate_payroll");
-  const [activeSub, selectSub] = useSubModule<PayrollSubKey>(PAYROLL_SUB_KEYS, "payslip");
+  const [activeSub, selectSub] = useSubModule<PayrollSubKey>(
+    PAYROLL_SUB_KEYS,
+    "payslip",
+    {
+      simulator: "payslip",
+      timeline: "closing",
+      wizard: "closing",
+    },
+  );
   const [intel, setIntel] = useState<IntelligenceBundleResponse | null>(null);
   const [showManualThrEstimator, setShowManualThrEstimator] = useState(false);
-  const { month, year, data, isPreBoundary } =
+  const { month, year, revisionTick, data, isPreBoundary } =
     usePeriodSlice<PayrollPeriodData>({
       initialMonth,
       initialYear,
@@ -88,7 +96,7 @@ export function PayrollClientView({
   useEffect(() => {
     let active = true;
     const cached = getCached<IntelligenceBundleResponse | null>(`intelligence:${month}:${year}:0`);
-    if (cached) {
+    if (cached && revisionTick === 0) {
       setIntel(cached);
     } else {
       fetchIntelligenceBundle(month, year).then((res) => {
@@ -98,7 +106,7 @@ export function PayrollClientView({
     return () => {
       active = false;
     };
-  }, [month, year]);
+  }, [month, year, revisionTick]);
 
   useEffect(() => {
     setShowManualThrEstimator(false);
@@ -143,19 +151,24 @@ export function PayrollClientView({
         statusLabel={isLocked ? "Closed" : "Active Draft"}
       />
 
-      {showCorporatePayroll && (
-        <SubModuleNav
-          items={[
-            { key: "payslip", label: t("sub.payroll.payslip") },
-            { key: "timeline", label: t("sub.payroll.timeline") },
-            { key: "lifeenergy", label: t("sub.payroll.lifeenergy") },
-          ]}
-          activeKey={activeSub}
-          onSelect={selectSub}
-        />
-      )}
+      <SubModuleNav
+        items={
+          showCorporatePayroll
+            ? [
+                { key: "payslip", label: t("sub.payroll.payslip") },
+                { key: "closing", label: t("sub.payroll.closing") },
+                { key: "lifeenergy", label: t("sub.payroll.lifeenergy") },
+              ]
+            : [
+                { key: "payslip", label: t("sub.payroll.payslip") },
+                { key: "closing", label: t("sub.payroll.closing") },
+              ]
+        }
+        activeKey={activeSub}
+        onSelect={selectSub}
+      />
 
-      {(activeSub === "payslip" || !showCorporatePayroll) && (
+      {activeSub === "payslip" && (
         <div className="space-y-6">
           {showCorporatePayroll && <PayrollArchetypeSelector />}
 
@@ -287,8 +300,14 @@ export function PayrollClientView({
         </div>
       )}
 
-      {showCorporatePayroll && activeSub === "timeline" && (
-        <PaydayTimelineSimulator month={month} year={year} />
+      {activeSub === "closing" && (
+        <PaydayClosingEmbed
+          month={month}
+          year={year}
+          snapshot={snapshot}
+          payroll={payroll}
+          config={config}
+        />
       )}
 
       {showCorporatePayroll && activeSub === "lifeenergy" && (

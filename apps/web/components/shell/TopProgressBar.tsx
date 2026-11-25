@@ -8,6 +8,7 @@ export function TopProgressBar() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isNavigating, setIsNavigating] = useState(false);
+  const [revalCount, setRevalCount] = useState(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -19,6 +20,17 @@ export function TopProgressBar() {
       return () => clearTimeout(doneTimer);
     }
   }, [pathname, searchParams, isNavigating]);
+
+  useEffect(() => {
+    const onStart = () => setRevalCount((c) => c + 1);
+    const onEnd = () => setRevalCount((c) => Math.max(0, c - 1));
+    window.addEventListener("erp:revalidating-start", onStart);
+    window.addEventListener("erp:revalidating-end", onEnd);
+    return () => {
+      window.removeEventListener("erp:revalidating-start", onStart);
+      window.removeEventListener("erp:revalidating-end", onEnd);
+    };
+  }, []);
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -58,16 +70,28 @@ export function TopProgressBar() {
     };
   }, []);
 
-  if (!isNavigating) return null;
+  const showTopLine = isNavigating || revalCount > 0;
 
   return (
-    <div
-      className="fixed bottom-4 right-4 z-50 pointer-events-none select-none flex items-center gap-2 px-3 py-1.5 rounded-md border border-border-default bg-surface/95 shadow-lg text-[11px] font-mono text-text-secondary animate-in fade-in duration-150"
-      aria-live="polite"
-      aria-label="Loading view"
-    >
-      <BrandMark size={14} className="animate-pulse shrink-0" />
-      <span>Loading view</span>
-    </div>
+    <>
+      {showTopLine && (
+        <div
+          className="fixed top-0 left-0 right-0 z-50 h-[2px] pointer-events-none bg-accent/20 overflow-hidden"
+          aria-hidden="true"
+        >
+          <div className="h-full w-2/5 bg-accent animate-pulse" />
+        </div>
+      )}
+      {isNavigating && (
+        <div
+          className="fixed bottom-4 right-16 z-40 pointer-events-none select-none flex items-center gap-2 px-3 py-1.5 rounded-md border border-border-default bg-surface shadow-lg text-[11px] font-sans text-text-secondary"
+          aria-live="polite"
+          aria-label="Loading view"
+        >
+          <BrandMark size={14} className="animate-pulse shrink-0" />
+          <span>Loading view</span>
+        </div>
+      )}
+    </>
   );
 }

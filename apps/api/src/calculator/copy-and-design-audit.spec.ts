@@ -35,9 +35,9 @@ describe('System-Wide Anti-AI-Slop Visual Design, Temporal Chart Axis & Human Co
   it('purges "Reservoir/Vault/Forward-Borrow/Outlook/Amortization" jargon in favor of clear everyday finance terms (EN/ID/ZH)', () => {
     const langCtx = fs.readFileSync(langCtxPath, 'utf8');
 
-    expect(langCtx).toContain('"nav.savings": "Savings & Emergency Fund"');
-    expect(langCtx).toContain('"nav.savings": "Tabungan & Dana Darurat"');
-    expect(langCtx).toContain('"nav.savings": "储蓄与应急基金"');
+    expect(langCtx).toContain('"nav.savings": "Savings & Net Worth"');
+    expect(langCtx).toContain('"nav.savings": "Tabungan & Kekayaan"');
+    expect(langCtx).toContain('"nav.savings": "储蓄与净资产"');
     expect(langCtx).not.toMatch(/Reservoirs?/);
     expect(langCtx).not.toMatch(/Burn-Rate Telemetry/);
     expect(langCtx).not.toMatch(/Sinking Fund Amortization/);
@@ -182,8 +182,8 @@ describe('System-Wide Anti-AI-Slop Visual Design, Temporal Chart Axis & Human Co
     const langCtx = fs.readFileSync(langCtxPath, 'utf8');
 
     expect(sidebar).not.toContain('href: "/marquee"');
-    expect(sidebar).toContain('href: "/analytics"');
-    expect(sidebar).toContain('labelKey: "nav.analytics"');
+    expect(sidebar).toContain('href: "/reports"');
+    expect(sidebar).toContain('labelKey: "nav.reports"');
 
     expect(header).not.toContain('erp:marquee-toggle');
     expect(header).not.toContain('Open Marquee AI Co-Pilot');
@@ -351,8 +351,8 @@ describe('System-Wide Anti-AI-Slop Visual Design, Temporal Chart Axis & Human Co
       'utf8',
     );
     expect(sidebar).toContain('<BrandMark');
-    expect(sidebar).toContain('/import');
-    expect(sidebar).toContain('/scenarios');
+    expect(sidebar).toContain('/calendar');
+    expect(sidebar).toContain('/credit');
     expect(sidebar).toContain('PrivacyEyeButton');
     expect(sidebar).not.toContain('SPinjam Tracker');
 
@@ -424,8 +424,8 @@ describe('System-Wide Anti-AI-Slop Visual Design, Temporal Chart Axis & Human Co
     }
 
     const tabs = fs.readFileSync(path.join(WEB_DIR, 'lib', 'tabs.ts'), 'utf8');
-    expect(tabs).toContain('ALLOCATIONS_SUB_KEYS = ["waterfall", "envelopes"]');
-    expect(tabs).toContain('CREDIT_SUB_KEYS = ["matrix", "simulator"]');
+    expect(tabs).toContain('ALLOCATIONS_SUB_KEYS = ["plan", "events", "scenarios"]');
+    expect(tabs).toContain('CREDIT_SUB_KEYS = ["matrix", "commitments", "simulator"]');
     expect(tabs).toContain('SAVINGS_SUB_KEYS = ["pockets", "runway"]');
     expect(tabs).toContain('PREFERENCES_TAB_KEYS: readonly PreferencesTabKey[] = [');
     expect(tabs).toContain('"display"');
@@ -1144,5 +1144,81 @@ describe('System-Wide Anti-AI-Slop Visual Design, Temporal Chart Axis & Human Co
     );
     expect(payrollFormSrc).not.toMatch(/<select[\s>]/);
     expect(payrollFormSrc).toContain('PRORATED_EXACT');
+  });
+
+  it('enforces Phase 3 realtime cross-route reactivity, Prisma tenant models, and 8-hub IA consolidation without duplicates', () => {
+    const schemaSrc = fs.readFileSync(
+      path.join(REPO_ROOT, 'apps', 'api', 'prisma', 'schema.prisma'),
+      'utf8',
+    );
+    for (const modelName of [
+      'PeriodCommitment',
+      'TripEventPlan',
+      'TripExpenseItem',
+      'SinkingFundItem',
+    ]) {
+      const rx = new RegExp(`model\\s+${modelName}\\s+\\{([\\s\\S]*?)\\n\\}`, 'm');
+      const block = schemaSrc.match(rx)?.[1] ?? '';
+      expect({
+        modelName,
+        hasUserId: /\buserId\s+Int\b/.test(block),
+        hasUserRel: /\buser\s+User\s+@relation/.test(block),
+      }).toEqual({
+        modelName,
+        hasUserId: true,
+        hasUserRel: true,
+      });
+    }
+
+    const nextConfigSrc = fs.readFileSync(path.join(WEB_DIR, 'next.config.ts'), 'utf8');
+    expect(nextConfigSrc).toContain('staleTimes');
+    expect(nextConfigSrc).toContain('dynamic: 0');
+
+    const sidebarSrc = fs.readFileSync(
+      path.join(WEB_DIR, 'components', 'shell', 'Sidebar.tsx'),
+      'utf8',
+    );
+    const navItemSrc = fs.readFileSync(
+      path.join(WEB_DIR, 'components', 'primitives', 'SidebarNavItem.tsx'),
+      'utf8',
+    );
+    expect(sidebarSrc).not.toContain('prefetch={true}');
+    expect(navItemSrc).not.toContain('prefetch={true}');
+
+    // 8-Hub consolidation: remove redundant standalone routes from primary/analysis/system nav arrays
+    for (const removedHref of ['/payday-wizard', '/import', '/scenarios', '/analytics', '/subscriptions']) {
+      expect(sidebarSrc).not.toContain(`href: "${removedHref}"`);
+    }
+
+    const apiSrc = fs.readFileSync(path.join(WEB_DIR, 'lib', 'api.ts'), 'utf8');
+    expect(apiSrc).toContain('SWR_STALE_MS');
+    expect(apiSrc).toContain('Date.now() - entry.timestamp > SWR_STALE_MS');
+    expect(apiSrc).toContain('BroadcastChannel');
+    expect(apiSrc).toContain('getLastMutationAt');
+
+    const sliceSrc = fs.readFileSync(
+      path.join(WEB_DIR, 'hooks', 'usePeriodSlice.ts'),
+      'utf8',
+    );
+    expect(sliceSrc).toContain('getLastMutationAt');
+
+    const paydayClientSrc = fs.readFileSync(
+      path.join(WEB_DIR, 'components', 'payday', 'PaydayWizardClient.tsx'),
+      'utf8',
+    );
+    expect(paydayClientSrc).not.toMatch(/readFromCache[\s\S]*?lineItems:\s*\[\]/);
+
+    const payrollClientSrc = fs.readFileSync(
+      path.join(WEB_DIR, 'components', 'payroll', 'PayrollClientView.tsx'),
+      'utf8',
+    );
+    expect(payrollClientSrc).not.toContain('PaydayTimelineSimulator');
+
+    const analyticsStripSrc = fs.readFileSync(
+      path.join(WEB_DIR, 'components', 'analytics', 'AnalyticsGoTelemetryStrip.tsx'),
+      'utf8',
+    );
+    expect(analyticsStripSrc).not.toContain('<NetWorthReservoirsPanel');
+    expect(analyticsStripSrc).not.toContain('<WealthForecaster12MPanel');
   });
 });

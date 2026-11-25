@@ -24,6 +24,7 @@ import (
 	"sundayfunday.erp/go-engine/internal/reconciler"
 	"sundayfunday.erp/go-engine/internal/report"
 	"sundayfunday.erp/go-engine/internal/timeline"
+	"sundayfunday.erp/go-engine/internal/tripbudget"
 )
 
 type intelligenceBatchRequest struct {
@@ -148,6 +149,10 @@ func main() {
 		var req optimizer.AllocationOptRequest
 		mustUnmarshal(raw, &req, cmd)
 		out = optimizer.OptimizeAllocationFrontier(req)
+	case "trip-optimize":
+		var req tripbudget.TripOptimizeRequest
+		mustUnmarshal(raw, &req, cmd)
+		out = tripbudget.OptimizeTripBudget(req)
 	case "intelligence-batch":
 		var req intelligenceBatchRequest
 		mustUnmarshal(raw, &req, cmd)

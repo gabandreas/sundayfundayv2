@@ -19,6 +19,9 @@ import { AuthMiddleware } from './auth/auth.middleware';
 import { CalculatorModule } from './calculator/calculator.module';
 import { MarqueeModule } from './marquee/marquee.module';
 import { IdempotencyModule } from './common/idempotency/idempotency.module';
+import { CommitmentsModule } from './commitments/commitments.module';
+import { EventsModule } from './events/events.module';
+import { SinkingFundsModule } from './sinking-funds/sinking-funds.module';
 
 @Module({
   imports: [
@@ -31,6 +34,9 @@ import { IdempotencyModule } from './common/idempotency/idempotency.module';
     SavingsModule,
     ConfigModule,
     BillsModule,
+    CommitmentsModule,
+    EventsModule,
+    SinkingFundsModule,
     AuditModule,
     WishlistModule,
     AnalyticsModule,

@@ -1,19 +1,19 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import { IntelligenceBundleResponse, fetchIntelligenceBundle, getCached } from "@/lib/api";
 import { usePeriod } from "@/context/PeriodContext";
 import { formatRupiah } from "@/lib/utils";
-import { NetWorthReservoirsPanel, WealthForecaster12MPanel } from "@/components/finance/ModuleGoPanels";
 
 export function AnalyticsGoTelemetryStrip() {
-  const { month, year } = usePeriod();
+  const { month, year, revisionTick } = usePeriod();
   const [intel, setIntel] = useState<IntelligenceBundleResponse | null>(null);
 
   useEffect(() => {
     let active = true;
     const cached = getCached<IntelligenceBundleResponse | null>(`intelligence:${month}:${year}:0`);
-    if (cached) {
+    if (cached && revisionTick === 0) {
       setIntel(cached);
     } else {
       fetchIntelligenceBundle(month, year).then((res) => {
@@ -23,24 +23,34 @@ export function AnalyticsGoTelemetryStrip() {
     return () => {
       active = false;
     };
-  }, [month, year]);
+  }, [month, year, revisionTick]);
 
   if (!intel) return null;
 
   return (
-    <div className="space-y-6 pt-2">
-      <div className="flex items-center justify-between border-t border-border pt-5">
-        <div>
-          <h2 className="text-sm font-semibold font-sans text-text-primary">
-            Cash &amp; Debt Position &amp; 12-Month Projection ({intel.periodCode})
-          </h2>
-          <p className="text-xs text-text-tertiary mt-0.5">
-            Cash &amp; savings vs remaining debt principal ({formatRupiah(intel.networth.totalNetWorthRp)}) and 3-scenario wealth trajectory.
-          </p>
+    <div className="rounded-lg border border-border bg-surface p-4 flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <div className="text-xs font-semibold font-sans text-text-primary">
+          Cash &amp; Debt Position ({intel.periodCode})
         </div>
+        <p className="text-xs font-sans text-text-secondary mt-0.5">
+          Net position{" "}
+          <span className="font-mono tabular-nums font-medium text-text-primary">
+            {formatRupiah(intel.networth.totalNetWorthRp)}
+          </span>
+          {" · "}
+          Spending pace{" "}
+          <span className="font-mono tabular-nums text-text-primary">
+            {intel.anomaly.burnVelocityIndex.toFixed(2)}x
+          </span>
+        </p>
       </div>
-      <NetWorthReservoirsPanel intel={intel} />
-      <WealthForecaster12MPanel intel={intel} />
+      <Link
+        href={`/savings?sub=runway&month=${month}&year=${year}`}
+        className="text-xs font-mono text-accent hover:underline"
+      >
+        Open Full Net Worth &amp; 12-Month Runway -&gt;
+      </Link>
     </div>
   );
 }

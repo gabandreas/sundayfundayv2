@@ -37,6 +37,8 @@ import { ActiveContractsHub } from "@/components/credit/contracts/ActiveContract
 import { DebtFreedomTimeline } from "@/components/credit/contracts/DebtFreedomTimeline";
 import { CreditContractsTable } from "@/components/credit/contracts/CreditContractsTable";
 import { CreditWishlistEmbed } from "@/components/credit/CreditWishlistEmbed";
+import { CreditCommitmentsEmbed } from "@/components/credit/CreditCommitmentsEmbed";
+import { OneOffCommitmentsPanel } from "@/components/commitments/OneOffCommitmentsPanel";
 import { usePeriod } from "@/context/PeriodContext";
 import { PreBoundaryNotice } from "@/components/shell/PreBoundaryNotice";
 
@@ -76,12 +78,17 @@ export function CreditPageClient({
       card: "matrix",
       cards: "matrix",
       contracts: "simulator",
+      subscriptions: "commitments",
+      recurring: "commitments",
+      bills: "commitments",
+      wishlist: "simulator",
+      cutoff: "simulator",
       reconciler: "simulator",
     },
   );
   const [intel, setIntel] = useState<IntelligenceBundleResponse | null>(null);
   const { refreshPeriod } = usePeriod();
-  const { month, year, data, setData, isPreBoundary } =
+  const { month, year, revisionTick, data, setData, isPreBoundary } =
     usePeriodSlice<CreditPeriodData>({
       initialMonth,
       initialYear,
@@ -190,7 +197,7 @@ export function CreditPageClient({
   useEffect(() => {
     let active = true;
     const cached = getCached<IntelligenceBundleResponse | null>(`intelligence:${month}:${year}:0`);
-    if (cached) {
+    if (cached && revisionTick === 0) {
       setIntel(cached);
     } else {
       fetchIntelligenceBundle(month, year).then((res) => {
@@ -200,7 +207,7 @@ export function CreditPageClient({
     return () => {
       active = false;
     };
-  }, [month, year]);
+  }, [month, year, revisionTick]);
 
   if (isPreBoundary) {
     return <PreBoundaryNotice month={month} year={year} />;
@@ -241,6 +248,7 @@ export function CreditPageClient({
       <SubModuleNav
         items={[
           { key: "matrix", label: t("sub.credit.matrix") },
+          { key: "commitments", label: t("sub.credit.commitments") },
           { key: "simulator", label: t("sub.credit.simulator") },
         ]}
         activeKey={activeSub}
@@ -262,6 +270,19 @@ export function CreditPageClient({
             cardTransactions={cardTransactions}
             contracts={contracts}
             installmentPlans={installmentPlans}
+          />
+        </div>
+      )}
+
+      {activeSub === "commitments" && (
+        <div className="space-y-6">
+          <OneOffCommitmentsPanel month={month} year={year} isLocked={isLocked} />
+          <CreditCommitmentsEmbed
+            month={month}
+            year={year}
+            snapshot={snapshot}
+            cardSummary={activeCardSummary}
+            cardTransactions={cardTransactions}
           />
         </div>
       )}

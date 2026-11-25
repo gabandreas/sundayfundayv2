@@ -103,6 +103,7 @@ export interface ModularEngineSnapshotInput {
   cycleDays: number;
   totalCreditBills: number;
   totalDeductions?: number;
+  upfrontCommitmentsTotal?: number;
   payrollRules?: PayrollComponentRule[] | null;
   customAdjustments?: PayrollAdjustmentItem[] | null;
   allocationBuckets?: AllocationBucketRule[] | null;
@@ -890,10 +891,15 @@ export function evaluateModularEngine(
           totalDailyOpTarget,
         );
 
-  const upfrontEssentialAndOperational =
-    totalFixedEssentialsTarget + totalDailyOpTarget;
+  const upfrontCommitments = Math.max(
+    0,
+    Math.round(input.upfrontCommitmentsTotal ?? 0),
+  );
 
-  // Available funds after Upfront Tier 0 and Debt Deductions
+  const upfrontEssentialAndOperational =
+    totalFixedEssentialsTarget + totalDailyOpTarget + upfrontCommitments;
+
+  // Available funds after Upfront Tier 0, Non-Debt Commitments, and Debt Deductions
   let availableFunds =
     finalTotalIncome -
     upfrontEssentialAndOperational -
@@ -1027,7 +1033,10 @@ export function evaluateModularEngine(
     }
     const availableForLiving = Math.max(
       0,
-      finalTotalIncome - totalDeductions - totalFixedEssentialsTarget,
+      finalTotalIncome -
+        totalDeductions -
+        totalFixedEssentialsTarget -
+        upfrontCommitments,
     );
     const fundedLivingTotal = Math.min(totalDailyOpTarget, availableForLiving);
     if (dailyOpTier0.length > 0) {

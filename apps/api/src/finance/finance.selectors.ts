@@ -1141,6 +1141,23 @@ export class FinanceSelectors {
       : normalizeDate(new Date());
     const refIsoStr = `${refIso.year}-${String(refIso.month).padStart(2, '0')}-${String(refIso.day).padStart(2, '0')}`;
 
+    const periodCommitments = await this.prisma.periodCommitment.findMany({
+      where: { userId, month, year },
+      orderBy: [{ dueDate: 'asc' }, { id: 'asc' }],
+    });
+
+    const commitments = periodCommitments
+      .filter((c) => Math.round(Number(c.amount) || 0) > 0)
+      .map((c) => ({
+        id: c.id,
+        dateIso: new Date(c.dueDate).toISOString().slice(0, 10),
+        title: String(c.title || 'One-Off Commitment'),
+        category: String(c.category || 'FORCE_MAJEURE'),
+        fundingSource: String(c.fundingSource || 'PAYCHECK_UPFRONT'),
+        status: String(c.status || 'UNPAID'),
+        amountRp: Math.round(Number(c.amount) || 0),
+      }));
+
     return this.goBridge.buildCashRadar({
       periodMonth: month,
       periodYear: year,
@@ -1157,6 +1174,7 @@ export class FinanceSelectors {
       creditCardDueRp,
       personalDebtItems,
       loggedTransactions,
+      commitments,
       paylaterBreakdown,
       creditCardBreakdown,
       holidaysIso: pcCfg.holidayDatesIso ?? [],
@@ -1669,6 +1687,24 @@ export class FinanceSelectors {
       userId,
     );
 
+    const activeSinkingFunds = await this.prisma.sinkingFundItem.findMany({
+      where: { userId, isActive: true },
+      orderBy: [{ targetYear: 'asc' }, { targetMonth: 'asc' }, { id: 'asc' }],
+    });
+    const combinedSinkingFunds = [
+      ...(pcCfg.sinkingFunds ?? []),
+      ...activeSinkingFunds.map((sf) => ({
+        id: `db-${sf.id}`,
+        name: sf.name,
+        targetAmountRp: Math.round(sf.targetAmountRp),
+        currentSavedRp: Math.round(sf.savedAmountRp),
+        monthsRemaining: Math.max(
+          1,
+          (sf.targetYear - year) * 12 + (sf.targetMonth - month) + 1,
+        ),
+      })),
+    ];
+
     const batchResult = await this.goBridge.runIntelligenceBatch({
       paycycle: {
         month,
@@ -1718,7 +1754,7 @@ export class FinanceSelectors {
         cycleElapsedDays: Math.max(1, (pacing.daysInCycle || 30) - (pacing.daysRemaining || 0)),
         cycleTotalDays: pacing.daysInCycle || 30,
         envelopes: envelopeInputs,
-        sinkingFunds: pcCfg.sinkingFunds,
+        sinkingFunds: combinedSinkingFunds,
       },
       debtopt: {
         contracts: optContracts,

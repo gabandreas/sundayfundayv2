@@ -2,6 +2,12 @@ import type { NextConfig } from "next";
 import path from "path";
 
 const nextConfig: NextConfig = {
+  experimental: {
+    staleTimes: {
+      dynamic: 0,
+      static: 30,
+    },
+  },
   turbopack: {
     // Point at the monorepo root so Turbopack can resolve packages hoisted
     // to the workspace-root node_modules (e.g. next itself after npm workspaces).

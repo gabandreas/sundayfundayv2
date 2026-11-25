@@ -8,6 +8,8 @@ User-configurable formula parameters, instrument cutoffs, asset reservoirs, rout
 - Mutation endpoint: `PATCH /api/config/studio` (`ConfigController` -> `ConfigService.updateStudioConfig`), validated through `UpsertGlobalConfigDto`.
 - Frontend synchronization: `PerspectiveContext` (`apps/web/context/PerspectiveContext.tsx`) holds live `studioConfig` and exposes `updateStudioConfig`, triggering immediate sidebar and widget updates plus `erp:data-mutated` invalidation without waiting for full SSR reloads.
 
+- **Consolidated 8-Hub Navigation (`Sidebar.tsx` + `lib/tabs.ts`):** `/` (*Overview*), `/calendar` (*Cashflow & Ledger*: `calendar`, `ledger`, `import`), `/payroll` (*Income & Payday*: `payslip`, `closing`, `lifeenergy`), `/credit` (*Bills & Credit*: `matrix`, `commitments`, `simulator`), `/allocations` (*Plan & Events*: `plan`, `events`, `scenarios`), `/savings` (*Savings & Net Worth*: `pockets`, `runway`), `/reports` (*Reports & Insights*: `summary`, `insights`, `export`), and `/preferences` (+ `/admin` for `SUPERADMIN`). Legacy standalone paths (`/payday-wizard`, `/import`, `/ledger`, `/subscriptions`, `/scenarios`, `/wishlist`, `/analytics`, `/audit`) remain alive via server `redirect(...)` preserving `?month=&year=&scope=`.
+
 ---
 
 ## 2. Six Full-Width Non-Overflowing Sub-Modules (`/preferences`)

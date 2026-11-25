@@ -17,9 +17,13 @@ interface ReportsPageProps {
 }
 
 const SUB_TO_TAB: Record<string, ReportTab> = {
+  summary: "statement",
   executive: "statement",
+  insights: "comparative",
   variance: "comparative",
-  audit: "dossier",
+  audit: "comparative",
+  trend: "comparative",
+  analytics: "comparative",
   export: "amortization",
 };
 

@@ -158,6 +158,10 @@ model User {
   customFeatureRequests      CustomFeatureRequest[]
   payrollAdjustmentTemplates PayrollAdjustmentTemplate[]
   payrollPeriodAdjustments   PayrollPeriodAdjustment[]
+  periodCommitments          PeriodCommitment[]
+  tripEventPlans             TripEventPlan[]
+  tripExpenseItems           TripExpenseItem[]
+  sinkingFundItems           SinkingFundItem[]
 
   @@unique([accountName, username])
 }
@@ -765,4 +769,96 @@ model PayrollPeriodAdjustment {
 
   @@index([snapshotId, stage])
   @@index([userId, snapshotId])
+}
+
+
+// ─────────────────────────────────────────────
+// 21. Phase 3: One-Off Commitments, Trip & Event Pods, and Sinking Funds
+// ─────────────────────────────────────────────
+
+model PeriodCommitment {
+  id            Int            @id @default(autoincrement())
+  userId        Int
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  month         Int
+  year          Int
+  title         String
+  category      String         @default("FORCE_MAJEURE")
+  amount        Float
+  dueDate       DateTime
+  fundingSource String         @default("PAYCHECK_UPFRONT")
+  status        String         @default("UNPAID")
+  tripEventId   Int?
+  tripEvent     TripEventPlan? @relation(fields: [tripEventId], references: [id], onDelete: SetNull)
+  notes         String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([userId, year, month])
+}
+
+model TripEventPlan {
+  id               Int                @id @default(autoincrement())
+  userId           Int
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  month            Int
+  year             Int
+  title            String
+  eventType        String             @default("DAY_OUTING")
+  startDate        DateTime
+  endDate          DateTime
+  plannedCapRp     Float
+  recommendedTier  String             @default("BALANCED")
+  fundingSource    String             @default("DISCRETIONARY")
+  prepaidAmountRp  Float              @default(0)
+  status           String             @default("PLANNING")
+  sweptAmountRp    Float              @default(0)
+  sweptDestination String?
+  notes            String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  expenses    TripExpenseItem[]
+  commitments PeriodCommitment[]
+
+  @@index([userId, year, month])
+}
+
+model TripExpenseItem {
+  id                 Int           @id @default(autoincrement())
+  userId             Int
+  user               User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tripEventId        Int
+  tripEvent          TripEventPlan @relation(fields: [tripEventId], references: [id], onDelete: Cascade)
+  date               DateTime
+  label              String
+  category           String        @default("FOOD_DRINK")
+  amountRp           Float
+  isSharedAdvance    Boolean       @default(false)
+  counterpartyName   String?
+  reimbursedAmountRp Float         @default(0)
+  isSettled          Boolean       @default(false)
+  notes              String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  @@index([userId, tripEventId])
+}
+
+model SinkingFundItem {
+  id             Int      @id @default(autoincrement())
+  userId         Int
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name           String
+  category       String   @default("ANNUAL_TAX")
+  targetAmountRp Float
+  savedAmountRp  Float    @default(0)
+  targetMonth    Int
+  targetYear     Int
+  isActive       Boolean  @default(true)
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId, isActive])
 }

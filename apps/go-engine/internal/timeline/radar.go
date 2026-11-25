@@ -35,26 +35,37 @@ type CashRadarItemInput struct {
 	IsFinalSlice bool   `json:"isFinalSlice"`
 }
 
+type CashRadarCommitmentInput struct {
+	Id            int    `json:"id"`
+	DateIso       string `json:"dateIso"`
+	Title         string `json:"title"`
+	Category      string `json:"category"`
+	FundingSource string `json:"fundingSource"`
+	Status        string `json:"status"`
+	AmountRp      int64  `json:"amountRp"`
+}
+
 type CashRadarRequest struct {
-	PeriodMonth         int                  `json:"periodMonth"`
-	PeriodYear          int                  `json:"periodYear"`
-	PaydayDateIso       string               `json:"paydayDateIso"`
-	LivingEndDateIso    string               `json:"livingEndDateIso"`
-	NextPaydayIso       string               `json:"nextPaydayIso"`
-	PaycheckAmountRp    int64                `json:"paycheckAmountRp"`
-	ThrDateIso          string               `json:"thrDateIso"`
-	ThrAmountRp         int64                `json:"thrAmountRp"`
-	DailyLivingPoolRp   int64                `json:"dailyLivingPoolRp"`
-	RoutineBillsPoolRp  int64                `json:"routineBillsPoolRp"`
-	CoreSavingsTargetRp int64                `json:"coreSavingsTargetRp"`
-	PaylaterDueRp       int64                `json:"paylaterDueRp"`
-	CreditCardDueRp     int64                `json:"creditCardDueRp"`
-	PersonalDebtItems   []CashRadarItemInput `json:"personalDebtItems"`
-	LoggedTransactions  []CashRadarTxInput   `json:"loggedTransactions"`
-	PaylaterBreakdown   []CashRadarSubItem   `json:"paylaterBreakdown"`
-	CreditCardBreakdown []CashRadarSubItem   `json:"creditCardBreakdown"`
-	HolidaysIso         []string             `json:"holidaysIso"`
-	ReferenceDateIso    string               `json:"referenceDateIso"`
+	PeriodMonth         int                        `json:"periodMonth"`
+	PeriodYear          int                        `json:"periodYear"`
+	PaydayDateIso       string                     `json:"paydayDateIso"`
+	LivingEndDateIso    string                     `json:"livingEndDateIso"`
+	NextPaydayIso       string                     `json:"nextPaydayIso"`
+	PaycheckAmountRp    int64                      `json:"paycheckAmountRp"`
+	ThrDateIso          string                     `json:"thrDateIso"`
+	ThrAmountRp         int64                      `json:"thrAmountRp"`
+	DailyLivingPoolRp   int64                      `json:"dailyLivingPoolRp"`
+	RoutineBillsPoolRp  int64                      `json:"routineBillsPoolRp"`
+	CoreSavingsTargetRp int64                      `json:"coreSavingsTargetRp"`
+	PaylaterDueRp       int64                      `json:"paylaterDueRp"`
+	CreditCardDueRp     int64                      `json:"creditCardDueRp"`
+	PersonalDebtItems   []CashRadarItemInput       `json:"personalDebtItems"`
+	LoggedTransactions  []CashRadarTxInput         `json:"loggedTransactions"`
+	Commitments         []CashRadarCommitmentInput `json:"commitments"`
+	PaylaterBreakdown   []CashRadarSubItem         `json:"paylaterBreakdown"`
+	CreditCardBreakdown []CashRadarSubItem         `json:"creditCardBreakdown"`
+	HolidaysIso         []string                   `json:"holidaysIso"`
+	ReferenceDateIso    string                     `json:"referenceDateIso"`
 }
 
 type CashRadarEvent struct {
@@ -438,6 +449,34 @@ func BuildCashRadar(req CashRadarRequest) CashRadarResult {
 
 	var extraIncomeSum int64
 	var directOutflows int64
+	for _, cm := range req.Commitments {
+		if cm.AmountRp <= 0 {
+			continue
+		}
+		dIso := strings.TrimSpace(cm.DateIso)
+		if len(dIso) < 10 {
+			continue
+		}
+		dIso = dIso[:10]
+		if dIso < gridStartIso || dIso > gridEndIso {
+			continue
+		}
+		directOutflows += cm.AmountRp
+		events = append(events, CashRadarEvent{
+			Id:                   fmt.Sprintf("commitment-%d", cm.Id),
+			DateIso:              dIso,
+			NominalDateIso:       "",
+			IsBusinessDayShifted: false,
+			Label:                cm.Title,
+			Category:             "COMMITMENT",
+			SignedAmountRp:       -cm.AmountRp,
+			SliceLabel:           strings.ToUpper(strings.TrimSpace(cm.Status)),
+			IsFinalSlice:         false,
+			Notes:                fmt.Sprintf("Non-debt %s · %s", cm.Category, cm.FundingSource),
+			InsideAllocatedPool:  false,
+			SubItems:             []CashRadarSubItem{},
+		})
+	}
 	for idx, tx := range req.LoggedTransactions {
 		if tx.AmountRp <= 0 {
 			continue

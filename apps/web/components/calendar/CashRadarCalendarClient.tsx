@@ -5,10 +5,12 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   Calendar as CalendarIcon,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Clock,
   Info,
+  Plus,
   ShieldAlert,
   TrendingDown,
 } from "lucide-react";
@@ -16,14 +18,26 @@ import {
   CashRadarDayPointDto,
   CashRadarEventDto,
   CashRadarResponse,
+  CommitmentCategory,
+  CommitmentFundingSource,
+  createCommitment,
   fetchCashRadar,
+  updateCommitmentStatus,
 } from "@/lib/api";
 import { usePeriodSlice } from "@/hooks/usePeriodSlice";
+import { useSubModule } from "@/hooks/useSubModule";
+import { CASHFLOW_SUB_KEYS, CashflowSubKey } from "@/lib/tabs";
 import { useLanguage } from "@/context/LanguageContext";
+import { usePeriod } from "@/context/PeriodContext";
 import { usePrivacyMask } from "@/context/PrivacyMaskContext";
-import { formatRupiah } from "@/lib/utils";
+import { usePrivacyGuard } from "@/hooks/usePrivacyGuard";
+import { useToast } from "@/context/ToastContext";
+import { formatCurrencyInput, formatRupiah, parseCurrencyInput } from "@/lib/utils";
 import { PageHeader } from "@/components/primitives/PageHeader";
+import { SubModuleNav } from "@/components/primitives/SubModuleNav";
 import { PreBoundaryNotice } from "@/components/shell/PreBoundaryNotice";
+import { CalendarLedgerEmbed } from "@/components/calendar/CalendarLedgerEmbed";
+import { StatementImportClient } from "@/components/import/StatementImportClient";
 
 export interface CashRadarCalendarData {
   radar: CashRadarResponse | null;
@@ -35,7 +49,7 @@ interface CashRadarCalendarClientProps {
   initialData: CashRadarCalendarData;
 }
 
-type EventFilterMode = "ALL" | "INFLOW" | "BILLS" | "CUTOFF" | "SPENDING";
+type EventFilterMode = "ALL" | "INFLOW" | "BILLS" | "COMMITMENT" | "CUTOFF" | "SPENDING";
 
 const COPY_BY_LOCALE = {
   en: {
@@ -62,6 +76,7 @@ const COPY_BY_LOCALE = {
       ALL: "All Activity",
       INFLOW: "Inflows & THR",
       BILLS: "Bills Due",
+      COMMITMENT: "Commitments",
       CUTOFF: "Cutoffs",
       SPENDING: "Daily Spend",
     },
@@ -94,6 +109,7 @@ const COPY_BY_LOCALE = {
       ALL: "Semua Aktivitas",
       INFLOW: "Gajian & THR",
       BILLS: "Jatuh Tempo",
+      COMMITMENT: "Komitmen",
       CUTOFF: "Cutoff",
       SPENDING: "Belanja Harian",
     },
@@ -126,6 +142,7 @@ const COPY_BY_LOCALE = {
       ALL: "全部记录",
       INFLOW: "入账与津贴",
       BILLS: "到期账单",
+      COMMITMENT: "单次承诺",
       CUTOFF: "结账日",
       SPENDING: "日常消费",
     },
@@ -213,6 +230,12 @@ function eventCategoryTone(cat: string): {
         dot: "bg-negative",
         badgeText: "OUTFLOW",
       };
+    case "COMMITMENT":
+      return {
+        pill: "bg-accent/10 text-accent border border-accent/25",
+        dot: "bg-accent",
+        badgeText: "COMMITMENT",
+      };
     default:
       return {
         pill: "bg-surface-subtle text-text-secondary border border-border-subtle",
@@ -228,7 +251,17 @@ export function CashRadarCalendarClient({
   initialData,
 }: CashRadarCalendarClientProps) {
   const { locale, t: tGlobal } = useLanguage();
+  const { refreshPeriod } = usePeriod();
   const { isAmountsMasked } = usePrivacyMask();
+  const { requireUnmasked } = usePrivacyGuard();
+  const { toast } = useToast();
+  const [activeSub, selectSub] = useSubModule<CashflowSubKey>(CASHFLOW_SUB_KEYS, "calendar");
+  const [showQuickCommit, setShowQuickCommit] = useState(false);
+  const [qcTitle, setQcTitle] = useState("");
+  const [qcAmount, setQcAmount] = useState("100.000");
+  const [qcCategory, setQcCategory] = useState<CommitmentCategory>("OUTING");
+  const [qcSource, setQcSource] = useState<CommitmentFundingSource>("PAYCHECK_UPFRONT");
+  const [qcSaving, setQcSaving] = useState(false);
   const t = COPY_BY_LOCALE[locale] ?? COPY_BY_LOCALE.en;
 
   const maskRp = useCallback(
@@ -268,6 +301,7 @@ export function CashRadarCalendarClient({
       if (filterMode === "ALL") return true;
       if (filterMode === "INFLOW") return ev.category === "INFLOW" || ev.category === "EXTRA_INCOME";
       if (filterMode === "CUTOFF") return ev.category === "CUTOFF";
+      if (filterMode === "COMMITMENT") return ev.category === "COMMITMENT";
       if (filterMode === "SPENDING") {
         return (
           ev.category === "LIVING_SPEND" ||
@@ -439,6 +473,27 @@ export function CashRadarCalendarClient({
         subtitle={t.subtitle}
         periodLabel={radar ? `${fmtShortDate(radar.cycleStartIso)} – ${fmtShortDate(radar.cycleEndIso)}` : undefined}
       />
+
+      <SubModuleNav
+        items={[
+          { key: "calendar", label: tGlobal("sub.cashflow.calendar") },
+          { key: "ledger", label: tGlobal("sub.cashflow.ledger") },
+          { key: "import", label: tGlobal("sub.cashflow.import") },
+        ]}
+        activeKey={activeSub}
+        onSelect={selectSub}
+      />
+
+      {activeSub === "ledger" && (
+        <CalendarLedgerEmbed month={month} year={year} />
+      )}
+
+      {activeSub === "import" && (
+        <StatementImportClient />
+      )}
+
+      {activeSub === "calendar" && (
+        <>
 
       {/* Summary Metrics Strip */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -733,7 +788,7 @@ export function CashRadarCalendarClient({
           aria-label="Calendar activity filter"
           className="inline-flex items-center rounded-md border border-border bg-surface p-0.5 flex-wrap gap-0.5"
         >
-          {(["ALL", "INFLOW", "BILLS", "CUTOFF", "SPENDING"] as EventFilterMode[]).map((mode) => (
+          {(["ALL", "INFLOW", "BILLS", "COMMITMENT", "CUTOFF", "SPENDING"] as EventFilterMode[]).map((mode) => (
             <button
               key={mode}
               type="button"
@@ -1041,13 +1096,156 @@ export function CashRadarCalendarClient({
                         ))}
                       </div>
                     )}
-                  </div>
-                );
-              })
-            )}
+                        {ev.category === "COMMITMENT" && ev.id.startsWith("commitment-") && (
+                          <div className="flex items-center gap-1.5 pt-1.5">
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (!requireUnmasked("Mark Paid")) return;
+                                const cid = Number(ev.id.replace("commitment-", ""));
+                                if (!Number.isFinite(cid)) return;
+                                const res = await updateCommitmentStatus(cid, "PAID");
+                                if (res.success) {
+                                  refreshPeriod();
+                                  toast({ title: ev.label, description: "Marked as paid", variant: "success" });
+                                }
+                              }}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-delta-positive/40 text-[10px] font-sans text-delta-positive hover:bg-delta-positive/10 cursor-pointer"
+                            >
+                              <CheckCircle2 className="w-3 h-3" />
+                              <span>Mark Paid</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (!requireUnmasked("Reserve")) return;
+                                const cid = Number(ev.id.replace("commitment-", ""));
+                                if (!Number.isFinite(cid)) return;
+                                const res = await updateCommitmentStatus(cid, "RESERVED");
+                                if (res.success) {
+                                  refreshPeriod();
+                                  toast({ title: ev.label, description: "Marked as reserved", variant: "success" });
+                                }
+                              }}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-caution/30 text-[10px] font-sans text-caution hover:bg-caution/10 cursor-pointer"
+                            >
+                              <Clock className="w-3 h-3" />
+                              <span>Reserve</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Interactive Add Commitment for Selected Day */}
+              <div className="pt-2 border-t border-border-subtle space-y-2.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!requireUnmasked("One-Off Commitment")) return;
+                    setShowQuickCommit((prev) => !prev);
+                  }}
+                  className="w-full erp-btn-secondary inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded text-xs font-sans font-medium cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add Commitment on {effectiveSelectedIso ? fmtShortDate(effectiveSelectedIso) : "Day"}</span>
+                </button>
+                {showQuickCommit && effectiveSelectedIso && (
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      if (!requireUnmasked("One-Off Commitment")) return;
+                      const amount = parseCurrencyInput(qcAmount);
+                      if (!qcTitle.trim() || amount <= 0) return;
+                      setQcSaving(true);
+                      try {
+                        const res = await createCommitment({
+                          month,
+                          year,
+                          title: qcTitle.trim(),
+                          category: qcCategory,
+                          amount,
+                          dueDate: effectiveSelectedIso,
+                          fundingSource: qcSource,
+                        });
+                        if (!res.success) {
+                          toast({ title: "One-Off Commitment", description: res.error, variant: "error" });
+                          return;
+                        }
+                        setQcTitle("");
+                        setShowQuickCommit(false);
+                        refreshPeriod();
+                      } finally {
+                        setQcSaving(false);
+                      }
+                    }}
+                    className="rounded border border-border-subtle bg-canvas p-3 space-y-2.5"
+                  >
+                    <input
+                      type="text"
+                      value={qcTitle}
+                      onChange={(e) => setQcTitle(e.target.value)}
+                      placeholder="e.g. Outing bus penalty"
+                      required
+                      className="w-full px-2.5 py-1.5 rounded border border-border bg-surface text-xs font-sans text-text-primary"
+                    />
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={qcAmount}
+                      onChange={(e) => setQcAmount(formatCurrencyInput(e.target.value))}
+                      required
+                      className="w-full px-2.5 py-1.5 rounded border border-border bg-surface text-xs font-mono tabular-nums text-text-primary"
+                    />
+                    <div className="flex flex-wrap gap-1">
+                      {(["OUTING", "PENALTY", "EVENT", "OTHER"] as CommitmentCategory[]).map((c) => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => setQcCategory(c)}
+                          className={`px-2 py-0.5 rounded text-[10px] font-sans border cursor-pointer ${
+                            qcCategory === c
+                              ? "border-accent bg-accent/15 text-text-primary"
+                              : "border-border-subtle bg-surface text-text-tertiary"
+                          }`}
+                        >
+                          {c}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {(["PAYCHECK_UPFRONT", "DISCRETIONARY"] as CommitmentFundingSource[]).map((s) => (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => setQcSource(s)}
+                          className={`px-2 py-0.5 rounded text-[10px] font-sans border cursor-pointer ${
+                            qcSource === s
+                              ? "border-accent bg-accent/15 text-text-primary"
+                              : "border-border-subtle bg-surface text-text-tertiary"
+                          }`}
+                        >
+                          {s === "PAYCHECK_UPFRONT" ? "Paycheck Upfront" : "Discretionary"}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={qcSaving}
+                      className="w-full erp-btn-primary py-1.5 rounded text-xs font-sans font-medium cursor-pointer disabled:opacity-50"
+                    >
+                      Save Commitment
+                    </button>
+                  </form>
+                )}
+              </div>
+            </aside>
           </div>
-        </aside>
-      </div>
+        </>
+      )}
     </div>
   );
 }

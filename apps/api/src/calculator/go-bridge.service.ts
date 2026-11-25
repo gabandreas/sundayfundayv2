@@ -49,6 +49,8 @@ import {
   RouteTxResult,
   WaterfallConfigRequest,
   WaterfallConfigResult,
+  TripOptimizeRequest,
+  TripOptimizeResult,
   computeLifeEnergyTs,
   computeNetWorthTs,
   computePaycycleHorizonTs,
@@ -58,6 +60,7 @@ import {
   evaluateFormulaSuiteTs,
   optimizeAllocationFrontierTs,
   optimizeDebtPayoffTs,
+  optimizeTripBudgetTs,
   parseStatementBatchTs,
   routeTransactionToPaycycleTs,
   runForecastTs,
@@ -232,6 +235,10 @@ export class GoBridgeService {
 
   optimizeAllocationFrontier(req: AllocationOptRequest): Promise<WithEngineMeta<AllocationOptResult>> {
     return this.runCommand('allocation-optimize', req, optimizeAllocationFrontierTs);
+  }
+
+  optimizeTripBudget(req: TripOptimizeRequest): Promise<WithEngineMeta<TripOptimizeResult>> {
+    return this.runCommand('trip-optimize', req, optimizeTripBudgetTs);
   }
 
   runIntelligenceBatch(req: IntelligenceBatchRequest): Promise<WithEngineMeta<IntelligenceBatchResult>> {

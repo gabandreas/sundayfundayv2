@@ -12,6 +12,7 @@ import {
 import { formatRupiah, formatCurrencyInput, parseCurrencyInput } from "@/lib/utils";
 import { WishlistPlannerForm } from "./WishlistPlannerForm";
 import { WishlistAnalysisResults } from "./WishlistAnalysisResults";
+import { usePeriod } from "@/context/PeriodContext";
 
 interface WishlistPlannerViewProps {
   currentMonth: number;
@@ -31,6 +32,7 @@ export function WishlistPlannerView({
   forwardSnapshots = [],
   items = [],
 }: WishlistPlannerViewProps) {
+  const { revisionTick } = usePeriod();
   const [analysis, setAnalysis] = useState<WishlistAnalysisResult | null>(null);
   const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
@@ -39,7 +41,7 @@ export function WishlistPlannerView({
   useEffect(() => {
     let active = true;
     const cached = getCached<IntelligenceBundleResponse | null>(`intelligence:${currentMonth}:${currentYear}:0`);
-    if (cached) {
+    if (cached && revisionTick === 0) {
       setIntel(cached);
     } else {
       fetchIntelligenceBundle(currentMonth, currentYear).then((res) => {
@@ -49,7 +51,7 @@ export function WishlistPlannerView({
     return () => {
       active = false;
     };
-  }, [currentMonth, currentYear]);
+  }, [currentMonth, currentYear, revisionTick]);
 
   const activeVaultItems = items.filter((item) => item.status !== "PURCHASED");
   const [selectedItemId, setSelectedItemId] = useState<string>("");

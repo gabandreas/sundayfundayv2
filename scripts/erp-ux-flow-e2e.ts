@@ -104,7 +104,7 @@ async function main() {
       u1.user,
     );
 
-    // 2. Navigate to Overview (/) and verify Smart Default Active Period (11/2026 ACTIVE: 28 OCT – 26 NOV), Spending & Trend Review in Sidebar, Savings & Emergency Fund label, and no Platform Admin or Marquee Sidebar link
+    // 2. Navigate to Overview (/) and verify Smart Default Active Period (11/2026 ACTIVE: 28 OCT – 26 NOV), 8-hub Sidebar labels, and no Platform Admin or Marquee Sidebar link
     await page.goto(`${WEB_URL}/`, { waitUntil: 'networkidle2', timeout: 60000 });
     assert.notEqual(
       new URL(page.url()).pathname,
@@ -112,7 +112,7 @@ async function main() {
       'Authenticated User #1 must stay on Overview (/), not redirect to /login',
     );
     await page.waitForFunction(
-      () => document.body.innerText.includes('Savings & Emergency Fund'),
+      () => document.body.innerText.includes('Savings & Net Worth'),
       { timeout: 15000 },
     );
     const overviewText = await page.evaluate(() => document.body.innerText);
@@ -120,14 +120,21 @@ async function main() {
       !overviewText.includes('Platform Admin'),
       'Sidebar must NOT display Platform Admin for consumer role USER (User #1)',
     );
-    assert.ok(
-      overviewText.includes('Savings & Emergency Fund'),
-      'Sidebar must render humanized "Savings & Emergency Fund" label instead of "Savings & Reservoirs" or "Savings & Vaults"',
-    );
-    assert.ok(
-      overviewText.includes('Spending & Trend Review'),
-      'Sidebar AUDIT & DECISION section must render "Spending & Trend Review" (/analytics)',
-    );
+    for (const hubLabel of [
+      'Overview',
+      'Cashflow & Ledger',
+      'Income & Payday',
+      'Bills & Credit',
+      'Plan & Events',
+      'Savings & Net Worth',
+      'Reports & Insights',
+      'Preferences',
+    ]) {
+      assert.ok(
+        overviewText.includes(hubLabel),
+        `8-Hub Sidebar must display "${hubLabel}"`,
+      );
+    }
     assert.ok(
       !overviewText.includes('Marquee AI'),
       'Sidebar must not list a redundant "Marquee AI" entry',
@@ -206,14 +213,14 @@ async function main() {
       'Overview PRE_PAYDAY Daily Pacing chart must not show generic "Day 32" axis label',
     );
     console.log(
-      '  PASS [1/6]: User #1 consumer role hides Platform Admin, renders "Savings & Emergency Fund" & "Spending & Trend Review", verifies 11/2026 ACTIVE (28 Oct–26 Nov) & 12/2026 PRE_PAYDAY (27 Nov–27 Dec), and eliminates AI-slop labels.',
+      '  PASS [1/6]: User #1 consumer role hides Platform Admin, renders 8-hub Sidebar navigation, verifies 11/2026 ACTIVE (28 Oct–26 Nov) & 12/2026 PRE_PAYDAY (27 Nov–27 Dec), and eliminates AI-slop labels.',
     );
 
     // 3. Verify Trilingual Switcher (EN / ID / ZH) renders localized human terms with zero raw translation keys
     const expectedLocaleTerm: Record<'en' | 'id' | 'zh', string> = {
-      en: 'Savings & Emergency Fund',
-      id: 'Tabungan & Dana Darurat',
-      zh: '储蓄与应急基金',
+      en: 'Savings & Net Worth',
+      id: 'Tabungan & Kekayaan',
+      zh: '储蓄与净资产',
     };
     for (const loc of ['en', 'id', 'zh'] as const) {
       await page.evaluate((l) => {
@@ -232,20 +239,22 @@ async function main() {
       );
     }
     await page.evaluate(() => localStorage.setItem('erp_locale', 'en'));
-    console.log('  PASS [2/6]: Trilingual (EN / ID / ZH) DOM verification passed ("Savings & Emergency Fund" / "Tabungan & Dana Darurat" / "储蓄与应急基金").');
+    console.log('  PASS [2/6]: Trilingual (EN / ID / ZH) DOM verification passed ("Savings & Net Worth" / "Tabungan & Kekayaan" / "储蓄与净资产").');
 
-    // 4. Verify Consolidated Routes (/payday-wizard, /calendar, /credit?sub=contracts, /credit?sub=simulator, /analytics, /marquee, /preferences?sub=ai)
+    // 4. Verify Consolidated 8-Hub Routes & Legacy Zero-404 Redirects
     const routeChecks: Array<{ path: string; expectedSubstring: string }> = [
       { path: '/payday-wizard?month=11&year=2026', expectedSubstring: 'Paycycle Activation Checklist' },
       { path: '/calendar?month=11&year=2026', expectedSubstring: 'Lowest Cash Point' },
       { path: '/calendar?month=4&year=2027', expectedSubstring: 'Lowest Cash Point' },
       { path: '/credit?sub=contracts&month=11&year=2026', expectedSubstring: 'Active Installment Plans' },
+      { path: '/credit?sub=commitments&month=11&year=2026', expectedSubstring: 'One-Off Commitments' },
       { path: '/credit?sub=simulator&month=11&year=2026', expectedSubstring: 'Wishlist' },
+      { path: '/allocations?sub=events&month=11&year=2026', expectedSubstring: 'Trip & Event Budget Planner' },
       { path: '/import?month=11&year=2026', expectedSubstring: 'Statement Import' },
       { path: '/scenarios?month=11&year=2026', expectedSubstring: 'What-If Scenario Lab' },
       { path: '/savings?sub=pockets&month=11&year=2026', expectedSubstring: 'Savings Pockets' },
       { path: '/reports?sub=executive&month=12&year=2026', expectedSubstring: 'Where Your Money Went' },
-      { path: '/analytics', expectedSubstring: 'Spending' },
+      { path: '/analytics', expectedSubstring: 'Month-to-Month Comparison' },
       { path: '/marquee', expectedSubstring: 'Marquee Financial Co-Pilot' },
       { path: '/preferences?sub=ai', expectedSubstring: 'AES-256-GCM' },
     ];
@@ -699,11 +708,66 @@ async function main() {
       '  PASS [7/8]: Privacy Mask guard, popover toggle/scroll, /calendar trajectory & filter bar, /payroll Dec THR, Marquee, and /scenarios verified.',
     );
 
+    // 8. Demo Sandbox Realtime Cross-Route Reactivity Check (PayLater on / -> Sidebar link -> /credit without reload)
+    await page.evaluate(
+      (token, user) => {
+        const serialized = JSON.stringify(user);
+        localStorage.setItem('erp_auth_token', token);
+        localStorage.setItem('erp_auth_user', serialized);
+        localStorage.setItem('erp_locale', 'en');
+        sessionStorage.setItem('erp_auth_token', token);
+        sessionStorage.setItem('erp_auth_user', serialized);
+        document.cookie = `erp_user_id=${user.id}; path=/; max-age=604800; SameSite=Lax`;
+        document.cookie = `erp_auth_token=${encodeURIComponent(token)}; path=/; max-age=604800; SameSite=Lax`;
+      },
+      demoBody.accessToken,
+      demoBody.user,
+    );
+    await page.goto(`${WEB_URL}/?month=11&year=2026`, { waitUntil: 'networkidle2', timeout: 60000 });
+    await page.waitForSelector('input[placeholder*="Lunch"]', { timeout: 15000 });
+    const payLaterTab = await page.evaluateHandle(() =>
+      Array.from(document.querySelectorAll('button')).find((b) => b.textContent?.trim() === 'PayLater'),
+    );
+    if (payLaterTab) await (payLaterTab as any).click();
+    await page.type('input[placeholder*="Lunch"]', 'QA Realtime PayLater Sync');
+    const amtInput = await page.$('input[placeholder="Rp Amount"]');
+    if (amtInput) {
+      await amtInput.click({ clickCount: 3 });
+      await amtInput.type('120000');
+    }
+    const submitBtn = await page.evaluateHandle(() =>
+      Array.from(document.querySelectorAll('button[type="submit"]')).find((b) =>
+        b.textContent?.includes('Record Expense'),
+      ),
+    );
+    if (submitBtn) await (submitBtn as any).click();
+    await new Promise((r) => setTimeout(r, 1500));
+
+    // Client-side navigate via Sidebar link to /credit WITHOUT page.reload()
+    const creditNavLink = await page.$('aside a[href*="/credit"]');
+    assert.ok(creditNavLink, 'Sidebar link to /credit must exist');
+    await creditNavLink!.click();
+    await page.waitForFunction(
+      () =>
+        window.location.pathname === '/credit' &&
+        document.body.innerText.includes('QA Realtime PayLater Sync'),
+      { timeout: 15000 },
+    );
+
+    // Clean up Demo Sandbox
+    await page.evaluate(async (apiUrl, token) => {
+      await fetch(`${apiUrl}/api/auth/reset-demo`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      });
+    }, API_URL, demoBody.accessToken);
+    console.log('  PASS [8/8]: Realtime cross-route reactivity verified (/ PayLater -> /credit client navigation without hard reload).');
+
     assert.equal(pageErrors.length, 0, `Uncaught pageerrors during E2E: ${pageErrors.join(' | ')}`);
     assert.equal(consoleErrors.length, 0, `Console errors during E2E: ${consoleErrors.join(' | ')}`);
     assert.equal(httpErrors.length, 0, `Unexpected HTTP >= 400 API responses during E2E: ${httpErrors.join(' | ')}`);
 
-    console.log('  PASS [8/8]: Full Headless DOM & UX Flow E2E completed with 0 console/HTTP/layout defects.');
+    console.log('  PASS [ALL]: Full Headless DOM & UX Flow E2E completed with 0 console/HTTP/layout defects.');
   } finally {
     await browser.close();
   }

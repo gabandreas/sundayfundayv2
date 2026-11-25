@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePeriod } from "@/context/PeriodContext";
+import { getLastMutationAt } from "@/lib/api";
 
 interface UsePeriodSliceOptions<T> {
   initialMonth: number;
@@ -34,8 +35,8 @@ function shallowEqualRecord(a: unknown, b: unknown): boolean {
 
 /**
  * Shared period-reactive state controller for Next.js Client Views.
- * Seeds initial SSR payloads into the client cache, renders synchronous cache hits
- * in <2ms on header period clicks, and guards out-of-order responses with a sequence counter.
+ * Guards against stale prefetched RSC initialData after prior client mutations,
+ * hydrates instant cache hits, and runs smooth background revalidation.
  */
 export function usePeriodSlice<T>({
   initialMonth,
@@ -46,8 +47,17 @@ export function usePeriodSlice<T>({
   fetchForPeriod,
 }: UsePeriodSliceOptions<T>) {
   const { month, year, revisionTick } = usePeriod();
-  const [data, setData] = useState<T>(initialData);
+  const mountMutationAtRef = useRef<number>(getLastMutationAt());
+  const needsMountRevalidateRef = useRef<boolean>(mountMutationAtRef.current > 0);
+  const [data, setData] = useState<T>(() => {
+    if (mountMutationAtRef.current > 0 && readFromCache) {
+      const fresh = readFromCache(initialMonth, initialYear, initialData);
+      if (fresh !== undefined) return fresh;
+    }
+    return initialData;
+  });
   const [isLoading, setIsLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const dataRef = useRef<T>(data);
   dataRef.current = data;
@@ -65,7 +75,7 @@ export function usePeriodSlice<T>({
   const fetchRef = useRef(fetchForPeriod);
   fetchRef.current = fetchForPeriod;
 
-  // Keep local state aligned when Next.js delivers genuinely new SSR props
+  // Sync genuinely new SSR props, but never poison cache with stale RSC payloads post-mutation
   useEffect(() => {
     const prev = prevInitialRef.current;
     const initialChanged =
@@ -80,12 +90,15 @@ export function usePeriodSlice<T>({
       year: initialYear,
       data: initialData,
     };
-    seedRef.current?.(initialMonth, initialYear, initialData);
 
-    if (month === initialMonth && year === initialYear) {
-      setData(initialData);
-      renderedPeriodRef.current = `${initialYear}-${initialMonth}`;
-      setIsLoading(false);
+    const staleSsrAfterMutation = prev === null && mountMutationAtRef.current > 0;
+    if (!staleSsrAfterMutation) {
+      seedRef.current?.(initialMonth, initialYear, initialData);
+      if (month === initialMonth && year === initialYear) {
+        setData(initialData);
+        renderedPeriodRef.current = `${initialYear}-${initialMonth}`;
+        setIsLoading(false);
+      }
     }
   }, [initialMonth, initialYear, initialData, month, year]);
 
@@ -94,14 +107,19 @@ export function usePeriodSlice<T>({
     if (isPreBoundary) {
       reqSeqRef.current += 1;
       setIsLoading(false);
+      setIsRefreshing(false);
       return;
     }
 
     const revChanged = revisionTick !== lastRevRef.current;
     lastRevRef.current = revisionTick;
+    const forceMountRevalidate = needsMountRevalidateRef.current;
+    if (forceMountRevalidate) {
+      needsMountRevalidateRef.current = false;
+    }
 
     const targetKey = `${year}-${month}`;
-    if (!revChanged && renderedPeriodRef.current === targetKey) {
+    if (!revChanged && !forceMountRevalidate && renderedPeriodRef.current === targetKey) {
       return;
     }
 
@@ -112,16 +130,22 @@ export function usePeriodSlice<T>({
         renderedPeriodRef.current = targetKey;
         setData(cached);
         setIsLoading(false);
-        return;
+        if (!forceMountRevalidate) {
+          return;
+        }
       }
     }
 
     const seq = ++reqSeqRef.current;
-    // Only indicate loading when switching to an uncached period; background
-    // mutation refreshes keep rendered data visible without dimming the screen.
-    if (!revChanged) {
+    if (!revChanged && !forceMountRevalidate) {
       setIsLoading(true);
+    } else {
+      setIsRefreshing(true);
     }
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("erp:revalidating-start"));
+    }
+
     let cancelled = false;
 
     void fetchRef
@@ -132,8 +156,12 @@ export function usePeriodSlice<T>({
         setData(next);
       })
       .finally(() => {
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("erp:revalidating-end"));
+        }
         if (!cancelled && seq === reqSeqRef.current) {
           setIsLoading(false);
+          setIsRefreshing(false);
         }
       });
 
@@ -145,8 +173,10 @@ export function usePeriodSlice<T>({
   return {
     month,
     year,
+    revisionTick,
     data,
     isLoading,
+    isRefreshing,
     setData,
     isPreBoundary: year < 2026 || (year === 2026 && month < 10),
   };

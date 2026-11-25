@@ -197,6 +197,7 @@ export function SubscriptionsStudio({
   const {
     month: activeMonth,
     year: activeYear,
+    revisionTick,
     data: periodSlice,
     setData: setPeriodSlice,
   } = usePeriodSlice<{
@@ -274,7 +275,7 @@ export function SubscriptionsStudio({
   useEffect(() => {
     let active = true;
     const cached = getCached<IntelligenceBundleResponse | null>(`intelligence:${activeMonth}:${activeYear}:0`);
-    if (cached) {
+    if (cached && revisionTick === 0) {
       setIntel(cached);
     } else {
       fetchIntelligenceBundle(activeMonth, activeYear).then((res) => {
@@ -284,7 +285,7 @@ export function SubscriptionsStudio({
     return () => {
       active = false;
     };
-  }, [activeMonth, activeYear]);
+  }, [activeMonth, activeYear, revisionTick]);
 
   const trueWage = intel?.lifeenergy?.trueNetHourlyWageRp ?? 0;
   const setTransactions = (

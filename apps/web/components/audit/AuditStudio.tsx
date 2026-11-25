@@ -25,7 +25,7 @@ interface AuditStudioProps {
 }
 
 export function AuditStudio({ initialTab, report, logs }: AuditStudioProps) {
-  const { month, year } = usePeriod();
+  const { month, year, revisionTick } = usePeriod();
   const [activeTab, setActiveTab] = useState<AuditTabType>(initialTab);
   const [intel, setIntel] = useState<IntelligenceBundleResponse | null>(null);
 
@@ -36,7 +36,7 @@ export function AuditStudio({ initialTab, report, logs }: AuditStudioProps) {
   useEffect(() => {
     let active = true;
     const cached = getCached<IntelligenceBundleResponse | null>(`intelligence:${month}:${year}:0`);
-    if (cached) {
+    if (cached && revisionTick === 0) {
       setIntel(cached);
     } else {
       fetchIntelligenceBundle(month, year).then((res) => {
@@ -46,7 +46,7 @@ export function AuditStudio({ initialTab, report, logs }: AuditStudioProps) {
     return () => {
       active = false;
     };
-  }, [month, year]);
+  }, [month, year, revisionTick]);
 
   const handleSelectTab = (nextTab: AuditTabType) => {
     if (nextTab === activeTab) return;

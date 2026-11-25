@@ -412,11 +412,11 @@ function buildGabrielPages(lang: GuideLang): GuideBookSpec {
         { num: "02", title: "Login, PIN, Password & Navigasi Global", desc: "Auth flow, Privacy Alt+H di Sidebar, Header, Ctrl+K", page: 4 },
         { num: "03", title: "Overview Kolom 1: Spending Balance & Bank Sync", desc: "Days to Payday, Daily Average, Bank Balance Sync", page: 5 },
         { num: "04", title: "Overview Kolom 2, Kolom 3 & Panel Bawah", desc: "Routine Bills, Bank / QRIS, Record Expense, Checklist", page: 6 },
-        { num: "05", title: "Payday & Closing, Cash Calendar & Payroll", desc: "Konfirmasi tabungan, Benefit GreatDay, THR opsional", page: 7 },
-        { num: "06", title: "Monthly Plan & Impor Mutasi KlikBCA / Permata", desc: "Simulasi kuota, Rollover, CSV KlikBCA tanpa password bank", page: 8 },
-        { num: "07", title: "Installments & Bills (Hukum Cutoff & Matrix)", desc: "SPayLater M-15d, Permata CC 25th, 12-Month Matrix & Optimizer", page: 9 },
-        { num: "08", title: "Savings & Emergency Fund + Scenario Lab", desc: "Milestone dana darurat, Net Worth, Go Monte Carlo Stress Test", page: 10 },
-        { num: "09", title: "Analytics, Financial Reports & Subscriptions", desc: "Audit disiplin, Ekspor Excel/PDF, Email, Renewal Alerts", page: 11 },
+        { num: "05", title: "Income & Payday + Cashflow Calendar (8-Hub IA)", desc: "Payday Closing (/payroll?sub=closing), Ledger, THR & Cash Radar", page: 7 },
+        { num: "06", title: "Plan & Events + Sinking Funds + Trip Budget Planner", desc: "Sinking Funds, Go 3-Tier Event Optimizer & Shared Advance, KlikBCA Import", page: 8 },
+        { num: "07", title: "Bills & Credit (Hukum Cutoff, One-Off Bills & Matrix)", desc: "One-Off Commitments (0% DSR), SPayLater M-15d, CC 25th, Optimizer", page: 9 },
+        { num: "08", title: "Savings & Net Worth + What-If Scenarios (/allocations)", desc: "Milestone dana darurat, Net Worth, Go Monte Carlo Stress Test", page: 10 },
+        { num: "09", title: "Reports & Insights (Statement, Trends, Audit & Export)", desc: "Audit disiplin, Multi-Period Analytics, Excel/PDF & Email", page: 11 },
         { num: "10", title: "Marquee AI Co-Pilot, Ctrl+K & Preferences 6-Tab", desc: "Stage-Commit aman, Template GreatDay, THR & Pacing Mode", page: 12 },
         { num: "11", title: "Superadmin Console & SQL Query Studio", desc: "Buat akun user + temp password, Audit Log, Safe SQL Browser", page: 13 },
         { num: "12", title: "Playbook Rutin, Glosarium Istilah & Shortcuts", desc: "Jadwal pakai 2 menit/minggu dan kamus semua istilah ERP", page: 14 },
@@ -426,11 +426,11 @@ function buildGabrielPages(lang: GuideLang): GuideBookSpec {
         { num: "02", title: "Auth, 6-Digit PIN, Privacy & Global Shell", desc: "Sign-in flow, Alt+H Sidebar privacy toggle, Header, Ctrl+K", page: 4 },
         { num: "03", title: "Overview Col 1: Spending Balance & Bank Sync", desc: "Days to Payday, Daily Average, Bank Balance Sync", page: 5 },
         { num: "04", title: "Overview Col 2, Col 3 & Activity Tables", desc: "Routine Bills, Allocation Mix, Bank / QRIS, Checklist", page: 6 },
-        { num: "05", title: "Payday & Closing, Cash Calendar & Payroll", desc: "Persistent deposit confirmation, Benefit GreatDay, modular THR", page: 7 },
-        { num: "06", title: "Monthly Plan & KlikBCA / Permata Import", desc: "Quota simulator, envelope rollover, safe KlikBCA CSV import", page: 8 },
-        { num: "07", title: "Installments & Bills (Cutoff Law & Matrix)", desc: "SPayLater M-15d, Permata CC 25th, 12-Month Matrix & Optimizer", page: 9 },
-        { num: "08", title: "Savings & Emergency Fund + Scenario Lab", desc: "Emergency milestones, Net Worth, Go Monte Carlo stress testing", page: 10 },
-        { num: "09", title: "Analytics, Financial Reports & Subscriptions", desc: "Discipline audit, Excel/PDF exports, Email & Renewal Notices", page: 11 },
+        { num: "05", title: "Income & Payday + Cashflow & Ledger (8-Hub IA)", desc: "Payday Closing (/payroll?sub=closing), Cash Radar, Ledger & THR", page: 7 },
+        { num: "06", title: "Plan & Events + Sinking Funds + Trip Budget Planner", desc: "Active Sinking Funds, Go 3-Tier Trip Optimizer, KlikBCA Import", page: 8 },
+        { num: "07", title: "Bills & Credit (Cutoff Law, One-Off Bills & Matrix)", desc: "One-Off Commitments (0% DSR), SPayLater M-15d, Permata CC 25th", page: 9 },
+        { num: "08", title: "Savings & Net Worth + What-If Scenarios (/allocations)", desc: "Emergency milestones, Net Worth, Go Monte Carlo stress testing", page: 10 },
+        { num: "09", title: "Reports & Insights (Statement, Trends, Audit & Export)", desc: "Discipline audit, Multi-Period Trends, Excel/PDF & Email", page: 11 },
         { num: "10", title: "Marquee AI Co-Pilot, Ctrl+K & Preferences", desc: "Stage-Commit confirmation, Direct Deductions, THR & Pacing", page: 12 },
         { num: "11", title: "Superadmin Console & SQL Query Studio", desc: "User provisioning + temp password, IP whitelist, SQL Studio", page: 13 },
         { num: "12", title: "Practical Playbook, Glossary & Shortcuts", desc: "2-minute weekly routine and plain definitions for every term", page: 14 },
@@ -738,9 +738,9 @@ function buildGabrielPages(lang: GuideLang): GuideBookSpec {
         <div class="card">
           <h3>Safe Statement Import (<code>/import</code>)</h3>
           <ul>
-            <li><strong>KlikBCA CSV & myBCA/Permata Paste:</strong> Unduh CSV dari KlikBCA (<em>Informasi Rekening -> Mutasi Rekening -> Download CSV</em>) atau salin baris mutasi myBCA/Permata (maks 2 MB / 500 baris).</li>
-            <li><strong>Otomatis Lewati Kredit & Saldo:</strong> Parser Go & TypeScript otomatis melewati baris <code>CR</code> (pemasukan/gaji), mengabaikan kolom <code>Saldo</code> agar tidak salah nominal, membaca koma desimal <code>.00</code>, dan menyamarkan nomor rekening 10-16 digit.</li>
-            <li><strong>Lock-Safe Guard:</strong> Transaksi di bulan <code>LOCKED</code> digeser maju otomatis ke periode terbuka terdekat dan disaring duplikatnya sebelum klik <strong>Commit Selected Rows</strong>.</li>
+            <li><strong>Monthly Plan &amp; Active Sinking Funds (<code>/allocations?sub=plan</code>):</strong> Mengatur simulasi kuota, perilaku rollover amplop, dan membuat target dana berkala dengan tombol <strong>+ Contribute</strong>.</li>
+            <li><strong>Trip &amp; Event Budget Planner (<code>/allocations?sub=events</code>):</strong> Merencanakan budget liburan/outing memakai rekomendasi 3 tingkat Go Engine (<em>Conservative</em>, <em>Balanced</em>, <em>Max Safe</em>), mencatat talangan teman (<em>Shared Advance</em>), dan menutup sisa budget dengan <strong>Close &amp; Sweep</strong> ke Core Savings/Discretionary tanpa merusak anggaran makan harian.</li>
+            <li><strong>Statement Import (<code>/calendar?sub=import</code>):</strong> Terpadu rapi di tab ke-3 hub <em>Cashflow &amp; Ledger</em>.</li>
           </ul>
         </div>
       </div>
@@ -755,9 +755,9 @@ function buildGabrielPages(lang: GuideLang): GuideBookSpec {
         <div class="card">
           <h3>Monthly Plan / Allocations (<code>/allocations</code>)</h3>
           <ul>
-            <li><strong>Plan & Quota Simulator:</strong> Previews how Daily Living or Savings target adjustments affect <em>Projected Savings</em> and shortfall status before applying changes.</li>
-            <li><strong>Routine & Sinking Reserve:</strong> Configures end-of-cycle rollover behavior (such as <em>Sweep Unspent to Core Savings</em>) per routine bucket.</li>
-            <li><strong>Periodic Bill Set-Asides:</strong> Accumulates monthly reserves for irregular multi-month obligations cleanly.</li>
+            <li><strong>Monthly Plan &amp; Active Sinking Funds (<code>/allocations?sub=plan</code>):</strong> Previews Daily Living or Savings targets before applying and manages active sinking fund goals with instant <strong>+ Contribute</strong> deposits.</li>
+            <li><strong>Trip &amp; Event Budget Planner (<code>/allocations?sub=events</code>):</strong> Computes 3 Go-optimized event caps (<em>Conservative</em>, <em>Balanced</em>, <em>Max Safe</em>), isolates friend shared advances, and sweeps unused balance cleanly via <strong>Close &amp; Sweep</strong>.</li>
+            <li><strong>Statement Import (<code>/calendar?sub=import</code>):</strong> Consolidated directly inside <em>Cashflow &amp; Ledger</em> alongside the Cash Calendar and Transaction Ledger.</li>
           </ul>
         </div>
         <div class="card">
@@ -794,9 +794,8 @@ function buildGabrielPages(lang: GuideLang): GuideBookSpec {
         <div class="card">
           <h3>Safe-Spend Simulator, Bridge Loan & Credit Tabs</h3>
           <ul>
-            <li><strong>Safe-Spend Simulator:</strong> Masukkan rencana belanja beserta tanggal beli & tenor untuk mendapat vonis warna (<code>OK / Wait Past Cutoff / Over Limit</code>) serta apakah transaksi akan menembus batas 35%.</li>
-            <li><strong>Record Bridge Loan:</strong> Catat dana pinjaman/talangan agar uang masuk menambah saldo siklus ini tanpa merusak hitungan gaji bulanan, sambil menjadwalkan pengembaliannya di masa depan.</li>
-            <li><strong>Credit Cards & Payoff Optimizer:</strong> Kelola tagihan berulang/cicilan kartu (atur bulan berakhir <em>End Date</em> atau pelunasan dipercepat) dan bandingkan skenario <em>Contractual</em> vs <em>Avalanche</em> vs <em>Snowball</em>.</li>
+            <li><strong>One-Off Commitments (<code>/credit?sub=commitments</code>):</strong> Catat kewajiban satu kali (misalnya penalti bus outing Rp 100.000 pasca-gajian) dengan pilihan <em>Paycheck Upfront</em>, <em>Discretionary</em>, atau <em>Emergency Buffer</em> — berstatus <code>0% DSR</code> (bukan cicilan) dan tampil otomatis di Cash Calendar &amp; Bill Checklist.</li>
+            <li><strong>Safe-Spend Simulator, Bridge Loan &amp; Optimizer:</strong> Menguji transaksi sebelum membeli, mencatat talangan sementara, dan membandingkan pelunasan <em>Contractual</em> vs <em>Avalanche</em> vs <em>Snowball</em>.</li>
           </ul>
         </div>
       </div>`
@@ -816,9 +815,8 @@ function buildGabrielPages(lang: GuideLang): GuideBookSpec {
         <div class="card">
           <h3>Safe-Spend Simulator, Bridge Loan & Optimizer</h3>
           <ul>
-            <li><strong>Safe-Spend Simulator:</strong> Pre-screens planned purchases by date and tenor, displaying routing cycle and DSR verdict before you buy.</li>
-            <li><strong>Record Bridge Loan:</strong> Credits temporary bridge cash inflow directly into the active cycle without distorting recurring payroll income while scheduling future repayments.</li>
-            <li><strong>Card Management & Payoff Optimizer:</strong> Set end dates or early settlements on recurring card charges and compare <em>Contractual</em>, <em>Avalanche</em>, and <em>Snowball</em> repayment schedules.</li>
+            <li><strong>One-Off Commitments (<code>/credit?sub=commitments</code>):</strong> Track non-recurring bills (for example, an outing bus fee payable after payday) funded via <em>Paycheck Upfront</em>, <em>Discretionary</em>, or <em>Emergency Buffer</em> with zero DSR debt-ratio penalty, plotted automatically onto Cash Calendar and Bill Checklist.</li>
+            <li><strong>Safe-Spend Simulator, Bridge Loan &amp; Optimizer:</strong> Pre-screens planned purchases by date and tenor, logs short-term liquidity bridge inflows, and compares <em>Contractual</em>, <em>Avalanche</em>, and <em>Snowball</em> payoff plans.</li>
           </ul>
         </div>
       </div>`,
@@ -1050,9 +1048,9 @@ function buildGabrielPages(lang: GuideLang): GuideBookSpec {
           <h3>Playbook 2 Menit (Tanpa Wajib Catat Kopi)</h3>
           <ul>
             <li><strong>2-3 Hari Sekali (1 Menit):</strong> Cek total saldo rekening jajan Anda -> klik <strong>Update Bank Balance</strong> -> klik <strong>Sync Balance</strong>. Lihat perbandingan <code>Cycle Budget Used</code> dan <code>Daily Average</code> terhadap garis waktu berjalan.</li>
-            <li><strong>Saat Belanja Kredit / PayLater:</strong> Catat 1x di tab <code>PayLater / Credit Card</code> agar jatuh tempo bulan depan &amp; batas aman 35% langsung tercatat.</li>
+            <li><strong>Saat Belanja Kredit / Komitmen / Event:</strong> Catat 1x di Overview atau <code>/credit?sub=commitments</code> (One-Off) / <code>/allocations?sub=events</code> (Outing) — seluruh tab langsung terbarui <strong>real-time tanpa perlu refresh browser</strong>.</li>
             <li><strong>Tgl 15/16 &amp; 25 (Cek Cutoff):</strong> Sebelum checkout barang besar, pakai <code>Safe-Spend Simulator</code> supaya tahu jatuh di tagihan bulan mana.</li>
-            <li><strong>Hari Gajian &amp; Akhir Siklus:</strong> Buka <code>/payday-wizard</code> (<em>Payday &amp; Closing</em>) -> sahkan pemasukan gaji &amp; konfirmasi deposit tabungan -> lunasi pos rutin -> tutup periode (<em>Close Period</em>) agar tabungan bersih tersimpan.</li>
+            <li><strong>Hari Gajian &amp; Akhir Siklus:</strong> Buka <code>/payroll?sub=closing</code> (<em>Income &amp; Payday -&gt; Payday &amp; Closing</em>) -> sahkan pemasukan gaji &amp; konfirmasi deposit tabungan -> lunasi pos rutin -> tutup periode (<em>Close Period</em>) agar tabungan bersih tersimpan.</li>
           </ul>
         </div>
         <div class="card">
@@ -1076,9 +1074,9 @@ function buildGabrielPages(lang: GuideLang): GuideBookSpec {
           <h3>Practical 2-Minute Weekly Workflow</h3>
           <ul>
             <li><strong>Every 2-3 Days (60 Seconds):</strong> Open your bank app -> click <strong>Update Bank Balance</strong> on Overview -> hit <strong>Sync Balance</strong>. Review <code>Cycle Budget Used</code> and <code>Daily Average</code> against the elapsed marker.</li>
-            <li><strong>On Credit / PayLater Purchases:</strong> Log once in <code>Record Expense</code> (PayLater / Credit Card tab) or import KlikBCA/myBCA statements weekly via <code>/import</code> so future due cycles update immediately.</li>
+            <li><strong>On Credit, One-Off Bills or Events:</strong> Log once via Overview, <code>/credit?sub=commitments</code>, or <code>/allocations?sub=events</code> (or import statements in <code>/calendar?sub=import</code>). Live SWR + BroadcastChannel reactivity updates every hub automatically without refreshing the page.</li>
             <li><strong>Before Big Purchases:</strong> Run <code>Safe-Spend Simulator</code> around cutoff days (15th/16th &amp; 25th) to decide whether waiting shifts the bill a month forward.</li>
-            <li><strong>On Payday &amp; Cycle End:</strong> Open <code>/payday-wizard</code> (<em>Payday &amp; Closing</em>) to confirm payout, record savings deposit persistently, settle bills, and lock the finished cycle.</li>
+            <li><strong>On Payday &amp; Cycle End:</strong> Open <code>/payroll?sub=closing</code> (<em>Payday &amp; Closing</em>) to confirm payout, record savings deposit persistently, settle bills, and lock the finished cycle.</li>
           </ul>
         </div>
         <div class="card">
@@ -1113,7 +1111,7 @@ function buildGabrielPages(lang: GuideLang): GuideBookSpec {
       : "End-to-end documentation covering paycycle logic, Bank Balance Sync, Benefit by GreatDay payroll deductions, KlikBCA CSV import, and Superadmin controls.",
     editionBadge: isId ? "Edisi Khusus Gabriel + Superadmin" : "Gabriel Bespoke + Superadmin Edition",
     audienceLabel: isId ? "Gabriel (Bespoke Client) & Superadmin" : "Gabriel (Bespoke Client) & Platform Admin",
-    versionLabel: "v2.9 · Nov 2026 · ID/EN",
+    versionLabel: "v3.0 · Nov 2026 · ID/EN",
     sheetsHtml: [],
   };
   spec.sheetsHtml = [buildCoverSheet(spec), ...pageBodies];
@@ -1142,11 +1140,11 @@ function buildStandardPages(lang: GuideLang): GuideBookSpec {
         { num: "02", title: "First-Login Password Setup, PIN & Privacy", desc: "Mandatory password rotation, Forgot/Reset, Alt+H Privacy", page: 4 },
         { num: "03", title: "Overview Col 1: Spending Balance & Bank Sync", desc: "Days to Payday, Daily Average, Bank Balance Sync", page: 5 },
         { num: "04", title: "Overview Col 2 & 3: Custom Categories & Expense Log", desc: "Add/rename routine bills, Allocation Mix, Bank / QRIS", page: 6 },
-        { num: "05", title: "Transactions Ledger, Payday & Closing & Calendar", desc: "Ledger filtering/edits, savings confirm, Lowest Cash Point", page: 7 },
-        { num: "06", title: "Income & Cash Flow, Budgets & Statement Import", desc: "Direct deductions, rollover rules, KlikBCA CSV import", page: 8 },
-        { num: "07", title: "Installments & Bills (Cutoffs & Matrix)", desc: "Configurable cutoff routing, 12-Month Matrix & Safe-Spend", page: 9 },
-        { num: "08", title: "Accounts & Goals, Wishlist & Scenario Planner", desc: "Savings goals, wishlist work-hour check, Monte Carlo lab", page: 10 },
-        { num: "09", title: "Analytics, Reports, Subscriptions & Preferences", desc: "XLSX/PDF exports, Renewal Notices, Marquee AI & Setup", page: 11 },
+        { num: "05", title: "Cashflow & Ledger (/calendar) & Payday Closing (/payroll)", desc: "Ledger filtering, integrated Payday Closing & Lowest Cash Point", page: 7 },
+        { num: "06", title: "Plan & Events (/allocations): Sinking Funds & Trip Planner", desc: "Active Sinking Funds, Go 3-Tier Event Caps & KlikBCA CSV Import", page: 8 },
+        { num: "07", title: "Bills & Credit (/credit): One-Off Bills, Cutoffs & Matrix", desc: "One-Off Commitments (0% DSR), 12-Month Matrix & Safe-Spend", page: 9 },
+        { num: "08", title: "Savings & Net Worth (/savings) + Scenario Planner", desc: "Savings goals, wishlist work-hour check, Monte Carlo lab", page: 10 },
+        { num: "09", title: "Reports & Insights (/reports) & Preferences (6-Tab)", desc: "Trends, audit, XLSX/PDF exports, Marquee AI & Setup", page: 11 },
         { num: "10", title: "2-Minute Routine Playbook, Glossary & Shortcuts", desc: "Stress-free habit loop, A-Z definitions & keyboard keys", page: 12 },
       ];
 
@@ -1430,15 +1428,15 @@ function buildStandardPages(lang: GuideLang): GuideBookSpec {
           </ul>
         </div>
         <div class="card">
-          <h3>Budgets &amp; Envelopes (<code>/allocations</code>)</h3>
+          <h3>Plan &amp; Events: Sinking Funds &amp; Trip Planner (<code>/allocations</code>)</h3>
           <ul>
-            <li>Interactive quota simulator showing live impact on Projected Savings, Discretionary, and any budget shortfall before applying changes.</li>
-            <li>Set envelope rollover behavior (sweep unspent amounts to Core Savings or keep) and create monthly reserves for periodic multi-month bills.</li>
+            <li>Preview Daily Living or Savings quota shifts with real-time impact before applying, and manage persistent Active Sinking Funds with instant <strong>+ Contribute</strong> progress tracking.</li>
+            <li>Use <strong>Trip &amp; Event Budget Planner</strong> (<code>?sub=events</code>) for outings/travel: get Go 3-tier caps (<em>Conservative</em>, <em>Balanced</em>, <em>Max Safe</em>), track shared friend advances separately, and sweep unused amounts back cleanly.</li>
           </ul>
         </div>
       </div>
       <div class="card">
-        <h3>Safe Statement Import (<code>/import</code>)</h3>
+        <h3>Safe Statement Import (<code>/calendar?sub=import</code>)</h3>
         <p>Upload KlikBCA CSV exports or paste myBCA / Permata / PayLater lines safely without sharing bank credentials (up to 2 MB / 500 rows). Credit (<code>CR</code>) inflows and trailing <code>Saldo</code> columns are ignored, <code>48,000.00 DB</code> decimals parse cleanly, 10 to 16 digit account numbers mask into <code>****XXXX</code>, and locked-period rows shift forward automatically.</p>
       </div>`,
   );
@@ -1462,6 +1460,7 @@ function buildStandardPages(lang: GuideLang): GuideBookSpec {
           <ul>
             <li><strong>Safe-Spend Simulator:</strong> Menguji transaksi kredit sebelum membeli guna melihat periode penagihan dan dampaknya ke rasio utang.</li>
             <li><strong>Record Bridge Loan:</strong> Mencatat pinjaman dana talangan agar kas siklus berjalan bertambah tanpa merusak laporan gaji rutin.</li>
+            <li><strong>Komitmen Sekali Bayar (<code>/credit?sub=commitments</code>):</strong> Catat biaya insidental pasca-gajian (misalnya denda pembatalan bus outing) tanpa menghitungnya sebagai utang/cicilan (<code>0% DSR</code>), terhubung langsung dengan Cash Calendar &amp; Checklist.</li>
             <li><strong>Cards & Payoff Optimizer:</strong> Kelola langganan kartu kredit (termasuk tanggal akhir kontrak) dan bandingkan strategi lunas <em>Contractual</em> vs <em>Avalanche</em> vs <em>Snowball</em>.</li>
           </ul>
         </div>
@@ -1483,7 +1482,8 @@ function buildStandardPages(lang: GuideLang): GuideBookSpec {
           <ul>
             <li><strong>Safe-Spend Simulator:</strong> Pre-checks planned purchases by date and tenor to confirm landing period and DSR safety.</li>
             <li><strong>Bridge Loan:</strong> Logs short-term liquidity injections separately from recurring income while scheduling repayments.</li>
-            <li><strong>Card Controls & Optimizer:</strong> Manage recurring end-dates, early settlements, and compare <em>Contractual</em>, <em>Avalanche</em>, and <em>Snowball</em> payoff paths.</li>
+            <li><strong>One-Off Commitments (<code>/credit?sub=commitments</code>):</strong> Track non-recurring post-payday commitments (e.g. outing deposits/penalties) with 0% DSR debt impact alongside Cash Calendar &amp; Bill Checklist settlement toggles.</li>
+            <li><strong>Card Controls &amp; Optimizer:</strong> Manage recurring end-dates, early settlements, and compare <em>Contractual</em>, <em>Avalanche</em>, and <em>Snowball</em> payoff paths.</li>
           </ul>
         </div>
       </div>`,
@@ -1600,8 +1600,8 @@ function buildStandardPages(lang: GuideLang): GuideBookSpec {
           <h3>Playbook Hemat Waktu</h3>
           <ul>
             <li><strong>2-3 Hari Sekali (1 Menit):</strong> Cek total rekening/e-wallet jajan -> klik <strong>Update Bank Balance</strong> -> tekan <strong>Sync Balance</strong>.</li>
-            <li><strong>Belanja Cicilan / Kredit:</strong> Catat 1x di <code>Record Expense</code> atau unggah CSV/tempel mutasi ke <code>/import</code>.</li>
-            <li><strong>Setiap Hari Gajian:</strong> Buka <code>/payday-wizard</code> (<em>Payday &amp; Closing</em>) -> sahkan tanggal gaji cair &amp; konfirmasi deposit tabungan -> tutup periode sebelumnya agar history bersih.</li>
+            <li><strong>Belanja, Komitmen &amp; Acara (Real-Time):</strong> Catat sekali di <code>Record Expense</code>, <code>/credit?sub=commitments</code>, atau <code>/allocations?sub=events</code> — tampilan antarmenu terbarui otomatis tanpa perlu muat ulang.</li>
+            <li><strong>Setiap Hari Gajian:</strong> Buka <code>/payroll?sub=closing</code> (<em>Payday &amp; Closing</em>) -> sahkan tanggal gaji cair &amp; konfirmasi deposit tabungan -> tutup periode sebelumnya agar history bersih.</li>
           </ul>
         </div>
         <div class="card">
@@ -1625,8 +1625,8 @@ function buildStandardPages(lang: GuideLang): GuideBookSpec {
           <h3>Two-Minute Routine Playbook</h3>
           <ul>
             <li><strong>Every 2-3 Days (60 Seconds):</strong> Click <strong>Update Bank Balance</strong> on Overview, type your real total, and hit <strong>Sync Balance</strong>. Review <code>Cycle Budget Used</code> vs elapsed timeline.</li>
-            <li><strong>Credit / PayLater Activity:</strong> Log purchases once via <code>Record Expense</code> or import KlikBCA/myBCA lines weekly on <code>/import</code>.</li>
-            <li><strong>On Payday:</strong> Run <code>/payday-wizard</code> (<em>Payday &amp; Closing</em>) to confirm salary date, confirm deposit, settle obligations, and close completed cycles.</li>
+            <li><strong>Real-Time Credit, One-Off &amp; Trip Logging:</strong> Log once via <code>Record Expense</code>, <code>/credit?sub=commitments</code>, or <code>/allocations?sub=events</code> (or import KlikBCA CSV via <code>/calendar?sub=import</code>) and cross-route data updates live without refreshing.</li>
+            <li><strong>On Payday:</strong> Run <code>/payroll?sub=closing</code> (<em>Payday &amp; Closing</em>) to confirm salary date, confirm deposit, settle obligations, and close completed cycles.</li>
           </ul>
         </div>
         <div class="card">
@@ -1661,7 +1661,7 @@ function buildStandardPages(lang: GuideLang): GuideBookSpec {
       : "Complete end-to-end guide to zero-friction Wallet Syncing, custom budgets, cutoff routing, savings goals, wishlist simulations, and Marquee AI.",
     editionBadge: isId ? "Edisi Pengguna Standar" : "Standard Client Edition",
     audienceLabel: isId ? "Pengguna Standar (Standard General)" : "Standard General Workspace Users",
-    versionLabel: "v2.9 · Nov 2026 · ID/EN",
+    versionLabel: "v3.0 · Nov 2026 · ID/EN",
     sheetsHtml: [],
   };
   spec.sheetsHtml = [buildCoverSheet(spec), ...pageBodies];

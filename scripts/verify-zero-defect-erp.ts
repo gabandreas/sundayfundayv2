@@ -83,8 +83,8 @@ async function main() {
     assert.equal(novPacing.daysInCycle, 30, '11/2026 must be 30 days (28 Oct – 26 Nov)');
     assert.equal(novPacing.daysRemaining, 5, '11/2026 on Nov 22 must have 5 days remaining');
     assert.equal(Math.round(novPacing.totalOperationalBudget), 1720316, '11/2026 pacing totalOperationalBudget must be 1,720,316');
-    assert.equal(Math.round(novPacing.totalDailySpent), 1620316, '11/2026 pacing totalDailySpent must be 1,620,316 (with Nov 22 Rp 140k + Nov 23 Rp 60k cash syncs)');
-    assert.equal(Math.round(novPacing.remainingBudget), 100000, '11/2026 pacing remainingBudget must be Rp 100,000');
+    assert.equal(Math.round(novPacing.totalDailySpent), 1635478, '11/2026 pacing totalDailySpent must be 1,635,478 (with Nov 22 Rp 140k + Nov 23 Rp 60k + Nov 24 Rp 15,162 cash syncs)');
+    assert.equal(Math.round(novPacing.remainingBudget), 84838, '11/2026 pacing remainingBudget must be Rp 84,838');
 
     // Upcoming period (22 Nov 2026): 12/2026 (27 Nov – 27 Dec 2026, PRE_PAYDAY Day 0, starts in 5 days) with Natal THR H-7 Dec 18 & Nov 25 Benefit EWA (-Rp 360.500)
     assert.equal(Math.round(dec26?.finalTotalIncome ?? -1), 9376925, '12/2026 finalTotalIncome (Bank Salary 5,543,500 + Natal THR 3,833,425) must be 9,376,925');

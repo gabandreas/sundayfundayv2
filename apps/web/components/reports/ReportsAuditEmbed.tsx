@@ -8,8 +8,10 @@ import {
   fetchAuditReport,
 } from "@/lib/api";
 import { AuditStudio } from "@/components/audit/AuditStudio";
+import { usePeriod } from "@/context/PeriodContext";
 
 export function ReportsAuditEmbed() {
+  const { revisionTick } = usePeriod();
   const [report, setReport] = useState<AuditEvaluationResult | null>(null);
   const [logs, setLogs] = useState<PaginatedAuditLogs | null>(null);
   const [loading, setLoading] = useState(true);
@@ -28,7 +30,7 @@ export function ReportsAuditEmbed() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [revisionTick]);
 
   if (loading && !report) {
     return (

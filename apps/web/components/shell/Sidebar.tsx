@@ -54,32 +54,39 @@ interface RouteItem {
 }
 
 export const SUBMODULES_BY_ROUTE: Record<string, SubModuleDef[]> = {
-  "/payroll": [
-    { key: "payslip", labelKey: "sub.payroll.payslip", defaultSub: true },
-    { key: "timeline", labelKey: "sub.payroll.timeline" },
-    { key: "lifeenergy", labelKey: "sub.payroll.lifeenergy" },
+  "/calendar": [
+    { key: "calendar", labelKey: "sub.cashflow.calendar", defaultSub: true },
+    { key: "ledger", labelKey: "sub.cashflow.ledger" },
+    { key: "import", labelKey: "sub.cashflow.import" },
   ],
-  "/allocations": [
-    { key: "waterfall", labelKey: "sub.allocations.waterfall", defaultSub: true },
-    { key: "envelopes", labelKey: "sub.allocations.envelopes", aliases: ["revisions"] },
+  "/payroll": [
+    { key: "payslip", labelKey: "sub.payroll.payslip", defaultSub: true, aliases: ["simulator"] },
+    { key: "closing", labelKey: "sub.payroll.closing", aliases: ["timeline", "wizard"] },
+    { key: "lifeenergy", labelKey: "sub.payroll.lifeenergy" },
   ],
   "/credit": [
     { key: "matrix", labelKey: "sub.credit.matrix", defaultSub: true, aliases: ["overview", "cards"] },
-    { key: "simulator", labelKey: "sub.credit.simulator", aliases: ["contracts", "reconciler"] },
+    { key: "commitments", labelKey: "sub.credit.commitments", aliases: ["subscriptions", "recurring", "bills"] },
+    { key: "simulator", labelKey: "sub.credit.simulator", aliases: ["contracts", "wishlist", "cutoff", "reconciler"] },
+  ],
+  "/allocations": [
+    { key: "plan", labelKey: "sub.allocations.plan", defaultSub: true, aliases: ["waterfall", "envelopes", "revisions"] },
+    { key: "events", labelKey: "sub.allocations.events", aliases: ["trips", "outing"] },
+    { key: "scenarios", labelKey: "sub.allocations.scenarios", aliases: ["whatif", "wishlist"] },
   ],
   "/savings": [
-    { key: "pockets", labelKey: "sub.savings.vault", defaultSub: true, aliases: ["vault"] },
-    { key: "runway", labelKey: "sub.savings.networth", aliases: ["networth", "forecaster"] },
+    { key: "pockets", labelKey: "sub.savings.pockets", defaultSub: true, aliases: ["vault"] },
+    { key: "runway", labelKey: "sub.savings.runway", aliases: ["networth", "forecaster"] },
   ],
   "/reports": [
-    { key: "executive", labelKey: "sub.reports.executive", defaultSub: true },
-    { key: "variance", labelKey: "sub.reports.variance" },
-    { key: "export", labelKey: "sub.reports.export", aliases: ["audit"] },
+    { key: "summary", labelKey: "sub.reports.summary", defaultSub: true, aliases: ["executive"] },
+    { key: "insights", labelKey: "sub.reports.insights", aliases: ["variance", "audit", "trend", "analytics"] },
+    { key: "export", labelKey: "sub.reports.export" },
   ],
   "/preferences": [
     { key: "formula", labelKey: "sub.preferences.formula", defaultSub: true, aliases: ["payroll", "sandbox"] },
-    { key: "instruments", labelKey: "sub.preferences.instruments", aliases: ["policy"] },
-    { key: "templates", labelKey: "sub.preferences.templates", aliases: ["buckets", "accounts"] },
+    { key: "instruments", labelKey: "sub.preferences.instruments", aliases: ["policy", "accounts"] },
+    { key: "templates", labelKey: "sub.preferences.templates", aliases: ["buckets"] },
     { key: "display", labelKey: "sub.preferences.display", aliases: ["navigation", "modules", "requests", "ai", "marquee", "copilot"] },
     { key: "notifications", labelKey: "sub.preferences.notifications", aliases: ["killswitch"] },
     { key: "backup", labelKey: "sub.preferences.backup" },
@@ -95,22 +102,8 @@ const PRIMARY_ROUTES: RouteItem[] = [
     moduleKey: "overview",
   },
   {
-    labelKey: "nav.ledger",
-    standardLabelKey: "nav.standard.transactions",
-    href: "/ledger",
-    icon: ReceiptText,
-    moduleKey: "ledger",
-    standardOnly: true,
-  },
-  {
-    labelKey: "nav.paydayWizard",
-    href: "/payday-wizard",
-    icon: ListChecks,
-    moduleKey: "payday_wizard",
-  },
-  {
     labelKey: "nav.cashRadar",
-    standardLabelKey: "nav.standard.bills",
+    standardLabelKey: "nav.standard.transactions",
     href: "/calendar",
     icon: CalendarDays,
     moduleKey: "cash_radar",
@@ -123,17 +116,18 @@ const PRIMARY_ROUTES: RouteItem[] = [
     moduleKey: "corporate_payroll",
   },
   {
+    labelKey: "nav.credit",
+    standardLabelKey: "nav.standard.bills",
+    href: "/credit",
+    icon: CreditCard,
+    moduleKey: "credit_liabilities",
+  },
+  {
     labelKey: "nav.allocations",
     standardLabelKey: "nav.standard.budgets",
     href: "/allocations",
     icon: ArrowDownNarrowWide,
     moduleKey: "allocations",
-  },
-  {
-    labelKey: "nav.credit",
-    href: "/credit",
-    icon: CreditCard,
-    moduleKey: "credit_liabilities",
   },
   {
     labelKey: "nav.savings",
@@ -142,28 +136,9 @@ const PRIMARY_ROUTES: RouteItem[] = [
     icon: PiggyBank,
     moduleKey: "savings_vault",
   },
-  {
-    labelKey: "nav.import",
-    href: "/import",
-    icon: FileUp,
-    moduleKey: "statement_import",
-  },
 ];
 
 const ANALYSIS_ROUTES: RouteItem[] = [
-  {
-    labelKey: "nav.scenarios",
-    standardLabelKey: "nav.standard.planner",
-    href: "/scenarios",
-    icon: FlaskConical,
-    moduleKey: "scenarios",
-  },
-  {
-    labelKey: "nav.analytics",
-    href: "/analytics",
-    icon: BarChart3,
-    moduleKey: "advanced_analytics",
-  },
   {
     labelKey: "nav.reports",
     standardLabelKey: "nav.standard.reports",
@@ -233,10 +208,6 @@ export function Sidebar({
   });
 
   const rawSystemRoutes: RouteItem[] = [
-    ...(!isBespokeWorkspace && isModuleEnabled("wishlist_simulator")
-      ? [{ labelKey: "nav.wishlist" as TranslationKey, href: "/wishlist", icon: BookmarkCheck }]
-      : []),
-    { labelKey: "nav.subscriptions", href: "/subscriptions", icon: Repeat },
     {
       labelKey: "nav.preferences",
       href: "/preferences",
@@ -288,7 +259,7 @@ export function Sidebar({
           <Link
             key={sc.id}
             href={href}
-            prefetch={true}
+            prefetch={false}
             aria-current={isCurrentShortcut ? "page" : undefined}
             title={collapsed ? sc.label : undefined}
             onClick={(e) => {

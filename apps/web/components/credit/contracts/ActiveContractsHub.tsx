@@ -24,6 +24,7 @@ import {
 } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
 import { usePrivacyMask } from "@/context/PrivacyMaskContext";
+import { usePeriod } from "@/context/PeriodContext";
 
 interface ActiveContractsHubProps {
   contracts: CreditContract[];
@@ -97,6 +98,7 @@ export function ActiveContractsHub({
   const searchParams = useSearchParams();
   const isSpinjamFocus = searchParams.get("focus") === "spinjam";
   const { isAmountsMasked } = usePrivacyMask();
+  const { revisionTick } = usePeriod();
   const formatRp = (val: number) => formatRupiah(val, isAmountsMasked);
 
   const [selectedMilestoneKey, setSelectedMilestoneKey] = useState<string | null>(null);
@@ -123,7 +125,7 @@ export function ActiveContractsHub({
     return () => {
       active = false;
     };
-  }, [currentMonth, currentYear]);
+  }, [currentMonth, currentYear, revisionTick]);
 
   const runOptimizer = async (nextAmount: number, targetTitle?: string) => {
     setLumpSum(nextAmount);

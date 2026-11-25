@@ -127,7 +127,7 @@ export function SavingsClientView({
     window.dispatchEvent(new Event("erp:data-mutated"));
     setSavingP1Override(false);
   };
-  const { month, year, data } = usePeriodSlice<SavingsPeriodData>({
+  const { month, year, revisionTick, data } = usePeriodSlice<SavingsPeriodData>({
     initialMonth,
     initialYear,
     initialData,
@@ -184,7 +184,7 @@ export function SavingsClientView({
   useEffect(() => {
     let active = true;
     const cached = getCached<IntelligenceBundleResponse | null>(`intelligence:${month}:${year}:0`);
-    if (cached) {
+    if (cached && revisionTick === 0) {
       setIntel(cached);
     } else {
       fetchIntelligenceBundle(month, year).then((res) => {
@@ -194,7 +194,7 @@ export function SavingsClientView({
     return () => {
       active = false;
     };
-  }, [month, year]);
+  }, [month, year, revisionTick]);
 
   return (
     <div className="space-y-6 w-full max-w-full">

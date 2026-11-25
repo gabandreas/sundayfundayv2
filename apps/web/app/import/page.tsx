@@ -1,6 +1,13 @@
-import React from "react";
-import { StatementImportClient } from "@/components/import/StatementImportClient";
+import { redirect } from "next/navigation";
 
-export default function StatementImportPage() {
-  return <StatementImportClient />;
+export default async function ImportRedirectPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const sp = await searchParams;
+  const q = new URLSearchParams({ sub: "import" });
+  if (typeof sp.month === "string") q.set("month", sp.month);
+  if (typeof sp.year === "string") q.set("year", sp.year);
+  redirect(`/calendar?${q.toString()}`);
 }

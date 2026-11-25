@@ -1,24 +1,13 @@
-import React from "react";
-import { fetchDefaultActivePeriod } from "@/lib/api";
-import { getDefaultPayrollPeriod } from "@/lib/utils";
-import { ScenarioLabClient } from "@/components/scenarios/ScenarioLabClient";
+import { redirect } from "next/navigation";
 
-interface ScenariosPageProps {
-  searchParams: Promise<{ month?: string; year?: string }>;
-}
-
-export default async function ScenariosPage({ searchParams }: ScenariosPageProps) {
-  const params = await searchParams;
-  const fallback = getDefaultPayrollPeriod();
-  const resolvedDefault =
-    params.month && params.year ? null : await fetchDefaultActivePeriod();
-
-  const month = params.month
-    ? parseInt(params.month, 10)
-    : resolvedDefault?.month ?? fallback.month;
-  const year = params.year
-    ? parseInt(params.year, 10)
-    : resolvedDefault?.year ?? fallback.year;
-
-  return <ScenarioLabClient initialMonth={month} initialYear={year} />;
+export default async function ScenariosRedirectPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const sp = await searchParams;
+  const q = new URLSearchParams({ sub: "scenarios" });
+  if (typeof sp.month === "string") q.set("month", sp.month);
+  if (typeof sp.year === "string") q.set("year", sp.year);
+  redirect(`/allocations?${q.toString()}`);
 }

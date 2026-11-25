@@ -29,6 +29,7 @@ Quantitative analysis, cutoff simulation, waterfall projection, debt payoff comp
 | `reconciler` | `ParseStatementBatch` | `parseStatementBatchTs` | Raw bank/e-wallet statement parsing, instrument/category inference, fuzzy deduplication, cutoff auto-routing |
 | `montecarlo` | `RunMonteCarlo` | `runMonteCarloTs` | Concurrent worker-pool SplitMix64 12-month cashflow stress simulation (P5/P10/P50/P90 confidence bands & survival rate) |
 | `optimizer` | `OptimizeAllocationFrontier` | `optimizeAllocationFrontierTs` | Concurrent 4-way Pareto surplus optimizer across Debt Prepayment, Emergency Reserve, Goals, and Flexible pools |
+| `tripbudget` | `OptimizeTripBudget` | `optimizeTripBudgetTs` | 3-tier (`CONSERVATIVE` / `BALANCED` / `MAX_SAFE`) event cap optimizer with lossless category & weekend-weighted daily splits |
 
 - `reconciler` (`ParseStatementBatch` / `parseStatementBatchTs`): adds `LockedPeriodCodes` + `EarliestOpenMonth/Year` lock-safe routing (`advancedFromLocked`, `originalPeriodCode`) so closed periods never receive new statement writes.
 - `formula` (`Evaluate`, `EvaluateSuite` / `evaluateFormulaDslTs`, `evaluateFormulaSuiteTs`): pure recursive-descent arithmetic evaluator supporting 31 `{RESERVED}` tokens and 8 safe functions (`ROUND`, `FLOOR`, `CEIL`, `MIN`, `MAX`, `CLAMP`, `IF`, `PCT`), exposed via `POST /api/finance/formula/evaluate`.
@@ -62,6 +63,6 @@ Quantitative analysis, cutoff simulation, waterfall projection, debt payoff comp
 
 ## 4. Verification Commands
 
-- Go unit suite: `npm run erp:go:test` (`cd apps/go-engine && go test -v ./...`, 15 packages + 620 adversarial vectors)
+- Go unit suite: `npm run erp:go:test` (`cd apps/go-engine && go test -v ./...`, 16 packages + 640 adversarial vectors)
 - Binary rebuild (Windows + static Linux Serverless ELF): `npm run erp:go:build:all`
 - Go <-> TypeScript parity Jest suite: `cd apps/api && npx jest --no-cache`

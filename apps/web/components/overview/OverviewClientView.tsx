@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   DailyPacing,
   GlobalConfig,
@@ -10,6 +11,7 @@ import {
   OptimisticRoutineSpendPayload,
   SavingsVault,
   Transaction,
+  TripEventPlanDto,
   applyOptimisticRoutineSpendPatch,
   fetchGlobalConfig,
   fetchIntelligenceBundle,
@@ -18,6 +20,7 @@ import {
   fetchSavingsVault,
   fetchSnapshot,
   fetchTransactions,
+  fetchTripEvents,
   getCached,
   setCached,
 } from "@/lib/api";
@@ -40,7 +43,8 @@ import { RecordExpenseCard } from "@/components/overview/RecordExpenseCard";
 import { BillSettlementChecklistCard } from "@/components/overview/BillSettlementChecklistCard";
 import { OverviewDensityWrapper } from "@/components/overview/OverviewDensityWrapper";
 import { PreBoundaryNotice } from "@/components/shell/PreBoundaryNotice";
-import { formatSnapshotStatus } from "@/lib/utils";
+import { usePrivacyMask } from "@/context/PrivacyMaskContext";
+import { formatRupiah, formatSnapshotStatus } from "@/lib/utils";
 
 export interface OverviewPeriodData {
   snapshot: MonthlySnapshot | null;
@@ -64,7 +68,9 @@ export function OverviewClientView({
   initialData,
 }: OverviewClientViewProps) {
   const { t } = useLanguage();
-  const { month, year, data, setData, isPreBoundary } =
+  const { isAmountsMasked } = usePrivacyMask();
+  const [activeTripEvents, setActiveTripEvents] = useState<TripEventPlanDto[]>([]);
+  const { month, year, revisionTick, data, setData, isPreBoundary } =
     usePeriodSlice<OverviewPeriodData>({
       initialMonth,
       initialYear,
@@ -147,6 +153,32 @@ export function OverviewClientView({
       );
   }, [month, year, setData]);
 
+  useEffect(() => {
+    let active = true;
+    fetchTripEvents(month, year).then((list) => {
+      if (!active) return;
+      setActiveTripEvents(
+        list.filter((e) => e.status === "PLANNING" || e.status === "ACTIVE")
+      );
+    });
+    return () => {
+      active = false;
+    };
+  }, [month, year, revisionTick]);
+
+  useEffect(() => {
+    if (data.intelligence && revisionTick === 0) return;
+    let active = true;
+    fetchIntelligenceBundle(month, year).then((intel) => {
+      if (!active || !intel) return;
+      setCached(`intelligence:${month}:${year}:0`, intel);
+      setData((prev) => ({ ...prev, intelligence: intel }));
+    });
+    return () => {
+      active = false;
+    };
+  }, [month, year, revisionTick, data.intelligence, setData]);
+
   if (isPreBoundary) {
     return <PreBoundaryNotice month={month} year={year} />;
   }
@@ -215,6 +247,32 @@ export function OverviewClientView({
 
       {/* Renewal Notice Alert Banner (rendered strictly when action is required) */}
       <SubscriptionKillSwitchBanner initialData={killSwitches} />
+
+      {/* Conditional Active Trip / Event Budget Strip */}
+      {activeTripEvents.length > 0 && (
+        <div className="rounded-lg border border-border bg-surface px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-[11px] font-sans font-medium px-2 py-0.5 rounded bg-accent/15 text-accent">
+              Active Event Budget
+            </span>
+            {activeTripEvents.slice(0, 2).map((ev) => (
+              <span key={ev.id} className="text-xs font-sans text-text-primary">
+                <span className="font-semibold">{ev.title}</span>{" "}
+                <span className="font-mono tabular-nums text-text-secondary">
+                  ({formatRupiah(ev.metrics.remainingCapRp, isAmountsMasked)} left /{" "}
+                  {formatRupiah(ev.plannedCapRp, isAmountsMasked)})
+                </span>
+              </span>
+            ))}
+          </div>
+          <Link
+            href={`/allocations?sub=events&month=${month}&year=${year}`}
+            className="text-xs font-mono text-accent hover:underline"
+          >
+            Open Event Planner -&gt;
+          </Link>
+        </div>
+      )}
 
       {/* SECTION 1: ASYMMETRIC OVERVIEW WORKSPACE */}
       <OverviewDensityWrapper

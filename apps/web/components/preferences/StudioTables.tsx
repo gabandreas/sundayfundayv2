@@ -216,7 +216,7 @@ function SaveBanner({ savedMsg, errorMsg }: { savedMsg: string | null; errorMsg:
 // 1. Paycycle & Waterfall Formula Engine Table
 export function PaycycleFormulaStudioCard({ initialConfig }: { initialConfig?: ModularStudioConfig }) {
   const { studioConfig, updateStudioConfig } = usePerspective();
-  const { month, year } = usePeriod();
+  const { month, year, revisionTick } = usePeriod();
   const activeStudio = studioConfig ?? initialConfig;
   const [form, setForm] = useState<PaycycleFormulaConfig | null>(activeStudio?.paycycleFormulaConfig ?? null);
   const [liveVars, setLiveVars] = useState<Record<string, number>>({});
@@ -255,7 +255,7 @@ export function PaycycleFormulaStudioCard({ initialConfig }: { initialConfig?: M
     return () => {
       cancelled = true;
     };
-  }, [month, year]);
+  }, [month, year, revisionTick]);
 
   const previewRows = useMemo(
     () => (form ? computePreviewHorizons(form) : []),

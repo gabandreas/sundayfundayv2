@@ -23,6 +23,7 @@ import { formatIDR, formatDate } from "@/lib/utils";
 import { MetricCard } from "@/components/primitives/MetricCard";
 import { AnalyticsGoTelemetryStrip } from "@/components/analytics/AnalyticsGoTelemetryStrip";
 import { ReportsAuditEmbed } from "@/components/reports/ReportsAuditEmbed";
+import { ReportsInsightsTrendEmbed } from "@/components/reports/ReportsInsightsTrendEmbed";
 import { exportExecutiveReportToExcel } from "@/lib/exportReportsExcel";
 import { PageHeader } from "@/components/primitives/PageHeader";
 import { BrandMark } from "@/components/primitives/BrandMark";
@@ -86,18 +87,21 @@ export function ReportsClientView({
 
   const initialSubMode: ReportsSubKey =
     activeTab === "comparative" || activeTab === "dossier"
-      ? "variance"
+      ? "insights"
       : activeTab === "amortization" || activeTab === "forecast"
         ? "export"
-        : "executive";
+        : "summary";
   const [activeSubMode, selectSubMode] = useSubModule<ReportsSubKey>(
     REPORTS_SUB_KEYS,
     initialSubMode,
     {
-      statement: "executive",
-      comparative: "variance",
-      audit: "variance",
-      dossier: "variance",
+      statement: "summary",
+      executive: "summary",
+      comparative: "insights",
+      variance: "insights",
+      audit: "insights",
+      trend: "insights",
+      analytics: "insights",
       amortization: "export",
       forecast: "export",
     },
@@ -192,8 +196,8 @@ export function ReportsClientView({
     }
   };
 
-  const isExecutiveTab = activeSubMode === "executive";
-  const isVarianceTab = activeSubMode === "variance";
+  const isExecutiveTab = activeSubMode === "summary";
+  const isVarianceTab = activeSubMode === "insights";
   const isExportTab = activeSubMode === "export";
 
   const totalInDenominator = Math.max(1, mc.kpis.totalMoneyIn);
@@ -513,8 +517,8 @@ export function ReportsClientView({
       <div className="print-hidden">
         <SubModuleNav
           items={[
-            { key: "executive", label: t("sub.reports.executive") },
-            { key: "variance", label: t("sub.reports.variance") },
+            { key: "summary", label: t("sub.reports.summary") },
+            { key: "insights", label: t("sub.reports.insights") },
             { key: "export", label: t("sub.reports.export") },
           ]}
           activeKey={activeSubMode}
@@ -1697,7 +1701,7 @@ export function ReportsClientView({
           </div>
         </div>
 
-        <AnalyticsGoTelemetryStrip />
+        <ReportsInsightsTrendEmbed scope={scope} />
       </div>
       )}
 

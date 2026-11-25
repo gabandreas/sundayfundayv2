@@ -17,19 +17,22 @@ export const PREFERENCES_TAB_KEYS: readonly PreferencesTabKey[] = [
   "backup",
 ];
 
-export const PAYROLL_SUB_KEYS = ["payslip", "timeline", "lifeenergy"] as const;
+export const CASHFLOW_SUB_KEYS = ["calendar", "ledger", "import"] as const;
+export type CashflowSubKey = (typeof CASHFLOW_SUB_KEYS)[number];
+
+export const PAYROLL_SUB_KEYS = ["payslip", "closing", "lifeenergy"] as const;
 export type PayrollSubKey = (typeof PAYROLL_SUB_KEYS)[number];
 
-export const ALLOCATIONS_SUB_KEYS = ["waterfall", "envelopes"] as const;
-export type AllocationsSubKey = (typeof ALLOCATIONS_SUB_KEYS)[number];
-
-export const CREDIT_SUB_KEYS = ["matrix", "simulator"] as const;
+export const CREDIT_SUB_KEYS = ["matrix", "commitments", "simulator"] as const;
 export type CreditSubKey = (typeof CREDIT_SUB_KEYS)[number];
+
+export const ALLOCATIONS_SUB_KEYS = ["plan", "events", "scenarios"] as const;
+export type AllocationsSubKey = (typeof ALLOCATIONS_SUB_KEYS)[number];
 
 export const SAVINGS_SUB_KEYS = ["pockets", "runway"] as const;
 export type SavingsSubKey = (typeof SAVINGS_SUB_KEYS)[number];
 
-export const REPORTS_SUB_KEYS = ["executive", "variance", "export"] as const;
+export const REPORTS_SUB_KEYS = ["summary", "insights", "export"] as const;
 export type ReportsSubKey = (typeof REPORTS_SUB_KEYS)[number];
 
 export function isValidPreferencesTab(val: string | undefined): val is PreferencesTabKey {

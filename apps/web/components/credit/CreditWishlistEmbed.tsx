@@ -8,6 +8,7 @@ import {
   fetchWishlistItems,
   getCached,
 } from "@/lib/api";
+import { usePeriod } from "@/context/PeriodContext";
 import { WishlistStudio } from "@/components/wishlist/WishlistStudio";
 
 interface CreditWishlistEmbedProps {
@@ -16,8 +17,9 @@ interface CreditWishlistEmbedProps {
 }
 
 export function CreditWishlistEmbed({ month, year }: CreditWishlistEmbedProps) {
+  const { revisionTick } = usePeriod();
   const [items, setItems] = useState<WishlistItem[] | null>(() => {
-    return getCached<WishlistItem[]>("wishlistItems") ?? null;
+    return getCached<WishlistItem[]>("wishlistItems:all") ?? null;
   });
   const [forwardSnapshots, setForwardSnapshots] = useState<MonthlySnapshot[]>([]);
   const [loading, setLoading] = useState<boolean>(items === null);
@@ -51,7 +53,7 @@ export function CreditWishlistEmbed({ month, year }: CreditWishlistEmbedProps) {
     return () => {
       active = false;
     };
-  }, [month, year]);
+  }, [month, year, revisionTick]);
 
   if (loading && !items) {
     return (

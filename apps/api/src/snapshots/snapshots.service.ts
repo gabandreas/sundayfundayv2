@@ -288,6 +288,21 @@ export class SnapshotsService {
         .filter((t) => t.type === 'CREDIT_BILL')
         .reduce((sum, t) => sum + Number(t.amount), 0);
 
+      const upfrontCommitments = tx.periodCommitment
+        ? await tx.periodCommitment.findMany({
+            where: {
+              userId: snapshot.userId,
+              month: snapshot.month,
+              year: snapshot.year,
+              fundingSource: 'PAYCHECK_UPFRONT',
+            },
+          })
+        : [];
+      const upfrontCommitmentsTotal = upfrontCommitments.reduce(
+        (sum, c) => sum + Math.max(0, Math.round(Number(c.amount) || 0)),
+        0,
+      );
+
       const modularResult = evaluateModularEngine({
         baseSalary: config.baseSalary,
         salaryAdjustment: snapshot.salaryAdjustment,
@@ -303,6 +318,7 @@ export class SnapshotsService {
         cycleDays: 30,
         totalCreditBills,
         totalDeductions,
+        upfrontCommitmentsTotal,
         payrollRules: modularRules.payrollRules,
         customAdjustments,
         allocationBuckets: modularRules.allocationBuckets,

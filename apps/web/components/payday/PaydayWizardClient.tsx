@@ -95,7 +95,8 @@ export function PaydayWizardClient({
       if (d.snapshot) setCached(`snapshot:${m}:${y}`, d.snapshot);
       if (d.payroll) setCached(`payroll:${m}:${y}`, d.payroll);
       if (d.savingsOverview) setCached("savings:overview", d.savingsOverview);
-      if (d.config) setCached("global:config", d.config);
+      if (d.config) setCached("globalConfig", d.config);
+      setCached(`lineItems:${m}:${y}`, d.lineItems);
     },
     readFromCache: (m, y) => {
       const prev = getPreviousPeriod(m, y);
@@ -103,17 +104,19 @@ export function PaydayWizardClient({
       const prevSnapshot = getCached<MonthlySnapshot | null>(`snapshot:${prev.month}:${prev.year}`);
       const payroll = getCached<PayrollResult | null>(`payroll:${m}:${y}`);
       const savingsOverview = getCached<SavingsOverviewResult | null>("savings:overview");
-      const config = getCached<GlobalConfig | null>("global:config");
+      const config = getCached<GlobalConfig | null>("globalConfig");
+      const lineItems = getCached<LiabilityLineItemDto[]>(`lineItems:${m}:${y}`);
       if (
         snapshot === undefined ||
         prevSnapshot === undefined ||
         payroll === undefined ||
         savingsOverview === undefined ||
-        config === undefined
+        config === undefined ||
+        lineItems === undefined
       ) {
         return undefined;
       }
-      return { snapshot, prevSnapshot, payroll, lineItems: [], savingsOverview, config };
+      return { snapshot, prevSnapshot, payroll, lineItems, savingsOverview, config };
     },
     fetchForPeriod: async (m, y) => {
       const prev = getPreviousPeriod(m, y);

@@ -2614,4 +2614,227 @@ export function runIntelligenceBatchTs(req: IntelligenceBatchRequest): Intellige
   };
 }
 
+// ---------------------------------------------------------------------------
+// Engine 12: Go-Parity Trip & Event Budget Optimizer
+// ---------------------------------------------------------------------------
+
+export interface TripOptimizeRequest {
+  eventType: string;
+  durationDays: number;
+  startDateIso?: string;
+  prepaidCommittedRp: number;
+  cycleDiscretionaryRp: number;
+  cycleEmergencyBufferRp: number;
+  cycleCoreSavingsRp: number;
+  cashRadarLowestPointRp: number;
+  remainingDaysInCycle: number;
+}
+
+export interface TripCategoryCap {
+  category: string;
+  label: string;
+  amountRp: number;
+  sharePct: number;
+}
+
+export interface TripDayCap {
+  dayIndex: number;
+  dateIso: string;
+  isWeekend: boolean;
+  recommendedCapRp: number;
+}
+
+export interface TripTierRecommendation {
+  tierCode: 'CONSERVATIVE' | 'BALANCED' | 'MAX_SAFE';
+  label: string;
+  variableSpendCapRp: number;
+  totalCapRp: number;
+  dailyAverageCapRp: number;
+  postTripLowestCashRp: number;
+  usesBufferRp: number;
+  savingsSafe: boolean;
+  guidance: string;
+  categorySplit: TripCategoryCap[];
+  dailyPlan: TripDayCap[];
+}
+
+export interface TripOptimizeResult {
+  eventType: string;
+  durationDays: number;
+  prepaidCommittedRp: number;
+  recommendedTier: 'CONSERVATIVE' | 'BALANCED' | 'MAX_SAFE';
+  conservative: TripTierRecommendation;
+  balanced: TripTierRecommendation;
+  maxSafe: TripTierRecommendation;
+}
+
+function resolveTripCategoryWeights(eventType: string): Array<{ code: string; label: string; pct: number }> {
+  switch (String(eventType || '').trim().toUpperCase()) {
+    case 'WEEKEND_TRIP':
+      return [
+        { code: 'FOOD_DRINK', label: 'Food & Drinks', pct: 38 },
+        { code: 'LOCAL_TRANSPORT', label: 'Local Transport', pct: 22 },
+        { code: 'ACTIVITIES', label: 'Activities & Stay', pct: 28 },
+        { code: 'CONTINGENCY', label: 'Contingency', pct: 12 },
+      ];
+    case 'VACATION':
+      return [
+        { code: 'FOOD_DRINK', label: 'Food & Drinks', pct: 34 },
+        { code: 'LOCAL_TRANSPORT', label: 'Local Transport', pct: 24 },
+        { code: 'ACTIVITIES', label: 'Activities & Stay', pct: 30 },
+        { code: 'CONTINGENCY', label: 'Contingency', pct: 12 },
+      ];
+    case 'CONCERT_EVENT':
+      return [
+        { code: 'FOOD_DRINK', label: 'Food & Drinks', pct: 30 },
+        { code: 'LOCAL_TRANSPORT', label: 'Local Transport', pct: 20 },
+        { code: 'ACTIVITIES', label: 'Tickets & Merch', pct: 38 },
+        { code: 'CONTINGENCY', label: 'Contingency', pct: 12 },
+      ];
+    default:
+      return [
+        { code: 'FOOD_DRINK', label: 'Food & Drinks', pct: 45 },
+        { code: 'LOCAL_TRANSPORT', label: 'Local Transport', pct: 20 },
+        { code: 'ACTIVITIES', label: 'Activities & Entry', pct: 20 },
+        { code: 'CONTINGENCY', label: 'Contingency', pct: 15 },
+      ];
+  }
+}
+
+function allocateLosslessInt(total: number, weights: number[]): number[] {
+  const n = weights.length;
+  const out = new Array<number>(n).fill(0);
+  if (n === 0 || total <= 0) return out;
+  let sumW = 0;
+  for (const w of weights) {
+    if (w > 0) sumW += w;
+  }
+  if (sumW <= 0) {
+    out[0] = total;
+    return out;
+  }
+  const rems: Array<{ idx: number; rem: number }> = [];
+  let assigned = 0;
+  for (let i = 0; i < n; i++) {
+    const safeW = weights[i] > 0 ? weights[i] : 0;
+    const num = total * safeW;
+    const q = Math.floor(num / sumW);
+    out[i] = q;
+    assigned += q;
+    rems.push({ idx: i, rem: num % sumW });
+  }
+  const leftover = total - assigned;
+  rems.sort((a, b) => (b.rem !== a.rem ? b.rem - a.rem : a.idx - b.idx));
+  for (let i = 0; i < leftover && i < n; i++) {
+    out[rems[i].idx] += 1;
+  }
+  return out;
+}
+
+export function optimizeTripBudgetTs(req: TripOptimizeRequest): TripOptimizeResult {
+  const dur = Math.min(30, Math.max(1, Math.trunc(req.durationDays || 1)));
+  const eventType = String(req.eventType || '').trim().toUpperCase() || 'DAY_OUTING';
+  const prepaid = Math.max(0, Math.round(req.prepaidCommittedRp || 0));
+  const disc = Math.max(0, Math.round(req.cycleDiscretionaryRp || 0));
+  const buf = Math.max(0, Math.round(req.cycleEmergencyBufferRp || 0));
+  const lowest = Math.round(req.cashRadarLowestPointRp || 0);
+  const headroom = Math.max(0, lowest);
+
+  const rawStart = String(req.startDateIso || '').trim().slice(0, 10);
+  const parsed = /^\d{4}-\d{2}-\d{2}$/.test(rawStart) ? new Date(`${rawStart}T00:00:00Z`) : null;
+  const startTime = parsed && !Number.isNaN(parsed.getTime()) ? parsed : new Date('2026-12-05T00:00:00Z');
+  const weekendBoost = eventType === 'VACATION' || eventType === 'WEEKEND_TRIP' ? 135 : 120;
+
+  const dayInfos: Array<{ iso: string; weekend: boolean; weight: number }> = [];
+  for (let i = 0; i < dur; i++) {
+    const dt = new Date(startTime.getTime() + i * 86400000);
+    const wd = dt.getUTCDay();
+    const isWknd = wd === 0 || wd === 6;
+    dayInfos.push({
+      iso: dt.toISOString().slice(0, 10),
+      weekend: isWknd,
+      weight: isWknd && dur > 1 ? weekendBoost : 100,
+    });
+  }
+
+  const catWeights = resolveTripCategoryWeights(eventType);
+
+  const rawCons = Math.floor((disc * 45 + 50) / 100);
+  const consVar = lowest >= 0 ? Math.min(rawCons, headroom) : 0;
+
+  const rawBal = Math.floor((disc * 75 + 50) / 100);
+  const balVar = lowest >= 0 ? Math.max(consVar, Math.min(rawBal, headroom)) : consVar;
+
+  const rawMax = disc + Math.floor((buf * 50 + 50) / 100);
+  const maxVar = Math.max(balVar, rawMax);
+
+  const buildTier = (
+    tierCode: 'CONSERVATIVE' | 'BALANCED' | 'MAX_SAFE',
+    label: string,
+    variableCap: number,
+    guidance: string,
+  ): TripTierRecommendation => {
+    const catAmts = allocateLosslessInt(
+      variableCap,
+      catWeights.map((c) => c.pct),
+    );
+    const dayAmts = allocateLosslessInt(
+      variableCap,
+      dayInfos.map((d) => d.weight),
+    );
+    const usesBuf = Math.max(0, variableCap - disc);
+    const postLowest = lowest - variableCap;
+    const dailyAvg = dur > 0 ? Math.floor((variableCap + Math.floor(dur / 2)) / dur) : 0;
+
+    return {
+      tierCode,
+      label,
+      variableSpendCapRp: variableCap,
+      totalCapRp: variableCap + prepaid,
+      dailyAverageCapRp: dailyAvg,
+      postTripLowestCashRp: postLowest,
+      usesBufferRp: usesBuf,
+      savingsSafe: usesBuf === 0 && postLowest >= 0,
+      guidance,
+      categorySplit: catWeights.map((c, idx) => ({
+        category: c.code,
+        label: c.label,
+        amountRp: catAmts[idx],
+        sharePct: c.pct,
+      })),
+      dailyPlan: dayInfos.map((d, idx) => ({
+        dayIndex: idx + 1,
+        dateIso: d.iso,
+        isWeekend: d.weekend,
+        recommendedCapRp: dayAmts[idx],
+      })),
+    };
+  };
+
+  return {
+    eventType,
+    durationDays: dur,
+    prepaidCommittedRp: prepaid,
+    recommendedTier: balVar === 0 && consVar === 0 ? 'CONSERVATIVE' : 'BALANCED',
+    conservative: buildTier(
+      'CONSERVATIVE',
+      'Conservative',
+      consVar,
+      `Uses 45% of cycle discretionary cash while keeping Rp ${lowest - consVar} headroom before next payday.`,
+    ),
+    balanced: buildTier(
+      'BALANCED',
+      'Optimal Recommended',
+      balVar,
+      'Uses up to 75% of discretionary surplus cleanly without touching Core Savings or dropping cycle lowest cash below zero.',
+    ),
+    maxSafe: buildTier(
+      'MAX_SAFE',
+      'Max Safe Cap',
+      maxVar,
+      'Upper limit combining full discretionary surplus and half of cycle emergency buffer before risking core savings.',
+    ),
+  };
+}
+
 export * from './formula-dsl';

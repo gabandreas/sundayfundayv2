@@ -18,6 +18,7 @@ import (
 	"sundayfunday.erp/go-engine/internal/reconciler"
 	"sundayfunday.erp/go-engine/internal/report"
 	"sundayfunday.erp/go-engine/internal/timeline"
+	"sundayfunday.erp/go-engine/internal/tripbudget"
 )
 
 func TestAdversarialFuzz600VectorsAll13Packages(t *testing.T) {
@@ -376,6 +377,23 @@ func TestAdversarialFuzz600VectorsAll13Packages(t *testing.T) {
 		})
 		if rep.SelectedPeriodLabel == "" {
 			t.Fatalf("report vector %d empty selected period label", i)
+		}
+		vectorCount++
+
+		// tripbudget
+		tb := tripbudget.OptimizeTripBudget(tripbudget.TripOptimizeRequest{
+			EventType:              []string{"DAY_OUTING", "WEEKEND_TRIP", "VACATION", "CONCERT_EVENT"}[i%4],
+			DurationDays:           1 + (i % 5),
+			StartDateIso:           "2026-12-04",
+			PrepaidCommittedRp:     int64((i % 3) * 100000),
+			CycleDiscretionaryRp:   living,
+			CycleEmergencyBufferRp: 250000,
+			CycleCoreSavingsRp:     1000000,
+			CashRadarLowestPointRp: living,
+			RemainingDaysInCycle:   15,
+		})
+		if tb.Conservative.TotalCapRp > tb.Balanced.TotalCapRp || tb.Balanced.TotalCapRp > tb.MaxSafe.TotalCapRp {
+			t.Fatalf("tripbudget vector %d ordering violation", i)
 		}
 		vectorCount++
 	}

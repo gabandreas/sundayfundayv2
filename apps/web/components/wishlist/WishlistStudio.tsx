@@ -6,6 +6,7 @@ import { syncTabInUrl } from "@/lib/tabs";
 import { WishlistTabNav, WishlistTabType } from "./WishlistTabNav";
 import { WishlistPlannerView } from "./WishlistPlannerView";
 import { WishlistVaultTable } from "./WishlistVaultTable";
+import { usePeriod } from "@/context/PeriodContext";
 
 interface WishlistStudioProps {
   month: number;
@@ -22,6 +23,7 @@ export function WishlistStudio({
   items,
   forwardSnapshots,
 }: WishlistStudioProps) {
+  const { revisionTick } = usePeriod();
   const [activeTab, setActiveTab] = useState<WishlistTabType>(initialTab);
   const [intel, setIntel] = useState<IntelligenceBundleResponse | null>(null);
 
@@ -32,7 +34,7 @@ export function WishlistStudio({
   useEffect(() => {
     let active = true;
     const cached = getCached<IntelligenceBundleResponse | null>(`intelligence:${month}:${year}:0`);
-    if (cached) {
+    if (cached && revisionTick === 0) {
       setIntel(cached);
     } else {
       fetchIntelligenceBundle(month, year).then((res) => {
@@ -42,7 +44,7 @@ export function WishlistStudio({
     return () => {
       active = false;
     };
-  }, [month, year]);
+  }, [month, year, revisionTick]);
 
   const handleSelectTab = (nextTab: WishlistTabType) => {
     if (nextTab === activeTab) return;

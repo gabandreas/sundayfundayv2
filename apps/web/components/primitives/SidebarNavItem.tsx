@@ -36,7 +36,7 @@ export function SidebarNavItem({
   return (
     <Link
       href={href}
-      prefetch={true}
+      prefetch={false}
       onClick={onClick}
       aria-current={isActive ? "page" : undefined}
       title={collapsed ? label : undefined}

@@ -220,6 +220,16 @@ export interface CashRadarItemInput {
   isFinalSlice?: boolean;
 }
 
+export interface CashRadarCommitmentInput {
+  id: number;
+  dateIso: string;
+  title: string;
+  category: string;
+  fundingSource: string;
+  status: string;
+  amountRp: number;
+}
+
 export interface CashRadarRequest {
   periodMonth: number;
   periodYear: number;
@@ -236,6 +246,7 @@ export interface CashRadarRequest {
   creditCardDueRp: number;
   personalDebtItems?: CashRadarItemInput[];
   loggedTransactions?: CashRadarTxInput[];
+  commitments?: CashRadarCommitmentInput[];
   paylaterBreakdown?: CashRadarSubItem[];
   creditCardBreakdown?: CashRadarSubItem[];
   holidaysIso?: string[];
@@ -1281,6 +1292,29 @@ export function buildCashRadarTs(req: CashRadarRequest): CashRadarResult {
 
   let extraIncomeSum = 0;
   let directOutflows = 0;
+  (req.commitments ?? []).forEach((cm) => {
+    const amt = Math.round(cm.amountRp ?? 0);
+    if (amt <= 0) return;
+    const rawDate = (cm.dateIso ?? '').trim();
+    if (rawDate.length < 10) return;
+    const dIso = rawDate.slice(0, 10);
+    if (dIso < gridStartIso || dIso > gridEndIso) return;
+    directOutflows += amt;
+    events.push({
+      id: `commitment-${cm.id}`,
+      dateIso: dIso,
+      nominalDateIso: '',
+      isBusinessDayShifted: false,
+      label: cm.title,
+      category: 'COMMITMENT',
+      signedAmountRp: -amt,
+      sliceLabel: String(cm.status || '').trim().toUpperCase(),
+      isFinalSlice: false,
+      notes: `Non-debt ${cm.category} · ${cm.fundingSource}`,
+      insideAllocatedPool: false,
+      subItems: [],
+    });
+  });
   (req.loggedTransactions ?? []).forEach((tx, idx) => {
     const amt = Math.round(tx.amountRp ?? 0);
     if (amt <= 0) return;

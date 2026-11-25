@@ -27,7 +27,7 @@ export function ScenarioLabClient({
 }: ScenarioLabClientProps) {
   const { t } = useLanguage();
   const { isAmountsMasked } = usePrivacyMask();
-  const { month, year } = usePeriod();
+  const { month, year, revisionTick } = usePeriod();
   const { toast } = useToast();
   const activeMonth = month || initialMonth;
   const activeYear = year || initialYear;
@@ -106,9 +106,9 @@ export function ScenarioLabClient({
 
   useEffect(() => {
     void executeStressTest(false);
-    // Initial auto-run per period; subsequent parameter tweaks run cleanly via button or explicit execute
+    // Re-run automatically when period or mutation revision changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeMonth, activeYear]);
+  }, [activeMonth, activeYear, revisionTick]);
 
   const runSimulation = useCallback(
     async (overrideInputs?: Partial<ScenarioSimulationRequest>) => {

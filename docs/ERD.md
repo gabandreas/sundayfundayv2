@@ -21,6 +21,12 @@ erDiagram
     User ||--o{ AuditLog : "userId (1:N audit trail)"
     User ||--o{ CustomFeatureRequest : "userId (1:N bespoke requests)"
     User ||--o{ TrustedIpAddress : "userId (1:N whitelisted IPs)"
+    User ||--o{ PeriodCommitment : "userId (1:N one-off commitments)"
+    User ||--o{ TripEventPlan : "userId (1:N event budgets)"
+    User ||--o{ TripExpenseItem : "userId (1:N event expenses)"
+    User ||--o{ SinkingFundItem : "userId (1:N sinking funds)"
+    TripEventPlan ||--o{ TripExpenseItem : "tripEventId (cascade expenses)"
+    TripEventPlan ||--o{ PeriodCommitment : "tripEventId (optional deposit)"
 
     AuthRateLimit {
         string key PK "email_or_user:normalizedIp"
@@ -325,6 +331,62 @@ erDiagram
         string priority
         string status
         int estimatedSetupFee
+    }
+
+    PeriodCommitment {
+        int id PK
+        int userId FK
+        int month
+        int year
+        string title
+        string category "OUTING | PENALTY | EVENT | FAMILY | MEDICAL | TRAVEL | OTHER"
+        float amount
+        datetime dueDate
+        string fundingSource "PAYCHECK_UPFRONT | DISCRETIONARY | EMERGENCY_BUFFER"
+        string status "UNPAID | RESERVED | PAID"
+        int tripEventId FK
+    }
+
+    TripEventPlan {
+        int id PK
+        int userId FK
+        int month
+        int year
+        string title
+        string eventType "OUTING | VACATION | WEEKEND | DINNER | CONCERT | OTHER"
+        datetime startDate
+        datetime endDate
+        float plannedCapRp
+        string recommendedTier "CONSERVATIVE | BALANCED | MAX_SAFE"
+        string status "PLANNING | ACTIVE | COMPLETED | CANCELLED"
+        float sweptUnusedRp
+        string sweptTo "CORE_SAVINGS | DISCRETIONARY"
+    }
+
+    TripExpenseItem {
+        int id PK
+        int tripEventId FK
+        int userId FK
+        datetime date
+        string label
+        string category
+        float amountRp
+        boolean isSharedAdvance
+        string counterpartyName
+        float reimbursedAmountRp
+        boolean isSettled
+    }
+
+    SinkingFundItem {
+        int id PK
+        int userId FK
+        string name
+        string category
+        float targetAmountRp
+        float savedAmountRp
+        int targetMonth
+        int targetYear
+        boolean isActive
     }
 ```
 

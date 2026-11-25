@@ -21,6 +21,10 @@ import { usePerspective } from "@/context/PerspectiveContext";
 import { PageHeader } from "@/components/primitives/PageHeader";
 import { SubModuleNav } from "@/components/primitives/SubModuleNav";
 import { EnvelopesAndSinkingPanel } from "@/components/finance/ModuleGoPanels";
+import { SinkingFundsPanel } from "@/components/allocations/SinkingFundsPanel";
+import { TripEventsPlannerPanel } from "@/components/events/TripEventsPlannerPanel";
+import { ScenarioLabClient } from "@/components/scenarios/ScenarioLabClient";
+import { CreditWishlistEmbed } from "@/components/credit/CreditWishlistEmbed";
 import { MetricCard } from "@/components/primitives/MetricCard";
 import {
   AllocationsDonutChart,
@@ -66,7 +70,19 @@ export function AllocationsClientView({
           .map((inst) => `${inst.name} (${inst.cutoffDay > 0 ? `${inst.cutoffDay}th` : "exact"}/${inst.dueDay}th)`)
           .join(" · ")}`
       : "Cutoffs driven dynamically by your configured payment instruments";
-  const [activeSub, selectSub] = useSubModule<AllocationsSubKey>(ALLOCATIONS_SUB_KEYS, "waterfall");
+  const [activeSub, selectSub] = useSubModule<AllocationsSubKey>(
+    ALLOCATIONS_SUB_KEYS,
+    "plan",
+    {
+      waterfall: "plan",
+      envelopes: "plan",
+      revisions: "plan",
+      trips: "events",
+      outing: "events",
+      whatif: "scenarios",
+      wishlist: "scenarios",
+    },
+  );
   const [intel, setIntel] = useState<IntelligenceBundleResponse | null>(null);
   const [revisions, setRevisions] = useState<BudgetRevision[]>([]);
   const [liveSnapshotOverride, setLiveSnapshotOverride] = useState<MonthlySnapshot | null>(null);
@@ -75,7 +91,7 @@ export function AllocationsClientView({
   const [quotaSaving, setQuotaSaving] = useState<boolean>(false);
   const [quotaMsg, setQuotaMsg] = useState<string | null>(null);
   const [quotaError, setQuotaError] = useState<string | null>(null);
-  const { month, year, data, isPreBoundary } =
+  const { month, year, revisionTick, data, isPreBoundary } =
     usePeriodSlice<AllocationsPeriodData>({
       initialMonth,
       initialYear,
@@ -227,7 +243,7 @@ export function AllocationsClientView({
   useEffect(() => {
     let active = true;
     const cached = getCached<IntelligenceBundleResponse | null>(`intelligence:${month}:${year}:0`);
-    if (cached) {
+    if (cached && revisionTick === 0) {
       setIntel(cached);
     } else {
       fetchIntelligenceBundle(month, year).then((res) => {
@@ -237,7 +253,7 @@ export function AllocationsClientView({
     return () => {
       active = false;
     };
-  }, [month, year]);
+  }, [month, year, revisionTick]);
 
   return (
     <div className="space-y-6 w-full max-w-full">
@@ -254,14 +270,15 @@ export function AllocationsClientView({
 
       <SubModuleNav
         items={[
-          { key: "waterfall", label: t("sub.allocations.waterfall") },
-          { key: "envelopes", label: t("sub.allocations.envelopes") },
+          { key: "plan", label: t("sub.allocations.plan") },
+          { key: "events", label: t("sub.allocations.events") },
+          { key: "scenarios", label: t("sub.allocations.scenarios") },
         ]}
         activeKey={activeSub}
         onSelect={selectSub}
       />
 
-      {activeSub === "waterfall" && (
+      {activeSub === "plan" && (
         <div className="space-y-8">
 
       {/* SECTION 1: Donut Visualization & Pocket Proportions */}
@@ -681,11 +698,21 @@ export function AllocationsClientView({
           )}
         </div>
       </details>
+
+      <SinkingFundsPanel isLocked={isLocked} />
+      <EnvelopesAndSinkingPanel intel={intel} />
         </div>
       )}
 
-      {activeSub === "envelopes" && (
-        <EnvelopesAndSinkingPanel intel={intel} />
+      {activeSub === "events" && (
+        <TripEventsPlannerPanel month={month} year={year} isLocked={isLocked} />
+      )}
+
+      {activeSub === "scenarios" && (
+        <div className="space-y-8">
+          <ScenarioLabClient initialMonth={month} initialYear={year} />
+          <CreditWishlistEmbed month={month} year={year} />
+        </div>
       )}
     </div>
   );

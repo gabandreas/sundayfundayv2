@@ -626,6 +626,154 @@ async function runLayer2DemoSandboxFuzz(baseUrl: string): Promise<void> {
   const u1NovAfter = await apiReq(baseUrl, u1Session, 'GET', '/api/snapshots?month=11&year=2026');
   assert.equal(Math.round(u1NovAfter.data.totalDeductions), 4522976, 'User #1 data altered after IDOR test!');
 
+  // 10b. Phase 3 (V3.0): One-Off Commitments, Trip & Event Planner + Go 3-Tier Optimizer, and Active Sinking Funds + Cross-Tenant IDOR
+  const preCommitSnap = await apiReq(baseUrl, guestSession, 'GET', '/api/snapshots?month=11&year=2026');
+  assert.equal(preCommitSnap.status, 200);
+  const baseDeductionsNov = Math.round(preCommitSnap.data.totalDeductions);
+
+  const createCommitRes = await apiReq(baseUrl, guestSession, 'POST', '/api/commitments', {
+    month: 11,
+    year: 2026,
+    title: 'QA Bus Outing Penalty',
+    category: 'OUTING',
+    amount: 100000,
+    dueDate: '2026-11-28',
+    fundingSource: 'PAYCHECK_UPFRONT',
+  });
+  assert.ok(
+    createCommitRes.status === 200 || createCommitRes.status === 201,
+    `Failed creating commitment: ${createCommitRes.rawText}`,
+  );
+  const commitId = createCommitRes.data.id;
+  assert.ok(Number.isInteger(commitId), 'Commitment id must be returned');
+
+  // Verify 0% DSR impact on totalDeductions while listed in commitments and Cash Radar
+  const postCommitSnap = await apiReq(baseUrl, guestSession, 'GET', '/api/snapshots?month=11&year=2026');
+  assert.equal(
+    Math.round(postCommitSnap.data.totalDeductions),
+    baseDeductionsNov,
+    'PAYCHECK_UPFRONT PeriodCommitment must never inflate Debt/DSR totalDeductions!',
+  );
+  const commitListRes = await apiReq(baseUrl, guestSession, 'GET', '/api/commitments?month=11&year=2026');
+  assert.equal(commitListRes.status, 200);
+  assert.ok(
+    (commitListRes.data?.items ?? []).some((c: any) => c.id === commitId),
+    'Created commitment must appear in GET /api/commitments',
+  );
+  const radarCommitRes = await apiReq(baseUrl, guestSession, 'GET', '/api/finance/cash-radar?month=11&year=2026');
+  assert.equal(radarCommitRes.status, 200);
+  assert.ok(
+    (radarCommitRes.data?.events ?? []).some((ev: any) => ev.category === 'COMMITMENT' && String(ev.id).includes(String(commitId))),
+    'Cash Radar must emit COMMITMENT event for PeriodCommitment',
+  );
+  const markCommitPaidRes = await apiReq(baseUrl, guestSession, 'PATCH', `/api/commitments/${commitId}/status`, {
+    status: 'PAID',
+  });
+  assert.equal(markCommitPaidRes.status, 200);
+  assert.equal(markCommitPaidRes.data.status, 'PAID');
+
+  const idorCommitDel = await apiReq(baseUrl, u1Session, 'DELETE', `/api/commitments/${commitId}`);
+  assert.ok(
+    idorCommitDel.status === 403 || idorCommitDel.status === 404,
+    `Cross-tenant IDOR on commitment expected 403/404, got ${idorCommitDel.status}`,
+  );
+  const delCommitRes = await apiReq(baseUrl, guestSession, 'DELETE', `/api/commitments/${commitId}`);
+  assert.equal(delCommitRes.status, 200);
+
+  // Trip & Event Planner + Go 3-tier optimizer + Shared Advance + Close & Sweep
+  const optRes = await apiReq(baseUrl, guestSession, 'POST', '/api/events/optimize', {
+    month: 11,
+    year: 2026,
+    eventType: 'OUTING',
+    durationDays: 2,
+    startDateIso: '2026-12-05',
+    prepaidCommittedRp: 100000,
+  });
+  assert.ok(optRes.status === 200 || optRes.status === 201, `Event optimize failed: ${optRes.rawText}`);
+  assert.ok(
+    optRes.data.conservative.totalCapRp <= optRes.data.balanced.totalCapRp &&
+      optRes.data.balanced.totalCapRp <= optRes.data.maxSafe.totalCapRp,
+    'Trip optimizer caps must preserve Conservative <= Balanced <= Max Safe monotonicity',
+  );
+
+  const evCreateRes = await apiReq(baseUrl, guestSession, 'POST', '/api/events', {
+    month: 11,
+    year: 2026,
+    title: 'QA Dec Outing',
+    eventType: 'OUTING',
+    startDate: '2026-12-05',
+    endDate: '2026-12-06',
+    plannedCapRp: 600000,
+    recommendedTier: 'BALANCED',
+  });
+  assert.ok(evCreateRes.status === 200 || evCreateRes.status === 201, `Create event failed: ${evCreateRes.rawText}`);
+  const evId = evCreateRes.data.id;
+
+  const expCreateRes = await apiReq(baseUrl, guestSession, 'POST', `/api/events/${evId}/expenses`, {
+    date: '2026-12-05',
+    label: 'Group Dinner Advance',
+    category: 'FOOD',
+    amountRp: 300000,
+    isSharedAdvance: true,
+    counterpartyName: 'Budi',
+  });
+  assert.ok(expCreateRes.status === 200 || expCreateRes.status === 201, `Create event expense failed: ${expCreateRes.rawText}`);
+  const expId = expCreateRes.data.id;
+
+  const expPatchRes = await apiReq(baseUrl, guestSession, 'PATCH', `/api/events/${evId}/expenses/${expId}`, {
+    reimbursedAmountRp: 200000,
+    isSettled: false,
+  });
+  assert.equal(expPatchRes.status, 200);
+
+  const evListRes = await apiReq(baseUrl, guestSession, 'GET', '/api/events?month=11&year=2026');
+  assert.equal(evListRes.status, 200);
+  const foundEv = (evListRes.data ?? []).find((e: any) => e.id === evId);
+  assert.ok(foundEv, 'Created event missing in GET /api/events');
+  assert.equal(Math.round(foundEv.metrics.netPersonalSpentRp), 100000, 'Expected netPersonalSpentRp = 100000 after 200k reimbursement');
+  assert.equal(Math.round(foundEv.metrics.pendingAdvanceRp), 100000, 'Expected pendingAdvanceRp = 100000');
+
+  const sweepRes = await apiReq(baseUrl, guestSession, 'POST', `/api/events/${evId}/close-sweep`, {
+    destination: 'CORE_SAVINGS',
+  });
+  assert.ok(sweepRes.status === 200 || sweepRes.status === 201, `Close-sweep failed: ${sweepRes.rawText}`);
+  assert.equal(Math.round(sweepRes.data.unusedAmountRp), 500000);
+
+  const idorEvDel = await apiReq(baseUrl, u1Session, 'DELETE', `/api/events/${evId}`);
+  assert.ok(
+    idorEvDel.status === 403 || idorEvDel.status === 404,
+    `Cross-tenant IDOR on event expected 403/404, got ${idorEvDel.status}`,
+  );
+  const delEvRes = await apiReq(baseUrl, guestSession, 'DELETE', `/api/events/${evId}`);
+  assert.equal(delEvRes.status, 200);
+
+  // Active Sinking Funds CRUD + Contribution + Intelligence telemetry link
+  const sfCreateRes = await apiReq(baseUrl, guestSession, 'POST', '/api/sinking-funds', {
+    name: 'QA Sinking Reserve',
+    category: 'TRAVEL',
+    targetAmountRp: 1200000,
+    savedAmountRp: 200000,
+    targetMonth: 6,
+    targetYear: 2027,
+  });
+  assert.ok(sfCreateRes.status === 200 || sfCreateRes.status === 201, `Create sinking fund failed: ${sfCreateRes.rawText}`);
+  const sfId = sfCreateRes.data.id;
+
+  const sfContribRes = await apiReq(baseUrl, guestSession, 'POST', `/api/sinking-funds/${sfId}/contribute`, {
+    amountRp: 250000,
+  });
+  assert.ok(sfContribRes.status === 200 || sfContribRes.status === 201, `Contribute sinking fund failed: ${sfContribRes.rawText}`);
+  assert.equal(Math.round(sfContribRes.data.savedAmountRp), 450000);
+
+  const intelSfRes = await apiReq(baseUrl, guestSession, 'GET', '/api/finance/intelligence?month=11&year=2026');
+  assert.equal(intelSfRes.status, 200);
+  assert.ok(
+    (intelSfRes.data?.envelopes?.sinkingFunds ?? []).some((s: any) => s.id === `db-${sfId}`),
+    'Intelligence envelopes.sinkingFunds must reflect active DB SinkingFundItem',
+  );
+  const delSfRes = await apiReq(baseUrl, guestSession, 'DELETE', `/api/sinking-funds/${sfId}`);
+  assert.equal(delSfRes.status, 200);
+
   // 11. Regression test for POST /api/auth/reset-demo (must wipe LiabilityLineItems & restore full Rp 1,805,000+ baseline)
   const wipeProbe = await apiReq(baseUrl, guestSession, 'POST', '/api/credit/line-items', {
     title: 'Reset Demo Wipe Check',

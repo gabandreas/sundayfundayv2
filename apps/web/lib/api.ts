@@ -393,12 +393,38 @@ interface SwrCacheEntry<T> {
 const clientSwrCache = new Map<string, SwrCacheEntry<any>>();
 const inFlightRequests = new Map<string, Promise<any>>();
 let cacheEpoch = 0;
+let lastMutationAt = 0;
 const SWR_STALE_MS = 60 * 1000; // 60s TTL
+const SYNC_CHANNEL_NAME = "sundayfunday-erp-sync";
+let syncChannel: BroadcastChannel | null = null;
+
+function getSyncChannel(): BroadcastChannel | null {
+  if (typeof window === "undefined" || typeof BroadcastChannel === "undefined") {
+    return null;
+  }
+  if (!syncChannel) {
+    syncChannel = new BroadcastChannel(SYNC_CHANNEL_NAME);
+  }
+  return syncChannel;
+}
+
+export function getLastMutationAt(): number {
+  return lastMutationAt;
+}
+
+export function getCacheEpoch(): number {
+  return cacheEpoch;
+}
 
 export function getCached<T>(key: string): T | undefined {
   if (typeof window === "undefined") return undefined;
   const entry = clientSwrCache.get(key);
-  return entry ? (entry.data as T) : undefined;
+  if (!entry) return undefined;
+  if (Date.now() - entry.timestamp > SWR_STALE_MS) {
+    clientSwrCache.delete(key);
+    return undefined;
+  }
+  return entry.data as T;
 }
 
 export function setCached<T>(key: string, data: T): void {
@@ -406,9 +432,13 @@ export function setCached<T>(key: string, data: T): void {
   clientSwrCache.set(key, { data, timestamp: Date.now() });
 }
 
-export function invalidateCache(keyPattern?: string | RegExp): void {
+export function invalidateCache(
+  keyPattern?: string | RegExp,
+  options?: { fromBroadcast?: boolean }
+): void {
   if (typeof window === "undefined") return;
   cacheEpoch += 1;
+  lastMutationAt = Date.now();
   if (!keyPattern) {
     clientSwrCache.clear();
     inFlightRequests.clear();
@@ -428,7 +458,29 @@ export function invalidateCache(keyPattern?: string | RegExp): void {
       }
     }
   }
+  if (!options?.fromBroadcast) {
+    try {
+      getSyncChannel()?.postMessage({
+        type: "INVALIDATE",
+        pattern: typeof keyPattern === "string" ? keyPattern : undefined,
+        at: lastMutationAt,
+      });
+    } catch {}
+  }
   window.dispatchEvent(new CustomEvent("erp:data-mutated"));
+}
+
+export function subscribeCrossTabInvalidation(onExternalMutation: () => void): () => void {
+  const ch = getSyncChannel();
+  if (!ch) return () => {};
+  const handler = (ev: MessageEvent) => {
+    if (ev?.data?.type === "INVALIDATE") {
+      invalidateCache(ev.data.pattern || undefined, { fromBroadcast: true });
+      onExternalMutation();
+    }
+  };
+  ch.addEventListener("message", handler);
+  return () => ch.removeEventListener("message", handler);
 }
 
 export interface OptimisticMatrixBulkPayload {
@@ -1244,6 +1296,7 @@ export async function evaluateAutoClosePeriods(): Promise<{
         error: Array.isArray(body.message) ? body.message.join(", ") : body.message || "Failed to evaluate auto-close",
       };
     }
+    invalidateCache();
     return { success: true, data: body };
   } catch (error: any) {
     return { success: false, error: error.message || "Network error" };
@@ -2308,6 +2361,7 @@ export async function updateKillSwitchNotificationConfig(
           : body.message || "Failed to update notification settings",
       };
     }
+    invalidateCache("killSwitches");
     return { success: true, data: body };
   } catch (error: any) {
     return { success: false, error: error.message || "Network error" };
@@ -2333,6 +2387,7 @@ export async function sendKillSwitchReminder(
           : body.message || "Failed to send reminder",
       };
     }
+    invalidateCache("killSwitches");
     return body;
   } catch (error: any) {
     return {
@@ -2852,6 +2907,7 @@ export async function createCustomRequest(data: {
         error: Array.isArray(body.message) ? body.message.join(", ") : body.message || "Failed to submit request",
       };
     }
+    invalidateCache();
     return { success: true, data: body };
   } catch (error: any) {
     return { success: false, error: error.message || "Network error" };
@@ -2885,6 +2941,7 @@ export async function updateCustomRequest(
         error: Array.isArray(body.message) ? body.message.join(", ") : body.message || "Failed to update request",
       };
     }
+    invalidateCache();
     return { success: true, data: body };
   } catch (error: any) {
     return { success: false, error: error.message || "Network error" };
@@ -2907,6 +2964,7 @@ export async function deleteCustomRequest(
         error: body.message || "Failed to delete request",
       };
     }
+    invalidateCache();
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message || "Network error" };
@@ -4348,6 +4406,7 @@ export async function restoreDatabaseBackup(payload: {
           : body.message || "Failed to restore ERP backup",
       };
     }
+    invalidateCache();
     return { success: true, data: body };
   } catch (error: any) {
     return { success: false, error: error.message || "Network error" };
@@ -4379,6 +4438,7 @@ export async function resetDemoSandbox(): Promise<{
         error: body.message || "Failed to reset demo sandbox",
       };
     }
+    invalidateCache();
     return { success: true, data: body };
   } catch (error: any) {
     return { success: false, error: error.message || "Network error" };
@@ -5351,6 +5411,7 @@ export async function updateAdminUserConfig(
   if (!res.ok) {
     throw new Error(data.message || "Failed to update user config");
   }
+  invalidateCache();
   return data;
 }
 
@@ -5488,6 +5549,9 @@ export async function restoreAdminBackup(payload: {
   if (!res.ok) {
     throw new Error(data.message || "Failed to restore backup");
   }
+  if (payload.mode === "RESTORE_OVERWRITE") {
+    invalidateCache();
+  }
   return data;
 }
 
@@ -5576,6 +5640,9 @@ export async function executeSqlQuery(payload: {
     (err as any).data = data;
     throw err;
   }
+  if (payload.mode === "EXECUTE_COMMIT") {
+    invalidateCache();
+  }
   return data;
 }
 
@@ -5628,6 +5695,7 @@ export async function createSqlRecord(
   if (!res.ok) {
     throw new Error(json.message || `Failed to insert record into "${tableName}"`);
   }
+  invalidateCache();
   return json;
 }
 
@@ -5648,6 +5716,7 @@ export async function updateSqlRecord(
   if (!res.ok) {
     throw new Error(json.message || `Failed to update record in "${tableName}"`);
   }
+  invalidateCache();
   return json;
 }
 
@@ -5666,6 +5735,7 @@ export async function deleteSqlRecord(
   if (!res.ok) {
     throw new Error(json.message || `Failed to delete record from "${tableName}"`);
   }
+  invalidateCache();
   return json;
 }
 
@@ -7253,7 +7323,9 @@ export async function updateMarqueeConfig(payload: {
       headers: await getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(payload),
     });
-    return handleResponse<MarqueeConfigResponse | null>(res, null);
+    const parsed = await handleResponse<MarqueeConfigResponse | null>(res, null);
+    if (parsed) invalidateCache();
+    return parsed;
   } catch {
     return null;
   }
@@ -7268,7 +7340,9 @@ export async function rotateMarqueeWebhookToken(): Promise<{
       method: "POST",
       headers: await getAuthHeaders({ "Content-Type": "application/json" }),
     });
-    return handleResponse<{ token: string; webhookTokenPreview: string } | null>(res, null);
+    const parsed = await handleResponse<{ token: string; webhookTokenPreview: string } | null>(res, null);
+    if (parsed) invalidateCache();
+    return parsed;
   } catch {
     return null;
   }
@@ -7301,6 +7375,7 @@ export async function deleteMarqueeMemory(id: string): Promise<boolean> {
       method: "DELETE",
       headers: await getAuthHeaders(),
     });
+    if (res.ok) invalidateCache();
     return res.ok;
   } catch {
     return false;
@@ -7405,8 +7480,7 @@ export async function saveSavingsPockets(
     if (!res.ok) {
       return { success: false, error: body?.message || "Failed to update savings pockets" };
     }
-    invalidateCache("savings");
-    invalidateCache("config");
+    invalidateCache();
     return { success: true, data: body };
   } catch (err: any) {
     return { success: false, error: err?.message || "Network error" };
@@ -7601,6 +7675,721 @@ export async function runScenarioStressTest(payload: {
       return { success: false, error: body?.message || "Stress test simulation failed" };
     }
     return { success: true, data: body };
+  } catch (err: any) {
+    return { success: false, error: err?.message || "Network error" };
+  }
+}
+
+// =========================================================================
+// PHASE 3: ONE-OFF COMMITMENTS, TRIP & EVENT PLANNER, AND SINKING FUNDS
+// =========================================================================
+
+export type CommitmentCategory =
+  | "OUTING"
+  | "PENALTY"
+  | "EVENT"
+  | "FAMILY"
+  | "MEDICAL"
+  | "TRAVEL"
+  | "OTHER";
+
+export type CommitmentFundingSource =
+  | "PAYCHECK_UPFRONT"
+  | "DISCRETIONARY"
+  | "EMERGENCY_BUFFER";
+
+export type CommitmentStatus = "UNPAID" | "RESERVED" | "PAID";
+
+export interface PeriodCommitmentDto {
+  id: number;
+  userId: number;
+  month: number;
+  year: number;
+  title: string;
+  category: CommitmentCategory;
+  amount: number;
+  dueDate: string;
+  fundingSource: CommitmentFundingSource;
+  status: CommitmentStatus;
+  paidAt: string | null;
+  tripEventId: number | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CommitmentsPeriodSummary {
+  totalRp: number;
+  paycheckUpfrontRp: number;
+  discretionaryRp: number;
+  bufferRp: number;
+  paidRp: number;
+  reservedRp: number;
+  unpaidRp: number;
+}
+
+export interface CommitmentsResponse {
+  items: PeriodCommitmentDto[];
+  summary: CommitmentsPeriodSummary;
+}
+
+export async function fetchCommitments(
+  month: number,
+  year: number
+): Promise<CommitmentsResponse> {
+  const key = `commitments:${year}-${month}`;
+  if (typeof window !== "undefined") {
+    const hit = getCached<CommitmentsResponse>(key);
+    if (hit) return hit;
+  }
+  const empty: CommitmentsResponse = {
+    items: [],
+    summary: {
+      totalRp: 0,
+      paycheckUpfrontRp: 0,
+      discretionaryRp: 0,
+      bufferRp: 0,
+      paidRp: 0,
+      reservedRp: 0,
+      unpaidRp: 0,
+    },
+  };
+  try {
+    const res = await fetch(
+      `${API_URL}/api/commitments?month=${month}&year=${year}`,
+      { headers: await getAuthHeaders(), cache: "no-store" }
+    );
+    const parsed = await handleResponse<CommitmentsResponse>(res, empty);
+    if (typeof window !== "undefined") setCached(key, parsed);
+    return parsed;
+  } catch {
+    return empty;
+  }
+}
+
+export async function createCommitment(payload: {
+  month: number;
+  year: number;
+  title: string;
+  category?: CommitmentCategory;
+  amount: number;
+  dueDate: string;
+  fundingSource?: CommitmentFundingSource;
+  tripEventId?: number;
+  notes?: string;
+}): Promise<{ success: boolean; data?: PeriodCommitmentDto; error?: string }> {
+  try {
+    const res = await fetch(`${API_URL}/api/commitments`, {
+      method: "POST",
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(payload),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return {
+        success: false,
+        error: Array.isArray(body.message)
+          ? body.message.join(", ")
+          : body.message || "Failed to save commitment",
+      };
+    }
+    invalidateCache();
+    return { success: true, data: body };
+  } catch (err: any) {
+    return { success: false, error: err?.message || "Network error" };
+  }
+}
+
+export async function updateCommitment(
+  id: number,
+  payload: Partial<{
+    title: string;
+    category: CommitmentCategory;
+    amount: number;
+    dueDate: string;
+    fundingSource: CommitmentFundingSource;
+    notes: string;
+  }>
+): Promise<{ success: boolean; data?: PeriodCommitmentDto; error?: string }> {
+  try {
+    const res = await fetch(`${API_URL}/api/commitments/${id}`, {
+      method: "PATCH",
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(payload),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return {
+        success: false,
+        error: Array.isArray(body.message)
+          ? body.message.join(", ")
+          : body.message || "Failed to update commitment",
+      };
+    }
+    invalidateCache();
+    return { success: true, data: body };
+  } catch (err: any) {
+    return { success: false, error: err?.message || "Network error" };
+  }
+}
+
+export async function updateCommitmentStatus(
+  id: number,
+  status: CommitmentStatus
+): Promise<{ success: boolean; data?: PeriodCommitmentDto; error?: string }> {
+  try {
+    const res = await fetch(`${API_URL}/api/commitments/${id}/status`, {
+      method: "PATCH",
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ status }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return {
+        success: false,
+        error: Array.isArray(body.message)
+          ? body.message.join(", ")
+          : body.message || "Failed to update commitment status",
+      };
+    }
+    invalidateCache();
+    return { success: true, data: body };
+  } catch (err: any) {
+    return { success: false, error: err?.message || "Network error" };
+  }
+}
+
+export async function deleteCommitment(
+  id: number
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${API_URL}/api/commitments/${id}`, {
+      method: "DELETE",
+      headers: await getAuthHeaders(),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      return {
+        success: false,
+        error: body?.message || "Failed to delete commitment",
+      };
+    }
+    invalidateCache();
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || "Network error" };
+  }
+}
+
+export type TripEventType =
+  | "OUTING"
+  | "VACATION"
+  | "WEEKEND"
+  | "DINNER"
+  | "CONCERT"
+  | "OTHER";
+
+export type TripEventStatus = "PLANNING" | "ACTIVE" | "COMPLETED" | "CANCELLED";
+
+export type TripTierCode = "CONSERVATIVE" | "BALANCED" | "MAX_SAFE";
+
+export interface TripTierAllocation {
+  tier: TripTierCode;
+  totalCapRp: number;
+  dailyCapRp: number;
+  prepaidCommittedRp: number;
+  freshBudgetNeededRp: number;
+  discretionarySharePct: number;
+  categorySplit: {
+    transportRp: number;
+    foodRp: number;
+    stayRp: number;
+    activitiesRp: number;
+    contingencyRp: number;
+  };
+  dailyCaps: Array<{
+    dayIndex: number;
+    dateIso: string;
+    isWeekend: boolean;
+    capRp: number;
+  }>;
+  rationale: string;
+}
+
+export interface TripOptimizeResult {
+  eventType: string;
+  durationDays: number;
+  availableHeadroomRp: number;
+  recommendedTier: TripTierCode;
+  conservative: TripTierAllocation;
+  balanced: TripTierAllocation;
+  maxSafe: TripTierAllocation;
+  engineSource?: string;
+}
+
+export interface TripExpenseItemDto {
+  id: number;
+  tripEventId: number;
+  userId: number;
+  date: string;
+  label: string;
+  category: string;
+  amountRp: number;
+  isSharedAdvance: boolean;
+  counterpartyName: string | null;
+  reimbursedAmountRp: number;
+  isSettled: boolean;
+  notes: string | null;
+  createdAt: string;
+}
+
+export interface TripEventMetricsDto {
+  totalGrossSpentRp: number;
+  totalReimbursedRp: number;
+  pendingAdvanceRp: number;
+  netPersonalSpentRp: number;
+  prepaidLinkedRp: number;
+  remainingCapRp: number;
+}
+
+export interface TripEventPlanDto {
+  id: number;
+  userId: number;
+  month: number;
+  year: number;
+  title: string;
+  eventType: TripEventType;
+  startDate: string;
+  endDate: string;
+  plannedCapRp: number;
+  recommendedTier: TripTierCode;
+  fundingSource: string;
+  status: TripEventStatus;
+  sweptUnusedRp: number;
+  sweptTo: string | null;
+  notes: string | null;
+  expenses: TripExpenseItemDto[];
+  commitments: PeriodCommitmentDto[];
+  metrics: TripEventMetricsDto;
+}
+
+export async function fetchTripEvents(
+  month: number,
+  year: number
+): Promise<TripEventPlanDto[]> {
+  const key = `events:${year}-${month}`;
+  if (typeof window !== "undefined") {
+    const hit = getCached<TripEventPlanDto[]>(key);
+    if (hit) return hit;
+  }
+  try {
+    const res = await fetch(`${API_URL}/api/events?month=${month}&year=${year}`, {
+      headers: await getAuthHeaders(),
+      cache: "no-store",
+    });
+    const parsed = await handleResponse<TripEventPlanDto[]>(res, []);
+    if (typeof window !== "undefined") setCached(key, parsed);
+    return parsed;
+  } catch {
+    return [];
+  }
+}
+
+export async function optimizeTripEvent(payload: {
+  month: number;
+  year: number;
+  eventType: TripEventType;
+  durationDays: number;
+  startDateIso?: string;
+  prepaidCommittedRp?: number;
+}): Promise<{ success: boolean; data?: TripOptimizeResult; error?: string }> {
+  try {
+    const res = await fetch(`${API_URL}/api/events/optimize`, {
+      method: "POST",
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(payload),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return {
+        success: false,
+        error: body?.message || "Failed to calculate trip recommendation",
+      };
+    }
+    return { success: true, data: body };
+  } catch (err: any) {
+    return { success: false, error: err?.message || "Network error" };
+  }
+}
+
+export async function createTripEvent(payload: {
+  month: number;
+  year: number;
+  title: string;
+  eventType?: TripEventType;
+  startDate: string;
+  endDate: string;
+  plannedCapRp: number;
+  recommendedTier?: TripTierCode;
+  fundingSource?: string;
+  prepaidAmountRp?: number;
+  createPrepaidCommitment?: boolean;
+  notes?: string;
+}): Promise<{ success: boolean; data?: TripEventPlanDto; error?: string }> {
+  try {
+    const res = await fetch(`${API_URL}/api/events`, {
+      method: "POST",
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(payload),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return {
+        success: false,
+        error: Array.isArray(body.message)
+          ? body.message.join(", ")
+          : body.message || "Failed to create event plan",
+      };
+    }
+    invalidateCache();
+    return { success: true, data: body };
+  } catch (err: any) {
+    return { success: false, error: err?.message || "Network error" };
+  }
+}
+
+export async function updateTripEvent(
+  id: number,
+  payload: Partial<{
+    title: string;
+    eventType: TripEventType;
+    startDate: string;
+    endDate: string;
+    plannedCapRp: number;
+    recommendedTier: TripTierCode;
+    status: TripEventStatus;
+    notes: string;
+  }>
+): Promise<{ success: boolean; data?: TripEventPlanDto; error?: string }> {
+  try {
+    const res = await fetch(`${API_URL}/api/events/${id}`, {
+      method: "PATCH",
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(payload),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return {
+        success: false,
+        error: body?.message || "Failed to update event plan",
+      };
+    }
+    invalidateCache();
+    return { success: true, data: body };
+  } catch (err: any) {
+    return { success: false, error: err?.message || "Network error" };
+  }
+}
+
+export async function deleteTripEvent(
+  id: number
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${API_URL}/api/events/${id}`, {
+      method: "DELETE",
+      headers: await getAuthHeaders(),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      return { success: false, error: body?.message || "Failed to delete event" };
+    }
+    invalidateCache();
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || "Network error" };
+  }
+}
+
+export async function createTripExpense(
+  eventId: number,
+  payload: {
+    date: string;
+    label: string;
+    category?: string;
+    amountRp: number;
+    isSharedAdvance?: boolean;
+    counterpartyName?: string;
+    reimbursedAmountRp?: number;
+    notes?: string;
+  }
+): Promise<{ success: boolean; data?: TripExpenseItemDto; error?: string }> {
+  try {
+    const res = await fetch(`${API_URL}/api/events/${eventId}/expenses`, {
+      method: "POST",
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(payload),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return {
+        success: false,
+        error: Array.isArray(body.message)
+          ? body.message.join(", ")
+          : body.message || "Failed to record event expense",
+      };
+    }
+    invalidateCache();
+    return { success: true, data: body };
+  } catch (err: any) {
+    return { success: false, error: err?.message || "Network error" };
+  }
+}
+
+export async function updateTripExpense(
+  eventId: number,
+  expenseId: number,
+  payload: Partial<{
+    label: string;
+    category: string;
+    amountRp: number;
+    isSharedAdvance: boolean;
+    counterpartyName: string;
+    reimbursedAmountRp: number;
+    isSettled: boolean;
+  }>
+): Promise<{ success: boolean; data?: TripExpenseItemDto; error?: string }> {
+  try {
+    const res = await fetch(
+      `${API_URL}/api/events/${eventId}/expenses/${expenseId}`,
+      {
+        method: "PATCH",
+        headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify(payload),
+      }
+    );
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return {
+        success: false,
+        error: body?.message || "Failed to update event expense",
+      };
+    }
+    invalidateCache();
+    return { success: true, data: body };
+  } catch (err: any) {
+    return { success: false, error: err?.message || "Network error" };
+  }
+}
+
+export async function deleteTripExpense(
+  eventId: number,
+  expenseId: number
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await fetch(
+      `${API_URL}/api/events/${eventId}/expenses/${expenseId}`,
+      {
+        method: "DELETE",
+        headers: await getAuthHeaders(),
+      }
+    );
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      return { success: false, error: body?.message || "Failed to delete expense" };
+    }
+    invalidateCache();
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || "Network error" };
+  }
+}
+
+export async function closeSweepTripEvent(
+  eventId: number,
+  destination: "CORE_SAVINGS" | "DISCRETIONARY"
+): Promise<{
+  success: boolean;
+  data?: {
+    event: TripEventPlanDto;
+    unusedAmountRp: number;
+    netPersonalSpent: number;
+    destination: string;
+  };
+  error?: string;
+}> {
+  try {
+    const res = await fetch(`${API_URL}/api/events/${eventId}/close-sweep`, {
+      method: "POST",
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ destination }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return {
+        success: false,
+        error: body?.message || "Failed to close event and sweep surplus",
+      };
+    }
+    invalidateCache();
+    return { success: true, data: body };
+  } catch (err: any) {
+    return { success: false, error: err?.message || "Network error" };
+  }
+}
+
+export interface SinkingFundItemDto {
+  id: number;
+  userId: number;
+  name: string;
+  category: string;
+  targetAmountRp: number;
+  savedAmountRp: number;
+  remainingRp: number;
+  targetMonth: number;
+  targetYear: number;
+  monthsRemaining: number;
+  monthlySetAsideRp: number;
+  progressPct: number;
+  isActive: boolean;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SinkingFundsResponse {
+  items: SinkingFundItemDto[];
+  totalMonthlySetAsideRp: number;
+  totalTargetRp: number;
+  totalSavedRp: number;
+}
+
+export async function fetchSinkingFunds(): Promise<SinkingFundsResponse> {
+  const key = "sinkingFunds:all";
+  if (typeof window !== "undefined") {
+    const hit = getCached<SinkingFundsResponse>(key);
+    if (hit) return hit;
+  }
+  const empty: SinkingFundsResponse = {
+    items: [],
+    totalMonthlySetAsideRp: 0,
+    totalTargetRp: 0,
+    totalSavedRp: 0,
+  };
+  try {
+    const res = await fetch(`${API_URL}/api/sinking-funds`, {
+      headers: await getAuthHeaders(),
+      cache: "no-store",
+    });
+    const parsed = await handleResponse<SinkingFundsResponse>(res, empty);
+    if (typeof window !== "undefined") setCached(key, parsed);
+    return parsed;
+  } catch {
+    return empty;
+  }
+}
+
+export async function createSinkingFund(payload: {
+  name: string;
+  category?: string;
+  targetAmountRp: number;
+  savedAmountRp?: number;
+  targetMonth: number;
+  targetYear: number;
+  notes?: string;
+}): Promise<{ success: boolean; data?: SinkingFundItemDto; error?: string }> {
+  try {
+    const res = await fetch(`${API_URL}/api/sinking-funds`, {
+      method: "POST",
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(payload),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return {
+        success: false,
+        error: Array.isArray(body.message)
+          ? body.message.join(", ")
+          : body.message || "Failed to create sinking fund",
+      };
+    }
+    invalidateCache();
+    return { success: true, data: body };
+  } catch (err: any) {
+    return { success: false, error: err?.message || "Network error" };
+  }
+}
+
+export async function updateSinkingFund(
+  id: number,
+  payload: Partial<{
+    name: string;
+    category: string;
+    targetAmountRp: number;
+    savedAmountRp: number;
+    targetMonth: number;
+    targetYear: number;
+    isActive: boolean;
+    notes: string;
+  }>
+): Promise<{ success: boolean; data?: SinkingFundItemDto; error?: string }> {
+  try {
+    const res = await fetch(`${API_URL}/api/sinking-funds/${id}`, {
+      method: "PATCH",
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(payload),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return {
+        success: false,
+        error: body?.message || "Failed to update sinking fund",
+      };
+    }
+    invalidateCache();
+    return { success: true, data: body };
+  } catch (err: any) {
+    return { success: false, error: err?.message || "Network error" };
+  }
+}
+
+export async function contributeSinkingFund(
+  id: number,
+  amountRp: number
+): Promise<{ success: boolean; data?: SinkingFundItemDto; error?: string }> {
+  try {
+    const res = await fetch(`${API_URL}/api/sinking-funds/${id}/contribute`, {
+      method: "POST",
+      headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ amountRp }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return {
+        success: false,
+        error: body?.message || "Failed to record contribution",
+      };
+    }
+    invalidateCache();
+    return { success: true, data: body };
+  } catch (err: any) {
+    return { success: false, error: err?.message || "Network error" };
+  }
+}
+
+export async function deleteSinkingFund(
+  id: number
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${API_URL}/api/sinking-funds/${id}`, {
+      method: "DELETE",
+      headers: await getAuthHeaders(),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      return { success: false, error: body?.message || "Failed to delete sinking fund" };
+    }
+    invalidateCache();
+    return { success: true };
   } catch (err: any) {
     return { success: false, error: err?.message || "Network error" };
   }

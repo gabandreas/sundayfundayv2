@@ -8,13 +8,14 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { getDefaultPayrollPeriod } from "@/lib/utils";
 import {
   fetchDefaultActivePeriod,
   prefetchHorizonData,
   prefetchPeriodData,
+  subscribeCrossTabInvalidation,
 } from "@/lib/api";
 
 interface PeriodContextValue {
@@ -35,6 +36,7 @@ function parsePositiveInt(val: string | null): number | null {
 }
 
 export function PeriodProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { user } = useAuth();
@@ -53,6 +55,7 @@ export function PeriodProvider({ children }: { children: React.ReactNode }) {
 
   const prefetchedForUserRef = useRef<number | null>(null);
   const resolvedDefaultForUserRef = useRef<number | null>(null);
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const monthRef = useRef<number>(month);
   const yearRef = useRef<number>(year);
   monthRef.current = month;
@@ -126,10 +129,17 @@ export function PeriodProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
 
-  // Re-notify reactive period views and re-warm horizon whenever client cache invalidates after a mutation
+  // Re-notify reactive period views, refresh RSC router cache, and re-warm horizon after a mutation
   useEffect(() => {
+    const scheduleRefresh = () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+      refreshTimerRef.current = setTimeout(() => {
+        router.refresh();
+      }, 150);
+    };
     const onMutated = () => {
       setRevisionTick((t) => t + 1);
+      scheduleRefresh();
       if (user?.id) {
         setTimeout(() => {
           void prefetchHorizonData(monthRef.current, yearRef.current);
@@ -137,8 +147,19 @@ export function PeriodProvider({ children }: { children: React.ReactNode }) {
       }
     };
     window.addEventListener("erp:data-mutated", onMutated);
-    return () => window.removeEventListener("erp:data-mutated", onMutated);
-  }, [user?.id]);
+    const unsubCrossTab = subscribeCrossTabInvalidation(() => {
+      setRevisionTick((t) => t + 1);
+      scheduleRefresh();
+    });
+    return () => {
+      window.removeEventListener("erp:data-mutated", onMutated);
+      unsubCrossTab();
+      if (refreshTimerRef.current) {
+        clearTimeout(refreshTimerRef.current);
+        refreshTimerRef.current = null;
+      }
+    };
+  }, [user?.id, router]);
 
   // Preload 12-month horizon (07/2026–06/2027) and adjacent months once per session/user
   useEffect(() => {
