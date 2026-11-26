@@ -1,6 +1,6 @@
 # Live Ledger State (`userId = 1` / Gabriel)
 
-Generated from Neon PostgreSQL Cloud at 2026-11-25T13:24:13.655Z.
+Generated from Neon PostgreSQL Cloud at 2026-11-26T06:09:46.609Z.
 Regenerate anytime via `npm run erp:report -- --write`.
 
 ## Global Configuration
@@ -20,10 +20,10 @@ Regenerate anytime via `npm run erp:report -- --write`.
 | 09/2026 | LOCKED | NO | Rp 5.881.400 | Rp 2.985.684 | Rp 2.045.000 | Rp 500.000 | Rp 716 | Rp 0 | 2026-08-25 |
 | 10/2026 | LOCKED | NO | Rp 5.791.000 | Rp 4.082.655 | Rp 991.000 | Rp 328.345 | Rp 0 | Rp 0 | 2026-09-28 |
 | 11/2026 | DRAFT | YES | Rp 5.891.000 | Rp 4.522.976 | Rp 1.720.316 | Rp 6.341 | Rp 250.000 | Rp 108.633 | 2026-10-28 |
-| 12/2026 | DRAFT | NO | Rp 9.376.925 | Rp 4.260.841 | Rp 1.500.000 | Rp 1.000.000 | Rp 2.316.084 | Rp 0 | 2026-11-27 |
-| 01/2027 | DRAFT | NO | Rp 5.941.000 | Rp 3.171.115 | Rp 1.500.000 | Rp 734.885 | Rp 0 | Rp 0 | 2026-12-28 |
-| 02/2027 | DRAFT | NO | Rp 5.891.000 | Rp 1.967.159 | Rp 1.500.000 | Rp 1.000.000 | Rp 888.841 | Rp 0 | 2027-01-27 |
-| 03/2027 | DRAFT | NO | Rp 5.891.000 | Rp 835.996 | Rp 1.500.000 | Rp 1.000.000 | Rp 2.020.004 | Rp 0 | 2027-02-26 |
+| 12/2026 | DRAFT | NO | Rp 9.376.925 | Rp 4.440.302 | Rp 1.500.000 | Rp 1.000.000 | Rp 2.136.623 | Rp 0 | 2026-11-27 |
+| 01/2027 | DRAFT | NO | Rp 5.941.000 | Rp 3.169.115 | Rp 1.500.000 | Rp 736.885 | Rp 0 | Rp 0 | 2026-12-28 |
+| 02/2027 | DRAFT | NO | Rp 5.891.000 | Rp 1.965.159 | Rp 1.500.000 | Rp 1.000.000 | Rp 890.841 | Rp 0 | 2027-01-27 |
+| 03/2027 | DRAFT | NO | Rp 5.891.000 | Rp 833.996 | Rp 1.500.000 | Rp 1.000.000 | Rp 2.022.004 | Rp 0 | 2027-02-26 |
 | 04/2027 | DRAFT | NO | Rp 5.766.000 | Rp 697.726 | Rp 1.500.000 | Rp 1.000.000 | Rp 2.033.274 | Rp 0 | 2027-03-29 |
 | 05/2027 | DRAFT | NO | Rp 5.916.000 | Rp 293.044 | Rp 1.500.000 | Rp 1.000.000 | Rp 2.587.956 | Rp 0 | 2027-04-27 |
 | 06/2027 | DRAFT | NO | Rp 5.891.000 | Rp 293.044 | Rp 1.500.000 | Rp 1.000.000 | Rp 2.562.956 | Rp 0 | 2027-05-27 |
@@ -47,10 +47,10 @@ Regenerate anytime via `npm run erp:report -- --write`.
 | SEP '26 (9/2026) | Rp 2.728.684 | Rp 0 | Rp 257.000 | Rp 2.985.684 |
 | OCT '26 (10/2026) | Rp 2.687.091 | Rp 720.564 | Rp 200.000 | Rp 3.607.655 |
 | NOV '26 (11/2026) | Rp 3.264.116 | Rp 1.060.900 | Rp 197.960 | Rp 4.522.976 |
-| DEC '26 (12/2026) | Rp 2.933.615 | Rp 657.256 | Rp 669.970 | Rp 4.260.841 |
-| JAN '27 (1/2027) | Rp 1.622.889 | Rp 628.256 | Rp 919.970 | Rp 3.171.115 |
-| FEB '27 (2/2027) | Rp 816.893 | Rp 628.256 | Rp 522.010 | Rp 1.967.159 |
-| MAR '27 (3/2027) | Rp 207.740 | Rp 628.256 | Rp 0 | Rp 835.996 |
+| DEC '26 (12/2026) | Rp 3.066.136 | Rp 704.196 | Rp 669.970 | Rp 4.440.302 |
+| JAN '27 (1/2027) | Rp 1.622.889 | Rp 626.256 | Rp 919.970 | Rp 3.169.115 |
+| FEB '27 (2/2027) | Rp 816.893 | Rp 626.256 | Rp 522.010 | Rp 1.965.159 |
+| MAR '27 (3/2027) | Rp 207.740 | Rp 626.256 | Rp 0 | Rp 833.996 |
 | APR '27 (4/2027) | Rp 88.182 | Rp 609.544 | Rp 0 | Rp 697.726 |
 | MAY '27 (5/2027) | Rp 0 | Rp 293.044 | Rp 0 | Rp 293.044 |
 | JUN '27 (6/2027) | Rp 0 | Rp 293.044 | Rp 0 | Rp 293.044 |
@@ -67,7 +67,7 @@ Regenerate anytime via `npm run erp:report -- --write`.
 | 5 | OCT '26 | PERSONAL_DEBT | Personal Peer Obligation | Personal / Peer | 1/1 | Rp 200.000 | YES |
 | 6 | NOV '26 | PAYLATER | SPayLater Baseline Cycle Schedule | SPayLater | 1/1 | Rp 3.264.116 | YES |
 | 7 | NOV '26 | PERSONAL_DEBT | SPinjam Legacy Installment | SPinjam | 1/2 | Rp 197.960 | YES |
-| 8 | DEC '26 | PAYLATER | SPayLater Baseline Installments | SPayLater | 1/1 | Rp 1.942.344 | NO |
+| 8 | DEC '26 | PAYLATER | SPayLater Baseline Installments | SPayLater | 1/1 | Rp 2.024.865 | NO |
 | 9 | DEC '26 | PAYLATER | 11.11 Promo Checkout (3x 0%) | SPayLater | 1/3 | Rp 159.904 | NO |
 | 20 | DEC '26 | PAYLATER | 11.11 Early Settlement Batch (3x) | SPayLater | 1/3 | Rp 30.667 | NO |
 | 21 | DEC '26 | PAYLATER | Haircut (Nov 14 QRIS PayLater, Due Dec 25) | SPayLater | 1/1 | Rp 75.000 | NO |
@@ -86,6 +86,7 @@ Regenerate anytime via `npm run erp:report -- --write`.
 | 458 | DEC '26 | PAYLATER | Cigar | SPayLater | 1/1 | Rp 27.000 | NO |
 | 596 | DEC '26 | PAYLATER | Ayam Gepuk | SPayLater | 1/1 | Rp 38.500 | NO |
 | 597 | DEC '26 | PAYLATER | Dunhill | SPayLater | 1/1 | Rp 33.000 | NO |
+| 718 | DEC '26 | PAYLATER | Americano & Dunhill | SPayLater | 1/1 | Rp 50.000 | NO |
 | 12 | JAN '27 | PAYLATER | SPayLater Baseline Installments | SPayLater | 1/1 | Rp 1.432.318 | NO |
 | 13 | JAN '27 | PAYLATER | 11.11 Promo Checkout (3x 0%) | SPayLater | 2/3 | Rp 159.904 | NO |
 | 15 | JAN '27 | P1_VAULT_REFUND | Hoodie P1 Vault Forward-Borrow Refund | Internal P1 Vault | 1/1 | Rp 250.000 | NO |
@@ -116,7 +117,7 @@ Regenerate anytime via `npm run erp:report -- --write`.
 | 13 | Administrasi Notifikasi SMS | FULL | 10/2026 | Rp 10.000 | 1 | YES |
 | 14 | API Deepseek | FULL | 10/2026 | Rp 81.278 | 1 | YES |
 | 15 | APPLE.COM/BILL ITUNES.COM IRL | FULL | 10/2026 | Rp 71.000 | 1 | YES |
-| 16 | Anthropic API Claude | INSTALLMENT | 10/2026 | Rp 18.712 | 6 | YES |
+| 16 | Permata SimplePay — API (01-02/06) | INSTALLMENT | 10/2026 | Rp 18.712 | 2 | YES |
 | 17 | Other | FULL | 10/2026 | Rp 11.000 | 1 | YES |
 | 19 | New Balance 740 Grey Blue | INSTALLMENT | 11/2026 | Rp 316.500 | 6 | YES |
 | 21 | Vidio Premium | FULL | 11/2026 | Rp 77.000 | 1 | YES |
@@ -124,8 +125,15 @@ Regenerate anytime via `npm run erp:report -- --write`.
 | 24 | Thrifting T-Shirt Rolling Stones | FULL | 11/2026 | Rp 180.000 | 1 | YES |
 | 25 | Opencode Subscription | RECURRING | 11/2026 | Rp 186.114 | 1 | NO |
 | 27 | Others | FULL | 11/2026 | Rp 43.000 | 1 | YES |
-| 29 | Gemini AI Pro 2 | RECURRING | 12/2026 | Rp 85.470 | 1 | YES |
-| 30 | Google AI Pro (One-Off Nov 12) | FULL | 12/2026 | Rp 29.000 | 1 | YES |
+| 29 | Gemini AI Pro 2 | RECURRING | 1/2027 | Rp 85.470 | 1 | YES |
+| 30 | Google One 01M (Nov 12) | FULL | 12/2026 | Rp 34.410 | 1 | YES |
+| 349 | Anthropic API Claude (03-06/06 Permata) | INSTALLMENT | 12/2026 | Rp 16.712 | 4 | YES |
+| 350 | APPLE.COM/BILL ITUNES.COM IRL (Oct 25) | FULL | 12/2026 | Rp 11.000 | 1 | YES |
+| 351 | APPLE.COM/BILL ITUNES.COM IRL (Oct 29) | FULL | 12/2026 | Rp 77.000 | 1 | YES |
+| 352 | APPLE.COM/BILL ITUNES.COM IRL (Oct 31) | FULL | 12/2026 | Rp 11.000 | 1 | YES |
+| 353 | APPLE.COM/BILL ITUNES.COM IRL (Nov 08) | FULL | 12/2026 | Rp 15.000 | 1 | YES |
+| 354 | Biaya E-Billing Permata | FULL | 12/2026 | Rp 5.000 | 1 | YES |
+| 355 | Biaya Notifikasi Transaksi Permata | FULL | 12/2026 | Rp 10.000 | 1 | YES |
 
 ## Manual Savings Deposits (`SavingsManualTransaction`)
 
