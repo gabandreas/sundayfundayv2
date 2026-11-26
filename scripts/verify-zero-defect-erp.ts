@@ -83,15 +83,15 @@ async function main() {
     assert.equal(novPacing.daysInCycle, 30, '11/2026 must be 30 days (28 Oct – 26 Nov)');
     assert.equal(novPacing.daysRemaining, 5, '11/2026 on Nov 22 must have 5 days remaining');
     assert.equal(Math.round(novPacing.totalOperationalBudget), 1720316, '11/2026 pacing totalOperationalBudget must be 1,720,316');
-    assert.equal(Math.round(novPacing.totalDailySpent), 1712978, '11/2026 pacing totalDailySpent must be 1,712,978');
-    assert.equal(Math.round(novPacing.remainingBudget), 7338, '11/2026 pacing remainingBudget must be Rp 7,338');
+    assert.equal(Math.round(novPacing.totalDailySpent), 1720116, '11/2026 pacing totalDailySpent must be 1,720,116');
+    assert.equal(Math.round(novPacing.remainingBudget), 200, '11/2026 pacing remainingBudget must be Rp 200');
 
     // Upcoming period (22 Nov 2026): 12/2026 (27 Nov – 27 Dec 2026, PRE_PAYDAY Day 0, starts in 5 days) with Natal THR H-7 Dec 18 & Nov 25 Benefit EWA (-Rp 360.500)
     assert.equal(Math.round(dec26?.finalTotalIncome ?? -1), 9376925, '12/2026 finalTotalIncome (Bank Salary 5,543,500 + Natal THR 3,833,425) must be 9,376,925');
-    assert.equal(Math.round(dec26?.totalDeductions ?? -1), 4440302, '12/2026 Total Debt (incl. Permata CC statement 24/11/26 Rp 704,196) must be 4,440,302');
+    assert.equal(Math.round(dec26?.totalDeductions ?? -1), 4767021, '12/2026 Total Debt (incl. Permata CC statement Rp 704,196 + Nov 26 SPinjam 200k full payoff Rp 226,719 + Friend Rp 100k) must be 4,767,021');
     assert.equal(Math.round(dec26?.actualDailyOperational ?? -1), 1500000, '12/2026 actualDailyOperational must be 1,500,000');
     assert.equal(Math.round(dec26?.actualSavings ?? -1), 1000000, '12/2026 P1 must be 1,000,000 funded with Natal THR');
-    assert.equal(Math.round(dec26?.selfReward ?? -1), 2136623, '12/2026 P2 must be 2,136,623');
+    assert.equal(Math.round(dec26?.selfReward ?? -1), 1809904, '12/2026 P2 must be 1,809,904');
     assert.equal(Math.round(dec26?.deficitUncovered ?? -1), 0, '12/2026 deficitUncovered must be 0 with Natal THR');
 
     const decPacing = await financeSelectors.getPacing(
@@ -284,13 +284,13 @@ async function main() {
     assert.equal(creditDec.isSafeCeilingExceeded, false, '12/2026 isSafeCeilingExceeded must be false with Natal THR & CC #31 deleted');
     assert.equal(
       creditDec.ceilingBreakdown.recommendedSafeCombinedCeiling,
-      6906955,
-      `12/2026 Safe Ceiling must be Rp 6,906,955, got ${creditDec.ceilingBreakdown.recommendedSafeCombinedCeiling}`,
+      6580236,
+      `12/2026 Safe Ceiling must be Rp 6,580,236, got ${creditDec.ceilingBreakdown.recommendedSafeCombinedCeiling}`,
     );
     assert.equal(creditDec.maturityMonth, 12, '12/2026 credit usage card must map directly to 12/2026 maturity');
     assert.equal(creditDec.maturityYear, 2026, '12/2026 credit usage maturity year must be 2026');
     console.log(
-      `  PASS: 12/2026 Safe Ceiling = Rp 6,906,955, isSafeCeilingExceeded = ${creditDec.isSafeCeilingExceeded}, Maturity = 12/2026.`,
+      `  PASS: 12/2026 Safe Ceiling = Rp 6,580,236, isSafeCeilingExceeded = ${creditDec.isSafeCeilingExceeded}, Maturity = 12/2026.`,
     );
 
     // 6. Verify Debt Optimizer excludes P1_VAULT_REFUND & matches exact SPinjam unlocks
@@ -429,8 +429,8 @@ async function main() {
     );
     assert.equal(
       intelDec.networth.currentCycleDebtRp,
-      4440302,
-      `12/2026 currentCycleDebtRp must be 4,440,302, got ${intelDec.networth.currentCycleDebtRp}`,
+      4767021,
+      `12/2026 currentCycleDebtRp must be 4,767,021, got ${intelDec.networth.currentCycleDebtRp}`,
     );
     const p1AccountsTotal = (intelNov.effectiveAssetAccounts ?? [])
       .filter((a: any) => a.accountType === 'SAVINGS_VAULT')
@@ -440,7 +440,7 @@ async function main() {
       `User #1 11/2026 P1 vault (${p1AccountsTotal}) must exclude pre-epoch phantom backfill`,
     );
     console.log(
-      `  PASS: Zero Hoodie P1 leak, 03/2027 contracts = ${mar27ActiveContracts.length} (CC only), 11/2026 currentCycleDebtRp = Rp 4,522,976, 12/2026 currentCycleDebtRp = Rp 4,440,302, P1 vault = Rp ${p1AccountsTotal}.`,
+      `  PASS: Zero Hoodie P1 leak, 03/2027 contracts = ${mar27ActiveContracts.length} (CC only), 11/2026 currentCycleDebtRp = Rp 4,522,976, 12/2026 currentCycleDebtRp = Rp 4,767,021, P1 vault = Rp ${p1AccountsTotal}.`,
     );
 
     // 11. Verify Two-Stage 02/2027 Payday Date (Jan 27, 2027) & Non-Double-Counted Dec 2026 Natal THR Timeline

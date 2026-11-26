@@ -1,6 +1,6 @@
 # Live Ledger State (`userId = 1` / Gabriel)
 
-Generated from Neon PostgreSQL Cloud at 2026-11-26T06:09:46.609Z.
+Generated from Neon PostgreSQL Cloud at 2026-11-26T11:59:20.522Z.
 Regenerate anytime via `npm run erp:report -- --write`.
 
 ## Global Configuration
@@ -20,7 +20,7 @@ Regenerate anytime via `npm run erp:report -- --write`.
 | 09/2026 | LOCKED | NO | Rp 5.881.400 | Rp 2.985.684 | Rp 2.045.000 | Rp 500.000 | Rp 716 | Rp 0 | 2026-08-25 |
 | 10/2026 | LOCKED | NO | Rp 5.791.000 | Rp 4.082.655 | Rp 991.000 | Rp 328.345 | Rp 0 | Rp 0 | 2026-09-28 |
 | 11/2026 | DRAFT | YES | Rp 5.891.000 | Rp 4.522.976 | Rp 1.720.316 | Rp 6.341 | Rp 250.000 | Rp 108.633 | 2026-10-28 |
-| 12/2026 | DRAFT | NO | Rp 9.376.925 | Rp 4.440.302 | Rp 1.500.000 | Rp 1.000.000 | Rp 2.136.623 | Rp 0 | 2026-11-27 |
+| 12/2026 | DRAFT | NO | Rp 9.376.925 | Rp 4.767.021 | Rp 1.500.000 | Rp 1.000.000 | Rp 1.809.904 | Rp 0 | 2026-11-27 |
 | 01/2027 | DRAFT | NO | Rp 5.941.000 | Rp 3.169.115 | Rp 1.500.000 | Rp 736.885 | Rp 0 | Rp 0 | 2026-12-28 |
 | 02/2027 | DRAFT | NO | Rp 5.891.000 | Rp 1.965.159 | Rp 1.500.000 | Rp 1.000.000 | Rp 890.841 | Rp 0 | 2027-01-27 |
 | 03/2027 | DRAFT | NO | Rp 5.891.000 | Rp 833.996 | Rp 1.500.000 | Rp 1.000.000 | Rp 2.022.004 | Rp 0 | 2027-02-26 |
@@ -47,7 +47,7 @@ Regenerate anytime via `npm run erp:report -- --write`.
 | SEP '26 (9/2026) | Rp 2.728.684 | Rp 0 | Rp 257.000 | Rp 2.985.684 |
 | OCT '26 (10/2026) | Rp 2.687.091 | Rp 720.564 | Rp 200.000 | Rp 3.607.655 |
 | NOV '26 (11/2026) | Rp 3.264.116 | Rp 1.060.900 | Rp 197.960 | Rp 4.522.976 |
-| DEC '26 (12/2026) | Rp 3.066.136 | Rp 704.196 | Rp 669.970 | Rp 4.440.302 |
+| DEC '26 (12/2026) | Rp 3.066.136 | Rp 704.196 | Rp 996.689 | Rp 4.767.021 |
 | JAN '27 (1/2027) | Rp 1.622.889 | Rp 626.256 | Rp 919.970 | Rp 3.169.115 |
 | FEB '27 (2/2027) | Rp 816.893 | Rp 626.256 | Rp 522.010 | Rp 1.965.159 |
 | MAR '27 (3/2027) | Rp 207.740 | Rp 626.256 | Rp 0 | Rp 833.996 |
@@ -87,6 +87,8 @@ Regenerate anytime via `npm run erp:report -- --write`.
 | 596 | DEC '26 | PAYLATER | Ayam Gepuk | SPayLater | 1/1 | Rp 38.500 | NO |
 | 597 | DEC '26 | PAYLATER | Dunhill | SPayLater | 1/1 | Rp 33.000 | NO |
 | 718 | DEC '26 | PAYLATER | Americano & Dunhill | SPayLater | 1/1 | Rp 50.000 | NO |
+| 732 | DEC '26 | PERSONAL_DEBT | SPinjam Rp 200k — Nov 26 Emergency Full Payoff (3x75.573) | SPinjam | 1/1 | Rp 226.719 | NO |
+| 733 | DEC '26 | PERSONAL_DEBT | Pinjaman Teman — Nov 26 Emergency Bridge | Personal / Peer | 1/1 | Rp 100.000 | NO |
 | 12 | JAN '27 | PAYLATER | SPayLater Baseline Installments | SPayLater | 1/1 | Rp 1.432.318 | NO |
 | 13 | JAN '27 | PAYLATER | 11.11 Promo Checkout (3x 0%) | SPayLater | 2/3 | Rp 159.904 | NO |
 | 15 | JAN '27 | P1_VAULT_REFUND | Hoodie P1 Vault Forward-Borrow Refund | Internal P1 Vault | 1/1 | Rp 250.000 | NO |
